@@ -2,6 +2,10 @@ import os
 import random
 import numpy as np
 import srt
+# Pillow 10+ removed ANTIALIAS; patch before MoviePy imports it
+from PIL import Image as _PIL_Image
+if not hasattr(_PIL_Image, 'ANTIALIAS'):
+    _PIL_Image.ANTIALIAS = _PIL_Image.LANCZOS
 from moviepy.editor import (
     VideoFileClip,
     AudioFileClip,
