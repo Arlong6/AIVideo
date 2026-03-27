@@ -56,6 +56,19 @@ jobs:
           print("Credentials set up OK")
           PYEOF
 
+      - name: Debug credentials
+        run: |
+          python3 -c "
+          from dotenv import load_dotenv
+          import os
+          load_dotenv()
+          key = os.getenv('ANTHROPIC_API_KEY', '')
+          print(f'Anthropic key length: {len(key)}')
+          print(f'Key prefix: {key[:15]}...')
+          print('.env exists:', os.path.exists('.env'))
+          print('.env content length:', len(open('.env').read()) if os.path.exists('.env') else 0)
+          "
+
       - name: Video 1 — slot 1 (publishes at 10:00 AM Taiwan)
         run: python generate.py --auto --upload --slot 1
 
