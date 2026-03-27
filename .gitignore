@@ -1,0 +1,21 @@
+# Secrets & credentials
+.env
+client_secrets.json
+youtube_token.pickle
+
+# Output videos (too large for git)
+output/
+music_cache/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Logs
+logs/
+
+# macOS
+.DS_Store

@@ -1,0 +1,154 @@
+"""
+Scene-aware footage downloader.
+Downloads Pexels clips in story order — each visual scene gets its own search query,
+so clips are thematically matched to the narration arc.
+Files named s{scene_idx:02d}_clip{n}.mp4 so assembler can preserve scene order.
+"""
+
+import requests
+import os
+import json
+from config import PEXELS_API_KEY
+
+# Fallback queries if a scene-specific search returns no results
+# Ordered dark → atmospheric, crime-specific first
+FALLBACK_QUERIES = [
+    "crime scene police tape night",
+    "blood drops dark floor close-up",
+    "forensic gloves evidence bag",
+    "chalk outline crime scene dark room",
+    "detective pinning photos board",
+    "handcuffs close-up shadow",
+    "dark interrogation room single light",
+    "body bag morgue corridor",
+    "knife blade dark close-up",
+    "abandoned building dark interior",
+    "dark foggy alley night",
+    "rain on window night dark",
+    "shadow hand wall thriller",
+    "old newspaper crime headlines",
+    "candle flame darkness close-up",
+    "storm lightning dark sky",
+    "silhouette person dark hallway",
+    "red light dark alley night",
+    "vintage typewriter crime letter",
+    "clock ticking midnight close-up",
+]
+
+SEEN_IDS_FILE = "pexels_seen_ids.json"
+CLIPS_PER_SCENE = 2   # clips downloaded per visual scene
+
+
+def _load_seen_ids() -> set:
+    if os.path.exists(SEEN_IDS_FILE):
+        with open(SEEN_IDS_FILE, "r") as f:
+            return set(json.load(f))
+    return set()
+
+
+def _save_seen_ids(seen: set):
+    with open(SEEN_IDS_FILE, "w") as f:
+        json.dump(sorted(seen), f)
+
+
+def _search_pexels(query: str, page: int, headers: dict) -> list:
+    """Search Pexels and return list of video objects."""
+    try:
+        resp = requests.get(
+            "https://api.pexels.com/videos/search",
+            headers=headers,
+            params={"query": query, "per_page": 8, "page": page, "orientation": "portrait"},
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            return resp.json().get("videos", [])
+    except Exception as e:
+        print(f"    [WARN] Request failed: {e}")
+    return []
+
+
+def _download_clip(video: dict, filepath: str) -> bool:
+    files = sorted(
+        [f for f in video["video_files"] if f["quality"] in ("hd", "sd")],
+        key=lambda x: x.get("width", 0),
+        reverse=True,
+    )
+    if not files:
+        return False
+    try:
+        with requests.get(files[0]["link"], stream=True, timeout=30) as r:
+            r.raise_for_status()
+            with open(filepath, "wb") as fh:
+                for chunk in r.iter_content(chunk_size=8192):
+                    fh.write(chunk)
+        return True
+    except Exception as e:
+        print(f"    [WARN] Download failed: {e}")
+        return False
+
+
+def download_footage(visual_scenes: list, output_dir: str):
+    """
+    Download stock footage matched to the story's visual scenes.
+
+    visual_scenes: list of English Pexels search queries in story order (ideally 15).
+    Each scene downloads CLIPS_PER_SCENE clips, named s{scene_idx:02d}_clip{n}.mp4.
+    Falls back to generic dark atmosphere queries if a scene yields no results.
+    """
+    if not PEXELS_API_KEY:
+        print("  [SKIP] No Pexels API key — add PEXELS_API_KEY to .env")
+        return
+
+    clips_dir = os.path.join(output_dir, "clips")
+    os.makedirs(clips_dir, exist_ok=True)
+
+    headers = {"Authorization": PEXELS_API_KEY}
+    seen_ids = _load_seen_ids()
+    total_downloaded = 0
+    fallback_idx = 0
+
+    for scene_idx, query in enumerate(visual_scenes):
+        print(f"  Scene {scene_idx+1:02d}/{len(visual_scenes)}: '{query}'")
+        clips_saved = 0
+
+        # Try page 1 then page 2 for this query
+        for page in (1, 2):
+            if clips_saved >= CLIPS_PER_SCENE:
+                break
+            videos = _search_pexels(query, page, headers)
+            for video in videos:
+                if clips_saved >= CLIPS_PER_SCENE:
+                    break
+                if video["id"] in seen_ids:
+                    continue
+                filename = f"s{scene_idx:02d}_clip{clips_saved+1}.mp4"
+                filepath = os.path.join(clips_dir, filename)
+                if _download_clip(video, filepath):
+                    seen_ids.add(video["id"])
+                    clips_saved += 1
+                    total_downloaded += 1
+                    print(f"    ✅ {filename}")
+
+        # Fallback: if scene query returned nothing, use a generic dark query
+        while clips_saved < CLIPS_PER_SCENE:
+            fb_query = FALLBACK_QUERIES[fallback_idx % len(FALLBACK_QUERIES)]
+            fallback_idx += 1
+            print(f"    [FALLBACK] '{fb_query}'")
+            videos = _search_pexels(fb_query, 1, headers)
+            for video in videos:
+                if clips_saved >= CLIPS_PER_SCENE:
+                    break
+                if video["id"] in seen_ids:
+                    continue
+                filename = f"s{scene_idx:02d}_clip{clips_saved+1}.mp4"
+                filepath = os.path.join(clips_dir, filename)
+                if _download_clip(video, filepath):
+                    seen_ids.add(video["id"])
+                    clips_saved += 1
+                    total_downloaded += 1
+                    print(f"    ✅ {filename} (fallback)")
+            if clips_saved == 0:
+                break  # give up on this scene
+
+    _save_seen_ids(seen_ids)
+    print(f"  Downloaded {total_downloaded} clips ({len(visual_scenes)} scenes × {CLIPS_PER_SCENE})")
