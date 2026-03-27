@@ -128,11 +128,11 @@ def _call_claude(prompt: str) -> dict:
                 end = content.rfind("}") + 1
                 return json.loads(content[start:end])
             except anthropic.APIStatusError as e:
-                if e.status_code == 529:
+                if e.status_code in (500, 529):
                     wait = 20 * (attempt + 1)
-                    print(f"  [WARN] {model} overloaded, retrying in {wait}s... (attempt {attempt+1}/3)")
+                    print(f"  [WARN] {model} error {e.status_code}, retrying in {wait}s... (attempt {attempt+1}/3)")
                     time.sleep(wait)
                 else:
                     raise
-        print(f"  [WARN] {model} overloaded after 3 retries, trying next model...")
+        print(f"  [WARN] {model} failed after 3 retries, trying next model...")
     raise RuntimeError("All Claude models overloaded")
