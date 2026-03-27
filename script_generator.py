@@ -112,22 +112,27 @@ def generate_scripts(topic: str) -> dict:
 
 
 def _call_claude(prompt: str) -> dict:
-    for attempt in range(5):
-        try:
-            message = client.messages.create(
-                model="claude-opus-4-6",
-                max_tokens=2500,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            content = message.content[0].text
-            start = content.find("{")
-            end = content.rfind("}") + 1
-            return json.loads(content[start:end])
-        except anthropic.APIStatusError as e:
-            if e.status_code == 529:
-                wait = 30 * (attempt + 1)
-                print(f"  [WARN] Claude overloaded, retrying in {wait}s... (attempt {attempt+1}/5)")
-                time.sleep(wait)
-            else:
-                raise
-    raise RuntimeError("Claude API overloaded after 5 retries")
+    models = ["claude-opus-4-6", "claude-sonnet-4-6"]
+    for model in models:
+        for attempt in range(3):
+            try:
+                message = client.messages.create(
+                    model=model,
+                    max_tokens=2500,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                if model != "claude-opus-4-6":
+                    print(f"  [INFO] Used fallback model: {model}")
+                content = message.content[0].text
+                start = content.find("{")
+                end = content.rfind("}") + 1
+                return json.loads(content[start:end])
+            except anthropic.APIStatusError as e:
+                if e.status_code == 529:
+                    wait = 20 * (attempt + 1)
+                    print(f"  [WARN] {model} overloaded, retrying in {wait}s... (attempt {attempt+1}/3)")
+                    time.sleep(wait)
+                else:
+                    raise
+        print(f"  [WARN] {model} overloaded after 3 retries, trying next model...")
+    raise RuntimeError("All Claude models overloaded")
