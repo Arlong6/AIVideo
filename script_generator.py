@@ -1,5 +1,6 @@
 import anthropic
 import json
+import time
 from config import ANTHROPIC_API_KEY
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -111,12 +112,19 @@ def generate_scripts(topic: str) -> dict:
 
 
 def _call_claude(prompt: str) -> dict:
-    message = client.messages.create(
-        model="claude-opus-4-6",
-        max_tokens=2500,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    content = message.content[0].text
-    start = content.find("{")
-    end = content.rfind("}") + 1
-    return json.loads(content[start:end])
+    for attempt in range(5):
+        try:
+            message = client.messages.create(
+                model="claude-opus-4-6",
+                max_tokens=2500,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            content = message.content[0].text
+            start = content.find("{")
+            end = content.rfind("}") + 1
+            return json.loads(content[start:end])
+        except anthropic.OverloadedError:
+            wait = 30 * (attempt + 1)
+            print(f"  [WARN] Claude overloaded, retrying in {wait}s... (attempt {attempt+1}/5)")
+            time.sleep(wait)
+    raise RuntimeError("Claude API overloaded after 5 retries")
