@@ -123,8 +123,11 @@ def _call_claude(prompt: str) -> dict:
             start = content.find("{")
             end = content.rfind("}") + 1
             return json.loads(content[start:end])
-        except anthropic.OverloadedError:
-            wait = 30 * (attempt + 1)
-            print(f"  [WARN] Claude overloaded, retrying in {wait}s... (attempt {attempt+1}/5)")
-            time.sleep(wait)
+        except anthropic.APIStatusError as e:
+            if e.status_code == 529:
+                wait = 30 * (attempt + 1)
+                print(f"  [WARN] Claude overloaded, retrying in {wait}s... (attempt {attempt+1}/5)")
+                time.sleep(wait)
+            else:
+                raise
     raise RuntimeError("Claude API overloaded after 5 retries")
