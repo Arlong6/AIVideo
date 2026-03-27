@@ -8,7 +8,9 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
+    env:
+      PYTHONUNBUFFERED: "1"
 
     permissions:
       contents: write        # for committing used_topics.json back to repo
@@ -67,6 +69,8 @@ jobs:
           print(f'Key prefix: {key[:15]}...')
           print('.env exists:', os.path.exists('.env'))
           print('.env content length:', len(open('.env').read()) if os.path.exists('.env') else 0)
+          pexels = os.getenv('PEXELS_API_KEY', '')
+          print(f'Pexels key length: {len(pexels)}')
           "
 
       - name: Video 1 — slot 1 (publishes at 10:00 AM Taiwan)
