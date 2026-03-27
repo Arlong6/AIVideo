@@ -24,6 +24,7 @@ from video_assembler import assemble_video
 from youtube_uploader import upload_video
 from topic_manager import pick_topic, save_used_topic
 from thumbnail_generator import generate_thumbnail, upload_thumbnail
+from telegram_notify import notify_upload
 
 
 def save_metadata(output_dir: str, scripts: dict):
@@ -144,6 +145,9 @@ def main():
         privacy = "public" if args.public else "private"
         youtube_url = upload_video(final_path, scripts["zh"], privacy=privacy,
                                    thumb_path=thumb_path, publish_at=publish_at)
+        if youtube_url:
+            pub_str = publish_dt.strftime('%Y-%m-%d %H:%M') if publish_at else ""
+            notify_upload(topic, youtube_url, args.slot or 1, pub_str)
     else:
         print("\n[6/6] Skipping YouTube upload (add --upload to enable)")
 
