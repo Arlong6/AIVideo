@@ -42,13 +42,19 @@ jobs:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
-          python3 -c "
+          python3 - << 'PYEOF'
           import base64, os
           open('youtube_token.pickle','wb').write(base64.b64decode(os.environ['YOUTUBE_TOKEN_B64']))
           open('client_secrets.json','wb').write(base64.b64decode(os.environ['CLIENT_SECRETS_B64']))
-          "
-          printf "ANTHROPIC_API_KEY=%s\nPEXELS_API_KEY=%s\nELEVENLABS_API_KEY=%s\nPIXABAY_API_KEY=%s\n" \
-            "$ANTHROPIC_API_KEY" "$PEXELS_API_KEY" "$ELEVENLABS_API_KEY" "$PIXABAY_API_KEY" > .env
+          env_content = "\n".join([
+              f"ANTHROPIC_API_KEY={os.environ['ANTHROPIC_API_KEY']}",
+              f"PEXELS_API_KEY={os.environ['PEXELS_API_KEY']}",
+              f"ELEVENLABS_API_KEY={os.environ['ELEVENLABS_API_KEY']}",
+              f"PIXABAY_API_KEY={os.environ.get('PIXABAY_API_KEY','')}",
+          ])
+          open('.env','w').write(env_content)
+          print("Credentials set up OK")
+          PYEOF
 
       - name: Video 1 — slot 1 (publishes at 10:00 AM Taiwan)
         run: python generate.py --auto --upload --slot 1
