@@ -6,6 +6,7 @@ large bold Chinese title, subtle vignette. 1280×720 (YouTube standard).
 """
 
 import os
+import random
 import textwrap
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -50,6 +51,53 @@ def _make_dark_background() -> Image.Image:
             fill=(80 + alpha, 0, 0),
         )
 
+    return img
+
+
+def _add_city_lights(img: Image.Image, seed: int) -> Image.Image:
+    """Add blurred bokeh dots in upper half for city-at-night atmosphere."""
+    rng = random.Random(seed)
+    overlay = Image.new("RGBA", (THUMB_W, THUMB_H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    colors = [(180, 60, 60), (200, 80, 30), (220, 160, 60), (80, 80, 180)]
+    for _ in range(60):
+        x = rng.randint(0, THUMB_W)
+        y = rng.randint(0, THUMB_H // 2)
+        r = rng.randint(4, 18)
+        color = rng.choice(colors)
+        alpha = rng.randint(30, 90)
+        draw.ellipse([x - r, y - r, x + r, y + r], fill=(*color, alpha))
+    blurred = overlay.filter(ImageFilter.GaussianBlur(radius=8))
+    result = img.convert("RGBA")
+    result = Image.alpha_composite(result, blurred)
+    return result.convert("RGB")
+
+
+def _add_fog(img: Image.Image) -> Image.Image:
+    """Add a subtle horizontal fog band across the middle."""
+    arr = np.array(img).astype(np.float32)
+    h, w = arr.shape[:2]
+    fog = np.zeros((h, w), dtype=np.float32)
+    center_y = h * 0.55
+    band_h = h * 0.35
+    for y in range(h):
+        dist = abs(y - center_y) / band_h
+        fog[y] = max(0.0, 1.0 - dist) * 0.12
+    arr += fog[:, :, np.newaxis] * 255
+    return Image.fromarray(arr.clip(0, 255).astype(np.uint8))
+
+
+def _add_blood_splatter(img: Image.Image, seed: int) -> Image.Image:
+    """Add subtle dark crimson droplets in corners."""
+    rng = random.Random(seed)
+    draw = ImageDraw.Draw(img)
+    for _ in range(12):
+        corner_x = rng.choice([rng.randint(0, 120), rng.randint(THUMB_W - 120, THUMB_W)])
+        corner_y = rng.choice([rng.randint(0, 80), rng.randint(THUMB_H - 80, THUMB_H)])
+        r = rng.randint(2, 8)
+        alpha_val = rng.randint(60, 140)
+        color = (rng.randint(100, 160), 0, 0)
+        draw.ellipse([corner_x - r, corner_y - r, corner_x + r, corner_y + r], fill=color)
     return img
 
 
@@ -131,9 +179,13 @@ def generate_thumbnail(title: str, output_path: str) -> str:
     Generate a dark cinematic YouTube thumbnail.
     Returns path to saved 1280×720 JPEG.
     """
+    seed = hash(title) & 0xFFFFFFFF
     img = _make_dark_background()
+    img = _add_city_lights(img, seed)
+    img = _add_fog(img)
     img = _add_vignette(img)
     img = _draw_title(img, title)
+    img = _add_blood_splatter(img, seed + 1)
 
     # Final slight blur on background (keeps text sharp, bg cinematic)
     img.save(output_path, "JPEG", quality=95)

@@ -11,6 +11,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -22,7 +23,7 @@ from wiki_footage import get_wiki_clips
 from music_downloader import get_background_music
 from video_assembler import assemble_video
 from youtube_uploader import upload_video
-from topic_manager import pick_topic, save_used_topic
+from topic_manager import pick_topic, save_used_topic, save_today_reserved
 from thumbnail_generator import generate_thumbnail, upload_thumbnail
 from telegram_notify import notify_upload
 
@@ -47,6 +48,7 @@ def main():
     if args.auto:
         print("\n[0/6] Picking today's topic...")
         topic = pick_topic(refresh_news=True)
+        save_today_reserved(topic)
         print(f"Today's topic: {topic}")
     elif args.topic:
         topic = args.topic
@@ -54,9 +56,9 @@ def main():
         parser.print_help()
         return
 
-    # Create output directory
+    # Create output directory (ASCII-only path for ffmpeg/subtitle compatibility)
     date_str = datetime.now().strftime("%Y%m%d")
-    safe_topic = topic[:20].replace("/", "-").replace(" ", "_")
+    safe_topic = re.sub(r'[^\x00-\x7F]+', '', topic[:30]).strip().replace(" ", "_").replace("/", "-") or f"slot{args.slot or 1}"
     output_dir = os.path.join("output", f"{date_str}_{safe_topic}")
     os.makedirs(output_dir, exist_ok=True)
     print(f"\nOutput directory: {output_dir}")

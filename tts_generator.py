@@ -17,7 +17,7 @@ def generate_voiceover(text: str, lang: str, output_path: str):
             _generate_elevenlabs(text, output_path)
             return
         except Exception as e:
-            print(f"  [WARN] ElevenLabs failed ({e.__class__.__name__}), falling back to edge-tts")
+            print(f"  [WARN] ElevenLabs failed ({e.__class__.__name__}: {e}), falling back to edge-tts")
     _generate_edge_tts(text, lang, output_path)
 
 
@@ -28,7 +28,7 @@ def _generate_elevenlabs(text: str, output_path: str):
     client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
     audio = client.text_to_speech.convert(
-        voice_id="cgSgspJ2msm6clMCkdW9",  # Jessica - warm storytelling
+        voice_id="onwK4e9ZLuTAKqWW03F9",  # Daniel - deep crime documentary
         text=text,
         model_id="eleven_multilingual_v2",
         voice_settings=VoiceSettings(
@@ -41,7 +41,8 @@ def _generate_elevenlabs(text: str, output_path: str):
 
     with open(output_path, "wb") as f:
         for chunk in audio:
-            f.write(chunk)
+            if chunk:
+                f.write(chunk)
     print(f"  Voiceover saved (ElevenLabs EN): {output_path}")
 
 

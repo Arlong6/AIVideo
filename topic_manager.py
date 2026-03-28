@@ -12,6 +12,7 @@ Flow:
 import json
 import os
 import re
+import time
 from datetime import datetime
 
 import anthropic
@@ -31,6 +32,31 @@ NEWS_RSS_URLS = [
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
+TODAY_TOPICS_FILE = "today_topics.json"
+
+
+def _call_claude_text(prompt: str, max_tokens: int = 300) -> str:
+    """Call Claude with Opus→Sonnet fallback and 529/500 retry."""
+    models = ["claude-opus-4-6", "claude-sonnet-4-6"]
+    for model in models:
+        for attempt in range(3):
+            try:
+                msg = client.messages.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                return msg.content[0].text.strip()
+            except anthropic.APIStatusError as e:
+                if e.status_code in (500, 529):
+                    wait = 20 * (attempt + 1)
+                    print(f"  [WARN] {model} error {e.status_code}, retrying in {wait}s...")
+                    time.sleep(wait)
+                else:
+                    raise
+        print(f"  [WARN] {model} failed after 3 retries, trying next model...")
+    raise RuntimeError("All Claude models overloaded")
+
 
 # ── Used topics tracking ───────────────────────────────────────────────────────
 
@@ -40,6 +66,33 @@ def load_used_topics() -> set:
     with open(USED_TOPICS_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
     return set(data.get("used", []))
+
+
+def _load_today_reserved() -> set:
+    """Load topics already chosen today (other slots in same run)."""
+    if not os.path.exists(TODAY_TOPICS_FILE):
+        return set()
+    with open(TODAY_TOPICS_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    today = datetime.now().strftime("%Y-%m-%d")
+    if data.get("date") != today:
+        return set()
+    return set(data.get("topics", []))
+
+
+def save_today_reserved(topic: str):
+    """Reserve topic for today so other slots don't reuse it."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    data = {"date": today, "topics": []}
+    if os.path.exists(TODAY_TOPICS_FILE):
+        with open(TODAY_TOPICS_FILE, "r", encoding="utf-8") as f:
+            existing = json.load(f)
+        if existing.get("date") == today:
+            data["topics"] = existing.get("topics", [])
+    if topic not in data["topics"]:
+        data["topics"].append(topic)
+    with open(TODAY_TOPICS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 
 def save_used_topic(topic: str):
@@ -119,13 +172,7 @@ def suggest_topics_from_news(headlines: list[str], used_topics: set, count: int 
 ["題材1", "題材2", "題材3", "題材4", "題材5"]"""
 
     try:
-        msg = client.messages.create(
-            model="claude-opus-4-6",
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = msg.content[0].text.strip()
-        # Extract JSON array
+        text = _call_claude_text(prompt)
         m = re.search(r'\[.*?\]', text, re.DOTALL)
         if m:
             topics = json.loads(m.group())
@@ -155,12 +202,7 @@ def suggest_topics_from_archive(used_topics: set, count: int = 5) -> list[str]:
 ["題材1", "題材2", "題材3", "題材4", "題材5"]"""
 
     try:
-        msg = client.messages.create(
-            model="claude-opus-4-6",
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = msg.content[0].text.strip()
+        text = _call_claude_text(prompt)
         m = re.search(r'\[.*?\]', text, re.DOTALL)
         if m:
             topics = json.loads(m.group())
@@ -220,6 +262,10 @@ def pick_topic(refresh_news: bool = True) -> str:
     Returns the chosen topic string.
     """
     used_topics = load_used_topics()
+    today_reserved = _load_today_reserved()
+    if today_reserved:
+        print(f"  Today's reserved (other slots): {today_reserved}")
+    used_topics = used_topics | today_reserved
     print(f"  Used topics so far: {len(used_topics)}")
 
     suggestions = []
