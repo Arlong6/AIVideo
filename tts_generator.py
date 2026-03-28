@@ -12,12 +12,13 @@ def generate_voiceover(text: str, lang: str, output_path: str):
     Chinese: edge-tts (Microsoft neural voices, better Chinese intonation)
     English: ElevenLabs (more expressive, natural storytelling)
     """
-    if lang == "en" and ELEVENLABS_API_KEY:
-        try:
-            _generate_elevenlabs(text, output_path)
-            return
-        except Exception as e:
-            print(f"  [WARN] ElevenLabs failed ({e.__class__.__name__}: {e}), falling back to edge-tts")
+    # ElevenLabs disabled (quota exhausted — re-enable when plan upgraded)
+    # if lang == "en" and ELEVENLABS_API_KEY:
+    #     try:
+    #         _generate_elevenlabs(text, output_path)
+    #         return
+    #     except Exception as e:
+    #         print(f"  [WARN] ElevenLabs failed ({e.__class__.__name__}: {e}), falling back to edge-tts")
     _generate_edge_tts(text, lang, output_path)
 
 
