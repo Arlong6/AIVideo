@@ -23,11 +23,13 @@ from config import ANTHROPIC_API_KEY
 USED_TOPICS_FILE = "used_topics.json"
 TOPICS_FILE = "topics.json"
 
-# Google News RSS — crime/true crime related feeds
+# Google News RSS — prioritize Taiwan/Asia crime news
 NEWS_RSS_URLS = [
-    "https://news.google.com/rss/search?q=serial+killer+murder+crime&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
-    "https://news.google.com/rss/search?q=true+crime+murder+case&hl=en&gl=US&ceid=US:en",
-    "https://news.google.com/rss/search?q=犯罪+謀殺+案件&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
+    "https://news.google.com/rss/search?q=台灣+犯罪+殺人+案件&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
+    "https://news.google.com/rss/search?q=犯罪+謀殺+懸案+台灣&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
+    "https://news.google.com/rss/search?q=日本+犯罪+殺人+事件&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
+    "https://news.google.com/rss/search?q=taiwan+crime+murder+case&hl=en&gl=TW&ceid=TW:en",
+    "https://news.google.com/rss/search?q=asia+crime+murder+case&hl=en&gl=US&ceid=US:en",
 ]
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -164,7 +166,8 @@ def suggest_topics_from_news(headlines: list[str], used_topics: set, count: int 
 要求：
 - 每個題材是一個具體案件名稱或故事（不要太泛，要能寫成腳本）
 - 可以是新聞中直接提到的案件，也可以是新聞讓你聯想到的歷史相關案件
-- 優先選擇台灣觀眾有興趣的案件（台灣本地、日本、知名歐美案件）
+- 【優先順序】：台灣本地案件 > 日本/韓國/中國案件 > 東南亞案件 > 知名歐美案件
+- 前3個題材必須是台灣或亞洲案件
 - 題材必須有足夠的公開資料可以寫成腳本
 - 不要重複已使用過的題材
 
@@ -194,9 +197,11 @@ def suggest_topics_from_archive(used_topics: set, count: int = 5) -> list[str]:
 
 要求：
 - 選擇有豐富公開資料的真實案件
-- 涵蓋不同類型：連環殺手、懸案、綁架、詐欺、間諜案等
-- 優先台灣、日本、知名歐美案件
+- 涵蓋不同類型：連環殺手、懸案、綁架、詐欺、間諜案、隨機殺人等
+- 【優先順序】：台灣本地案件 > 日本/韓國/中國案件 > 東南亞案件 > 知名歐美案件
+- 前3個題材必須是台灣或亞洲案件（例：台灣隨機殺人案、日本奧姆真理教、韓國華城連環殺人案、中國滅門案等）
 - 每個題材要夠具體（含案件名稱或人名）
+- 台灣觀眾對本地案件有更強共鳴，優先選擇
 
 請直接回傳 JSON 陣列：
 ["題材1", "題材2", "題材3", "題材4", "題材5"]"""
