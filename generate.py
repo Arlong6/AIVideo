@@ -26,6 +26,7 @@ from youtube_uploader import upload_video
 from topic_manager import pick_topic, save_used_topic, save_today_reserved
 from thumbnail_generator import generate_thumbnail, upload_thumbnail
 from telegram_notify import notify_upload
+from analytics_tracker import log_video, fetch_and_update_stats, send_daily_report
 
 
 def save_metadata(output_dir: str, scripts: dict):
@@ -150,6 +151,14 @@ def main():
         if youtube_url:
             pub_str = publish_dt.strftime('%Y-%m-%d %H:%M') if publish_at else ""
             notify_upload(topic, youtube_url, args.slot or 1, pub_str)
+            # Log to analytics tracker
+            video_id = youtube_url.split("youtu.be/")[-1].split("?")[0]
+            from moviepy.editor import VideoFileClip as _VFC
+            try:
+                _dur = _VFC(final_path, audio=False).duration
+            except Exception:
+                _dur = 0
+            log_video(video_id, topic, args.slot or 1, _dur, publish_at or "")
     else:
         print("\n[6/6] Skipping YouTube upload (add --upload to enable)")
 
