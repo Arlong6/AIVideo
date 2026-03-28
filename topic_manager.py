@@ -299,6 +299,22 @@ def pick_topic(refresh_news: bool = True) -> str:
     if not candidates:
         raise RuntimeError("No unused topics available! Add more to topics.json.")
 
-    chosen = candidates[0]
-    print(f"  Selected topic: {chosen}")
-    return chosen
+    # Fuzzy dedup: skip topics that share 4+ consecutive chars with any used topic
+    def _is_too_similar(candidate: str, used: set) -> bool:
+        c = candidate.replace(" ", "").lower()
+        for u in used:
+            u2 = u.replace(" ", "").lower()
+            for i in range(len(c) - 3):
+                if c[i:i+4] in u2:
+                    return True
+        return False
+
+    for candidate in candidates:
+        if not _is_too_similar(candidate, used_topics):
+            print(f"  Selected topic: {candidate}")
+            return candidate
+
+    # All candidates are similar — just pick the first one and warn
+    print(f"  [WARN] All candidates similar to used topics, picking first anyway")
+    print(f"  Selected topic: {candidates[0]}")
+    return candidates[0]
