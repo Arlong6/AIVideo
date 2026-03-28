@@ -109,30 +109,55 @@ def send_daily_report():
         return
 
     data = _load_log()
-    if not data["videos"]:
-        return
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    # Sort by most recent upload
-    videos = sorted(data["videos"], key=lambda v: v["uploaded_at"], reverse=True)[:10]
+    # ── Today's upload check ──
+    today_videos = [
+        v for v in data["videos"]
+        if v["uploaded_at"][:10] == today
+    ]
+    target = 2
+    count = len(today_videos)
+    if count >= target:
+        upload_status = f"✅ 今日上傳：{count}/{target} 支"
+    else:
+        upload_status = f"⚠️ 今日上傳：{count}/{target} 支（差 {target - count} 支）"
 
-    lines = ["📊 *頻道表現日報*\n"]
-    for v in videos:
-        latest = v["stats"][-1] if v["stats"] else None
-        views = latest["views"] if latest else "—"
-        likes = latest["likes"] if latest else "—"
-        topic_short = v["topic"][:25] + "…" if len(v["topic"]) > 25 else v["topic"]
-        slot_label = "🌅10AM" if v["slot"] == 1 else "🌆6PM"
-        lines.append(f"{slot_label} *{topic_short}*\n  👁 {views} 次觀看 ❤️ {likes}")
+    lines = [f"📊 *頻道表現日報*\n{upload_status}\n"]
+
+    # Today's videos detail
+    if today_videos:
+        lines.append("*今日影片：*")
+        for v in sorted(today_videos, key=lambda x: x["slot"]):
+            slot_label = "🌅10AM" if v["slot"] == 1 else "🌆6PM"
+            topic_short = v["topic"][:28] + "…" if len(v["topic"]) > 28 else v["topic"]
+            vid_url = f"https://youtu.be/{v['video_id']}"
+            lines.append(f"{slot_label} {topic_short}\n  🔗 {vid_url}")
+        lines.append("")
+
+    # Recent performance (last 10 excluding today)
+    all_videos = sorted(data["videos"], key=lambda v: v["uploaded_at"], reverse=True)
+    past_videos = [v for v in all_videos if v["uploaded_at"][:10] != today][:8]
+
+    if past_videos:
+        lines.append("*近期表現：*")
+        for v in past_videos:
+            latest = v["stats"][-1] if v["stats"] else None
+            views = latest["views"] if latest else "—"
+            likes = latest["likes"] if latest else "—"
+            topic_short = v["topic"][:22] + "…" if len(v["topic"]) > 22 else v["topic"]
+            slot_label = "🌅" if v["slot"] == 1 else "🌆"
+            lines.append(f"{slot_label} {topic_short}  👁{views} ❤️{likes}")
 
     # Simple trend: compare latest 5 vs previous 5
-    if len(videos) >= 6:
+    if len(all_videos) >= 6:
         recent_views = sum(
             (v["stats"][-1]["views"] if v["stats"] else 0)
-            for v in videos[:5]
+            for v in all_videos[:5]
         )
         older_views = sum(
             (v["stats"][-1]["views"] if v["stats"] else 0)
-            for v in videos[5:10]
+            for v in all_videos[5:10]
         )
         if older_views > 0:
             trend = ((recent_views - older_views) / older_views) * 100
