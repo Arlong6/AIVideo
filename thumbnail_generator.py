@@ -112,64 +112,91 @@ def _add_vignette(img: Image.Image) -> Image.Image:
     return Image.fromarray(arr.clip(0, 255).astype(np.uint8))
 
 
+def _draw_text_with_stroke(draw, pos, text, font, fill, stroke_fill, stroke_width=4):
+    """Draw text with a thick stroke outline for maximum readability."""
+    x, y = pos
+    for ox in range(-stroke_width, stroke_width + 1):
+        for oy in range(-stroke_width, stroke_width + 1):
+            if ox != 0 or oy != 0:
+                draw.text((x + ox, y + oy), text, font=font, fill=stroke_fill)
+    draw.text((x, y), text, font=font, fill=fill)
+
+
 def _draw_title(img: Image.Image, title: str) -> Image.Image:
-    """Draw large Chinese title with drop shadow and red accent bar."""
+    """Draw large Chinese title with stroke outline, background panel, and accent bars."""
     draw = ImageDraw.Draw(img)
 
-    # Red accent bar at top
-    bar_h = 8
-    draw.rectangle([(0, 0), (THUMB_W, bar_h)], fill=(180, 20, 20))
+    # Top red accent bar
+    bar_h = 10
+    draw.rectangle([(0, 0), (THUMB_W, bar_h)], fill=(200, 10, 10))
 
-    # Split title into lines (~14 chars per line for readability)
-    MAX_CHARS = 14
-    words = list(title)
+    # Split title into lines: prefer punctuation breaks, force-break at MAX_CHARS
+    MAX_CHARS = 10
     lines = []
     line = ""
-    for ch in words:
-        if len(line) >= MAX_CHARS and ch in "，。！？：、 ｜":
+    for ch in list(title):
+        line += ch
+        if ch in "，。！？、 ｜…" and len(line) >= 4:
             lines.append(line)
             line = ""
-        line += ch
+        elif len(line) >= MAX_CHARS:
+            lines.append(line)
+            line = ""
     if line:
         lines.append(line)
-    # Max 3 lines
     lines = lines[:3]
 
-    FONT_SIZE = 100 if len(lines) == 1 else (86 if len(lines) == 2 else 72)
+    FONT_SIZE = 108 if len(lines) == 1 else (94 if len(lines) == 2 else 78)
     try:
         font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
+        label_font = ImageFont.truetype(FONT_PATH, 36)
+        badge_font = ImageFont.truetype(FONT_PATH, 28)
     except Exception:
         font = ImageFont.load_default()
+        label_font = font
+        badge_font = font
 
-    line_gap = FONT_SIZE + 16
+    line_gap = FONT_SIZE + 18
     total_h = len(lines) * line_gap
-    start_y = (THUMB_H - total_h) // 2 - 20
+    start_y = (THUMB_H - total_h) // 2 - 30
 
-    for i, line in enumerate(lines):
-        bbox = draw.textbbox((0, 0), line, font=font)
+    # Semi-transparent dark panel behind text for contrast
+    pad_x, pad_y = 40, 20
+    panel_top = start_y - pad_y
+    panel_bot = start_y + total_h + pad_y
+    panel = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    panel_draw = ImageDraw.Draw(panel)
+    panel_draw.rectangle([(0, panel_top), (THUMB_W, panel_bot)], fill=(0, 0, 0, 160))
+    img = Image.alpha_composite(img.convert("RGBA"), panel).convert("RGB")
+    draw = ImageDraw.Draw(img)
+
+    for i, line_text in enumerate(lines):
+        bbox = draw.textbbox((0, 0), line_text, font=font)
         w = bbox[2] - bbox[0]
         x = (THUMB_W - w) // 2
         y = start_y + i * line_gap
-
-        # Shadow layer
-        for ox, oy in [(-3, 3), (3, 3), (0, 4), (-4, 4), (4, 4)]:
-            draw.text((x + ox, y + oy), line, font=font, fill=(0, 0, 0, 200))
-
-        # Main text (bright white)
-        draw.text((x, y), line, font=font, fill=(255, 248, 235))
+        # White text with black stroke
+        _draw_text_with_stroke(draw, (x, y), line_text, font,
+                               fill=(255, 252, 220), stroke_fill=(0, 0, 0), stroke_width=5)
 
     # Bottom red accent bar
-    draw.rectangle([(0, THUMB_H - bar_h), (THUMB_W, THUMB_H)], fill=(180, 20, 20))
+    draw.rectangle([(0, THUMB_H - bar_h), (THUMB_W, THUMB_H)], fill=(200, 10, 10))
 
-    # "真實犯罪" label top-right
-    try:
-        label_font = ImageFont.truetype(FONT_PATH, 32)
-    except Exception:
-        label_font = ImageFont.load_default()
-    label = "真實犯罪"
-    lbbox = draw.textbbox((0, 0), label, font=label_font)
-    lw = lbbox[2] - lbbox[0]
-    draw.text((THUMB_W - lw - 24, 20), label, font=label_font, fill=(200, 60, 60))
+    # "真實犯罪" badge — top-left with red background pill
+    badge_text = "真實犯罪"
+    bb = draw.textbbox((0, 0), badge_text, font=badge_font)
+    bw, bh = bb[2] - bb[0], bb[3] - bb[1]
+    bx, by = 20, 18
+    draw.rounded_rectangle([bx - 8, by - 4, bx + bw + 8, by + bh + 4],
+                            radius=6, fill=(180, 10, 10))
+    draw.text((bx, by), badge_text, font=badge_font, fill=(255, 255, 255))
+
+    # "▶ Shorts" badge — top-right
+    shorts_text = "▶ Shorts"
+    sb = draw.textbbox((0, 0), shorts_text, font=badge_font)
+    sw = sb[2] - sb[0]
+    sx = THUMB_W - sw - 28
+    draw.text((sx, 18), shorts_text, font=badge_font, fill=(255, 80, 80))
 
     return img
 

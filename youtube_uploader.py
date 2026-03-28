@@ -63,7 +63,7 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
     title = metadata.get("title", "True Crime Story")
     description = metadata.get("description", "")
     hashtags = metadata.get("hashtags", [])
-    tags = [h.lstrip("#") for h in hashtags] + ["真實犯罪", "犯罪故事", "懸案"]
+    tags = [h.lstrip("#") for h in hashtags] + ["真實犯罪", "犯罪故事", "懸案", "Shorts", "shorts"]
 
     status = {"privacyStatus": privacy, "selfDeclaredMadeForKids": False}
     if publish_at:
