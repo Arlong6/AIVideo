@@ -58,7 +58,7 @@ def main():
 
     # Create output directory (ASCII-only path for ffmpeg/subtitle compatibility)
     date_str = datetime.now().strftime("%Y%m%d")
-    safe_topic = re.sub(r'[^\x00-\x7F]+', '', topic[:30]).strip().replace(" ", "_").replace("/", "-") or f"slot{args.slot or 1}"
+    safe_topic = re.sub(r'[^A-Za-z0-9_-]', '_', re.sub(r'[^\x00-\x7F]+', '', topic[:30])).strip('_') or f"slot{args.slot or 1}"
     output_dir = os.path.join("output", f"{date_str}_{safe_topic}")
     os.makedirs(output_dir, exist_ok=True)
     print(f"\nOutput directory: {output_dir}")
