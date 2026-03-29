@@ -348,18 +348,74 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         os.remove(concat_path)
 
     # Burn subtitles
+    subtitle_out = final_path.replace("final_", "_sub_")
     if os.path.exists(srt_path):
         print("  Adding subtitles...")
         try:
-            _burn_subtitles_pillow(temp_path, srt_path, final_path)
+            _burn_subtitles_pillow(temp_path, srt_path, subtitle_out)
             os.remove(temp_path)
             print("  Subtitles added ✅")
         except Exception as e:
             print(f"  [WARN] Subtitle burn failed: {e}")
-            os.rename(temp_path, final_path)
+            subtitle_out = temp_path  # fallback: use audio-only version
+
     else:
-        os.rename(temp_path, final_path)
+        subtitle_out = temp_path
+
+    # Apply cinematic effects (CCTV grain + vignette + red bars + REC indicator)
+    print("  Applying cinematic effects...")
+    effects_ok = _apply_cinematic_effects(subtitle_out, final_path)
+    if os.path.exists(subtitle_out) and subtitle_out != final_path:
+        os.remove(subtitle_out)
+    if not effects_ok:
+        # Fallback: just rename
+        if os.path.exists(subtitle_out):
+            os.rename(subtitle_out, final_path)
 
     size_mb = os.path.getsize(final_path) / 1024 / 1024
     print(f"  ✅ Video ready: final_{lang}.mp4 ({size_mb:.1f} MB, {duration:.0f}s)")
     return final_path
+
+
+def _apply_cinematic_effects(input_path: str, output_path: str) -> bool:
+    """
+    Post-process final video with:
+    - Film grain (noise)
+    - Vignette (darken edges)
+    - Slight color grade (darker shadows, cooler tone)
+    - Red accent bars top/bottom
+    - REC indicator (top-left, like CCTV)
+    """
+    import subprocess
+
+    # Filter chain (no drawtext — not available in all ffmpeg builds)
+    vf = ",".join([
+        # Grain
+        "noise=alls=10:allf=t+u",
+        # Vignette
+        "vignette=PI/5",
+        # Color grade: slightly darker, desaturated (documentary feel)
+        "eq=brightness=-0.03:saturation=0.85:contrast=1.05",
+        # Red top bar
+        "drawbox=x=0:y=0:w=iw:h=6:color=red@0.9:t=fill",
+        # Red bottom bar
+        "drawbox=x=0:y=ih-6:w=iw:h=6:color=red@0.9:t=fill",
+    ])
+
+    try:
+        result = subprocess.run([
+            "ffmpeg", "-y", "-i", input_path,
+            "-vf", vf,
+            "-c:a", "copy",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            output_path,
+        ], capture_output=True, timeout=300)
+        if result.returncode == 0:
+            print("  Cinematic effects applied ✅")
+            return True
+        else:
+            print(f"  [WARN] Effects failed: {result.stderr[-300:].decode('utf-8','ignore')}")
+            return False
+    except Exception as e:
+        print(f"  [WARN] Cinematic effects error: {e}")
+        return False

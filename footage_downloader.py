@@ -13,25 +13,34 @@ from config import PEXELS_API_KEY
 # Fallback queries if a scene-specific search returns no results
 # Ordered dark → atmospheric, crime-specific first
 FALLBACK_QUERIES = [
+    # Crime scene atmosphere
     "crime scene police tape night",
-    "blood drops dark floor close-up",
     "forensic gloves evidence bag",
-    "chalk outline crime scene dark room",
     "detective pinning photos board",
     "handcuffs close-up shadow",
     "dark interrogation room single light",
-    "body bag morgue corridor",
-    "knife blade dark close-up",
-    "abandoned building dark interior",
+    "police car lights night city",
+    "ambulance emergency night street",
+    "surveillance camera cctv footage",
+    "police officer walking street night",
+    "courtroom judge gavel",
+    # Asia/Taiwan location specific
+    "taipei city street night neon",
+    "taiwan city crowd busy street",
+    "tokyo japan street night",
+    "subway metro station crowd",
+    "asian city night lights rainy",
+    "hong kong city night crowded",
+    "japan alley night dark",
+    # Thriller atmosphere
     "dark foggy alley night",
     "rain on window night dark",
     "shadow hand wall thriller",
-    "old newspaper crime headlines",
-    "candle flame darkness close-up",
-    "storm lightning dark sky",
     "silhouette person dark hallway",
-    "red light dark alley night",
-    "vintage typewriter crime letter",
+    "old newspaper headlines close-up",
+    "blood drops dark floor close-up",
+    "abandoned building dark interior",
+    "storm lightning dark sky",
     "clock ticking midnight close-up",
 ]
 
