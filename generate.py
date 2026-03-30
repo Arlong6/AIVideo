@@ -137,7 +137,7 @@ def main():
         if args.slot and not args.public:
             TW = ZoneInfo("Asia/Taipei")
             now_tw = datetime.now(TW)
-            slot_hour = 10 if args.slot == 1 else 18
+            slot_hour = {1: 10, 2: 14, 3: 18, 4: 22}.get(args.slot, 10)
             publish_dt = now_tw.replace(hour=slot_hour, minute=0, second=0, microsecond=0)
             # If slot time already passed today, schedule for tomorrow
             if publish_dt <= now_tw:

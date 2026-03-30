@@ -116,7 +116,7 @@ def send_daily_report():
         v for v in data["videos"]
         if v["uploaded_at"][:10] == today
     ]
-    target = 2
+    target = 4
     count = len(today_videos)
     if count >= target:
         upload_status = f"✅ 今日上傳：{count}/{target} 支"

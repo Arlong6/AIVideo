@@ -15,7 +15,7 @@ def notify_upload(topic: str, youtube_url: str, slot: int, publish_time: str = "
         print("  [INFO] Telegram not configured, skipping notification")
         return
 
-    slot_label = "10:00 AM" if slot == 1 else "18:00 PM"
+    slot_label = {1: "10:00", 2: "14:00", 3: "18:00", 4: "22:00"}.get(slot, "10:00")
     msg = (
         f"🎬 *新影片已上傳！*\n\n"
         f"📌 題材：{topic}\n"
