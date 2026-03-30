@@ -101,8 +101,11 @@ Return this exact JSON:
 }}"""
 
 
-def generate_scripts(topic: str) -> dict:
-    """Generate both Chinese and English scripts for a given topic."""
+def generate_scripts(topic: str, fmt: str = "short") -> dict:
+    """Generate scripts. fmt='short' for Shorts, 'long' for 15-20 min videos."""
+    if fmt == "long":
+        return _generate_long_scripts(topic)
+
     print(f"  Generating Chinese script...")
     zh_result = _call_claude(PROMPT_ZH.format(topic=topic))
 
@@ -112,14 +115,167 @@ def generate_scripts(topic: str) -> dict:
     return {"zh": zh_result, "en": en_result}
 
 
-def _call_claude(prompt: str) -> dict:
+def _generate_long_scripts(topic: str) -> dict:
+    """Generate long-form 15-20 min script in 2 passes to stay within token limits."""
+    from title_dna import get_title_prompt_insert, SECTION_NAMES
+
+    title_dna = get_title_prompt_insert()
+
+    # Pass 1: Title, metadata, and first 4 sections (hook → investigation)
+    prompt_p1 = f"""你是一位百萬訂閱的真實犯罪 YouTube 頻道腳本作家，專門製作 15-20 分鐘的深度犯罪紀實影片。
+
+案件主題：{topic}
+
+{title_dna}
+
+=== 任務：生成影片前半部（約 2000 字） ===
+
+請生成以下 4 個段落，每段要有明確的敘事節奏：
+
+【1. 案件開場 Hook（200-300字）】
+- 從最震撼的一刻開始，讓觀眾無法離開
+- 可以從案件的結局倒敘，或從發現屍體的那一刻開始
+- 製造懸念：「但沒有人知道，這只是恐怖的開始...」
+
+【2. 人物背景（400-600字）】
+- 介紹受害者的人生、家庭、性格，讓觀眾產生情感連結
+- 介紹案件發生的時代背景和地點
+- 建立「這是一個正常人」的印象，讓之後的悲劇更有衝擊力
+
+【3. 案件經過（600-800字）】
+- 詳細的時間線還原：什麼時候、在哪裡、發生了什麼
+- 用短句製造緊張感
+- 加入感官細節（天氣、時間、聲音）讓觀眾身歷其境
+
+【4. 調查過程（500-700字）】
+- 警方怎麼介入的、初步發現了什麼
+- 有哪些嫌疑人、哪些線索
+- 在這裡製造「似乎快要破案了...」的期待感
+
+=== 語言要求 ===
+- 繁體中文，台灣用語
+- 短句優先（5-12字），段落間自然過渡
+- 英文人名地名保留原文（Ted Bundy 不寫泰德邦迪）
+- 台灣本地人名地名用中文
+- 每個段落結尾都要有 hook 讓觀眾想繼續看
+
+請用 JSON 格式回傳：
+{{
+  "title": "影片標題（使用上方標題 DNA 公式，30字以內）",
+  "opening_card": "開場字卡（8字以內，最衝擊的一句話）",
+  "sections": [
+    {{"name": "hook", "script": "案件開場全文", "visual_scenes": ["Pexels搜尋1", "搜尋2", "...共6個"]}},
+    {{"name": "background", "script": "人物背景全文", "visual_scenes": ["共6個"]}},
+    {{"name": "crime", "script": "案件經過全文", "visual_scenes": ["共8個"]}},
+    {{"name": "investigation", "script": "調查過程全文", "visual_scenes": ["共6個"]}}
+  ],
+  "keywords": ["英文搜尋關鍵字1", "關鍵字2", "關鍵字3", "關鍵字4", "關鍵字5"],
+  "description": "YouTube 影片描述（100字以內）",
+  "hashtags": ["#真實犯罪", "#犯罪紀實", "#懸案", "#深度解析", "#台灣"]
+}}"""
+
+    print(f"  Generating long-form script (pass 1/2: sections 1-4)...")
+    p1_result = _call_claude(prompt_p1, max_tokens=6000)
+
+    # Extract first 4 sections for context
+    sections_context = ""
+    for s in p1_result.get("sections", []):
+        sections_context += f"\n【{SECTION_NAMES.get(s['name'], s['name'])}】\n{s['script'][:200]}...\n"
+
+    # Pass 2: Last 4 sections (twist → CTA)
+    prompt_p2 = f"""你是一位百萬訂閱的真實犯罪 YouTube 頻道腳本作家。
+
+案件主題：{topic}
+影片標題：{p1_result.get('title', topic)}
+
+=== 前半部摘要（已完成）===
+{sections_context}
+
+=== 任務：生成影片後半部（約 1500-2000 字）===
+
+請接續前半部，生成以下 4 個段落：
+
+【5. 關鍵轉折（400-500字）】
+- 案件出現意外發展：新證據、假線索被推翻、意外目擊者
+- 這是影片的最高潮，節奏要最快
+- 讓觀眾感到「原來不是這樣的！」
+
+【6. 結局揭曉（400-600字）】
+- 如果破案：兇手是誰、怎麼被抓到、審判結果
+- 如果未破案：目前最有力的理論、為什麼破不了
+- 揭露動機：兇手為什麼這樣做
+
+【7. 案件反思（200-300字）】
+- 這個案件對社會造成了什麼影響
+- 法律有因此改變嗎
+- 留下一個讓觀眾思考的問題
+
+【8. 結語（100-150字）】
+- 自然感嘆收尾
+- 「如果你覺得這個案件值得更多人知道，請訂閱頻道」
+- 提示觀眾「留言告訴我你的看法」
+
+=== 同時生成 Shorts 候選片段 ===
+從整部影片中挑出 2-3 個最有戲劇張力的 200 字段落，適合截取為獨立的 60 秒 Shorts。
+
+請用 JSON 格式回傳：
+{{
+  "sections": [
+    {{"name": "twist", "script": "關鍵轉折全文", "visual_scenes": ["共6個"]}},
+    {{"name": "resolution", "script": "結局揭曉全文", "visual_scenes": ["共6個"]}},
+    {{"name": "reflection", "script": "案件反思全文", "visual_scenes": ["共4個"]}},
+    {{"name": "cta", "script": "結語全文", "visual_scenes": ["共2個"]}}
+  ],
+  "shorts_candidates": [
+    {{"title": "Shorts標題", "script": "200字以內的獨立片段", "section_source": "twist"}},
+    {{"title": "Shorts標題2", "script": "200字以內", "section_source": "hook"}}
+  ]
+}}"""
+
+    print(f"  Generating long-form script (pass 2/2: sections 5-8)...")
+    p2_result = _call_claude(prompt_p2, max_tokens=6000)
+
+    # Merge results
+    all_sections = p1_result.get("sections", []) + p2_result.get("sections", [])
+    merged = {
+        "title": p1_result.get("title", topic),
+        "opening_card": p1_result.get("opening_card", ""),
+        "sections": all_sections,
+        "keywords": p1_result.get("keywords", []),
+        "description": p1_result.get("description", ""),
+        "hashtags": p1_result.get("hashtags", []),
+        "shorts_candidates": p2_result.get("shorts_candidates", []),
+        "format": "long",
+    }
+
+    # Build flat script and visual_scenes for backward compatibility
+    merged["script"] = "\n\n".join(s["script"] for s in all_sections)
+    merged["visual_scenes"] = []
+    merged["scene_pacing"] = []
+    for s in all_sections:
+        scenes = s.get("visual_scenes", [])
+        merged["visual_scenes"].extend(scenes)
+        # Auto-assign pacing based on section type
+        pacing_map = {"hook": "fast", "crime": "medium", "twist": "fast",
+                      "resolution": "medium", "cta": "slow"}
+        default_pace = pacing_map.get(s["name"], "medium")
+        merged["scene_pacing"].extend([default_pace] * len(scenes))
+
+    total_chars = len(merged["script"])
+    print(f"  Long-form script: {total_chars} chars, {len(all_sections)} sections, "
+          f"{len(merged['visual_scenes'])} scenes")
+
+    return {"zh": merged, "en": merged}  # en = same as zh for now
+
+
+def _call_claude(prompt: str, max_tokens: int = 2500) -> dict:
     models = ["claude-opus-4-6", "claude-sonnet-4-6"]
     for model in models:
         for attempt in range(3):
             try:
                 message = client.messages.create(
                     model=model,
-                    max_tokens=2500,
+                    max_tokens=max_tokens,
                     messages=[{"role": "user", "content": prompt}],
                 )
                 if model != "claude-opus-4-6":

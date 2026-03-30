@@ -42,9 +42,14 @@ def main():
     parser.add_argument("--auto", action="store_true", help="Auto-select a random topic")
     parser.add_argument("--upload", action="store_true", help="Upload to YouTube after assembly")
     parser.add_argument("--public", action="store_true", help="Upload as public (default: scheduled)")
-    parser.add_argument("--slot", type=int, choices=[1, 2], default=None,
-                        help="Schedule slot: 1=10:00 AM, 2=18:00 PM (Taiwan time)")
+    parser.add_argument("--slot", type=int, choices=[1, 2, 3, 4], default=None,
+                        help="Schedule slot: 1=10AM, 2=2PM, 3=6PM, 4=10PM (Taiwan)")
+    parser.add_argument("--format", type=str, choices=["short", "long"], default="short",
+                        help="Video format: short (60s) or long (15-20min)")
     args = parser.parse_args()
+
+    if args.format == "long":
+        return _generate_long(args)
 
     if args.auto:
         print("\n[0/6] Picking today's topic...")
@@ -169,6 +174,132 @@ def main():
     # Done
     print(f"\n{'='*50}")
     print(f"✅ Complete! Output: {os.path.abspath(output_dir)}")
+    if final_path:
+        print(f"🎬 Video: final_zh.mp4")
+    if youtube_url:
+        print(f"📺 YouTube: {youtube_url}")
+    print(f"{'='*50}")
+
+
+def _generate_long(args):
+    """Generate a 15-20 minute long-form crime documentary video."""
+    from tts_generator import generate_voiceover_sections
+    from chapter_generator import generate_chapters
+
+    # Step 0: Pick topic
+    if args.auto:
+        print("\n[0/9] Picking topic for long-form video...")
+        topic = pick_topic(refresh_news=True)
+        save_today_reserved(topic)
+    elif args.topic:
+        topic = args.topic
+    else:
+        print("[ERROR] Provide --topic or --auto")
+        return
+
+    print(f"  Topic: {topic}")
+
+    # Output directory
+    date_str = datetime.now().strftime("%Y%m%d")
+    safe_topic = re.sub(r'[^A-Za-z0-9_-]', '_', re.sub(r'[^\x00-\x7F]+', '', topic[:30])).strip('_') or "longform"
+    output_dir = os.path.join("output", f"{date_str}_long_{safe_topic}")
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Step 1: Generate long-form scripts
+    print("\n[1/9] Generating 15-20 min script...")
+    scripts = generate_scripts(topic, fmt="long")
+    zh = scripts["zh"]
+    save_metadata(output_dir, scripts)
+    print(f"  Title: {zh.get('title', topic)}")
+    print(f"  Sections: {len(zh.get('sections', []))}")
+
+    # Save full script
+    with open(os.path.join(output_dir, "script_zh.txt"), "w", encoding="utf-8") as f:
+        f.write(zh.get("script", ""))
+
+    # Step 2: Generate TTS per section
+    print("\n[2/9] Generating voiceover per section...")
+    sections = zh.get("sections", [])
+    if sections:
+        vo_path, section_timings = generate_voiceover_sections(sections, "zh", output_dir)
+    else:
+        # Fallback: single TTS
+        from tts_generator import generate_voiceover
+        vo_path = os.path.join(output_dir, "voiceover_zh.mp3")
+        generate_voiceover(zh.get("script", ""), "zh", vo_path)
+        section_timings = [("full", 0.0)]
+
+    # Step 3: Generate subtitles
+    print("\n[3/9] Generating subtitles...")
+    srt_path = os.path.join(output_dir, "subtitles_zh.srt")
+    audio_path = os.path.join(output_dir, "voiceover_zh.mp3")
+    if os.path.exists(audio_path):
+        from moviepy.editor import AudioFileClip
+        audio = AudioFileClip(audio_path)
+        actual_duration = audio.duration
+        audio.close()
+        generate_srt(zh.get("script", ""), actual_duration, srt_path)
+
+    # Step 4: Download footage (40-60 scenes)
+    print("\n[4/9] Downloading footage (long-form)...")
+    visual_scenes = zh.get("visual_scenes", [])[:60]
+    download_footage(visual_scenes, output_dir)
+
+    # Step 5: Get wiki footage
+    print("\n[5/9] Fetching archival images...")
+    wiki_clips = get_wiki_clips(topic, output_dir, max_images=8)
+
+    # Step 6: Generate thumbnail
+    print("\n[6/9] Generating thumbnail...")
+    thumb_path = os.path.join(output_dir, "thumbnail.jpg")
+    zh_title = zh.get("title", topic)
+    generate_thumbnail(zh_title, thumb_path)
+
+    # Step 7: Assemble video (16:9 landscape)
+    print("\n[7/9] Assembling long-form video...")
+    scene_pacing = zh.get("scene_pacing")
+    final_path = assemble_video(output_dir, lang="zh", wiki_clips=wiki_clips,
+                                scene_pacing=scene_pacing)
+
+    # Step 8: Generate chapter markers
+    print("\n[8/9] Generating chapter markers...")
+    chapters_text = generate_chapters(section_timings)
+    print(f"  Chapters:\n{chapters_text}")
+
+    # Step 9: Upload
+    youtube_url = None
+    if args.upload and final_path:
+        print("\n[9/9] Uploading to YouTube...")
+        # Add chapters to description
+        description = zh.get("description", "")
+        full_description = f"{description}\n\n{chapters_text}"
+        upload_meta = dict(zh)
+        upload_meta["description"] = full_description
+
+        privacy = "public" if args.public else "private"
+        publish_at = None
+        if args.slot and not args.public:
+            TW = ZoneInfo("Asia/Taipei")
+            now_tw = datetime.now(TW)
+            slot_hour = {1: 10, 2: 14, 3: 18, 4: 22}.get(args.slot, 10)
+            publish_dt = now_tw.replace(hour=slot_hour, minute=0, second=0, microsecond=0)
+            if publish_dt <= now_tw:
+                publish_dt += timedelta(days=1)
+            publish_at = publish_dt.isoformat()
+
+        youtube_url = upload_video(final_path, upload_meta, privacy=privacy,
+                                   thumb_path=thumb_path, publish_at=publish_at)
+        if youtube_url:
+            pub_str = publish_dt.strftime('%Y-%m-%d %H:%M') if publish_at else ""
+            notify_upload(topic, youtube_url, args.slot or 1, pub_str)
+            video_id = youtube_url.split("youtu.be/")[-1].split("?")[0]
+            log_video(video_id, topic, args.slot or 1, actual_duration, publish_at or "")
+
+    if final_path and args.auto:
+        save_used_topic(topic)
+
+    print(f"\n{'='*50}")
+    print(f"✅ Long-form video complete! Output: {os.path.abspath(output_dir)}")
     if final_path:
         print(f"🎬 Video: final_zh.mp4")
     if youtube_url:
