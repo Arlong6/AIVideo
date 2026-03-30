@@ -246,6 +246,59 @@ def _interleave_wiki_clips(cut_paths: list[str], wiki_clips: list[str]) -> list[
     return result
 
 
+def _make_opening_card(text: str, output_path: str, duration: float = 2.0):
+    """Generate a 2-second black title card with large white text using ffmpeg."""
+    import subprocess
+    font_candidates = [
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    ]
+    font_path = next((p for p in font_candidates if os.path.exists(p)), "")
+
+    # Build card with PIL (more reliable than ffmpeg drawtext for Chinese)
+    from PIL import Image, ImageDraw, ImageFont
+    img = Image.new("RGB", (TARGET_W, TARGET_H), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Red top/bottom accent bars
+    draw.rectangle([(0, 0), (TARGET_W, 8)], fill=(200, 10, 10))
+    draw.rectangle([(0, TARGET_H - 8), (TARGET_W, TARGET_H)], fill=(200, 10, 10))
+
+    # Draw text centered with stroke
+    font_size = 96 if len(text) <= 8 else 78
+    try:
+        font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
+    except Exception:
+        font = ImageFont.load_default()
+
+    bbox = draw.textbbox((0, 0), text, font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    x = (TARGET_W - tw) // 2
+    y = (TARGET_H - th) // 2
+
+    # Stroke (black outline)
+    for ox in range(-5, 6):
+        for oy in range(-5, 6):
+            if ox != 0 or oy != 0:
+                draw.text((x + ox, y + oy), text, font=font, fill=(0, 0, 0))
+    # White text
+    draw.text((x, y), text, font=font, fill=(255, 248, 220))
+
+    # Save frame and convert to video with ffmpeg
+    frame_path = output_path + "_frame.jpg"
+    img.save(frame_path, "JPEG", quality=95)
+    subprocess.run([
+        "ffmpeg", "-y", "-loop", "1", "-i", frame_path,
+        "-t", str(duration), "-r", "25",
+        "-vf", f"scale={TARGET_W}:{TARGET_H}",
+        "-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p",
+        output_path,
+    ], capture_output=True, check=True)
+    os.remove(frame_path)
+
+
 def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = None,
                    scene_pacing: list | None = None) -> str | None:
     clips_dir = os.path.join(output_dir, "clips")
@@ -280,6 +333,22 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
     if not cut_paths:
         print("  [ERROR] No clips assembled")
         return None
+
+    # Prepend opening title card if available
+    meta_path = os.path.join(output_dir, "metadata.json")
+    if os.path.exists(meta_path):
+        try:
+            import json as _json
+            meta = _json.load(open(meta_path, encoding="utf-8"))
+            zh_meta = meta if "opening_card" in meta else meta.get("zh", {})
+            card_text = zh_meta.get("opening_card", "")
+            if card_text:
+                card_path = os.path.join(output_dir, "_opening_card.mp4")
+                print(f"  Making opening card: 「{card_text}」")
+                _make_opening_card(card_text, card_path, duration=2.0)
+                cut_paths = [card_path] + cut_paths
+        except Exception as e:
+            print(f"  [WARN] Opening card failed: {e}")
 
     # Interleave Wikimedia archive clips at key story positions
     if wiki_clips:
