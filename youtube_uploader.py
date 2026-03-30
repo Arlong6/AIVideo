@@ -6,6 +6,41 @@ from googleapiclient.http import MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
+def _build_full_description(desc: str, hashtags: list, metadata: dict,
+                            video_path: str) -> str:
+    """Build YouTube description with proper attribution and disclosures."""
+    parts = [desc]
+
+    # Chapter markers (if included in metadata)
+    chapters = metadata.get("chapters_text", "")
+    if chapters:
+        parts.append(f"\n📑 章節\n{chapters}")
+
+    # Hashtags
+    if hashtags:
+        parts.append(" ".join(hashtags))
+
+    # Wikimedia attribution (from sources.txt next to video)
+    if video_path:
+        sources_path = os.path.join(os.path.dirname(video_path), "sources.txt")
+        if os.path.exists(sources_path):
+            with open(sources_path, "r", encoding="utf-8") as f:
+                parts.append(f.read().strip())
+
+    # Standard attribution block
+    parts.append("""━━━━━━━━━━━━━━━━━
+📸 影片素材：Pexels (https://www.pexels.com) — 免費授權素材
+🎵 背景音樂：原創合成環境音（無版權）
+🎤 語音：AI 文字轉語音技術生成
+📝 腳本：基於公開新聞報導及司法紀錄，AI 輔助撰寫
+
+⚠️ 免責聲明：本影片內容取自公開資料與新聞報導，僅供教育及資訊分享用途。
+如有任何事實錯誤，歡迎留言指正。
+━━━━━━━━━━━━━━━━━""")
+
+    return "\n\n".join(parts)
+
+
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.force-ssl",
@@ -65,16 +100,18 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
     hashtags = metadata.get("hashtags", [])
     tags = [h.lstrip("#") for h in hashtags] + ["真實犯罪", "犯罪故事", "懸案", "Shorts", "shorts"]
 
+    # Build full YouTube description with attribution and disclosures
+    full_desc = _build_full_description(description, hashtags, metadata, video_path)
+
     status = {"privacyStatus": privacy, "selfDeclaredMadeForKids": False}
     if publish_at:
-        # Schedule: upload as private, auto-publish at specified time
         status["privacyStatus"] = "private"
         status["publishAt"] = publish_at
 
     body = {
         "snippet": {
             "title": title[:100],
-            "description": description + "\n\n" + " ".join(hashtags),
+            "description": full_desc,
             "tags": tags,
             "categoryId": "25",  # News & Politics (fits true crime)
         },

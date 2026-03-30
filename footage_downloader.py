@@ -115,6 +115,7 @@ def download_footage(visual_scenes: list, output_dir: str):
     seen_ids = _load_seen_ids()
     total_downloaded = 0
     fallback_idx = 0
+    pexels_credits = []
 
     for scene_idx, query in enumerate(visual_scenes):
         print(f"  Scene {scene_idx+1:02d}/{len(visual_scenes)}: '{query}'")
@@ -136,6 +137,9 @@ def download_footage(visual_scenes: list, output_dir: str):
                     seen_ids.add(video["id"])
                     clips_saved += 1
                     total_downloaded += 1
+                    # Log Pexels creator for attribution
+                    creator = video.get("user", {}).get("name", "Unknown")
+                    pexels_credits.append(f"{creator} (Pexels ID: {video['id']})")
                     print(f"    ✅ {filename}")
 
         # Fallback: if scene query returned nothing, use a generic dark query
@@ -155,9 +159,20 @@ def download_footage(visual_scenes: list, output_dir: str):
                     seen_ids.add(video["id"])
                     clips_saved += 1
                     total_downloaded += 1
+                    creator = video.get("user", {}).get("name", "Unknown")
+                    pexels_credits.append(f"{creator} (Pexels ID: {video['id']})")
                     print(f"    ✅ {filename} (fallback)")
             if clips_saved == 0:
                 break  # give up on this scene
 
     _save_seen_ids(seen_ids)
     print(f"  Downloaded {total_downloaded} clips ({len(visual_scenes)} scenes × {CLIPS_PER_SCENE})")
+
+    # Save Pexels attribution file
+    if pexels_credits:
+        credits_path = os.path.join(output_dir, "pexels_credits.txt")
+        with open(credits_path, "w", encoding="utf-8") as f:
+            f.write("Pexels footage credits:\n")
+            for c in sorted(set(pexels_credits)):
+                f.write(f"  - {c}\n")
+        print(f"  Pexels credits saved: {len(set(pexels_credits))} creators")
