@@ -256,10 +256,10 @@ def _generate_long(args):
     generate_thumbnail(zh_title, thumb_path)
 
     # Step 7: Assemble video (16:9 landscape)
-    print("\n[7/9] Assembling long-form video...")
+    print("\n[7/9] Assembling long-form video (16:9)...")
     scene_pacing = zh.get("scene_pacing")
     final_path = assemble_video(output_dir, lang="zh", wiki_clips=wiki_clips,
-                                scene_pacing=scene_pacing)
+                                scene_pacing=scene_pacing, fmt="long")
 
     # Step 8: Generate chapter markers
     print("\n[8/9] Generating chapter markers...")

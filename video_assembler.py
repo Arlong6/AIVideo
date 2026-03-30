@@ -17,7 +17,8 @@ from moviepy.editor import (
     concatenate_audioclips,
 )
 
-TARGET_W, TARGET_H = 1080, 1920  # 9:16 vertical
+TARGET_W, TARGET_H = 1080, 1920  # 9:16 vertical (Shorts default)
+TARGET_W_LONG, TARGET_H_LONG = 1920, 1080  # 16:9 landscape (long-form)
 CUT_INTERVAL = 4.0               # default seconds per scene cut
 
 # Pacing label → cut duration in seconds
@@ -28,10 +29,19 @@ PACING_DURATIONS = {
     "climax": 1.5,
 }
 
+# Long-form pacing is slower (more footage per scene)
+PACING_DURATIONS_LONG = {
+    "slow": 8.0,
+    "medium": 5.0,
+    "fast": 3.0,
+    "climax": 2.0,
+}
 
-def _crop_to_vertical(clip):
+
+def _crop_to_target(clip, tw, th):
+    """Crop and resize clip to target dimensions (any aspect ratio)."""
     w, h = clip.size
-    target_ratio = TARGET_W / TARGET_H
+    target_ratio = tw / th
     if w / h > target_ratio:
         new_w = int(h * target_ratio)
         x1 = (w - new_w) // 2
@@ -40,7 +50,11 @@ def _crop_to_vertical(clip):
         new_h = int(w / target_ratio)
         y1 = (h - new_h) // 2
         clip = clip.crop(y1=y1, y2=y1 + new_h)
-    return clip.resize((TARGET_W, TARGET_H))
+    return clip.resize((tw, th))
+
+
+def _crop_to_vertical(clip):
+    return _crop_to_target(clip, TARGET_W, TARGET_H)
 
 
 def _apply_dark_grade(clip):
@@ -138,6 +152,46 @@ def _burn_subtitles_pillow(input_path: str, srt_path: str, output_path: str):
     base.close()
 
 
+def _burn_subtitles_ffmpeg(input_path: str, srt_path: str, output_path: str):
+    """Burn subtitles using ffmpeg ASS filter — works for long videos without OOM."""
+    import subprocess
+
+    # Find CJK font
+    font_candidates = [
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    ]
+    font_path = next((p for p in font_candidates if os.path.exists(p)), "")
+
+    # Use subtitles filter with force_style for white text with black outline
+    style = (
+        "FontName=Noto Sans CJK TC,FontSize=22,PrimaryColour=&H00FFFFFF,"
+        "OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=1,"
+        "Alignment=2,MarginV=60"
+    )
+    if "STHeiti" in font_path:
+        style = style.replace("Noto Sans CJK TC", "STHeiti")
+
+    # Escape path for ffmpeg subtitles filter (colons and backslashes)
+    srt_escaped = srt_path.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
+    vf = f"subtitles='{srt_escaped}':force_style='{style}'"
+
+    result = subprocess.run([
+        "ffmpeg", "-y", "-i", input_path,
+        "-vf", vf,
+        "-c:a", "copy",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+        output_path,
+    ], capture_output=True, timeout=600)
+
+    if result.returncode != 0:
+        err = result.stderr[-500:].decode("utf-8", "ignore")
+        print(f"  [WARN] ffmpeg subtitle burn failed: {err}")
+        raise RuntimeError("ffmpeg subtitle burn failed")
+
+
 def _group_clips_by_scene(clip_files: list) -> list[list]:
     """Group clip paths by scene prefix s00_, s01_, ... in story order."""
     import re
@@ -150,31 +204,34 @@ def _group_clips_by_scene(clip_files: list) -> list[list]:
 
 
 def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
-                       scene_pacing: list | None = None) -> list[str]:
+                       scene_pacing: list | None = None,
+                       fmt: str = "short") -> list[str]:
     """
     Build cut sequence in story order with no within-scene repetition.
-    Uses scene_pacing (list of 15 pacing labels) for dynamic cut durations.
-    Processes one source clip at a time (low memory).
+    fmt='short': 9:16 vertical + per-frame dark grade (MoviePy)
+    fmt='long': 16:9 landscape + skip dark grade (use ffmpeg cinematic effects later)
     """
     scene_groups = _group_clips_by_scene(clip_files)
     if not scene_groups:
         return []
 
     num_scenes = len(scene_groups)
+    tw = TARGET_W_LONG if fmt == "long" else TARGET_W
+    th = TARGET_H_LONG if fmt == "long" else TARGET_H
+    pacing_table = PACING_DURATIONS_LONG if fmt == "long" else PACING_DURATIONS
+    default_interval = 5.0 if fmt == "long" else CUT_INTERVAL
 
-    # Build per-scene cut duration from pacing labels
-    # scene_pacing has 15 entries (one per scene); cycle if needed
     def _scene_duration(scene_idx: int) -> float:
         if scene_pacing and scene_idx < len(scene_pacing):
-            return PACING_DURATIONS.get(scene_pacing[scene_idx], CUT_INTERVAL)
-        return CUT_INTERVAL
+            return pacing_table.get(scene_pacing[scene_idx], default_interval)
+        return default_interval
 
-    # Pre-compute cut plan: (scene_idx, clip_pos_within_scene, chunk_duration)
+    # Pre-compute cut plan
     plan = []
     scene_clip_idx = [0] * num_scenes
     t = 0.0
     cut_index = 0
-    total_cuts_estimate = int(total_duration / CUT_INTERVAL) + 1
+    total_cuts_estimate = int(total_duration / default_interval) + 1
     while t < total_duration - 0.05:
         si = min(int(cut_index / total_cuts_estimate * num_scenes), num_scenes - 1)
         interval = _scene_duration(si)
@@ -185,11 +242,10 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
         t += chunk
         cut_index += 1
 
-    avg_cut = sum(c for _, _, c in plan) / len(plan) if plan else CUT_INTERVAL
+    avg_cut = sum(c for _, _, c in plan) / len(plan) if plan else default_interval
     print(f"  {len(scene_groups)} scenes, {sum(len(g) for g in scene_groups)} clips, "
-          f"{len(plan)} cuts (avg {avg_cut:.1f}s) — processing one clip at a time...")
+          f"{len(plan)} cuts (avg {avg_cut:.1f}s) — {fmt} mode ({tw}x{th})...")
 
-    # Process each cut: open source → subclip → dark grade → write temp → close
     os.makedirs(temp_dir, exist_ok=True)
     temp_paths = []
     for i, (si, cp, chunk) in enumerate(plan):
@@ -197,8 +253,10 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
         temp_path = os.path.join(temp_dir, f"cut_{i:03d}.mp4")
         try:
             src = VideoFileClip(src_path, audio=False)
-            src = _crop_to_vertical(src)
-            src = _apply_dark_grade(src)
+            src = _crop_to_target(src, tw, th)
+            # Long-form: skip per-frame dark grade (ffmpeg does it later, much faster)
+            if fmt == "short":
+                src = _apply_dark_grade(src)
             if src.duration >= chunk:
                 offset = random.uniform(0, src.duration - chunk)
                 sub = src.subclip(offset, offset + chunk)
@@ -246,9 +304,13 @@ def _interleave_wiki_clips(cut_paths: list[str], wiki_clips: list[str]) -> list[
     return result
 
 
-def _make_opening_card(text: str, output_path: str, duration: float = 2.0):
-    """Generate a 2-second black title card with large white text using ffmpeg."""
+def _make_opening_card(text: str, output_path: str, duration: float = 2.0,
+                       fmt: str = "short"):
+    """Generate a title card with large white text using ffmpeg."""
     import subprocess
+    tw = TARGET_W_LONG if fmt == "long" else TARGET_W
+    th = TARGET_H_LONG if fmt == "long" else TARGET_H
+
     font_candidates = [
         "/System/Library/Fonts/STHeiti Medium.ttc",
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
@@ -257,14 +319,13 @@ def _make_opening_card(text: str, output_path: str, duration: float = 2.0):
     ]
     font_path = next((p for p in font_candidates if os.path.exists(p)), "")
 
-    # Build card with PIL (more reliable than ffmpeg drawtext for Chinese)
     from PIL import Image, ImageDraw, ImageFont
-    img = Image.new("RGB", (TARGET_W, TARGET_H), (0, 0, 0))
+    img = Image.new("RGB", (tw, th), (0, 0, 0))
     draw = ImageDraw.Draw(img)
 
     # Red top/bottom accent bars
-    draw.rectangle([(0, 0), (TARGET_W, 8)], fill=(200, 10, 10))
-    draw.rectangle([(0, TARGET_H - 8), (TARGET_W, TARGET_H)], fill=(200, 10, 10))
+    draw.rectangle([(0, 0), (tw, 8)], fill=(200, 10, 10))
+    draw.rectangle([(0, th - 8), (tw, th)], fill=(200, 10, 10))
 
     # Draw text centered with stroke
     font_size = 96 if len(text) <= 8 else 78
@@ -274,9 +335,9 @@ def _make_opening_card(text: str, output_path: str, duration: float = 2.0):
         font = ImageFont.load_default()
 
     bbox = draw.textbbox((0, 0), text, font=font)
-    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    x = (TARGET_W - tw) // 2
-    y = (TARGET_H - th) // 2
+    text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    x = (tw - text_w) // 2
+    y = (th - text_h) // 2
 
     # Stroke (black outline)
     for ox in range(-5, 6):
@@ -292,7 +353,7 @@ def _make_opening_card(text: str, output_path: str, duration: float = 2.0):
     subprocess.run([
         "ffmpeg", "-y", "-loop", "1", "-i", frame_path,
         "-t", str(duration), "-r", "25",
-        "-vf", f"scale={TARGET_W}:{TARGET_H}",
+        "-vf", f"scale={tw}:{th}",
         "-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p",
         output_path,
     ], capture_output=True, check=True)
@@ -300,7 +361,7 @@ def _make_opening_card(text: str, output_path: str, duration: float = 2.0):
 
 
 def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = None,
-                   scene_pacing: list | None = None) -> str | None:
+                   scene_pacing: list | None = None, fmt: str = "short") -> str | None:
     clips_dir = os.path.join(output_dir, "clips")
     voiceover_path = os.path.join(output_dir, f"voiceover_{lang}.mp3")
     srt_path = os.path.join(output_dir, f"subtitles_{lang}.srt")
@@ -327,8 +388,9 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
     print(f"  Voiceover duration: {duration:.1f}s")
 
     temp_cuts_dir = os.path.join(output_dir, "_cuts")
-    print(f"  Building scene cuts from {len(clip_files)} clips...")
-    cut_paths = _build_video_clips(clip_files, duration, temp_cuts_dir, scene_pacing=scene_pacing)
+    print(f"  Building scene cuts from {len(clip_files)} clips ({fmt} mode)...")
+    cut_paths = _build_video_clips(clip_files, duration, temp_cuts_dir,
+                                   scene_pacing=scene_pacing, fmt=fmt)
 
     if not cut_paths:
         print("  [ERROR] No clips assembled")
@@ -345,7 +407,7 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
             if card_text:
                 card_path = os.path.join(output_dir, "_opening_card.mp4")
                 print(f"  Making opening card: 「{card_text}」")
-                _make_opening_card(card_text, card_path, duration=2.0)
+                _make_opening_card(card_text, card_path, duration=2.0, fmt=fmt)
                 cut_paths = [card_path] + cut_paths
         except Exception as e:
             print(f"  [WARN] Opening card failed: {e}")
@@ -419,25 +481,26 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
     # Burn subtitles
     subtitle_out = final_path.replace("final_", "_sub_")
     if os.path.exists(srt_path):
-        print("  Adding subtitles...")
+        print(f"  Adding subtitles ({'ffmpeg' if fmt == 'long' else 'PIL'} mode)...")
         try:
-            _burn_subtitles_pillow(temp_path, srt_path, subtitle_out)
+            if fmt == "long":
+                _burn_subtitles_ffmpeg(temp_path, srt_path, subtitle_out)
+            else:
+                _burn_subtitles_pillow(temp_path, srt_path, subtitle_out)
             os.remove(temp_path)
             print("  Subtitles added ✅")
         except Exception as e:
             print(f"  [WARN] Subtitle burn failed: {e}")
-            subtitle_out = temp_path  # fallback: use audio-only version
-
+            subtitle_out = temp_path
     else:
         subtitle_out = temp_path
 
-    # Apply cinematic effects (CCTV grain + vignette + red bars + REC indicator)
+    # Apply cinematic effects (grain + vignette + color grade + red bars)
     print("  Applying cinematic effects...")
     effects_ok = _apply_cinematic_effects(subtitle_out, final_path)
     if os.path.exists(subtitle_out) and subtitle_out != final_path:
         os.remove(subtitle_out)
     if not effects_ok:
-        # Fallback: just rename
         if os.path.exists(subtitle_out):
             os.rename(subtitle_out, final_path)
 
