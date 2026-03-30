@@ -1,0 +1,58 @@
+name: Long-form Video Generation
+
+on:
+  schedule:
+    # Run twice a week: Tuesday and Friday at 00:00 UTC (8AM Taiwan)
+    - cron: "0 0 * * 2,5"
+  workflow_dispatch:
+
+jobs:
+  generate-longform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    env:
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install CJK fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk ffmpeg
+
+      - name: Set up credentials
+        run: |
+          echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> .env
+          echo "PEXELS_API_KEY=${{ secrets.PEXELS_API_KEY }}" >> .env
+          echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> .env
+          echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> .env
+          echo "${{ secrets.YOUTUBE_TOKEN_B64 }}" | base64 -d > youtube_token.pickle
+
+      - name: Generate long-form video
+        run: python generate.py --auto --upload --format long --slot 1
+
+      - name: Fetch analytics and send daily report
+        run: python -c "from analytics_tracker import fetch_and_update_stats, send_daily_report; fetch_and_update_stats(None); send_daily_report()"
+        continue-on-error: true
+
+      - name: Commit updated data files
+        run: |
+          git config user.name "AI Video Bot"
+          git config user.email "bot@aivideo.local"
+          git add used_topics.json video_log.json today_topics.json || true
+          git diff --staged --quiet || git commit -m "chore: update data files after long-form generation"
+          git pull --rebase || true
+          git push || true

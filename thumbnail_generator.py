@@ -122,7 +122,8 @@ def _draw_text_with_stroke(draw, pos, text, font, fill, stroke_fill, stroke_widt
     draw.text((x, y), text, font=font, fill=fill)
 
 
-def _draw_title(img: Image.Image, title: str) -> Image.Image:
+def _draw_title(img: Image.Image, title: str, fmt: str = "short",
+                duration_hint: str = "") -> Image.Image:
     """Draw large Chinese title with stroke outline, background panel, and accent bars."""
     draw = ImageDraw.Draw(img)
 
@@ -191,19 +192,31 @@ def _draw_title(img: Image.Image, title: str) -> Image.Image:
                             radius=6, fill=(180, 10, 10))
     draw.text((bx, by), badge_text, font=badge_font, fill=(255, 255, 255))
 
-    # "▶ Shorts" badge — top-right
-    shorts_text = "▶ Shorts"
-    sb = draw.textbbox((0, 0), shorts_text, font=badge_font)
-    sw = sb[2] - sb[0]
-    sx = THUMB_W - sw - 28
-    draw.text((sx, 18), shorts_text, font=badge_font, fill=(255, 80, 80))
+    # Top-right badge — format-dependent
+    if fmt == "long":
+        # Duration badge for long-form (e.g. "15:00")
+        dur_text = f"▶ {duration_hint}" if duration_hint else "▶ 深度解析"
+        sb = draw.textbbox((0, 0), dur_text, font=badge_font)
+        sw, sh = sb[2] - sb[0], sb[3] - sb[1]
+        sx = THUMB_W - sw - 28
+        draw.rounded_rectangle([sx - 8, 14, sx + sw + 8, 18 + sh + 4],
+                                radius=6, fill=(0, 0, 0, 180))
+        draw.text((sx, 18), dur_text, font=badge_font, fill=(255, 255, 255))
+    else:
+        shorts_text = "▶ Shorts"
+        sb = draw.textbbox((0, 0), shorts_text, font=badge_font)
+        sw = sb[2] - sb[0]
+        sx = THUMB_W - sw - 28
+        draw.text((sx, 18), shorts_text, font=badge_font, fill=(255, 80, 80))
 
     return img
 
 
-def generate_thumbnail(title: str, output_path: str) -> str:
+def generate_thumbnail(title: str, output_path: str, fmt: str = "short",
+                       duration_hint: str = "") -> str:
     """
     Generate a dark cinematic YouTube thumbnail.
+    fmt='short' shows Shorts badge, fmt='long' shows duration badge.
     Returns path to saved 1280×720 JPEG.
     """
     seed = hash(title) & 0xFFFFFFFF
@@ -211,7 +224,7 @@ def generate_thumbnail(title: str, output_path: str) -> str:
     img = _add_city_lights(img, seed)
     img = _add_fog(img)
     img = _add_vignette(img)
-    img = _draw_title(img, title)
+    img = _draw_title(img, title, fmt=fmt, duration_hint=duration_hint)
     img = _add_blood_splatter(img, seed + 1)
 
     # Final slight blur on background (keeps text sharp, bg cinematic)

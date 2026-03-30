@@ -253,7 +253,7 @@ def _generate_long(args):
     print("\n[6/9] Generating thumbnail...")
     thumb_path = os.path.join(output_dir, "thumbnail.jpg")
     zh_title = zh.get("title", topic)
-    generate_thumbnail(zh_title, thumb_path)
+    generate_thumbnail(zh_title, thumb_path, fmt="long", duration_hint="15:00")
 
     # Step 7: Assemble video (16:9 landscape)
     print("\n[7/9] Assembling long-form video (16:9)...")
@@ -265,6 +265,13 @@ def _generate_long(args):
     print("\n[8/9] Generating chapter markers...")
     chapters_text = generate_chapters(section_timings)
     print(f"  Chapters:\n{chapters_text}")
+
+    # Step 8.5: Extract Shorts from long-form
+    shorts_results = []
+    if final_path:
+        print("\n[8.5/9] Extracting Shorts from long-form video...")
+        from shorts_extractor import extract_shorts
+        shorts_results = extract_shorts(final_path, zh, output_dir)
 
     # Step 9: Upload
     youtube_url = None
@@ -295,6 +302,23 @@ def _generate_long(args):
             video_id = youtube_url.split("youtu.be/")[-1].split("?")[0]
             log_video(video_id, topic, args.slot or 1, actual_duration, publish_at or "")
 
+    # Upload extracted Shorts
+    if args.upload and shorts_results:
+        print(f"\n  Uploading {len(shorts_results)} Shorts...")
+        for si, short in enumerate(shorts_results):
+            try:
+                short_meta = {
+                    "title": short["title"][:100],
+                    "description": short.get("description", ""),
+                    "hashtags": short.get("hashtags", []),
+                }
+                s_url = upload_video(short["path"], short_meta, privacy="public",
+                                     thumb_path=None, publish_at=None)
+                if s_url:
+                    print(f"    Short {si+1}: {s_url}")
+            except Exception as e:
+                print(f"    [WARN] Short {si+1} upload failed: {e}")
+
     if final_path and args.auto:
         save_used_topic(topic)
 
@@ -304,6 +328,8 @@ def _generate_long(args):
         print(f"🎬 Video: final_zh.mp4")
     if youtube_url:
         print(f"📺 YouTube: {youtube_url}")
+    if shorts_results:
+        print(f"📱 Shorts: {len(shorts_results)} clips generated")
     print(f"{'='*50}")
 
 
