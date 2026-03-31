@@ -256,10 +256,16 @@ def _generate_long(args):
     generate_thumbnail(zh_title, thumb_path, fmt="long", duration_hint="15:00")
 
     # Step 7: Assemble video (16:9 landscape)
+    # Step 6.5: Generate info cards (case file, timeline, breaking news)
+    print("\n[6.5/9] Generating documentary info cards...")
+    from info_cards import generate_info_cards
+    info_card_paths = generate_info_cards(zh, output_dir)
+
     print("\n[7/9] Assembling long-form video (16:9)...")
     scene_pacing = zh.get("scene_pacing")
     final_path = assemble_video(output_dir, lang="zh", wiki_clips=wiki_clips,
-                                scene_pacing=scene_pacing, fmt="long")
+                                scene_pacing=scene_pacing, fmt="long",
+                                info_cards=info_card_paths)
 
     # Step 8: Generate chapter markers
     print("\n[8/9] Generating chapter markers...")

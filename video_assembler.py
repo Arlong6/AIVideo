@@ -281,6 +281,61 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
     return temp_paths
 
 
+def _image_to_video(image_path: str, video_path: str, duration: float = 4.0):
+    """Convert a static image to a video clip with slight zoom effect."""
+    import subprocess
+    tw, th = TARGET_W_LONG, TARGET_H_LONG
+    # Slight zoom in effect (1.0 → 1.05 over duration)
+    vf = f"scale={tw}:{th},zoompan=z='min(zoom+0.0008,1.05)':d={int(duration*25)}:s={tw}x{th}:fps=25"
+    subprocess.run([
+        "ffmpeg", "-y", "-loop", "1", "-i", image_path,
+        "-vf", vf,
+        "-t", str(duration), "-r", "25",
+        "-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p",
+        video_path,
+    ], capture_output=True, timeout=30)
+
+
+def _insert_info_cards(cut_paths: list[str], info_cards: dict,
+                       output_dir: str, total_duration: float) -> list[str]:
+    """
+    Insert info card video clips at section-appropriate positions.
+    hook card → near start, crime card → ~20%, twist card → ~60%, resolution → ~85%
+    """
+    n = len(cut_paths)
+    cards_dir = os.path.join(output_dir, "info_cards")
+
+    # Section → approximate position in timeline
+    insert_map = {
+        "hook": max(1, int(n * 0.02)),        # right after opening
+        "crime": int(n * 0.20),               # ~20% through
+        "twist": int(n * 0.55),               # ~55% through
+        "resolution": int(n * 0.82),          # ~82% through
+    }
+
+    # Convert each card image to video clip and insert
+    result = list(cut_paths)
+    offset = 0  # track insertions
+    for section_name in ["hook", "crime", "twist", "resolution"]:
+        if section_name not in info_cards:
+            continue
+        img_path = info_cards[section_name]
+        if not os.path.exists(img_path):
+            continue
+
+        vid_path = img_path.replace(".jpg", ".mp4")
+        card_duration = 5.0 if section_name == "hook" else 4.0
+        _image_to_video(img_path, vid_path, duration=card_duration)
+
+        if os.path.exists(vid_path):
+            pos = insert_map[section_name] + offset
+            pos = min(pos, len(result))
+            result.insert(pos, vid_path)
+            offset += 1
+
+    return result
+
+
 def _interleave_wiki_clips(cut_paths: list[str], wiki_clips: list[str]) -> list[str]:
     """
     Insert wiki archive clips evenly throughout the video.
@@ -385,7 +440,8 @@ def _make_opening_card(text: str, output_path: str, duration: float = 2.0,
 
 
 def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = None,
-                   scene_pacing: list | None = None, fmt: str = "short") -> str | None:
+                   scene_pacing: list | None = None, fmt: str = "short",
+                   info_cards: dict | None = None) -> str | None:
     clips_dir = os.path.join(output_dir, "clips")
     voiceover_path = os.path.join(output_dir, f"voiceover_{lang}.mp3")
     srt_path = os.path.join(output_dir, f"subtitles_{lang}.srt")
@@ -440,6 +496,11 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
     if wiki_clips:
         cut_paths = _interleave_wiki_clips(cut_paths, wiki_clips)
         print(f"  Inserted {len(wiki_clips)} wiki archive clips")
+
+    # Insert info cards at section boundaries (long-form only)
+    if info_cards and fmt == "long":
+        cut_paths = _insert_info_cards(cut_paths, info_cards, output_dir, duration)
+        print(f"  Inserted {len(info_cards)} info cards")
 
     # Concatenate cut files via ffmpeg concat demuxer (memory-efficient)
     concat_path = os.path.join(output_dir, "_concat.mp4")
