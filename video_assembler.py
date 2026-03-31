@@ -89,114 +89,179 @@ def _apply_dark_grade(clip):
     return clip.fl_image(grade)
 
 
-def _render_subtitle_frame(txt: str) -> np.ndarray:
-    """Render subtitle text as RGBA image. Text is pre-split to fit — no truncation."""
+def _render_subtitle_frame(txt: str, target_w: int = 0) -> np.ndarray:
+    """Render subtitle text as RGBA image. Adapts to video width."""
     from PIL import Image, ImageDraw, ImageFont
 
-    FONT_PATH = "/System/Library/Fonts/STHeiti Medium.ttc"
-    FONT_SIZE = 46
-    CHARS_PER_LINE = 16  # must match MAX_CHARS_PER_CARD // 2 in subtitle_generator
+    font_candidates = [
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+    ]
+    font_path = next((p for p in font_candidates if os.path.exists(p)), "")
 
-    # Wrap into lines of CHARS_PER_LINE each
+    if target_w == 0:
+        target_w = TARGET_W
+
+    # Adapt font size and chars per line based on video width
+    if target_w >= 1920:  # 16:9 landscape
+        FONT_SIZE = 38
+        CHARS_PER_LINE = 28
+    else:  # 9:16 vertical
+        FONT_SIZE = 46
+        CHARS_PER_LINE = 16
+
     lines = []
     remaining = txt.strip()
     while remaining:
         lines.append(remaining[:CHARS_PER_LINE])
         remaining = remaining[CHARS_PER_LINE:]
 
-    font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
+    try:
+        font = ImageFont.truetype(font_path, FONT_SIZE) if font_path else ImageFont.load_default()
+    except Exception:
+        font = ImageFont.load_default()
+
     line_h = FONT_SIZE + 12
-    img = Image.new("RGBA", (TARGET_W, line_h * len(lines) + 10), (0, 0, 0, 0))
+    img = Image.new("RGBA", (target_w, line_h * len(lines) + 10), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0, 0), line, font=font)
         w = bbox[2] - bbox[0]
-        x = (TARGET_W - w) // 2
+        x = (target_w - w) // 2
         y = i * line_h
-        draw.text((x + 2, y + 2), line, font=font, fill=(0, 0, 0, 210))
+        # Black outline for readability
+        for ox, oy in [(-2, -2), (-2, 2), (2, -2), (2, 2), (0, -2), (0, 2), (-2, 0), (2, 0)]:
+            draw.text((x + ox, y + oy), line, font=font, fill=(0, 0, 0, 220))
         draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))
 
     return np.array(img)
 
 
 def _burn_subtitles_pillow(input_path: str, srt_path: str, output_path: str):
-    """Burn subtitles using Pillow. Clamps end times to video duration."""
+    """Burn subtitles using Pillow. Auto-detects video dimensions."""
     with open(srt_path, "r", encoding="utf-8") as f:
         subtitles = list(srt.parse(f.read()))
 
     base = VideoFileClip(input_path)
     video_dur = base.duration
+    vid_w, vid_h = base.size
+
+    # Subtitle position: near bottom, adapted to aspect ratio
+    sub_y = vid_h - 120 if vid_w >= 1920 else vid_h - 220
 
     subtitle_clips = []
     for sub in subtitles:
         start = sub.start.total_seconds()
-        end = min(sub.end.total_seconds(), video_dur)  # clamp to video length
+        end = min(sub.end.total_seconds(), video_dur)
         if start >= video_dur or end <= start:
             continue
         txt = sub.content.replace("\n", " ").strip()
         if not txt:
             continue
 
-        frame = _render_subtitle_frame(txt)
+        frame = _render_subtitle_frame(txt, target_w=vid_w)
         sc = (ImageClip(frame, ismask=False)
               .set_start(start)
               .set_end(end)
-              .set_position(("center", TARGET_H - 220)))
+              .set_position(("center", sub_y)))
         subtitle_clips.append(sc)
 
     final = CompositeVideoClip([base] + subtitle_clips)
-    final = final.set_audio(base.audio)  # explicitly preserve audio
+    final = final.set_audio(base.audio)
     final.write_videofile(output_path, fps=25, codec="libx264", audio_codec="aac", logger=None)
     final.close()
     base.close()
 
 
 def _burn_subtitles_ffmpeg(input_path: str, srt_path: str, output_path: str):
-    """Burn subtitles using ffmpeg ASS filter — works for long videos without OOM."""
+    """
+    Burn subtitles for long videos by splitting into chunks, processing
+    each with PIL (low memory), then concatenating back.
+    Falls back to PIL method if ffmpeg subtitles filter is unavailable.
+    """
     import subprocess
 
-    # Find CJK font
-    font_candidates = [
-        "/System/Library/Fonts/STHeiti Medium.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-    ]
-    font_path = next((p for p in font_candidates if os.path.exists(p)), "")
+    # Split video into 3-minute chunks, burn subs on each, concatenate
+    # This avoids OOM from loading the entire video into MoviePy at once
+    with open(srt_path, "r", encoding="utf-8") as f:
+        subtitles = list(srt.parse(f.read()))
 
-    # Use subtitles filter with force_style for white text with black outline
-    style = (
-        "FontName=Noto Sans CJK TC,FontSize=22,PrimaryColour=&H00FFFFFF,"
-        "OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=1,"
-        "Alignment=2,MarginV=60"
-    )
-    if "STHeiti" in font_path:
-        style = style.replace("Noto Sans CJK TC", "STHeiti")
+    # Get video duration
+    base = VideoFileClip(input_path, audio=False)
+    total_dur = base.duration
+    base.close()
 
-    # ffmpeg subtitles filter needs absolute path and special escaping
-    srt_abs = os.path.abspath(srt_path)
-    # Escape for ffmpeg filter syntax: \ : ' [ ]
-    srt_escaped = (srt_abs
-                   .replace("\\", "/")
-                   .replace(":", "\\:")
-                   .replace("'", "\\'")
-                   .replace("[", "\\[")
-                   .replace("]", "\\]"))
-    vf = f"subtitles='{srt_escaped}':force_style='{style}'"
+    chunk_dur = 180.0  # 3 minutes per chunk
+    n_chunks = max(1, int(total_dur / chunk_dur) + 1)
+    chunk_dir = os.path.join(os.path.dirname(output_path), "_sub_chunks")
+    os.makedirs(chunk_dir, exist_ok=True)
 
-    result = subprocess.run([
-        "ffmpeg", "-y", "-i", input_path,
-        "-vf", vf,
-        "-c:a", "copy",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "22",
-        output_path,
-    ], capture_output=True, timeout=1200)
+    chunk_paths = []
+    for ci in range(n_chunks):
+        t_start = ci * chunk_dur
+        t_end = min((ci + 1) * chunk_dur, total_dur)
+        if t_start >= total_dur:
+            break
 
-    if result.returncode != 0:
-        err = result.stderr[-500:].decode("utf-8", "ignore")
-        print(f"  [WARN] ffmpeg subtitle burn failed: {err}")
-        raise RuntimeError("ffmpeg subtitle burn failed")
+        chunk_in = os.path.join(chunk_dir, f"chunk_{ci:03d}_in.mp4")
+        chunk_out = os.path.join(chunk_dir, f"chunk_{ci:03d}_out.mp4")
+
+        # Extract chunk with ffmpeg (fast, no re-encode)
+        subprocess.run([
+            "ffmpeg", "-y", "-ss", str(t_start), "-t", str(t_end - t_start),
+            "-i", input_path, "-c", "copy", chunk_in,
+        ], capture_output=True, timeout=60)
+
+        # Filter subtitles for this chunk's time range
+        chunk_subs = []
+        for sub in subtitles:
+            s = sub.start.total_seconds()
+            e = sub.end.total_seconds()
+            if s < t_end and e > t_start:
+                import copy
+                new_sub = copy.copy(sub)
+                new_sub.start = srt.timedelta(seconds=max(0, s - t_start))
+                new_sub.end = srt.timedelta(seconds=min(t_end - t_start, e - t_start))
+                chunk_subs.append(new_sub)
+
+        if chunk_subs and os.path.exists(chunk_in):
+            # Write chunk SRT
+            chunk_srt = os.path.join(chunk_dir, f"chunk_{ci:03d}.srt")
+            with open(chunk_srt, "w", encoding="utf-8") as f:
+                f.write(srt.compose(chunk_subs))
+            # Burn with PIL (small chunk = safe memory)
+            try:
+                _burn_subtitles_pillow(chunk_in, chunk_srt, chunk_out)
+                os.remove(chunk_in)
+                os.remove(chunk_srt)
+                chunk_paths.append(chunk_out)
+            except Exception as e:
+                print(f"  [WARN] Chunk {ci} subtitle failed: {e}")
+                chunk_paths.append(chunk_in)  # use unsubbed chunk
+        elif os.path.exists(chunk_in):
+            chunk_paths.append(chunk_in)
+
+        if (ci + 1) % 3 == 0:
+            print(f"    Subtitle chunk {ci+1}/{n_chunks}...")
+
+    # Concatenate all chunks
+    if chunk_paths:
+        concat_list = os.path.join(chunk_dir, "concat.txt")
+        with open(concat_list, "w") as f:
+            for p in chunk_paths:
+                f.write(f"file '{os.path.abspath(p)}'\n")
+        subprocess.run([
+            "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+            "-i", concat_list, "-c", "copy", output_path,
+        ], capture_output=True, check=True, timeout=120)
+
+        # Cleanup
+        import shutil
+        shutil.rmtree(chunk_dir, ignore_errors=True)
+    else:
+        raise RuntimeError("No subtitle chunks produced")
 
 
 def _group_clips_by_scene(clip_files: list) -> list[list]:
