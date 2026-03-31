@@ -174,8 +174,15 @@ def _burn_subtitles_ffmpeg(input_path: str, srt_path: str, output_path: str):
     if "STHeiti" in font_path:
         style = style.replace("Noto Sans CJK TC", "STHeiti")
 
-    # Escape path for ffmpeg subtitles filter (colons and backslashes)
-    srt_escaped = srt_path.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
+    # ffmpeg subtitles filter needs absolute path and special escaping
+    srt_abs = os.path.abspath(srt_path)
+    # Escape for ffmpeg filter syntax: \ : ' [ ]
+    srt_escaped = (srt_abs
+                   .replace("\\", "/")
+                   .replace(":", "\\:")
+                   .replace("'", "\\'")
+                   .replace("[", "\\[")
+                   .replace("]", "\\]"))
     vf = f"subtitles='{srt_escaped}':force_style='{style}'"
 
     result = subprocess.run([
@@ -184,7 +191,7 @@ def _burn_subtitles_ffmpeg(input_path: str, srt_path: str, output_path: str):
         "-c:a", "copy",
         "-c:v", "libx264", "-preset", "fast", "-crf", "22",
         output_path,
-    ], capture_output=True, timeout=600)
+    ], capture_output=True, timeout=1200)
 
     if result.returncode != 0:
         err = result.stderr[-500:].decode("utf-8", "ignore")
@@ -276,27 +283,44 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
 
 def _interleave_wiki_clips(cut_paths: list[str], wiki_clips: list[str]) -> list[str]:
     """
-    Insert wiki archive clips at evenly-spaced positions in the cut sequence.
-    Wiki clips are placed at ~20%, 40%, 60%, 80% through the timeline
-    (and one at the very start if available).
-    Wiki clips already have dark grade applied via Ken Burns.
+    Insert wiki archive clips evenly throughout the video.
+    For long-form (many wiki clips), they become the PRIMARY visual content,
+    with Pexels clips as transitions between wiki images.
     """
     if not wiki_clips:
         return cut_paths
 
-    n = len(cut_paths)
-    # Positions to insert wiki clips (as fractions of total cuts)
-    # First wiki clip at position 2 (after opening shots), rest evenly spread
+    n_cuts = len(cut_paths)
+    n_wiki = len(wiki_clips)
+
+    # If we have lots of wiki clips (long-form), distribute evenly
+    # Every N cuts, insert a wiki clip
+    if n_wiki >= 10:
+        # Roughly 1 wiki clip every 3-4 Pexels cuts
+        interval = max(2, n_cuts // (n_wiki + 1))
+        result = []
+        wiki_idx = 0
+        for i, cut in enumerate(cut_paths):
+            result.append(cut)
+            if (i + 1) % interval == 0 and wiki_idx < n_wiki:
+                result.append(wiki_clips[wiki_idx])
+                wiki_idx += 1
+        # Append any remaining wiki clips at the end
+        while wiki_idx < n_wiki:
+            result.append(wiki_clips[wiki_idx])
+            wiki_idx += 1
+        return result
+
+    # Original logic for Shorts (few wiki clips)
     insert_positions = [2]
     remaining = wiki_clips[1:]
-    step = max(1, n // (len(remaining) + 1))
+    step = max(1, n_cuts // (len(remaining) + 1))
     pos = step
     for _ in remaining:
-        insert_positions.append(min(pos, n - 1))
+        insert_positions.append(min(pos, n_cuts - 1))
         pos += step
 
     result = list(cut_paths)
-    # Insert in reverse order so earlier indices stay valid
     wiki_iter = list(zip(sorted(insert_positions, reverse=True), reversed(wiki_clips)))
     for insert_at, wiki_path in wiki_iter:
         result.insert(insert_at, wiki_path)
@@ -539,9 +563,9 @@ def _apply_cinematic_effects(input_path: str, output_path: str) -> bool:
             "ffmpeg", "-y", "-i", input_path,
             "-vf", vf,
             "-c:a", "copy",
-            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
             output_path,
-        ], capture_output=True, timeout=300)
+        ], capture_output=True, timeout=1200)
         if result.returncode == 0:
             print("  Cinematic effects applied ✅")
             return True

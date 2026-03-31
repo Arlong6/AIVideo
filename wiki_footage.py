@@ -221,6 +221,45 @@ def _make_ken_burns_clip(img: np.ndarray, duration: float = 4.0) -> VideoClip:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def _generate_search_queries(topic: str) -> list[str]:
+    """Generate diverse search queries to find more real case images."""
+    import re
+    queries = [topic]
+
+    # Extract English names/terms from topic
+    en_words = re.findall(r'[A-Za-z][A-Za-z\s\.]+', topic)
+    for w in en_words:
+        w = w.strip()
+        if len(w) > 2:
+            queries.append(w)
+            queries.append(f"{w} murder")
+            queries.append(f"{w} case")
+
+    # Extract Chinese key terms
+    zh_parts = re.findall(r'[\u4e00-\u9fff]+', topic)
+    for p in zh_parts:
+        if len(p) >= 2:
+            queries.append(p)
+
+    # Common modifiers
+    base = en_words[0].strip() if en_words else topic[:20]
+    queries.extend([
+        f"{base} suspect", f"{base} victim", f"{base} crime scene",
+        f"{base} court", f"{base} trial", f"{base} newspaper",
+        f"{base} police", f"{base} arrest", f"{base} memorial",
+    ])
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique = []
+    for q in queries:
+        q_lower = q.strip().lower()
+        if q_lower and q_lower not in seen:
+            seen.add(q_lower)
+            unique.append(q.strip())
+    return unique[:20]
+
+
 def get_wiki_clips(topic: str, output_dir: str, max_images: int = 5) -> list[str]:
     """
     Search Wikimedia Commons for archival images of the case.
@@ -231,15 +270,15 @@ def get_wiki_clips(topic: str, output_dir: str, max_images: int = 5) -> list[str
     wiki_dir = os.path.join(output_dir, "wiki_clips")
     os.makedirs(wiki_dir, exist_ok=True)
 
-    # Build search query: topic name + modifiers (all in English)
-    queries = [topic, f"{topic} killer", f"{topic} murder case", f"{topic} criminal"]
+    # Generate diverse search queries for better coverage
+    queries = _generate_search_queries(topic)
 
-    print(f"  Searching Wikimedia Commons for '{topic}'...")
+    print(f"  Searching Wikimedia Commons with {len(queries)} queries...")
     all_pages = []
     for q in queries:
-        pages = _search_wikimedia(q, limit=8)
+        pages = _search_wikimedia(q, limit=10)
         all_pages.extend(pages)
-        if len(all_pages) >= max_images * 3:  # gather some extras to filter from
+        if len(all_pages) >= max_images * 4:
             break
 
     # Deduplicate by title

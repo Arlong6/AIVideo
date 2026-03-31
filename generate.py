@@ -241,13 +241,13 @@ def _generate_long(args):
         generate_srt(zh.get("script", ""), actual_duration, srt_path)
 
     # Step 4: Download footage (40-60 scenes)
-    print("\n[4/9] Downloading footage (long-form)...")
+    print("\n[4/9] Downloading footage (long-form, 1 clip/scene for transitions)...")
     visual_scenes = zh.get("visual_scenes", [])[:60]
-    download_footage(visual_scenes, output_dir)
+    download_footage(visual_scenes, output_dir, fmt="long")
 
     # Step 5: Get wiki footage
-    print("\n[5/9] Fetching archival images...")
-    wiki_clips = get_wiki_clips(topic, output_dir, max_images=8)
+    print("\n[5/9] Fetching archival images (long-form: max 25)...")
+    wiki_clips = get_wiki_clips(topic, output_dir, max_images=25)
 
     # Step 6: Generate thumbnail
     print("\n[6/9] Generating thumbnail...")

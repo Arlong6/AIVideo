@@ -45,7 +45,8 @@ FALLBACK_QUERIES = [
 ]
 
 SEEN_IDS_FILE = "pexels_seen_ids.json"
-CLIPS_PER_SCENE = 2   # clips downloaded per visual scene
+CLIPS_PER_SCENE = 2   # default clips per scene (Shorts)
+CLIPS_PER_SCENE_LONG = 1  # long-form uses fewer Pexels (wiki is primary)
 
 
 def _load_seen_ids() -> set:
@@ -96,13 +97,12 @@ def _download_clip(video: dict, filepath: str) -> bool:
         return False
 
 
-def download_footage(visual_scenes: list, output_dir: str):
+def download_footage(visual_scenes: list, output_dir: str, fmt: str = "short"):
     """
     Download stock footage matched to the story's visual scenes.
 
-    visual_scenes: list of English Pexels search queries in story order (ideally 15).
-    Each scene downloads CLIPS_PER_SCENE clips, named s{scene_idx:02d}_clip{n}.mp4.
-    Falls back to generic dark atmosphere queries if a scene yields no results.
+    visual_scenes: list of English Pexels search queries in story order.
+    fmt='short': 2 clips/scene (primary visual). fmt='long': 1 clip/scene (transition only).
     """
     if not PEXELS_API_KEY:
         print("  [SKIP] No Pexels API key — add PEXELS_API_KEY to .env")
@@ -111,6 +111,7 @@ def download_footage(visual_scenes: list, output_dir: str):
     clips_dir = os.path.join(output_dir, "clips")
     os.makedirs(clips_dir, exist_ok=True)
 
+    clips_per = CLIPS_PER_SCENE_LONG if fmt == "long" else CLIPS_PER_SCENE
     headers = {"Authorization": PEXELS_API_KEY}
     seen_ids = _load_seen_ids()
     total_downloaded = 0
@@ -123,11 +124,11 @@ def download_footage(visual_scenes: list, output_dir: str):
 
         # Try page 1 then page 2 for this query
         for page in (1, 2):
-            if clips_saved >= CLIPS_PER_SCENE:
+            if clips_saved >= clips_per:
                 break
             videos = _search_pexels(query, page, headers)
             for video in videos:
-                if clips_saved >= CLIPS_PER_SCENE:
+                if clips_saved >= clips_per:
                     break
                 if video["id"] in seen_ids:
                     continue
@@ -143,13 +144,13 @@ def download_footage(visual_scenes: list, output_dir: str):
                     print(f"    ✅ {filename}")
 
         # Fallback: if scene query returned nothing, use a generic dark query
-        while clips_saved < CLIPS_PER_SCENE:
+        while clips_saved < clips_per:
             fb_query = FALLBACK_QUERIES[fallback_idx % len(FALLBACK_QUERIES)]
             fallback_idx += 1
             print(f"    [FALLBACK] '{fb_query}'")
             videos = _search_pexels(fb_query, 1, headers)
             for video in videos:
-                if clips_saved >= CLIPS_PER_SCENE:
+                if clips_saved >= clips_per:
                     break
                 if video["id"] in seen_ids:
                     continue
@@ -166,7 +167,7 @@ def download_footage(visual_scenes: list, output_dir: str):
                 break  # give up on this scene
 
     _save_seen_ids(seen_ids)
-    print(f"  Downloaded {total_downloaded} clips ({len(visual_scenes)} scenes × {CLIPS_PER_SCENE})")
+    print(f"  Downloaded {total_downloaded} clips ({len(visual_scenes)} scenes × {clips_per})")
 
     # Save Pexels attribution file
     if pexels_credits:
