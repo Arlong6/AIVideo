@@ -9,6 +9,7 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 KLING_ACCESS_KEY = os.getenv("KLING_ACCESS_KEY")
 KLING_SECRET_KEY = os.getenv("KLING_SECRET_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # TTS voices — Taiwan Mandarin male for ZH (deep, dramatic, correct accent)
 VOICE_ZH = "zh-TW-YunJheNeural"

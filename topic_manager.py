@@ -32,32 +32,57 @@ NEWS_RSS_URLS = [
     "https://news.google.com/rss/search?q=asia+crime+murder+case&hl=en&gl=US&ceid=US:en",
 ]
 
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+from config import GEMINI_API_KEY
+
+_gemini_client = None
+if GEMINI_API_KEY:
+    try:
+        from google import genai
+        _gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+    except Exception:
+        pass
+
+_claude_client = None
+if ANTHROPIC_API_KEY:
+    _claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 TODAY_TOPICS_FILE = "today_topics.json"
 
 
 def _call_claude_text(prompt: str, max_tokens: int = 300) -> str:
-    """Call Claude with Opus→Sonnet fallback and 529/500 retry."""
-    models = ["claude-opus-4-6", "claude-sonnet-4-6"]
+    """Call LLM: Gemini first (free), Claude fallback (paid)."""
+    # Try Gemini
+    if _gemini_client:
+        try:
+            r = _gemini_client.models.generate_content(
+                model="gemini-2.5-flash", contents=prompt)
+            return r.text.strip()
+        except Exception as e:
+            print(f"  [WARN] Gemini topic suggestion failed: {e}")
+
+    # Fallback to Claude
+    if not _claude_client:
+        raise RuntimeError("No LLM available")
+
+    models = ["claude-sonnet-4-6", "claude-opus-4-6"]
     for model in models:
         for attempt in range(3):
             try:
-                msg = client.messages.create(
+                msg = _claude_client.messages.create(
                     model=model,
                     max_tokens=max_tokens,
                     messages=[{"role": "user", "content": prompt}],
                 )
                 return msg.content[0].text.strip()
             except anthropic.APIStatusError as e:
-                if e.status_code in (500, 529):
+                if e.status_code in (400, 500, 529):
                     wait = 20 * (attempt + 1)
                     print(f"  [WARN] {model} error {e.status_code}, retrying in {wait}s...")
                     time.sleep(wait)
                 else:
                     raise
         print(f"  [WARN] {model} failed after 3 retries, trying next model...")
-    raise RuntimeError("All Claude models overloaded")
+    raise RuntimeError("All LLM models failed")
 
 
 # ── Used topics tracking ───────────────────────────────────────────────────────

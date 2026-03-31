@@ -39,6 +39,7 @@ jobs:
         env:
           YOUTUBE_TOKEN_B64: ${{ secrets.YOUTUBE_TOKEN_B64 }}
           CLIENT_SECRETS_B64: ${{ secrets.CLIENT_SECRETS_B64 }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
@@ -51,6 +52,7 @@ jobs:
           open('youtube_token.pickle','wb').write(base64.b64decode(os.environ['YOUTUBE_TOKEN_B64']))
           open('client_secrets.json','wb').write(base64.b64decode(os.environ['CLIENT_SECRETS_B64']))
           env_content = "\n".join([
+              f"GEMINI_API_KEY={os.environ.get('GEMINI_API_KEY','')}",
               f"ANTHROPIC_API_KEY={os.environ['ANTHROPIC_API_KEY']}",
               f"PEXELS_API_KEY={os.environ['PEXELS_API_KEY']}",
               f"ELEVENLABS_API_KEY={os.environ['ELEVENLABS_API_KEY']}",
@@ -93,6 +95,7 @@ jobs:
         env:
           YOUTUBE_TOKEN_B64: ${{ secrets.YOUTUBE_TOKEN_B64 }}
           CLIENT_SECRETS_B64: ${{ secrets.CLIENT_SECRETS_B64 }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}

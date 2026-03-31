@@ -1,9 +1,21 @@
 import anthropic
 import json
 import time
-from config import ANTHROPIC_API_KEY
+from config import ANTHROPIC_API_KEY, GEMINI_API_KEY
 
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+# Gemini (primary — free) + Claude (fallback — paid)
+_gemini_client = None
+if GEMINI_API_KEY:
+    try:
+        from google import genai
+        _gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        print("  [INFO] Gemini API ready (primary)")
+    except Exception:
+        pass
+
+_claude_client = None
+if ANTHROPIC_API_KEY:
+    _claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 PROMPT_ZH = """你是一位頂尖真實犯罪 YouTube 頻道的腳本作家，專門為繁體中文觀眾創作。
 
@@ -269,27 +281,69 @@ def _generate_long_scripts(topic: str) -> dict:
 
 
 def _call_claude(prompt: str, max_tokens: int = 2500) -> dict:
-    models = ["claude-opus-4-6", "claude-sonnet-4-6"]
+    """Call LLM: try Gemini first (free), fallback to Claude (paid)."""
+    # Try Gemini first
+    if _gemini_client:
+        try:
+            return _call_gemini(prompt)
+        except Exception as e:
+            print(f"  [WARN] Gemini failed: {e}, falling back to Claude...")
+
+    # Fallback to Claude
+    if not _claude_client:
+        raise RuntimeError("No LLM available (Gemini failed, Claude not configured)")
+
+    models = ["claude-sonnet-4-6", "claude-opus-4-6"]
     for model in models:
         for attempt in range(3):
             try:
-                message = client.messages.create(
+                message = _claude_client.messages.create(
                     model=model,
                     max_tokens=max_tokens,
                     messages=[{"role": "user", "content": prompt}],
                 )
-                if model != "claude-opus-4-6":
-                    print(f"  [INFO] Used fallback model: {model}")
+                print(f"  [INFO] Used Claude {model}")
                 content = message.content[0].text
                 start = content.find("{")
                 end = content.rfind("}") + 1
                 return json.loads(content[start:end])
             except anthropic.APIStatusError as e:
-                if e.status_code in (500, 529):
+                if e.status_code in (400, 500, 529):
                     wait = 20 * (attempt + 1)
-                    print(f"  [WARN] {model} error {e.status_code}, retrying in {wait}s... (attempt {attempt+1}/3)")
+                    print(f"  [WARN] {model} error {e.status_code}, retrying in {wait}s...")
                     time.sleep(wait)
                 else:
                     raise
-        print(f"  [WARN] {model} failed after 3 retries, trying next model...")
-    raise RuntimeError("All Claude models overloaded")
+        print(f"  [WARN] {model} failed after 3 retries, trying next...")
+    raise RuntimeError("All LLM models failed")
+
+
+def _call_gemini(prompt: str) -> dict:
+    """Call Gemini API and parse JSON response."""
+    gemini_models = ["gemini-2.5-flash", "gemini-2.0-flash"]
+    for model in gemini_models:
+        for attempt in range(2):
+            try:
+                response = _gemini_client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config={"response_mime_type": "application/json"},
+                )
+                content = response.text
+                start = content.find("{")
+                end = content.rfind("}") + 1
+                if start >= 0 and end > start:
+                    result = json.loads(content[start:end])
+                    print(f"  [INFO] Used Gemini {model}")
+                    return result
+                raise ValueError("No JSON found in Gemini response")
+            except Exception as e:
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    print(f"  [WARN] Gemini {model} rate limited, waiting 20s...")
+                    time.sleep(20)
+                    continue
+                if attempt == 1:
+                    raise
+                print(f"  [WARN] Gemini {model} error: {e}, retrying...")
+                time.sleep(5)
+    raise RuntimeError("All Gemini models failed")
