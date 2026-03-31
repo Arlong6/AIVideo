@@ -45,12 +45,7 @@ def _font(size: int):
 
 def make_breaking_news(headline: str, sub_lines: list[str],
                        ticker: str = "", output_path: str = "") -> str:
-    """
-    Breaking news style card.
-    headline: main text (e.g. "白曉燕綁架撕票案")
-    sub_lines: 2-3 lines of detail
-    ticker: scrolling bottom text
-    """
+    """Breaking news style card."""
     img = Image.new("RGB", (W, H), (0, 0, 0))
     draw = ImageDraw.Draw(img)
 
@@ -64,34 +59,51 @@ def make_breaking_news(headline: str, sub_lines: list[str],
     draw.rectangle([(0, 0), (W, 6)], fill=(200, 20, 20))
 
     # "即時新聞" badge
-    draw.rounded_rectangle([20, 16, 200, 60], radius=4, fill=(200, 20, 20))
-    draw.text((32, 16), "即時新聞", font=_font(32), fill=(255, 255, 255))
+    draw.rounded_rectangle([30, 20, 210, 64], radius=6, fill=(200, 20, 20))
+    draw.text((46, 22), "即時新聞", font=_font(32), fill=(255, 255, 255))
 
     # LIVE indicator
-    draw.rounded_rectangle([W - 160, 16, W - 20, 56], radius=4, fill=(200, 20, 20))
-    draw.text((W - 145, 18), "● LIVE", font=_font(30), fill=(255, 255, 255))
+    draw.rounded_rectangle([W - 155, 20, W - 30, 64], radius=6, fill=(200, 20, 20))
+    draw.text((W - 138, 22), "● LIVE", font=_font(30), fill=(255, 255, 255))
 
-    # Main headline centered
-    f_lg = _font(72)
-    bbox = draw.textbbox((0, 0), headline, font=f_lg)
-    tw = bbox[2] - bbox[0]
-    draw.text(((W - tw) // 2, 260), headline, font=f_lg, fill=(255, 255, 255))
+    # Main headline — auto-wrap if too long
+    f_lg = _font(64)
+    # Wrap headline to max ~16 chars per line
+    h_lines = []
+    remaining = headline
+    while remaining:
+        h_lines.append(remaining[:18])
+        remaining = remaining[18:]
+    h_lines = h_lines[:2]
+
+    total_h = len(h_lines) * 80
+    start_y = (H - total_h) // 2 - 60
+    for i, hl in enumerate(h_lines):
+        bbox = draw.textbbox((0, 0), hl, font=f_lg)
+        tw = bbox[2] - bbox[0]
+        draw.text(((W - tw) // 2, start_y + i * 80), hl, font=f_lg, fill=(255, 255, 255))
 
     # Separator
-    draw.line([(100, 355), (W - 100, 355)], fill=(80, 80, 120), width=1)
+    sep_y = start_y + len(h_lines) * 80 + 15
+    draw.line([(200, sep_y), (W - 200, sep_y)], fill=(80, 80, 120), width=1)
 
-    # Sub lines
-    f_md = _font(42)
+    # Sub lines — also wrap long lines
+    f_md = _font(34)
+    sub_y = sep_y + 25
     for i, line in enumerate(sub_lines[:3]):
+        # Truncate to ~35 chars
+        if len(line) > 38:
+            line = line[:36] + "…"
         bbox = draw.textbbox((0, 0), line, font=f_md)
         tw = bbox[2] - bbox[0]
-        draw.text(((W - tw) // 2, 385 + i * 60), line, font=f_md, fill=(200, 210, 230))
+        draw.text(((W - tw) // 2, sub_y + i * 52), line, font=f_md, fill=(190, 200, 220))
 
     # Bottom ticker bar
     if ticker:
-        draw.rectangle([(0, H - 80), (W, H)], fill=(180, 15, 15))
-        draw.line([(0, H - 82), (W, H - 82)], fill=(220, 20, 20), width=2)
-        draw.text((30, H - 68), ticker, font=_font(32), fill=(255, 255, 255))
+        draw.rectangle([(0, H - 72), (W, H)], fill=(180, 15, 15))
+        draw.line([(0, H - 74), (W, H - 74)], fill=(220, 20, 20), width=2)
+        ticker_text = ticker[:60] if len(ticker) > 60 else ticker
+        draw.text((30, H - 62), f"▶ {ticker_text}", font=_font(28), fill=(255, 255, 255))
 
     img.save(output_path, "JPEG", quality=95)
     return output_path
@@ -104,12 +116,7 @@ def make_breaking_news(headline: str, sub_lines: list[str],
 def make_timeline(title: str, year: str,
                   events: list[tuple[str, str, str]],
                   output_path: str = "") -> str:
-    """
-    Timeline card.
-    title: case name
-    year: big background year
-    events: list of (date, event_title, description) tuples (max 5)
-    """
+    """Timeline card."""
     img = Image.new("RGB", (W, H), (0, 0, 0))
     draw = ImageDraw.Draw(img)
 
@@ -124,30 +131,38 @@ def make_timeline(title: str, year: str,
     draw.rectangle([(0, H - 5), (W, H)], fill=(180, 20, 20))
 
     # Big faded year
-    draw.text((80, 60), year, font=_font(120), fill=(50, 50, 70))
+    draw.text((80, 50), year, font=_font(110), fill=(45, 45, 65))
 
-    # Title
-    draw.text((250, 100), title, font=_font(68), fill=(255, 250, 230))
-    draw.text((250, 180), "案件時間線", font=_font(38), fill=(150, 150, 170))
+    # Title — wrap if needed
+    title_display = title[:20] if len(title) > 20 else title
+    draw.text((250, 90), title_display, font=_font(56), fill=(255, 250, 230))
+    draw.text((250, 160), "案件時間線", font=_font(32), fill=(130, 130, 155))
+
+    # Calculate spacing based on event count
+    n_events = min(len(events), 5)
+    line_x = 220
+    y_start = 230
+    spacing = min(145, (H - y_start - 60) // max(n_events, 1))
 
     # Vertical timeline line
-    line_x = 200
-    y_start = 270
-    y_end = min(y_start + len(events) * 140, H - 40)
+    y_end = y_start + n_events * spacing
     draw.line([(line_x, y_start), (line_x, y_end)], fill=(180, 30, 30), width=3)
 
     # Events
     for i, (date, evt_title, desc) in enumerate(events[:5]):
-        y = y_start + 20 + i * 140
+        y = y_start + 15 + i * spacing
         # Red dot
-        draw.ellipse([line_x - 8, y - 8, line_x + 8, y + 8], fill=(200, 30, 30))
-        # Date
-        draw.text((line_x + 40, y - 20), date, font=_font(38), fill=(200, 80, 80))
-        # Title
-        draw.text((line_x + 300, y - 22), evt_title, font=_font(38), fill=(255, 250, 230))
-        # Description
+        draw.ellipse([line_x - 7, y - 7, line_x + 7, y + 7], fill=(200, 30, 30))
+        # Date — truncate
+        date_str = date[:12] if len(date) > 12 else date
+        draw.text((line_x + 35, y - 18), date_str, font=_font(30), fill=(200, 80, 80))
+        # Event title — truncate
+        evt_str = evt_title[:18] if len(evt_title) > 18 else evt_title
+        draw.text((line_x + 280, y - 20), evt_str, font=_font(32), fill=(255, 250, 230))
+        # Description — truncate
         if desc:
-            draw.text((line_x + 300, y + 22), desc, font=_font(28), fill=(150, 150, 170))
+            desc_str = desc[:28] if len(desc) > 28 else desc
+            draw.text((line_x + 280, y + 18), desc_str, font=_font(24), fill=(140, 140, 160))
 
     img.save(output_path, "JPEG", quality=95)
     return output_path
@@ -161,13 +176,7 @@ def make_case_file(title: str, case_number: str,
                    fields: list[tuple[str, str]],
                    status: str = "調查中",
                    output_path: str = "") -> str:
-    """
-    Case file card.
-    title: case name
-    case_number: e.g. "#1997-0414"
-    fields: list of (label, value) tuples
-    status: "已結案 CLOSED" or "懸案 UNSOLVED" etc.
-    """
+    """Case file card."""
     img = Image.new("RGB", (W, H), (0, 0, 0))
     draw = ImageDraw.Draw(img)
 
@@ -182,28 +191,39 @@ def make_case_file(title: str, case_number: str,
     draw.rectangle([(0, 0), (8, H)], fill=(160, 20, 20))
 
     # Case number badge
-    draw.rounded_rectangle([60, 40, 60 + len(case_number) * 18 + 40, 100],
-                            radius=8, outline=(180, 30, 30), width=3)
-    draw.text((80, 48), f"案件編號 {case_number}", font=_font(36), fill=(180, 50, 50))
+    badge_text = f"案件編號 {case_number}"
+    badge_w = len(badge_text) * 17 + 50
+    draw.rounded_rectangle([60, 50, 60 + badge_w, 105],
+                            radius=8, outline=(180, 30, 30), width=2)
+    draw.text((80, 58), badge_text, font=_font(32), fill=(180, 50, 50))
 
-    # Title
-    draw.text((80, 130), title, font=_font(60), fill=(220, 215, 200))
+    # Title — wrap if too long
+    title_display = title[:22] if len(title) > 22 else title
+    draw.text((80, 135), title_display, font=_font(52), fill=(220, 215, 200))
 
     # Divider
     draw.line([(80, 210), (W - 80, 210)], fill=(80, 70, 60), width=1)
 
-    # Fields
-    for i, (label, value) in enumerate(fields[:7]):
-        y = 240 + i * 70
-        draw.text((80, y), f"{label}：", font=_font(28), fill=(140, 120, 100))
-        draw.text((280, y), value, font=_font(28), fill=(220, 215, 200))
-        draw.line([(280, y + 38), (W - 80, y + 38)], fill=(50, 45, 40), width=1)
+    # Fields — consistent label column width
+    label_x = 100
+    value_x = 320
+    for i, (label, value) in enumerate(fields[:6]):
+        y = 240 + i * 75
+        # Truncate long values
+        value_str = value[:30] if len(value) > 30 else value
+        draw.text((label_x, y), f"{label}：", font=_font(30), fill=(140, 120, 100))
+        draw.text((value_x, y), value_str, font=_font(30), fill=(220, 215, 200))
+        draw.line([(value_x, y + 42), (W - 100, y + 42)], fill=(50, 45, 40), width=1)
 
-    # Status stamp
+    # Status stamp — bottom right
     stamp_color = (180, 30, 30) if "結案" in status or "CLOSED" in status else (180, 140, 30)
-    draw.rounded_rectangle([W - 380, H - 140, W - 60, H - 60],
+    status_str = status[:16] if len(status) > 16 else status
+    sb = draw.textbbox((0, 0), status_str, font=_font(34))
+    sw = sb[2] - sb[0]
+    stamp_x = W - sw - 100
+    draw.rounded_rectangle([stamp_x - 20, H - 120, stamp_x + sw + 20, H - 60],
                             radius=6, outline=stamp_color, width=3)
-    draw.text((W - 360, H - 130), status, font=_font(36), fill=stamp_color)
+    draw.text((stamp_x, H - 114), status_str, font=_font(34), fill=stamp_color)
 
     img.save(output_path, "JPEG", quality=95)
     return output_path
