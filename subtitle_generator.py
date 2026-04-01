@@ -1,9 +1,6 @@
 import re
 
 MAX_CHARS_PER_CARD = 32   # max chars per subtitle card (2 lines × 16 chars)
-CHAR_WEIGHT = 1.0
-PAUSE_WEIGHT = 0.6        # sentence-ending punctuation (。！？)
-COMMA_WEIGHT = 0.2        # mid-sentence pause (，、)
 
 # Paired brackets that must not be split across cards
 BRACKET_PAIRS = [("『", "』"), ("「", "」"), (""", """), ("(", ")"), ("（", "）")]
@@ -17,19 +14,7 @@ def _format_time(seconds: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
-def _char_weight(text: str) -> float:
-    w = 0.0
-    for ch in text:
-        w += CHAR_WEIGHT
-        if ch in "。！？":
-            w += PAUSE_WEIGHT
-        elif ch in "，、":
-            w += COMMA_WEIGHT
-    return max(w, 0.1)
-
-
 def _brackets_balanced(text: str) -> bool:
-    """Return True if all bracket pairs in text are balanced."""
     for open_ch, close_ch in BRACKET_PAIRS:
         if text.count(open_ch) != text.count(close_ch):
             return False
@@ -37,83 +22,54 @@ def _brackets_balanced(text: str) -> bool:
 
 
 def _find_safe_split(text: str, max_chars: int) -> int:
-    """
-    Find a split position that keeps bracket pairs balanced.
-    Prefers positions ≤ max_chars at natural break points.
-    If no balanced split exists within max_chars (e.g. a very long quote),
-    extends beyond max_chars until the bracket closes — up to 2× max_chars.
-    """
-    # First pass: natural break (comma/pause) within limit with balanced brackets
     for i in range(min(max_chars, len(text)) - 1, max_chars // 2, -1):
         if text[i] in "，、；" and _brackets_balanced(text[:i + 1]):
             return i + 1
-
-    # Second pass: any position ≤ max_chars with balanced brackets
     for i in range(min(max_chars, len(text)), max_chars // 2, -1):
         if _brackets_balanced(text[:i]):
             return i
-
-    # Third pass: bracket pair spans beyond max_chars — extend until it closes
-    # (prevents 「 on one card and 」 on another)
     extended_limit = min(len(text), max_chars * 2)
     for i in range(max_chars + 1, extended_limit + 1):
         if _brackets_balanced(text[:i]):
-            # Found closing bracket — split here if at natural break, else continue
             if i >= len(text) or text[i - 1] in "，、；。！？」』":
                 return i
-
-    # Last resort: hard cut at max_chars
     return max_chars
 
 
 def _split_to_cards(sentence: str) -> list[str]:
-    """
-    Split a sentence into subtitle cards of at most MAX_CHARS_PER_CARD chars.
-    Never splits inside a 『』「」"" pair.
-    """
     sentence = sentence.strip()
     if len(sentence) <= MAX_CHARS_PER_CARD:
         return [sentence]
-
     cards = []
     remaining = sentence
     while len(remaining) > MAX_CHARS_PER_CARD:
         pos = _find_safe_split(remaining, MAX_CHARS_PER_CARD)
         cards.append(remaining[:pos].strip())
         remaining = remaining[pos:].strip()
-
     if remaining:
         cards.append(remaining)
-
     return [c for c in cards if c]
 
 
 def generate_srt(script: str, duration_seconds: float, output_path: str):
     """
-    Split script into subtitle cards and generate .srt file.
-    - Timing proportional to character count (matches TTS speech pace)
-    - Cards ≤ MAX_CHARS_PER_CARD chars, never split inside bracket pairs
+    Proportional timing fallback — used when real TTS timing is unavailable.
     """
     clean = re.sub(r"\.\.\.", "，", script.strip())
     clean = re.sub(r"\n+", "\n", clean)
 
-    # Split into sentences at sentence-ending punctuation
     sentences = re.split(r"(?<=[。！？])\s*", clean)
     sentences = [s.strip().replace("\n", " ") for s in sentences if s.strip()]
-
     if not sentences:
         return
 
-    # Split long sentences into short cards
     cards = []
     for sentence in sentences:
         cards.extend(_split_to_cards(sentence))
-
     if not cards:
         return
 
-    # Distribute time proportionally by character weight
-    weights = [_char_weight(card) for card in cards]
+    weights = [len(card) for card in cards]
     total_weight = sum(weights)
 
     srt_entries = []
@@ -129,5 +85,46 @@ def generate_srt(script: str, duration_seconds: float, output_path: str):
 
     with open(output_path, "w", encoding="utf-8") as f:
         f.write("\n".join(srt_entries))
-
     print(f"  Subtitles saved: {output_path} ({len(srt_entries)} cards)")
+
+
+def generate_srt_from_boundaries(boundaries: list[dict], output_path: str):
+    """
+    Generate SRT from edge-tts SentenceBoundary events — precise audio sync.
+
+    boundaries: list of {"offset": int, "duration": int, "text": str}
+      offset/duration are in 100-nanosecond units (divide by 10_000_000 for seconds)
+    """
+    srt_entries = []
+    idx = 1
+
+    for b in boundaries:
+        text = b["text"].strip()
+        if not text:
+            continue
+
+        start_sec = b["offset"] / 10_000_000
+        dur_sec = b["duration"] / 10_000_000
+        end_sec = start_sec + dur_sec
+
+        # Split long sentences into subtitle cards
+        cards = _split_to_cards(text)
+        n_cards = len(cards)
+
+        # Distribute sentence duration across its cards proportionally
+        card_weights = [len(c) for c in cards]
+        total_w = sum(card_weights)
+        card_t = start_sec
+
+        for card, cw in zip(cards, card_weights):
+            card_dur = (cw / total_w) * dur_sec
+            card_end = min(card_t + card_dur - 0.05, end_sec)
+            srt_entries.append(
+                f"{idx}\n{_format_time(card_t)} --> {_format_time(card_end)}\n{card}\n"
+            )
+            card_t += card_dur
+            idx += 1
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(srt_entries))
+    print(f"  Subtitles saved (synced): {output_path} ({len(srt_entries)} cards)")

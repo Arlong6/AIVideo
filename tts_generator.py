@@ -52,6 +52,24 @@ async def _edge_tts_async(text: str, voice: str, rate: str, pitch: str, output_p
     await communicate.save(output_path)
 
 
+async def _edge_tts_with_timing(text: str, voice: str, rate: str, pitch: str,
+                                 output_path: str) -> list[dict]:
+    """Generate TTS and capture sentence boundary timing for subtitle sync."""
+    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
+    boundaries = []
+    with open(output_path, "wb") as f:
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                f.write(chunk["data"])
+            elif chunk["type"] == "SentenceBoundary":
+                boundaries.append({
+                    "offset": chunk["offset"],
+                    "duration": chunk["duration"],
+                    "text": chunk["text"],
+                })
+    return boundaries
+
+
 def _generate_edge_tts(text: str, lang: str, output_path: str):
     if lang == "zh":
         voice, rate, pitch = VOICE_ZH, TTS_RATE_ZH, TTS_PITCH_ZH
@@ -60,6 +78,18 @@ def _generate_edge_tts(text: str, lang: str, output_path: str):
 
     asyncio.run(_edge_tts_async(text, voice, rate, pitch, output_path))
     print(f"  Voiceover saved (edge-tts {lang.upper()}): {output_path}")
+
+
+def generate_voiceover_with_timing(text: str, lang: str, output_path: str) -> list[dict]:
+    """Generate voiceover and return sentence boundary timing for precise subtitles."""
+    if lang == "zh":
+        voice, rate, pitch = VOICE_ZH, TTS_RATE_ZH, TTS_PITCH_ZH
+    else:
+        voice, rate, pitch = VOICE_EN, "-10%", "-2Hz"
+
+    boundaries = asyncio.run(_edge_tts_with_timing(text, voice, rate, pitch, output_path))
+    print(f"  Voiceover saved with {len(boundaries)} sentence boundaries: {output_path}")
+    return boundaries
 
 
 def generate_voiceover_sections(sections: list[dict], lang: str,
