@@ -26,6 +26,12 @@ from google.auth.transport.requests import Request
 from config import GEMINI_API_KEY
 from title_dna import TITLE_PATTERNS, POWER_WORDS, get_title_prompt_insert
 
+try:
+    from pytrends.request import TrendReq
+    _pytrends_available = True
+except ImportError:
+    _pytrends_available = False
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 TOKEN_FILE = "youtube_token.pickle"
@@ -55,6 +61,110 @@ if GEMINI_API_KEY:
         _gemini_client = genai.Client(api_key=GEMINI_API_KEY)
     except Exception:
         pass
+
+
+# ── Google Trends ────────────────────────────────────────────────────────────
+
+DEFAULT_CRIME_QUERIES = [
+    "台灣犯罪", "殺人案", "懸案", "連環殺手", "真實犯罪",
+    "失蹤案", "謀殺", "詐騙集團", "綁架案",
+]
+
+
+def get_google_trends(queries: list[str] | None = None,
+                      geo: str = "TW",
+                      timeframe: str = "now 7-d") -> dict:
+    """
+    Fetch Google Trends data for crime-related queries in Taiwan.
+
+    Uses pytrends to get:
+    - Interest over time for each query
+    - Rising and top related queries
+
+    Args:
+        queries: List of search terms (defaults to crime-related terms)
+        geo: Region code (default "TW" for Taiwan)
+        timeframe: Trends timeframe (default last 7 days)
+
+    Returns:
+        {
+            "rising_queries": [str, ...],
+            "top_queries": [str, ...],
+            "interest_scores": {query: avg_score, ...},
+        }
+    """
+    if not _pytrends_available:
+        print("  [ERROR] pytrends not installed. Run: pip install pytrends")
+        return {"rising_queries": [], "top_queries": [], "interest_scores": {}}
+
+    if queries is None:
+        queries = DEFAULT_CRIME_QUERIES
+
+    pytrends = TrendReq(hl="zh-TW", tz=480)  # UTC+8 for Taiwan
+
+    rising_queries = []
+    top_queries = []
+    interest_scores = {}
+    seen = set()
+
+    # pytrends only allows 5 keywords per request
+    for batch_start in range(0, len(queries), 5):
+        batch = queries[batch_start:batch_start + 5]
+
+        try:
+            pytrends.build_payload(batch, cat=0, timeframe=timeframe, geo=geo)
+
+            # Interest over time — average score per query
+            try:
+                iot = pytrends.interest_over_time()
+                if iot is not None and not iot.empty:
+                    for q in batch:
+                        if q in iot.columns:
+                            avg = float(iot[q].mean())
+                            interest_scores[q] = round(avg, 1)
+            except Exception:
+                pass
+
+            # Related queries (rising + top)
+            try:
+                related = pytrends.related_queries()
+                for q in batch:
+                    if q not in related:
+                        continue
+
+                    rising_df = related[q].get("rising")
+                    if rising_df is not None and not rising_df.empty:
+                        for _, row in rising_df.iterrows():
+                            term = row.get("query", "")
+                            if term and term not in seen:
+                                seen.add(term)
+                                rising_queries.append(term)
+
+                    top_df = related[q].get("top")
+                    if top_df is not None and not top_df.empty:
+                        for _, row in top_df.iterrows():
+                            term = row.get("query", "")
+                            if term and term not in seen:
+                                seen.add(term)
+                                top_queries.append(term)
+            except Exception:
+                pass
+
+            time.sleep(1)  # rate limit
+
+        except Exception as e:
+            print(f"  [WARN] Google Trends batch failed for {batch}: {e}")
+            time.sleep(2)
+
+    print(f"  Google Trends: {len(rising_queries)} rising, "
+          f"{len(top_queries)} top queries, "
+          f"{len(interest_scores)} scored terms")
+
+    return {
+        "rising_queries": rising_queries,
+        "top_queries": top_queries,
+        "interest_scores": interest_scores,
+    }
 
 
 # ── YouTube OAuth helper ──────────────────────────────────────────────────────
