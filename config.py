@@ -11,8 +11,8 @@ KLING_SECRET_KEY = os.getenv("KLING_SECRET_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-# TTS voices — Taiwan Mandarin male for ZH (deep, dramatic, correct accent)
-VOICE_ZH = "zh-TW-YunJheNeural"
+# TTS voices — Yunjian: deep, magnetic, documentary feel
+VOICE_ZH = "zh-CN-YunjianNeural"
 VOICE_EN = "en-US-GuyNeural"
 
 # Video settings — Shorts
