@@ -1,0 +1,36 @@
+{
+  "videos": [
+    {
+      "video_id": "g8ScjU1sP-Q",
+      "topic": "彭婉如命案：台灣政治受害者與未解的兇手之謎",
+      "slot": 1,
+      "duration_s": 48,
+      "publish_at": "2026-04-02T10:00:00+08:00",
+      "uploaded_at": "2026-04-01T19:17:04.045395+00:00",
+      "stats": [
+        {
+          "date": "2026-04-01",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "ECfhd_U-6-8",
+      "topic": "八德鄉滅門血案：桃園六死懸案，真兇至今成謎",
+      "slot": 3,
+      "duration_s": 45,
+      "publish_at": "2026-04-02T18:00:00+08:00",
+      "uploaded_at": "2026-04-01T19:21:19.648263+00:00",
+      "stats": [
+        {
+          "date": "2026-04-01",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    }
+  ]
+}
