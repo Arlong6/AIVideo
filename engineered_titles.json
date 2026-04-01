@@ -1,0 +1,329 @@
+{
+  "titles": [
+    {
+      "rank": 1,
+      "title": "柬埔寨詐騙園區水有多深？99%的人沒看懂的活人地獄",
+      "topic": "柬埔寨詐騙園區新受害者逃脫事件",
+      "trend_tier": "HOT",
+      "dna_pattern": "權力揭秘體",
+      "emotional_trigger": "恐懼+震驚：「水有多深」暗示層層黑幕，「活人地獄」激發本能恐懼",
+      "content_pillar": "真實犯罪與懸案重現",
+      "word_count": 24
+    },
+    {
+      "rank": 2,
+      "title": "你的臉就是提款機！台灣AI換臉詐騙背後的驚天犯罪帝國",
+      "topic": "台灣新興AI換臉詐騙犯罪鏈",
+      "trend_tier": "HOT",
+      "dna_pattern": "社會陰謀體",
+      "emotional_trigger": "切身威脅+憤怒：「你的臉」製造個人化恐懼，「犯罪帝國」暗示龐大組織",
+      "content_pillar": "真實犯罪與懸案重現",
+      "word_count": 25
+    },
+    {
+      "rank": 3,
+      "title": "2026房市暴跌只是前奏…普通人唯一的機會來了",
+      "topic": "中國大陸房市泡沫化警訊與普通人自救指南",
+      "trend_tier": "HOT",
+      "dna_pattern": "預言末日體",
+      "emotional_trigger": "焦慮+希望：「暴跌只是前奏」製造緊迫感，「唯一的機會」提供救贖出口",
+      "content_pillar": "政治經濟與社會陰謀揭秘",
+      "word_count": 22
+    },
+    {
+      "rank": 4,
+      "title": "頂流塌房的真相…99%的人都沒看懂的資本操控術",
+      "topic": "某頂流明星人設崩塌背後的資本操作",
+      "trend_tier": "HOT",
+      "dna_pattern": "權力揭秘體",
+      "emotional_trigger": "好奇+憤怒：「真相」+「99%沒看懂」製造資訊不對稱的焦慮",
+      "content_pillar": "娛樂圈黑幕與名人秘聞",
+      "word_count": 23
+    },
+    {
+      "rank": 5,
+      "title": "選秀節目背後的驚天資本遊戲…比好聲音更黑暗的潛規則",
+      "topic": "亞洲選秀節目黑幕潛規則事件再掀波瀾",
+      "trend_tier": "HOT",
+      "dna_pattern": "內娛揭秘體",
+      "emotional_trigger": "憤怒+獵奇：「驚天資本遊戲」+「更黑暗」層層遞進的震撼",
+      "content_pillar": "娛樂圈黑幕與名人秘聞",
+      "word_count": 24
+    },
+    {
+      "rank": 6,
+      "title": "AI真的會毀滅人類？科技巨頭不敢讓你知道的數位獨裁",
+      "topic": "AI科技巨頭壟斷與隱藏的社會控制手段",
+      "trend_tier": "RISING",
+      "dna_pattern": "社會陰謀體",
+      "emotional_trigger": "恐懼+好奇：末日級提問開場，「不敢讓你知道」製造禁忌感",
+      "content_pillar": "政治經濟與社會陰謀揭秘",
+      "word_count": 24
+    },
+    {
+      "rank": 7,
+      "title": "馬航MH370真相新線索…大國博弈下誰在隱藏真相",
+      "topic": "馬航MH370失蹤真相新線索",
+      "trend_tier": "RISING",
+      "dna_pattern": "國際懸案體",
+      "emotional_trigger": "好奇+憤怒：「新線索」製造時效性，「誰在隱藏」指向權力陰謀",
+      "content_pillar": "真實犯罪與懸案重現",
+      "word_count": 24
+    },
+    {
+      "rank": 8,
+      "title": "暗網最新曝光！你的個人數據正在被AI模型非法買賣",
+      "topic": "暗網最新交易趨勢：個人數據與AI模型非法買賣",
+      "trend_tier": "RISING",
+      "dna_pattern": "科技犯罪體",
+      "emotional_trigger": "恐懼+切身威脅：「你的個人數據」直接點名觀眾，「正在被」製造即時危機感",
+      "content_pillar": "真實犯罪與懸案重現",
+      "word_count": 24
+    },
+    {
+      "rank": 9,
+      "title": "預製菜的真相…資本巨頭如何操控14億人的餐桌",
+      "topic": "預製菜產業內幕與亞洲食品安全危機",
+      "trend_tier": "RISING",
+      "dna_pattern": "社會陰謀體",
+      "emotional_trigger": "憤怒+恐懼：「操控14億人的餐桌」將個人健康與系統性陰謀綁定",
+      "content_pillar": "政治經濟與社會陰謀揭秘",
+      "word_count": 22
+    },
+    {
+      "rank": 10,
+      "title": "網紅帶貨被封殺的真相…比張雪峰事件更驚人的流量黑幕",
+      "topic": "網紅/直播帶貨行業數據造假與灰色利益鏈",
+      "trend_tier": "RISING",
+      "dna_pattern": "封殺真相體",
+      "emotional_trigger": "好奇+憤怒：「被封殺的真相」喚醒資訊禁忌慾，借張雪峰錨定熟悉感",
+      "content_pillar": "娛樂圈黑幕與名人秘聞",
+      "word_count": 26
+    },
+    {
+      "rank": 11,
+      "title": "開盒公司內幕曝光…互聯網沒有隱私的恐怖真相",
+      "topic": "開盒文化（人肉搜索）的社會危害與背後推手",
+      "trend_tier": "RISING",
+      "dna_pattern": "科技犯罪體",
+      "emotional_trigger": "恐懼+憤怒：「沒有隱私」直擊現代人最大焦慮",
+      "content_pillar": "政治經濟與社會陰謀揭秘",
+      "word_count": 22
+    },
+    {
+      "rank": 12,
+      "title": "N號房只是冰山一角…亞洲新型態數位性犯罪的吃人真相",
+      "topic": "韓國N號房事件後新型態數位性犯罪追蹤",
+      "trend_tier": "RISING",
+      "dna_pattern": "國際懸案體",
+      "emotional_trigger": "震驚+恐懼：「冰山一角」暗示更大黑幕，「吃人真相」極端化表述",
+      "content_pillar": "真實犯罪與懸案重現",
+      "word_count": 24
+    },
+    {
+      "rank": 13,
+      "title": "全球比特幣洗錢案再爆新料…百億黑金背後的犯罪帝國",
+      "topic": "國際加密貨幣洗錢案新進展",
+      "trend_tier": "RISING",
+      "dna_pattern": "權力揭秘體",
+      "emotional_trigger": "好奇+震驚：「再爆新料」製造時效緊迫感，「百億黑金」量化衝擊",
+      "content_pillar": "真實犯罪與懸案重現",
+      "word_count": 24
+    },
+    {
+      "rank": 14,
+      "title": "已故藝人離奇死因真相…誰是幕後真兇？99%沒看懂",
+      "topic": "某已故藝人死因真相新說法",
+      "trend_tier": "RISING",
+      "dna_pattern": "內娛揭秘體",
+      "emotional_trigger": "好奇+憤怒：「離奇死因」+「幕後真兇」經典懸疑雙鉤",
+      "content_pillar": "娛樂圈黑幕與名人秘聞",
+      "word_count": 22
+    },
+    {
+      "rank": 15,
+      "title": "亞洲影視圈MeToo運動…她們的沉默背後99%不敢說的黑幕",
+      "topic": "亞洲影視圈Me Too運動新進展",
+      "trend_tier": "HOT",
+      "dna_pattern": "內娛揭秘體",
+      "emotional_trigger": "同情+憤怒：「她們的沉默」喚醒共情，「不敢說」暗示權力壓制",
+      "content_pillar": "娛樂圈黑幕與名人秘聞",
+      "word_count": 27
+    },
+    {
+      "rank": 16,
+      "title": "台灣晶片稱霸全球的秘密…中美科技戰下的終極籌碼",
+      "topic": "全球晶片大戰新局勢與台灣的關鍵角色",
+      "trend_tier": "EMERGING",
+      "dna_pattern": "國家解剖體",
+      "emotional_trigger": "民族自豪+緊迫感：「稱霸全球」喚醒認同，「終極籌碼」暗示危機",
+      "content_pillar": "政治經濟與社會陰謀揭秘",
+      "word_count": 23
+    },
+    {
+      "rank": 17,
+      "title": "消失的孩子們…中國失蹤兒童背後的黑色產業鏈",
+      "topic": "中國大陸失蹤兒童新型犯罪鏈",
+      "trend_tier": "EMERGING",
+      "dna_pattern": "禁區探秘體",
+      "emotional_trigger": "恐懼+同情：「消失的孩子們」直擊父母最深恐懼，「黑色產業鏈」系統化恐怖",
+      "content_pillar": "真實犯罪與懸案重現",
+      "word_count": 22
+    },
+    {
+      "rank": 18,
+      "title": "跨境代孕的吃人真相…亞洲「人體農場」的黑色帝國",
+      "topic": "跨境代孕與器官販賣的地下產業鏈",
+      "trend_tier": "EMERGING",
+      "dna_pattern": "禁區探秘體",
+      "emotional_trigger": "恐懼+道德衝擊：「吃人真相」+「人體農場」製造極端不安",
+      "content_pillar": "真實犯罪與懸案重現",
+      "word_count": 23
+    },
+    {
+      "rank": 19,
+      "title": "中國年輕人躺平背後…99%沒看懂的灰色生存帝國",
+      "topic": "躺平經濟下的新興灰色產業鏈",
+      "trend_tier": "EMERGING",
+      "dna_pattern": "社會解剖體",
+      "emotional_trigger": "共鳴+好奇：「躺平」擊中世代焦慮，「灰色生存帝國」翻轉認知",
+      "content_pillar": "政治經濟與社會陰謀揭秘",
+      "word_count": 22
+    },
+    {
+      "rank": 20,
+      "title": "2026全球財富大洗牌…美元崩潰背後誰是幕後推手",
+      "topic": "全球財富大洗牌與普通人的避險策略",
+      "trend_tier": "EMERGING",
+      "dna_pattern": "預言末日體",
+      "emotional_trigger": "焦慮+憤怒：「財富大洗牌」直擊生存焦慮，「幕後推手」指向陰謀",
+      "content_pillar": "政治經濟與社會陰謀揭秘",
+      "word_count": 23
+    },
+    {
+      "rank": 21,
+      "title": "全面碾壓印度？越南經濟奇蹟背後普通人看不到的真相",
+      "topic": "新興社會主義國家魔幻經濟現象",
+      "trend_tier": "EMERGING",
+      "dna_pattern": "國家解剖體",
+      "emotional_trigger": "好奇+震驚：「全面碾壓」製造對比衝突，「看不到的真相」翻轉認知",
+      "content_pillar": "政治經濟與社會陰謀揭秘",
+      "word_count": 24
+    },
+    {
+      "rank": 22,
+      "title": "柬埔寨豬仔最新逃脫實錄…園區如何用AI操控人質",
+      "topic": "柬埔寨詐騙園區新受害者逃脫事件",
+      "trend_tier": "HOT",
+      "dna_pattern": "科技犯罪體",
+      "emotional_trigger": "恐懼+好奇：「最新逃脫實錄」製造紀實感，「AI操控人質」升級恐怖",
+      "content_pillar": "真實犯罪與懸案重現",
+      "word_count": 23
+    },
+    {
+      "rank": 23,
+      "title": "造星還是造獄？亞洲演藝訓練營99%沒看懂的魔鬼內幕",
+      "topic": "亞洲演藝訓練營魔鬼式培訓與學員健康問題",
+      "trend_tier": "EMERGING",
+      "dna_pattern": "內娛揭秘體",
+      "emotional_trigger": "同情+憤怒：對比式開場製造認知衝突，「魔鬼內幕」激發好奇",
+      "content_pillar": "娛樂圈黑幕與名人秘聞",
+      "word_count": 24
+    },
+    {
+      "rank": 24,
+      "title": "比慈濟更驚人！某慈善團體如何成為明星洗錢的白手套",
+      "topic": "某慈善機構涉嫌明星洗錢醜聞",
+      "trend_tier": "EMERGING",
+      "dna_pattern": "權力揭秘體",
+      "emotional_trigger": "震驚+憤怒：借慈濟錨定已知爆款，「白手套」製造陰謀質感",
+      "content_pillar": "娛樂圈黑幕與名人秘聞",
+      "word_count": 24
+    },
+    {
+      "rank": 25,
+      "title": "娛樂圈陰陽合同有多深？范冰冰案之後更驚人的資本遊戲",
+      "topic": "娛樂圈陰陽合同和稅務問題的深層影響",
+      "trend_tier": "EMERGING",
+      "dna_pattern": "封殺真相體",
+      "emotional_trigger": "好奇+憤怒：「有多深」經典深度鉤，借范冰冰錨定已驗證爆款",
+      "content_pillar": "娛樂圈黑幕與名人秘聞",
+      "word_count": 25
+    },
+    {
+      "rank": 26,
+      "title": "虛擬偶像背後的驚人真相…AI正在淘汰真人明星",
+      "topic": "虛擬偶像/AI網紅的崛起與版權道德倫理爭議",
+      "trend_tier": "EMERGING",
+      "dna_pattern": "社會解剖體",
+      "emotional_trigger": "恐懼+好奇：「正在淘汰」製造即時威脅感，認知翻轉",
+      "content_pillar": "娛樂圈黑幕與名人秘聞",
+      "word_count": 21
+    },
+    {
+      "rank": 27,
+      "title": "AI換臉犯罪鏈全面曝光…你的聲音和臉正在暗網被標價",
+      "topic": "台灣新興AI換臉詐騙犯罪鏈",
+      "trend_tier": "HOT",
+      "dna_pattern": "禁區探秘體",
+      "emotional_trigger": "恐懼+切身威脅：「你的聲音和臉」個人化恐懼，「被標價」物化衝擊",
+      "content_pillar": "真實犯罪與懸案重現",
+      "word_count": 25
+    },
+    {
+      "rank": 28,
+      "title": "2026像極了二戰前…房市崩潰背後99%富人不敢說的真相",
+      "topic": "中國大陸房市泡沫化警訊與普通人自救指南",
+      "trend_tier": "HOT",
+      "dna_pattern": "預言末日體",
+      "emotional_trigger": "恐懼+焦慮：二戰類比製造歷史級危機感，「富人不敢說」階級對立",
+      "content_pillar": "政治經濟與社會陰謀揭秘",
+      "word_count": 26
+    },
+    {
+      "rank": 29,
+      "title": "中國基建狂魔的代價…99%沒看懂的債務黑洞真相",
+      "topic": "中國大陸房市泡沫化警訊與普通人自救指南",
+      "trend_tier": "HOT",
+      "dna_pattern": "國家解剖體",
+      "emotional_trigger": "好奇+震驚：「狂魔的代價」正反轉折，「債務黑洞」量化危機",
+      "content_pillar": "政治經濟與社會陰謀揭秘",
+      "word_count": 22
+    },
+    {
+      "rank": 30,
+      "title": "數位性犯罪捲土重來…你的孩子正在成為網路獵食者的目標",
+      "topic": "韓國N號房事件後新型態數位性犯罪追蹤",
+      "trend_tier": "RISING",
+      "dna_pattern": "封殺真相體",
+      "emotional_trigger": "恐懼+保護慾：「你的孩子」直擊父母本能，「獵食者」擬人化威脅",
+      "content_pillar": "真實犯罪與懸案重現",
+      "word_count": 26
+    }
+  ],
+  "priority_queue": [
+    1,
+    2,
+    3,
+    22,
+    27,
+    4,
+    5,
+    15,
+    28,
+    8
+  ],
+  "pattern_distribution": {
+    "權力揭秘體": 3,
+    "社會陰謀體": 3,
+    "預言末日體": 3,
+    "內娛揭秘體": 3,
+    "科技犯罪體": 3,
+    "國際懸案體": 2,
+    "禁區探秘體": 3,
+    "國家解剖體": 3,
+    "封殺真相體": 3,
+    "社會解剖體": 2,
+    "總計": 30
+  }
+}
