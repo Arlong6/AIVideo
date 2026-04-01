@@ -35,6 +35,20 @@ def produce_longform(topic: str, output_base: str = "output",
     output_dir = os.path.join(output_base, f"{date_str}_long_{safe_topic}")
     os.makedirs(output_dir, exist_ok=True)
 
+    # Wrap entire pipeline in try/except for failure alerts
+    from telegram_notify import notify_failure, notify_qa_fail
+
+    try:
+        return _run_pipeline(topic, output_dir, upload, slot)
+    except Exception as e:
+        notify_failure("Pipeline", str(e), topic)
+        print(f"\n❌ Pipeline failed: {e}")
+        raise
+
+
+def _run_pipeline(topic, output_dir, upload, slot):
+    """Internal pipeline — separated for error handling."""
+
     # ── Step 1: Research ──────────────────────────────────────────
     print("\n[1/8] 🔍 Research Agent — investigating case...")
     from agents.research_agent import investigate_case
@@ -114,8 +128,10 @@ def produce_longform(topic: str, output_base: str = "output",
         print("\n✅ QA PASSED — video is ready!")
     elif verdict == "FIX_AND_RETRY":
         print("\n⚠️ QA found issues — see report. Video generated but needs review.")
+        notify_qa_fail(topic, qa_report.get("issues", []))
     else:
         print("\n❌ QA REJECTED — video has critical issues.")
+        notify_qa_fail(topic, qa_report.get("issues", []))
 
     # ── Upload if requested ───────────────────────────────────────
     youtube_url = None

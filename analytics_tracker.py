@@ -97,6 +97,67 @@ def fetch_and_update_stats(youtube):
     print(f"  📊 Updated stats for {len(video_ids)} videos")
 
 
+def check_copyright_issues(youtube):
+    """Scan all tracked videos for copyright blocks or restrictions."""
+    from telegram_notify import notify_copyright
+
+    data = _load_log()
+    if not data["videos"]:
+        return
+
+    video_ids = [v["video_id"] for v in data["videos"]]
+
+    for i in range(0, len(video_ids), 50):
+        batch = video_ids[i:i+50]
+        try:
+            resp = youtube.videos().list(
+                part="status,contentDetails,snippet",
+                id=",".join(batch),
+            ).execute()
+        except Exception as e:
+            print(f"  [WARN] Copyright check failed: {e}")
+            continue
+
+        for item in resp.get("items", []):
+            vid_id = item["id"]
+            title = item["snippet"]["title"][:40]
+            status = item.get("status", {})
+            content = item.get("contentDetails", {})
+
+            issues = []
+
+            # Check upload status
+            rejection = status.get("rejectionReason", "")
+            if rejection:
+                issues.append(f"影片被拒絕: {rejection}")
+
+            # Check region blocks
+            block = content.get("regionRestriction", {})
+            blocked = block.get("blocked", [])
+            if "TW" in blocked or len(blocked) > 100:
+                issues.append(f"被封鎖在 {len(blocked)} 個國家（包含台灣）")
+
+            # Check content claims
+            upload_status = status.get("uploadStatus", "")
+            if upload_status == "rejected":
+                issues.append(f"上傳被拒: {status.get('failureReason', '未知')}")
+
+            # Check privacy (might have been forced to private)
+            privacy = status.get("privacyStatus", "")
+            if privacy == "private":
+                # Check if it was supposed to be public
+                video_data = next((v for v in data["videos"] if v["video_id"] == vid_id), None)
+                if video_data and "public" in str(video_data.get("publish_at", "")):
+                    issues.append("影片被設為私人（可能被 YouTube 強制下架）")
+
+            if issues:
+                for issue in issues:
+                    notify_copyright(vid_id, title, issue)
+                print(f"  ⚠️ {title}: {'; '.join(issues)}")
+
+    print(f"  📊 Copyright check done for {len(video_ids)} videos")
+
+
 # ── Telegram daily report ──────────────────────────────────────────────────────
 
 def send_daily_report():
