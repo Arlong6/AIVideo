@@ -2,8 +2,8 @@ name: Long-form Video Generation
 
 on:
   schedule:
-    # Run twice a week: Tuesday and Friday at 00:00 UTC (8AM Taiwan)
-    - cron: "0 0 * * 2,5"
+    # Run daily at 06:00 UTC (14:00 Taiwan) — 1 long-form video per day
+    - cron: "0 6 * * *"
   workflow_dispatch:
 
 jobs:
@@ -41,8 +41,16 @@ jobs:
           echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> .env
           echo "${{ secrets.YOUTUBE_TOKEN_B64 }}" | base64 -d > youtube_token.pickle
 
-      - name: Generate long-form video
-        run: python generate.py --auto --upload --format long --slot 1
+      - name: Generate long-form video (multi-agent)
+        run: |
+          python -c "
+          import sys; sys.path.insert(0, '.')
+          from topic_manager import pick_topic, save_today_reserved
+          from agents.orchestrator import produce_longform
+          topic = pick_topic(refresh_news=True)
+          save_today_reserved(topic)
+          produce_longform(topic, upload=True, slot=2)
+          "
 
       - name: Fetch analytics and send daily report
         run: python -c "from analytics_tracker import fetch_and_update_stats, send_daily_report; fetch_and_update_stats(None); send_daily_report()"

@@ -79,17 +79,11 @@ jobs:
           print(f'Pexels key length: {len(pexels)}')
           "
 
-      - name: Video 1 — slot 1 (publishes at 10:00 Taiwan)
+      - name: Shorts 1 — slot 1 (publishes at 10:00 Taiwan)
         run: python generate.py --auto --upload --slot 1
 
-      - name: Video 2 — slot 2 (publishes at 14:00 Taiwan)
-        run: python generate.py --auto --upload --slot 2
-
-      - name: Video 3 — slot 3 (publishes at 18:00 Taiwan)
+      - name: Shorts 2 — slot 3 (publishes at 18:00 Taiwan)
         run: python generate.py --auto --upload --slot 3
-
-      - name: Video 4 — slot 4 (publishes at 22:00 Taiwan)
-        run: python generate.py --auto --upload --slot 4
 
       - name: Fetch analytics and send daily report
         env:
