@@ -467,9 +467,7 @@ def _make_opening_card(text: str, output_path: str, duration: float = 2.0,
     img = Image.new("RGB", (tw, th), (0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Red top/bottom accent bars
-    draw.rectangle([(0, 0), (tw, 8)], fill=(200, 10, 10))
-    draw.rectangle([(0, th - 8), (tw, th)], fill=(200, 10, 10))
+    # (red bars removed for clean look)
 
     # Draw text centered with stroke
     font_size = 96 if len(text) <= 8 else 78

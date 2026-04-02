@@ -127,9 +127,7 @@ def _draw_title(img: Image.Image, title: str, fmt: str = "short",
     """Draw large Chinese title with stroke outline, background panel, and accent bars."""
     draw = ImageDraw.Draw(img)
 
-    # Top red accent bar
-    bar_h = 10
-    draw.rectangle([(0, 0), (THUMB_W, bar_h)], fill=(200, 10, 10))
+    # No red bars (clean look)
 
     # Split title into lines: prefer punctuation breaks, force-break at MAX_CHARS
     MAX_CHARS = 10
@@ -180,8 +178,7 @@ def _draw_title(img: Image.Image, title: str, fmt: str = "short",
         _draw_text_with_stroke(draw, (x, y), line_text, font,
                                fill=(255, 252, 220), stroke_fill=(0, 0, 0), stroke_width=5)
 
-    # Bottom red accent bar
-    draw.rectangle([(0, THUMB_H - bar_h), (THUMB_W, THUMB_H)], fill=(200, 10, 10))
+    # (red bars removed for clean look)
 
     # "真實犯罪" badge — top-left with red background pill
     badge_text = "真實犯罪"

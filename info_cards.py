@@ -126,9 +126,7 @@ def make_timeline(title: str, year: str,
         draw.line([(0, y), (W, y)],
                   fill=(int(5 + 8 * t), int(5 + 5 * t), int(8 + 12 * t)))
 
-    # Red accent bars
-    draw.rectangle([(0, 0), (W, 5)], fill=(180, 20, 20))
-    draw.rectangle([(0, H - 5), (W, H)], fill=(180, 20, 20))
+    # (red bars removed for clean look)
 
     # Big faded year
     draw.text((80, 50), year, font=_font(110), fill=(45, 45, 65))
