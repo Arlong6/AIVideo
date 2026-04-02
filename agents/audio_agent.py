@@ -57,9 +57,17 @@ def generate_audio(script_data: dict, output_dir: str) -> dict:
         generate_srt(full_script, duration, srt_path)
         print("  [Audio] Subtitles using proportional timing (fallback)")
 
-    # 4. Background music
+    # 4. Background music — section-based moods
     from music_downloader import get_background_music
-    get_background_music(output_dir)
+    music_sections = []
+    if sections:
+        section_dur = duration / len(sections)
+        for s in sections:
+            music_sections.append({
+                "name": s.get("name", "background"),
+                "duration": len(s.get("script", "")) * 0.25,  # estimate from text
+            })
+    get_background_music(output_dir, sections=music_sections, total_duration=duration)
 
     # 5. Chapter markers
     from chapter_generator import generate_chapters
