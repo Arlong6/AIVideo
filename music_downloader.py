@@ -110,57 +110,68 @@ def _get_pixabay_music(output_dir: str) -> str | None:
 
 def _synth_dark_ambient(duration_sec: int = 300) -> bytes:
     """
-    Dark ambient white noise + eerie tones.
-    Style: like rain on a window at night + distant unsettling sounds.
-    Comfortable to listen to, no harsh bass. Zero copyright.
+    Dark piano + strings ambient.
+    Style: slow minor key piano notes with long decay + soft string pad.
+    Like a crime documentary soundtrack. Zero copyright.
     """
     sample_rate = 44100
     n = sample_rate * duration_sec
-
     samples = [0.0] * n
 
-    # Layer 1: Filtered white noise (dark rain / wind texture)
+    # ── Layer 1: Slow dark piano notes ──
+    # A minor scale notes with piano-like decay
+    # Pattern repeats every ~24 seconds with slight variation
     import random as _rng
     _rng.seed(42)
-    noise_buf = [_rng.gauss(0, 1) for _ in range(n)]
-    # Simple low-pass filter (rolling average) for soft noise
-    window = 12
-    filtered = [0.0] * n
-    running = 0.0
-    for i in range(n):
-        running += noise_buf[i]
-        if i >= window:
-            running -= noise_buf[i - window]
-        filtered[i] = running / window
-    # Slow volume modulation on the noise (breathing feel)
-    for i in range(n):
-        t = i / sample_rate
-        breath = 0.6 + 0.4 * math.sin(2 * math.pi * t / 20)  # 20s cycle
-        samples[i] += 0.12 * breath * filtered[i]
 
-    # Layer 2: Very gentle pad (minor, eerie but not harsh)
-    # E minor: E2=82.4, G2=98, B2=123.5
-    for freq, amp, lfo in [(82.4, 0.04, 0.025), (98.0, 0.03, 0.035), (123.5, 0.025, 0.03)]:
+    piano_notes = [
+        # (freq_hz, relative_volume)
+        (220.0, 1.0),   # A3
+        (261.6, 0.9),   # C4
+        (196.0, 0.85),  # G3
+        (174.6, 0.95),  # F3
+        (164.8, 0.9),   # E3
+        (220.0, 0.85),  # A3
+        (146.8, 0.95),  # D3
+        (196.0, 0.9),   # G3
+    ]
+
+    note_duration = 3.0  # seconds per note
+    total_notes = int(duration_sec / note_duration)
+
+    for ni in range(total_notes):
+        freq, vol = piano_notes[ni % len(piano_notes)]
+        # Slight random variation
+        freq *= (1.0 + _rng.uniform(-0.003, 0.003))
+        vol *= _rng.uniform(0.8, 1.0)
+
+        start_sample = int(ni * note_duration * sample_rate)
+        note_len = int(note_duration * sample_rate)
+
+        for j in range(min(note_len, n - start_sample)):
+            t = j / sample_rate
+            # Piano-like envelope: sharp attack, long exponential decay
+            envelope = math.exp(-t * 1.2) * vol * 0.15
+            # Fundamental + harmonics for piano timbre
+            s = (math.sin(2 * math.pi * freq * t) * 1.0 +
+                 math.sin(2 * math.pi * freq * 2 * t) * 0.3 +
+                 math.sin(2 * math.pi * freq * 3 * t) * 0.1 +
+                 math.sin(2 * math.pi * freq * 4 * t) * 0.05)
+            samples[start_sample + j] += envelope * s
+
+    # ── Layer 2: Soft string pad (sustained minor chord) ──
+    # A minor chord: A2, C3, E3 — very quiet, slow swell
+    for freq, amp in [(110.0, 0.03), (130.8, 0.025), (164.8, 0.02)]:
         for i in range(n):
             t = i / sample_rate
-            swell = 0.2 + 0.8 * (0.5 + 0.5 * math.sin(2 * math.pi * t / 40))
+            swell = 0.3 + 0.7 * (0.5 + 0.5 * math.sin(2 * math.pi * t / 45))
             samples[i] += amp * swell * math.sin(2 * math.pi * freq * t)
 
-    # Layer 3: Distant high-pitched tones (like wind through cracks)
-    for freq, amp, lfo in [(660, 0.008, 0.015), (990, 0.005, 0.02), (1100, 0.003, 0.025)]:
-        for i in range(n):
-            t = i / sample_rate
-            # Fades in and out slowly, only present ~30% of the time
-            gate = max(0, math.sin(2 * math.pi * 0.012 * t + freq * 0.005)) ** 3
-            samples[i] += amp * gate * math.sin(2 * math.pi * freq * t)
-
-    # Layer 4: Occasional deep sigh (every ~60s, very soft)
+    # ── Layer 3: Very subtle low cello drone ──
     for i in range(n):
         t = i / sample_rate
-        cycle = t % 60
-        if 5 < cycle < 12:
-            env = math.sin(math.pi * (cycle - 5) / 7)
-            samples[i] += 0.03 * env * math.sin(2 * math.pi * 75 * t)
+        mod = 0.8 + 0.2 * math.sin(2 * math.pi * 0.03 * t)
+        samples[i] += 0.02 * mod * math.sin(2 * math.pi * 55 * t)
 
     # Fade in / out (5 seconds)
     fade = sample_rate * 5

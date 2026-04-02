@@ -138,8 +138,10 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
         from thumbnail_generator import upload_thumbnail
         upload_thumbnail(youtube, video_id, thumb_path)
 
-    # Skip SRT upload — let YouTube auto-detect captions
-    # YouTube's speech recognition syncs better with edge-tts audio
+    # Upload SRT subtitle file (edge-tts sentence boundary timing = accurate sync)
+    srt_path = video_path.replace("final_zh.mp4", "subtitles_zh.srt")
+    if os.path.exists(srt_path):
+        _upload_subtitles(youtube, video_id, srt_path, lang="zh-Hant")
 
     return url
 
