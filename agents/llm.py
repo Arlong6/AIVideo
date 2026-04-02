@@ -17,9 +17,19 @@ class ContentBlockedError(Exception):
     pass
 
 
+_claude = None
+try:
+    import anthropic as _anthropic
+    from config import ANTHROPIC_API_KEY
+    if ANTHROPIC_API_KEY:
+        _claude = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+except Exception:
+    pass
+
+
 def ask(prompt: str, json_mode: bool = True) -> dict | str:
-    """Call Gemini (primary) with optional JSON mode. Returns dict or str."""
-    if not _gemini:
+    """Call Gemini (primary), Claude (fallback). Returns dict or str."""
+    if not _gemini and not _claude:
         raise RuntimeError("No LLM configured")
 
     config = {"response_mime_type": "application/json"} if json_mode else {}
@@ -57,4 +67,27 @@ def ask(prompt: str, json_mode: bool = True) -> dict | str:
                 if attempt == 2:
                     raise
                 time.sleep(5)
-    raise RuntimeError("LLM call failed")
+    # Fallback to Claude
+    if _claude:
+        print("  [LLM] Gemini exhausted, falling back to Claude...")
+        for model in ["claude-sonnet-4-6"]:
+            try:
+                msg = _claude.messages.create(
+                    model=model, max_tokens=6000,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                text = msg.content[0].text.strip()
+                cost = (msg.usage.input_tokens * 15 + msg.usage.output_tokens * 75) / 1_000_000
+                print(f"  [LLM] Used Claude {model} (${cost:.3f})")
+                if json_mode:
+                    start = text.find("{")
+                    end = text.rfind("}") + 1
+                    if start < 0:
+                        start = text.find("[")
+                        end = text.rfind("]") + 1
+                    return json.loads(text[start:end])
+                return text
+            except Exception as e:
+                print(f"  [WARN] Claude {model} failed: {e}")
+
+    raise RuntimeError("All LLM models exhausted")
