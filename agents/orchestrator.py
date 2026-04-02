@@ -37,9 +37,31 @@ def produce_longform(topic: str, output_base: str = "output",
 
     # Wrap entire pipeline in try/except for failure alerts
     from telegram_notify import notify_failure, notify_qa_fail
+    from agents.llm import ContentBlockedError
 
     try:
         return _run_pipeline(topic, output_dir, upload, slot)
+    except ContentBlockedError as e:
+        print(f"\n⚠️ Topic blocked by safety filter: {topic}")
+        print(f"  Reason: {e}")
+        notify_failure("安全過濾", f"題材被封鎖，自動換題：{topic[:30]}", topic)
+
+        # Auto-switch to next topic
+        from topic_manager import pick_topic, save_today_reserved
+        new_topic = pick_topic(refresh_news=False)
+        save_today_reserved(new_topic)
+        print(f"  Switching to: {new_topic}")
+
+        # Retry with new topic + new output dir
+        new_safe = re.sub(r'[^A-Za-z0-9_-]', '_',
+                          re.sub(r'[^\x00-\x7F]+', '', new_topic[:30])).strip('_') or "retry"
+        new_dir = os.path.join(output_base, f"{date_str}_long_{new_safe}")
+        os.makedirs(new_dir, exist_ok=True)
+        try:
+            return _run_pipeline(new_topic, new_dir, upload, slot)
+        except Exception as e2:
+            notify_failure("Pipeline", str(e2), new_topic)
+            raise
     except Exception as e:
         notify_failure("Pipeline", str(e), topic)
         print(f"\n❌ Pipeline failed: {e}")

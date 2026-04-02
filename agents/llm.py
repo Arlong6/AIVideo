@@ -12,6 +12,11 @@ if GEMINI_API_KEY:
         pass
 
 
+class ContentBlockedError(Exception):
+    """Raised when LLM refuses to generate due to safety filters."""
+    pass
+
+
 def ask(prompt: str, json_mode: bool = True) -> dict | str:
     """Call Gemini (primary) with optional JSON mode. Returns dict or str."""
     if not _gemini:
@@ -19,11 +24,18 @@ def ask(prompt: str, json_mode: bool = True) -> dict | str:
 
     config = {"response_mime_type": "application/json"} if json_mode else {}
     for model in ["gemini-2.5-flash", "gemini-2.0-flash"]:
-        for attempt in range(2):
+        for attempt in range(3):
             try:
                 r = _gemini.models.generate_content(
                     model=model, contents=prompt, config=config)
                 if r.text is None:
+                    # Safety filter triggered — content blocked
+                    reason = ""
+                    if hasattr(r, "candidates") and r.candidates:
+                        reason = str(getattr(r.candidates[0], "finish_reason", ""))
+                    if "SAFETY" in reason.upper() or attempt >= 1:
+                        raise ContentBlockedError(
+                            f"Content blocked by safety filter ({reason})")
                     print(f"  [WARN] Gemini {model} returned None, retrying...")
                     time.sleep(5)
                     continue
@@ -36,11 +48,13 @@ def ask(prompt: str, json_mode: bool = True) -> dict | str:
                         end = text.rfind("]") + 1
                     return json.loads(text[start:end])
                 return text
+            except ContentBlockedError:
+                raise  # Don't retry, propagate immediately
             except Exception as e:
                 if "429" in str(e):
                     time.sleep(20)
                     continue
-                if attempt == 1:
+                if attempt == 2:
                     raise
                 time.sleep(5)
     raise RuntimeError("LLM call failed")
