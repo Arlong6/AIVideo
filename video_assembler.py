@@ -595,7 +595,7 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
             "ffmpeg", "-y",
             "-stream_loop", "-1", "-i", music_path,
             "-t", str(duration),
-            "-af", "volume=0.18",
+            "-af", "volume=0.30",
             music_loop_path,
         ], capture_output=True, check=True)
         # Mix voiceover + music, combine with video

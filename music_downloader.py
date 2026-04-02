@@ -110,37 +110,67 @@ def _get_pixabay_music(output_dir: str) -> str | None:
 
 def _synth_dark_ambient(duration_sec: int = 300) -> bytes:
     """
-    Generate a dark ambient drone track as WAV bytes.
-    Layered sine waves with slow LFO modulation — no copyright, ever.
+    Generate a cinematic dark ambient track as WAV bytes.
+    Multiple layers: deep drone + tension pad + subtle pulse + high shimmer.
+    Evolves over time with slow crossfades. Zero copyright.
     """
     sample_rate = 44100
     n = sample_rate * duration_sec
 
-    # Base frequencies for dark drone (low, minor-ish)
-    FREQS = [55.0, 82.5, 110.0, 146.8, 165.0]  # A1, E2, A2, D3, E3
-    AMPS  = [0.30, 0.20, 0.15, 0.10, 0.08]
-    # LFO for slow tremolo per layer
-    LFO_RATES = [0.07, 0.11, 0.05, 0.09, 0.13]
-    LFO_DEPTH = 0.3
-
     samples = [0.0] * n
-    for freq, amp, lfo_rate in zip(FREQS, AMPS, LFO_RATES):
+
+    # Layer 1: Deep sub-bass drone (foundation)
+    for freq, amp, lfo in [(36.7, 0.20, 0.04), (55.0, 0.18, 0.06), (73.4, 0.10, 0.08)]:
         for i in range(n):
             t = i / sample_rate
-            lfo = 1.0 - LFO_DEPTH + LFO_DEPTH * math.sin(2 * math.pi * lfo_rate * t)
-            samples[i] += amp * lfo * math.sin(2 * math.pi * freq * t)
+            mod = 1.0 - 0.3 + 0.3 * math.sin(2 * math.pi * lfo * t)
+            samples[i] += amp * mod * math.sin(2 * math.pi * freq * t)
 
-    # Fade in / out (3 seconds each)
-    fade = sample_rate * 3
+    # Layer 2: Tension pad (minor chord, slow swell)
+    # A minor: A2=110, C3=130.8, E3=164.8
+    for freq, amp, lfo in [(110.0, 0.08, 0.03), (130.8, 0.06, 0.05), (164.8, 0.05, 0.04)]:
+        for i in range(n):
+            t = i / sample_rate
+            # Slow swell: fades in and out over 30-second cycles
+            swell = 0.3 + 0.7 * (0.5 + 0.5 * math.sin(2 * math.pi * t / 30))
+            mod = 1.0 - 0.2 + 0.2 * math.sin(2 * math.pi * lfo * t)
+            samples[i] += amp * swell * mod * math.sin(2 * math.pi * freq * t)
+
+    # Layer 3: Heartbeat-like pulse (very subtle)
+    pulse_freq = 0.9  # ~54 bpm, slightly unsettling
+    for i in range(n):
+        t = i / sample_rate
+        pulse = max(0, math.sin(2 * math.pi * pulse_freq * t)) ** 8
+        samples[i] += 0.06 * pulse * math.sin(2 * math.pi * 55 * t)
+
+    # Layer 4: High shimmer (adds air and eeriness)
+    for freq, amp, lfo in [(880, 0.015, 0.07), (1320, 0.008, 0.11), (1760, 0.005, 0.09)]:
+        for i in range(n):
+            t = i / sample_rate
+            # Only present 40% of the time (random-ish via slow LFO)
+            gate = max(0, math.sin(2 * math.pi * 0.02 * t + freq * 0.01))
+            mod = 0.5 + 0.5 * math.sin(2 * math.pi * lfo * t)
+            samples[i] += amp * gate * mod * math.sin(2 * math.pi * freq * t)
+
+    # Layer 5: Occasional low rumble (tension builder)
+    for i in range(n):
+        t = i / sample_rate
+        # Rumble every ~45 seconds, lasts ~8 seconds
+        cycle = t % 45
+        if cycle < 8:
+            rumble_env = math.sin(math.pi * cycle / 8)
+            samples[i] += 0.12 * rumble_env * math.sin(2 * math.pi * 30 * t)
+
+    # Fade in / out (5 seconds each for smoother transitions)
+    fade = sample_rate * 5
     for i in range(fade):
         samples[i] *= i / fade
         samples[n - 1 - i] *= i / fade
 
-    # Normalize to 70% peak to keep it background-level
+    # Normalize
     peak = max(abs(s) for s in samples)
     if peak > 0:
-        factor = 0.70 / peak
-        samples = [s * factor for s in samples]
+        samples = [s * (0.75 / peak) for s in samples]
 
     # Convert to 16-bit PCM WAV
     import io
