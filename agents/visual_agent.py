@@ -23,6 +23,7 @@ def source_visuals(case_data: dict, script_data: dict,
         "wiki_clips": [],
         "pexels_clips_dir": "",
         "info_cards": {},
+        "maps": {},
     }
 
     # 1. Wikimedia real photos — use design plan's queries + case data keywords
@@ -74,9 +75,19 @@ def source_visuals(case_data: dict, script_data: dict,
     from info_cards import generate_info_cards
     results["info_cards"] = generate_info_cards(script_data, output_dir)
 
+    # 4. Crime location maps — from case data
+    print("  [Visual] Generating crime location maps...")
+    from map_generator import generate_case_maps
+    try:
+        results["maps"] = generate_case_maps(case_data, output_dir)
+    except Exception as e:
+        print(f"  [Visual] Map generation failed (non-fatal): {e}")
+        results["maps"] = {"crime_map": "", "location_card": ""}
+
     wiki_count = len(results["wiki_clips"])
     pexels_count = len(os.listdir(results["pexels_clips_dir"])) if os.path.exists(results["pexels_clips_dir"]) else 0
     card_count = len(results["info_cards"])
-    print(f"  [Visual] Complete: {wiki_count} wiki, {pexels_count} Pexels, {card_count} info cards")
+    map_count = sum(1 for v in results["maps"].values() if v)
+    print(f"  [Visual] Complete: {wiki_count} wiki, {pexels_count} Pexels, {card_count} info cards, {map_count} maps")
 
     return results
