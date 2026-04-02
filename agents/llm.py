@@ -23,6 +23,10 @@ def ask(prompt: str, json_mode: bool = True) -> dict | str:
             try:
                 r = _gemini.models.generate_content(
                     model=model, contents=prompt, config=config)
+                if r.text is None:
+                    print(f"  [WARN] Gemini {model} returned None, retrying...")
+                    time.sleep(5)
+                    continue
                 text = r.text.strip()
                 if json_mode:
                     start = text.find("{")
