@@ -122,16 +122,29 @@ def _extract_meta(page: dict) -> dict | None:
 # ── Image processing ──────────────────────────────────────────────────────────
 
 def _download_image(url: str) -> np.ndarray | None:
-    """Download image and return as RGB numpy array."""
-    try:
-        resp = requests.get(url, timeout=20, headers={"User-Agent": "TrueCrimeBot/1.0"})
-        resp.raise_for_status()
-        from io import BytesIO
-        img = Image.open(BytesIO(resp.content)).convert("RGB")
-        return np.array(img)
-    except Exception as e:
-        print(f"  [WARN] Image download failed: {e}")
-        return None
+    """Download image and return as RGB numpy array. Respects rate limits."""
+    import time as _time
+    for attempt in range(3):
+        try:
+            resp = requests.get(url, timeout=20, headers={
+                "User-Agent": "TrueCrimeDocBot/1.0 (educational; contact@example.com)"
+            })
+            if resp.status_code == 429:
+                wait = 10 * (attempt + 1)
+                print(f"  [WARN] Wikimedia rate limited, waiting {wait}s...")
+                _time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            from io import BytesIO
+            img = Image.open(BytesIO(resp.content)).convert("RGB")
+            _time.sleep(1)  # polite delay between downloads
+            return np.array(img)
+        except Exception as e:
+            if attempt == 2:
+                print(f"  [WARN] Image download failed: {e}")
+            else:
+                _time.sleep(5)
+    return None
 
 
 def _apply_mosaic(img: np.ndarray, block_size: int = 18) -> np.ndarray:
