@@ -160,78 +160,109 @@ def check_copyright_issues(youtube):
 
 # ── Telegram daily report ──────────────────────────────────────────────────────
 
-def send_daily_report():
-    """Send Telegram summary of recent video performance."""
-    import requests as req
+def fetch_channel_stats(youtube) -> dict:
+    """Fetch channel subscriber count and total views."""
+    try:
+        resp = youtube.channels().list(part="statistics", mine=True).execute()
+        if resp.get("items"):
+            stats = resp["items"][0]["statistics"]
+            return {
+                "subscribers": int(stats.get("subscriberCount", 0)),
+                "total_views": int(stats.get("viewCount", 0)),
+                "total_videos": int(stats.get("videoCount", 0)),
+            }
+    except Exception as e:
+        print(f"  [WARN] Channel stats fetch failed: {e}")
+    return {}
 
-    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
-    if not bot_token or not chat_id:
-        return
+
+def send_daily_report(youtube=None):
+    """Send Telegram summary: channel stats + video performance."""
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "shared_telegram"))
+    try:
+        from telegram_hub import get_hub, Tag
+        hub = get_hub()
+    except ImportError:
+        hub = None
 
     data = _load_log()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
+    # ── Channel stats ──
+    channel = {}
+    if youtube:
+        channel = fetch_channel_stats(youtube)
+
     # ── Today's upload check ──
-    today_videos = [
-        v for v in data["videos"]
-        if v["uploaded_at"][:10] == today
-    ]
-    target = 3  # 2 Shorts + 1 long-form per day
+    today_videos = [v for v in data["videos"] if v["uploaded_at"][:10] == today]
+    target = 3
     count = len(today_videos)
     if count >= target:
-        upload_status = f"✅ 今日上傳：{count}/{target} 支"
+        upload_line = f"✅ 今日上傳：{count}/{target} 支"
     else:
-        upload_status = f"⚠️ 今日上傳：{count}/{target} 支（差 {target - count} 支）"
+        upload_line = f"⚠️ 今日上傳：{count}/{target} 支（差 {target - count} 支）"
 
-    lines = [f"📊 *頻道表現日報*\n{upload_status}\n"]
+    # ── Build sections ──
+    sections = []
 
-    # Today's videos detail
+    # Channel overview
+    if channel:
+        sections.append(("📺 頻道狀態", (
+            f"訂閱：{channel.get('subscribers', 0):,} 人\n"
+            f"總觀看：{channel.get('total_views', 0):,} 次\n"
+            f"影片數：{channel.get('total_videos', 0)} 支"
+        )))
+
+    # Upload status
+    sections.append(("📤 上傳", upload_line))
+
+    # Today's videos
     if today_videos:
-        lines.append("*今日影片：*")
+        vid_lines = []
         for v in sorted(today_videos, key=lambda x: x["slot"]):
-            slot_label = "🌅10AM" if v["slot"] == 1 else "🌆6PM"
+            slot_label = {1: "🌅10AM", 2: "🌆2PM", 3: "🌆6PM"}.get(v["slot"], "📹")
             topic_short = v["topic"][:28] + "…" if len(v["topic"]) > 28 else v["topic"]
-            vid_url = f"https://youtu.be/{v['video_id']}"
-            lines.append(f"{slot_label} {topic_short}\n  🔗 {vid_url}")
-        lines.append("")
+            vid_lines.append(f"{slot_label} {topic_short}\nhttps://youtu.be/{v['video_id']}")
+        sections.append(("🎬 今日影片", "\n".join(vid_lines)))
 
-    # Recent performance (last 10 excluding today)
+    # Recent video performance
     all_videos = sorted(data["videos"], key=lambda v: v["uploaded_at"], reverse=True)
     past_videos = [v for v in all_videos if v["uploaded_at"][:10] != today][:8]
-
     if past_videos:
-        lines.append("*近期表現：*")
+        perf_lines = []
+        total_today_views = 0
         for v in past_videos:
             latest = v["stats"][-1] if v["stats"] else None
-            views = latest["views"] if latest else "—"
-            likes = latest["likes"] if latest else "—"
-            topic_short = v["topic"][:22] + "…" if len(v["topic"]) > 22 else v["topic"]
-            slot_label = "🌅" if v["slot"] == 1 else "🌆"
-            lines.append(f"{slot_label} {topic_short}  👁{views} ❤️{likes}")
+            views = latest["views"] if latest else 0
+            likes = latest["likes"] if latest else 0
+            total_today_views += views if isinstance(views, int) else 0
+            topic_short = v["topic"][:20] + "…" if len(v["topic"]) > 20 else v["topic"]
+            perf_lines.append(f"👁{views} ❤️{likes}  {topic_short}")
+        sections.append(("📊 近期表現", "\n".join(perf_lines)))
 
-    # Simple trend: compare latest 5 vs previous 5
+    # Trend
     if len(all_videos) >= 6:
         recent_views = sum(
-            (v["stats"][-1]["views"] if v["stats"] else 0)
-            for v in all_videos[:5]
-        )
+            (v["stats"][-1]["views"] if v["stats"] else 0) for v in all_videos[:5])
         older_views = sum(
-            (v["stats"][-1]["views"] if v["stats"] else 0)
-            for v in all_videos[5:10]
-        )
+            (v["stats"][-1]["views"] if v["stats"] else 0) for v in all_videos[5:10])
         if older_views > 0:
             trend = ((recent_views - older_views) / older_views) * 100
             arrow = "📈" if trend > 0 else "📉"
-            lines.append(f"\n{arrow} 近期趨勢：{trend:+.1f}%")
+            sections.append(("趨勢", f"{arrow} {trend:+.1f}%"))
 
-    msg = "\n".join(lines)
-    try:
-        req.post(
-            f"https://api.telegram.org/bot{bot_token}/sendMessage",
-            json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"},
-            timeout=10,
-        )
-        print("  📊 Daily report sent to Telegram")
-    except Exception as e:
-        print(f"  [WARN] Daily report failed: {e}")
+    # Send via hub
+    if hub:
+        hub.report(Tag.AIVIDEO, "頻道日報", sections=sections)
+    else:
+        # Fallback
+        import requests as req
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+        chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+        if bot_token and chat_id:
+            msg = "\n".join(f"{t}: {b}" for t, b in sections)
+            req.post(f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                     json={"chat_id": chat_id, "text": msg}, timeout=10)
+
+    print("  📊 Daily report sent to Telegram")

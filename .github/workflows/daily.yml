@@ -106,11 +106,12 @@ jobs:
           from analytics_tracker import check_copyright_issues
           try:
               creds = _get_credentials()
+              yt = None
               if creds:
                   yt = build('youtube', 'v3', credentials=creds)
                   fetch_and_update_stats(yt)
                   check_copyright_issues(yt)
-              send_daily_report()
+              send_daily_report(youtube=yt)
           except Exception as e:
               print(f'[WARN] Analytics step failed: {e}')
           "
