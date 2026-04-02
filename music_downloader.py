@@ -110,67 +110,67 @@ def _get_pixabay_music(output_dir: str) -> str | None:
 
 def _synth_dark_ambient(duration_sec: int = 300) -> bytes:
     """
-    Generate a cinematic dark ambient track as WAV bytes.
-    Multiple layers: deep drone + tension pad + subtle pulse + high shimmer.
-    Evolves over time with slow crossfades. Zero copyright.
+    Dark ambient white noise + eerie tones.
+    Style: like rain on a window at night + distant unsettling sounds.
+    Comfortable to listen to, no harsh bass. Zero copyright.
     """
     sample_rate = 44100
     n = sample_rate * duration_sec
 
     samples = [0.0] * n
 
-    # Layer 1: Deep sub-bass drone (foundation)
-    for freq, amp, lfo in [(36.7, 0.20, 0.04), (55.0, 0.18, 0.06), (73.4, 0.10, 0.08)]:
-        for i in range(n):
-            t = i / sample_rate
-            mod = 1.0 - 0.3 + 0.3 * math.sin(2 * math.pi * lfo * t)
-            samples[i] += amp * mod * math.sin(2 * math.pi * freq * t)
-
-    # Layer 2: Tension pad (minor chord, slow swell)
-    # A minor: A2=110, C3=130.8, E3=164.8
-    for freq, amp, lfo in [(110.0, 0.08, 0.03), (130.8, 0.06, 0.05), (164.8, 0.05, 0.04)]:
-        for i in range(n):
-            t = i / sample_rate
-            # Slow swell: fades in and out over 30-second cycles
-            swell = 0.3 + 0.7 * (0.5 + 0.5 * math.sin(2 * math.pi * t / 30))
-            mod = 1.0 - 0.2 + 0.2 * math.sin(2 * math.pi * lfo * t)
-            samples[i] += amp * swell * mod * math.sin(2 * math.pi * freq * t)
-
-    # Layer 3: Heartbeat-like pulse (very subtle)
-    pulse_freq = 0.9  # ~54 bpm, slightly unsettling
+    # Layer 1: Filtered white noise (dark rain / wind texture)
+    import random as _rng
+    _rng.seed(42)
+    noise_buf = [_rng.gauss(0, 1) for _ in range(n)]
+    # Simple low-pass filter (rolling average) for soft noise
+    window = 12
+    filtered = [0.0] * n
+    running = 0.0
+    for i in range(n):
+        running += noise_buf[i]
+        if i >= window:
+            running -= noise_buf[i - window]
+        filtered[i] = running / window
+    # Slow volume modulation on the noise (breathing feel)
     for i in range(n):
         t = i / sample_rate
-        pulse = max(0, math.sin(2 * math.pi * pulse_freq * t)) ** 8
-        samples[i] += 0.06 * pulse * math.sin(2 * math.pi * 55 * t)
+        breath = 0.6 + 0.4 * math.sin(2 * math.pi * t / 20)  # 20s cycle
+        samples[i] += 0.12 * breath * filtered[i]
 
-    # Layer 4: High shimmer (adds air and eeriness)
-    for freq, amp, lfo in [(880, 0.015, 0.07), (1320, 0.008, 0.11), (1760, 0.005, 0.09)]:
+    # Layer 2: Very gentle pad (minor, eerie but not harsh)
+    # E minor: E2=82.4, G2=98, B2=123.5
+    for freq, amp, lfo in [(82.4, 0.04, 0.025), (98.0, 0.03, 0.035), (123.5, 0.025, 0.03)]:
         for i in range(n):
             t = i / sample_rate
-            # Only present 40% of the time (random-ish via slow LFO)
-            gate = max(0, math.sin(2 * math.pi * 0.02 * t + freq * 0.01))
-            mod = 0.5 + 0.5 * math.sin(2 * math.pi * lfo * t)
-            samples[i] += amp * gate * mod * math.sin(2 * math.pi * freq * t)
+            swell = 0.2 + 0.8 * (0.5 + 0.5 * math.sin(2 * math.pi * t / 40))
+            samples[i] += amp * swell * math.sin(2 * math.pi * freq * t)
 
-    # Layer 5: Occasional low rumble (tension builder)
+    # Layer 3: Distant high-pitched tones (like wind through cracks)
+    for freq, amp, lfo in [(660, 0.008, 0.015), (990, 0.005, 0.02), (1100, 0.003, 0.025)]:
+        for i in range(n):
+            t = i / sample_rate
+            # Fades in and out slowly, only present ~30% of the time
+            gate = max(0, math.sin(2 * math.pi * 0.012 * t + freq * 0.005)) ** 3
+            samples[i] += amp * gate * math.sin(2 * math.pi * freq * t)
+
+    # Layer 4: Occasional deep sigh (every ~60s, very soft)
     for i in range(n):
         t = i / sample_rate
-        # Rumble every ~45 seconds, lasts ~8 seconds
-        cycle = t % 45
-        if cycle < 8:
-            rumble_env = math.sin(math.pi * cycle / 8)
-            samples[i] += 0.12 * rumble_env * math.sin(2 * math.pi * 30 * t)
+        cycle = t % 60
+        if 5 < cycle < 12:
+            env = math.sin(math.pi * (cycle - 5) / 7)
+            samples[i] += 0.03 * env * math.sin(2 * math.pi * 75 * t)
 
-    # Fade in / out (5 seconds each for smoother transitions)
+    # Fade in / out (5 seconds)
     fade = sample_rate * 5
     for i in range(fade):
         samples[i] *= i / fade
         samples[n - 1 - i] *= i / fade
 
     # Normalize
-    peak = max(abs(s) for s in samples)
-    if peak > 0:
-        samples = [s * (0.75 / peak) for s in samples]
+    peak = max(abs(s) for s in samples) or 1.0
+    samples = [s * (0.70 / peak) for s in samples]
 
     # Convert to 16-bit PCM WAV
     import io
