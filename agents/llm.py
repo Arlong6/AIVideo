@@ -67,27 +67,30 @@ def ask(prompt: str, json_mode: bool = True) -> dict | str:
                 if attempt == 2:
                     raise
                 time.sleep(5)
-    # Fallback to Claude
-    if _claude:
-        print("  [LLM] Gemini exhausted, falling back to Claude...")
-        for model in ["claude-sonnet-4-6"]:
-            try:
-                msg = _claude.messages.create(
-                    model=model, max_tokens=6000,
-                    messages=[{"role": "user", "content": prompt}],
-                )
-                text = msg.content[0].text.strip()
-                cost = (msg.usage.input_tokens * 15 + msg.usage.output_tokens * 75) / 1_000_000
-                print(f"  [LLM] Used Claude {model} (${cost:.3f})")
-                if json_mode:
-                    start = text.find("{")
-                    end = text.rfind("}") + 1
-                    if start < 0:
-                        start = text.find("[")
-                        end = text.rfind("]") + 1
-                    return json.loads(text[start:end])
-                return text
-            except Exception as e:
-                print(f"  [WARN] Claude {model} failed: {e}")
+    # Claude fallback — only used when explicitly requested via use_claude=True
+    raise RuntimeError("Gemini quota exhausted. Wait for daily reset or use ask_claude().")
 
-    raise RuntimeError("All LLM models exhausted")
+
+def ask_claude(prompt: str, json_mode: bool = True) -> dict | str:
+    """Explicitly call Claude (paid). Use when Gemini quota is exhausted."""
+    if not _claude:
+        raise RuntimeError("Claude not configured")
+
+    try:
+        msg = _claude.messages.create(
+            model="claude-sonnet-4-6", max_tokens=6000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = msg.content[0].text.strip()
+        cost = (msg.usage.input_tokens * 3 + msg.usage.output_tokens * 15) / 1_000_000
+        print(f"  [LLM] Claude Sonnet (${cost:.3f})")
+        if json_mode:
+            start = text.find("{")
+            end = text.rfind("}") + 1
+            if start < 0:
+                start = text.find("[")
+                end = text.rfind("]") + 1
+            return json.loads(text[start:end])
+        return text
+    except Exception as e:
+        raise RuntimeError(f"Claude failed: {e}")
