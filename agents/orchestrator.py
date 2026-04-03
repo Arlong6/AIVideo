@@ -129,10 +129,24 @@ def _run_pipeline(topic, output_dir, upload, slot):
     generate_thumbnail(script_data.get("title", topic), thumb_path,
                        fmt="long", duration_hint=f"{dur_min}:{dur_sec:02d}")
 
+    # Convert maps to video clips and add to wiki_clips
+    map_clips = []
+    maps = visual_results.get("maps", {})
+    for map_name, map_path in maps.items():
+        if map_path and os.path.exists(map_path):
+            map_vid = map_path.replace(".jpg", ".mp4")
+            from video_assembler import _image_to_video
+            _image_to_video(map_path, map_vid, duration=5.0)
+            if os.path.exists(map_vid):
+                map_clips.append(map_vid)
+                print(f"  📍 Map added: {map_name}")
+
+    all_wiki = (visual_results.get("wiki_clips") or []) + map_clips
+
     # Assemble
     final_path = assemble_video(
         output_dir, lang="zh",
-        wiki_clips=visual_results.get("wiki_clips"),
+        wiki_clips=all_wiki,
         scene_pacing=script_data.get("scene_pacing"),
         fmt="long",
         info_cards=visual_results.get("info_cards"),
