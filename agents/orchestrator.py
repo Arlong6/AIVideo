@@ -69,56 +69,44 @@ def produce_longform(topic: str, output_base: str = "output",
 
 
 def _run_pipeline(topic, output_dir, upload, slot):
-    """Internal pipeline — separated for error handling."""
+    """Internal pipeline — optimized to 3 LLM calls total."""
 
-    # ── Step 1: Research ──────────────────────────────────────────
-    print("\n[1/8] 🔍 Research Agent — investigating case...")
-    from agents.research_agent import investigate_case
-    case_data = investigate_case(topic)
+    # ── Step 1: Research + Design (1 LLM call) ────────────────────
+    print("\n[1/5] 🔍 Research + Design — investigating case...")
+    from agents.research_agent import investigate_and_plan
+    case_data = investigate_and_plan(topic)
     _save_json(case_data, output_dir, "case_research.json")
 
-    # ── Step 2: Script ────────────────────────────────────────────
-    print("\n[2/8] ✍️ Script Agent — writing 8-section script...")
+    # Build visual_plan from case_data
+    visual_plan = {
+        "sections": [{"wiki_search_queries": case_data.get("visual_plan", {}).get("wiki_search_queries", []),
+                       "pexels_queries": case_data.get("visual_plan", {}).get("pexels_queries", [])}],
+    }
+
+    # ── Step 2: Script (2 LLM calls) ─────────────────────────────
+    print("\n[2/5] ✍️ Script Agent — writing 8-section script...")
     from agents.script_agent import generate_script
     script_data = generate_script(case_data)
     _save_json(script_data, output_dir, "metadata.json")
 
-    # Save raw script
     with open(os.path.join(output_dir, "script_zh.txt"), "w", encoding="utf-8") as f:
         f.write(script_data.get("script", ""))
 
     print(f"   Title: {script_data.get('title', '?')}")
     print(f"   Script: {len(script_data.get('script', ''))} chars")
 
-    # ── Step 3: Fact Check ────────────────────────────────────────
-    print("\n[3/8] ✅ Research Agent — fact-checking script...")
-    from agents.research_agent import fact_check_script
-    fc_result = fact_check_script(script_data.get("script", ""), case_data)
-    _save_json(fc_result, output_dir, "fact_check.json")
-
-    if fc_result.get("verdict") == "重寫":
-        print("   ⚠️ Script needs rewrite — regenerating...")
-        script_data = generate_script(case_data)
-        _save_json(script_data, output_dir, "metadata.json")
-
-    # ── Step 4: Design Direction ──────────────────────────────────
-    print("\n[4/8] 🎨 Design Agent — planning visuals...")
-    from agents.design_agent import plan_visual_direction
-    visual_plan = plan_visual_direction(script_data, case_data)
-    _save_json(visual_plan, output_dir, "visual_plan.json")
-
-    # ── Step 5: Visual Sourcing ───────────────────────────────────
-    print("\n[5/8] 📸 Visual Agent — sourcing footage + info cards...")
+    # ── Step 3: Visual Sourcing (0 LLM calls) ─────────────────────
+    print("\n[3/5] 📸 Visual Agent — sourcing footage + info cards...")
     from agents.visual_agent import source_visuals
     visual_results = source_visuals(case_data, script_data, visual_plan, output_dir)
 
-    # ── Step 6: Audio Production ──────────────────────────────────
-    print("\n[6/8] 🎤 Audio Agent — TTS + subtitles + music...")
+    # ── Step 4: Audio Production ──────────────────────────────────
+    print("\n[4/5] 🎤 Audio Agent — TTS + subtitles + music...")
     from agents.audio_agent import generate_audio
     audio_results = generate_audio(script_data, output_dir)
 
-    # ── Step 7: Assembly ──────────────────────────────────────────
-    print("\n[7/8] 🎬 Assembling final video...")
+    # ── Step 5: Assembly + QA ──────────────────────────────────────
+    print("\n[5/5] 🎬 Assembling final video...")
     from video_assembler import assemble_video
     from thumbnail_generator import generate_thumbnail
 
@@ -152,8 +140,8 @@ def _run_pipeline(topic, output_dir, upload, slot):
         info_cards=visual_results.get("info_cards"),
     )
 
-    # ── Step 8: QA Review ─────────────────────────────────────────
-    print("\n[8/8] 🔎 QA Agent — reviewing quality...")
+    # ── QA Review ──────────────────────────────────────────────────
+    print("\n  🔎 QA Agent — reviewing quality...")
     from agents.qa_agent import review_video
     qa_report = review_video(output_dir, expected_duration=audio_results["duration"])
     _save_json(qa_report, output_dir, "qa_report.json")

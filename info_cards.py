@@ -231,10 +231,11 @@ def make_case_file(title: str, case_number: str,
 # Auto-generate cards for a case from script sections
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-def generate_info_cards(script_data: dict, output_dir: str) -> dict[str, str]:
+def generate_info_cards(script_data: dict, output_dir: str,
+                        case_data: dict = None) -> dict[str, str]:
     """
-    Auto-generate info cards for each section of a long-form video.
-    Uses Gemini to extract case details from the script.
+    Auto-generate info cards. Uses case_data directly (no LLM call).
+    Falls back to LLM extraction only if case_data not provided.
 
     Returns: {"hook": path, "crime": path, "twist": path, ...}
     """
@@ -244,8 +245,29 @@ def generate_info_cards(script_data: dict, output_dir: str) -> dict[str, str]:
     title = script_data.get("title", "真實犯罪")
     sections = script_data.get("sections", [])
 
-    # Extract case details from script for the case file card
-    case_details = _extract_case_details(script_data)
+    if case_data:
+        # Use research data directly — no LLM call needed
+        case_details = {
+            "case_number": f"#{case_data.get('year', 'XXXX')}-{case_data.get('date', '')[5:].replace('-', '')}",
+            "year": case_data.get("year", "20XX"),
+            "fields": [(v.get("name", ""), f"({v.get('age', '?')})") for v in case_data.get("victims", [])][:1]
+                     + [("案發地點", f"{case_data.get('city', '')}, {case_data.get('country', '')}"),
+                        ("案發日期", case_data.get("date", "")),
+                        ("嫌疑人", ", ".join(s.get("name", "") for s in case_data.get("suspects", []))),
+                        ("案件類型", case_data.get("case_type", "")),
+                        ("結案狀態", case_data.get("status", ""))],
+            "status": case_data.get("status", "調查中"),
+            "resolution_status": case_data.get("status", "已結案"),
+            "timeline_events": [(e.get("date", ""), e.get("event", ""), e.get("detail", ""))
+                                for e in case_data.get("timeline", [])],
+            "ticker": case_data.get("ticker", case_data.get("social_impact", "")),
+        }
+        # Fix victim field
+        victims = case_data.get("victims", [])
+        if victims:
+            case_details["fields"][0] = ("受害者", f"{victims[0].get('name', '')} ({victims[0].get('age', '')})")
+    else:
+        case_details = _extract_case_details(script_data)
 
     cards = {}
 

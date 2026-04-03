@@ -83,10 +83,10 @@ def source_visuals(case_data: dict, script_data: dict,
     download_footage(unique_pexels[:50], output_dir, fmt="long")
     results["pexels_clips_dir"] = os.path.join(output_dir, "clips")
 
-    # 3. Info cards
+    # 3. Info cards (uses case_data directly, no LLM call)
     print("  [Visual] Generating info cards...")
     from info_cards import generate_info_cards
-    results["info_cards"] = generate_info_cards(script_data, output_dir)
+    results["info_cards"] = generate_info_cards(script_data, output_dir, case_data=case_data)
 
     # 4. Crime location maps
     print("  [Visual] Generating crime location maps...")
