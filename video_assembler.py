@@ -626,18 +626,31 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
     if os.path.exists(concat_path):
         os.remove(concat_path)
 
-    # Skip subtitle burn — let YouTube auto-detect captions instead
-    # (YouTube's speech recognition syncs better than our SRT timing)
-    print("  Subtitles: skip burn, will use YouTube auto-captions")
+    # Burn subtitles into video (chunked PIL for long videos)
+    subtitle_out = final_path.replace("final_", "_sub_")
+    if os.path.exists(srt_path):
+        print(f"  Burning subtitles into video...")
+        try:
+            if fmt == "long":
+                _burn_subtitles_ffmpeg(temp_path, srt_path, subtitle_out)
+            else:
+                _burn_subtitles_pillow(temp_path, srt_path, subtitle_out)
+            os.remove(temp_path)
+            print("  Subtitles burned ✅")
+        except Exception as e:
+            print(f"  [WARN] Subtitle burn failed: {e}, using video without subs")
+            subtitle_out = temp_path
+    else:
+        subtitle_out = temp_path
 
     # Apply cinematic effects (grain + vignette + color grade)
     print("  Applying cinematic effects...")
-    effects_ok = _apply_cinematic_effects(temp_path, final_path)
-    if os.path.exists(temp_path) and temp_path != final_path:
-        os.remove(temp_path)
+    effects_ok = _apply_cinematic_effects(subtitle_out, final_path)
+    if os.path.exists(subtitle_out) and subtitle_out != final_path:
+        os.remove(subtitle_out)
     if not effects_ok:
-        if os.path.exists(temp_path):
-            os.rename(temp_path, final_path)
+        if os.path.exists(subtitle_out):
+            os.rename(subtitle_out, final_path)
 
     size_mb = os.path.getsize(final_path) / 1024 / 1024
     print(f"  ✅ Video ready: final_{lang}.mp4 ({size_mb:.1f} MB, {duration:.0f}s)")
