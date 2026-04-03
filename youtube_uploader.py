@@ -138,12 +138,44 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
         from thumbnail_generator import upload_thumbnail
         upload_thumbnail(youtube, video_id, thumb_path)
 
-    # Upload SRT subtitle file (edge-tts sentence boundary timing = accurate sync)
-    srt_path = video_path.replace("final_zh.mp4", "subtitles_zh.srt")
-    if os.path.exists(srt_path):
-        _upload_subtitles(youtube, video_id, srt_path, lang="zh-Hant")
+    # Upload plain text transcript — YouTube auto-sync handles timing
+    script_path = video_path.replace("final_zh.mp4", "script_zh.txt")
+    if os.path.exists(script_path):
+        _upload_transcript_autosync(youtube, video_id, script_path, lang="zh-Hant")
+    else:
+        # Fallback: try SRT
+        srt_path = video_path.replace("final_zh.mp4", "subtitles_zh.srt")
+        if os.path.exists(srt_path):
+            _upload_subtitles(youtube, video_id, srt_path, lang="zh-Hant")
 
     return url
+
+
+def _upload_transcript_autosync(youtube, video_id: str, script_path: str,
+                                lang: str = "zh-Hant"):
+    """Upload plain text transcript — YouTube auto-syncs timing with audio."""
+    try:
+        print(f"  Uploading transcript for auto-sync ({lang})...")
+        youtube.captions().insert(
+            part="snippet",
+            sync=True,  # Let YouTube auto-sync
+            body={
+                "snippet": {
+                    "videoId": video_id,
+                    "language": lang,
+                    "name": "繁體中文",
+                    "isDraft": False,
+                }
+            },
+            media_body=MediaFileUpload(script_path, mimetype="text/plain"),
+        ).execute()
+        print(f"  ✅ Transcript uploaded — YouTube will auto-sync subtitles")
+    except Exception as e:
+        print(f"  [WARN] Transcript auto-sync upload failed: {e}")
+        # Fallback: try SRT
+        srt_path = script_path.replace("script_zh.txt", "subtitles_zh.srt")
+        if os.path.exists(srt_path):
+            _upload_subtitles(youtube, video_id, srt_path, lang=lang)
 
 
 def _upload_subtitles(youtube, video_id: str, srt_path: str, lang: str = "zh-Hant"):
