@@ -79,12 +79,7 @@ def ask(prompt: str, json_mode: bool = True) -> dict | str:
                 if attempt == 2:
                     raise
                 time.sleep(5)
-    # Gemini exhausted — check if Claude fallback is allowed today
-    if _claude and _check_claude_budget():
-        print("  [LLM] Gemini exhausted, using Claude (今日第1支保底)")
-        return ask_claude(prompt, json_mode)
-
-    raise RuntimeError("Gemini quota exhausted. Wait for daily reset (台灣下午3-4點).")
+    raise RuntimeError("Gemini call failed after all retries.")
 
 
 CLAUDE_USAGE_FILE = os.path.join(os.path.dirname(__file__), "..", "claude_daily_usage.json")
