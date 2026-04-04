@@ -28,6 +28,17 @@ except Exception:
     pass
 
 
+def check_gemini_quota() -> bool:
+    """Quick check if Gemini quota is available. Returns True if ready."""
+    if not _gemini:
+        return False
+    try:
+        _gemini.models.generate_content(model="gemini-2.5-flash", contents="hi")
+        return True
+    except Exception:
+        return False
+
+
 def ask(prompt: str, json_mode: bool = True) -> dict | str:
     """Call Gemini (primary), Claude (fallback). Returns dict or str."""
     if not _gemini and not _claude:
