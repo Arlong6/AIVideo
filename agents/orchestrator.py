@@ -140,6 +140,17 @@ def _run_pipeline(topic, output_dir, upload, slot):
         info_cards=visual_results.get("info_cards"),
     )
 
+    # ── Gecko narrator overlay ─────────────────────────────────────
+    if final_path:
+        print("\n  🦎 Adding gecko narrator...")
+        from gecko_narrator import overlay_gecko_on_video
+        gecko_output = final_path.replace("final_zh", "final_gecko_zh")
+        result_path = overlay_gecko_on_video(
+            final_path, audio_results["voiceover_path"], gecko_output)
+        if result_path != final_path and os.path.exists(gecko_output):
+            os.remove(final_path)
+            os.rename(gecko_output, final_path)
+
     # ── QA Review ──────────────────────────────────────────────────
     print("\n  🔎 QA Agent — reviewing quality...")
     from agents.qa_agent import review_video
