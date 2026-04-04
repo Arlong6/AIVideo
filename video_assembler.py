@@ -694,7 +694,8 @@ def _apply_cinematic_effects(input_path: str, output_path: str) -> bool:
             "ffmpeg", "-y", "-i", input_path,
             "-vf", vf,
             "-c:a", "copy",
-            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+            "-pix_fmt", "yuv420p", "-movflags", "+faststart",
             output_path,
         ], capture_output=True, timeout=1200)
         if result.returncode == 0:
