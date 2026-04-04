@@ -298,25 +298,34 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
             return pacing_table.get(scene_pacing[scene_idx], default_interval)
         return default_interval
 
-    # Pre-compute cut plan
+    # Pre-compute cut plan — each clip used ONCE, no repeats
+    # If not enough clips, extend each clip's duration (slow down) instead of looping
+    total_clips = sum(len(g) for g in scene_groups)
+    if total_clips > 0:
+        # Target duration per clip to fill the entire video without repeats
+        target_per_clip = total_duration / total_clips
+        # But don't go shorter than pacing allows or longer than 15s
+        min_dur = 3.0
+        max_dur = 15.0
+        per_clip_dur = max(min_dur, min(max_dur, target_per_clip))
+    else:
+        per_clip_dur = default_interval
+
     plan = []
-    scene_clip_idx = [0] * num_scenes
     t = 0.0
-    cut_index = 0
-    total_cuts_estimate = int(total_duration / default_interval) + 1
-    while t < total_duration - 0.05:
-        si = min(int(cut_index / total_cuts_estimate * num_scenes), num_scenes - 1)
-        interval = _scene_duration(si)
-        chunk = min(interval, total_duration - t)
-        cp = scene_clip_idx[si] % len(scene_groups[si])
-        scene_clip_idx[si] += 1
-        plan.append((si, cp, chunk))
-        t += chunk
-        cut_index += 1
+    for si, group in enumerate(scene_groups):
+        for cp, clip_path in enumerate(group):
+            if t >= total_duration - 0.05:
+                break
+            chunk = min(per_clip_dur, total_duration - t)
+            plan.append((si, cp, chunk))
+            t += chunk
+        if t >= total_duration - 0.05:
+            break
 
     avg_cut = sum(c for _, _, c in plan) / len(plan) if plan else default_interval
-    print(f"  {len(scene_groups)} scenes, {sum(len(g) for g in scene_groups)} clips, "
-          f"{len(plan)} cuts (avg {avg_cut:.1f}s) — {fmt} mode ({tw}x{th})...")
+    print(f"  {len(scene_groups)} scenes, {total_clips} clips, "
+          f"{len(plan)} cuts (avg {avg_cut:.1f}s, no repeats) — {fmt} mode ({tw}x{th})...")
 
     os.makedirs(temp_dir, exist_ok=True)
     temp_paths = []
@@ -326,13 +335,15 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
         try:
             src = VideoFileClip(src_path, audio=False)
             src = _crop_to_target(src, tw, th)
-            # Long-form: skip per-frame dark grade (ffmpeg does it later, much faster)
             if fmt == "short":
                 src = _apply_dark_grade(src)
+
             if src.duration >= chunk:
+                # Clip is long enough — use a random segment
                 offset = random.uniform(0, src.duration - chunk)
                 sub = src.subclip(offset, offset + chunk)
             else:
+                # Clip shorter than needed — use entire clip (no repeat)
                 sub = src.subclip(0, src.duration)
             sub.write_videofile(temp_path, fps=25, codec="libx264",
                                 audio=False, logger=None)
