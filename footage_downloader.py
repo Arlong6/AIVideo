@@ -118,12 +118,14 @@ def download_footage(visual_scenes: list, output_dir: str, fmt: str = "short"):
     fallback_idx = 0
     pexels_credits = []
 
+    seen_creators = set()  # Avoid same-looking clips from same creator
+
     for scene_idx, query in enumerate(visual_scenes):
         print(f"  Scene {scene_idx+1:02d}/{len(visual_scenes)}: '{query}'")
         clips_saved = 0
 
         # Try page 1 then page 2 for this query
-        for page in (1, 2):
+        for page in (1, 2, 3):
             if clips_saved >= clips_per:
                 break
             videos = _search_pexels(query, page, headers)
@@ -132,14 +134,17 @@ def download_footage(visual_scenes: list, output_dir: str, fmt: str = "short"):
                     break
                 if video["id"] in seen_ids:
                     continue
+                # Skip if same creator already used (prevents similar-looking clips)
+                creator = video.get("user", {}).get("name", "Unknown")
+                if creator in seen_creators and creator != "Unknown":
+                    continue
                 filename = f"s{scene_idx:02d}_clip{clips_saved+1}.mp4"
                 filepath = os.path.join(clips_dir, filename)
                 if _download_clip(video, filepath):
                     seen_ids.add(video["id"])
+                    seen_creators.add(creator)
                     clips_saved += 1
                     total_downloaded += 1
-                    # Log Pexels creator for attribution
-                    creator = video.get("user", {}).get("name", "Unknown")
                     pexels_credits.append(f"{creator} (Pexels ID: {video['id']})")
                     print(f"    ✅ {filename}")
 
