@@ -10,15 +10,10 @@ TTS_PITCH_ZH = "-5Hz" # slightly lower for dark tone
 def generate_voiceover(text: str, lang: str, output_path: str):
     """
     Chinese: edge-tts (Microsoft neural voices, better Chinese intonation)
-    English: ElevenLabs (more expressive, natural storytelling)
     """
-    # ElevenLabs disabled (quota exhausted — re-enable when plan upgraded)
-    # if lang == "en" and ELEVENLABS_API_KEY:
-    #     try:
-    #         _generate_elevenlabs(text, output_path)
-    #         return
-    #     except Exception as e:
-    #         print(f"  [WARN] ElevenLabs failed ({e.__class__.__name__}: {e}), falling back to edge-tts")
+    import re
+    # Clean pacing tags from script before TTS
+    text = re.sub(r"\[(?:slow|medium|fast|climax)\]\s*", "", text, flags=re.IGNORECASE)
     _generate_edge_tts(text, lang, output_path)
 
 
@@ -96,6 +91,9 @@ def _generate_edge_tts(text: str, lang: str, output_path: str):
 
 def generate_voiceover_with_timing(text: str, lang: str, output_path: str) -> list[dict]:
     """Generate voiceover and return sentence boundary timing for precise subtitles."""
+    import re
+    text = re.sub(r"\[(?:slow|medium|fast|climax)\]\s*", "", text, flags=re.IGNORECASE)
+
     if lang == "zh":
         voice, rate, pitch = VOICE_ZH, TTS_RATE_ZH, TTS_PITCH_ZH
     else:
