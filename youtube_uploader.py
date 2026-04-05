@@ -41,6 +41,47 @@ def _build_full_description(desc: str, hashtags: list, metadata: dict,
     return "\n\n".join(parts)
 
 
+def _ensure_youtube_compatible(video_path: str) -> str:
+    """
+    Re-encode video to guaranteed YouTube-compatible format.
+    Fixes stuck processing caused by incompatible codecs/containers.
+    """
+    import subprocess
+
+    # Check if already compatible
+    result = subprocess.run(
+        ["ffprobe", "-v", "quiet", "-show_entries",
+         "stream=codec_name,pix_fmt", "-of", "csv=p=0", video_path],
+        capture_output=True, text=True)
+    info = result.stdout.strip()
+
+    # If already h264 + yuv420p, skip re-encode
+    if "h264" in info and "yuv420p" in info:
+        # Still check for faststart
+        result2 = subprocess.run(
+            ["ffprobe", "-v", "trace", video_path],
+            capture_output=True, text=True, timeout=10)
+        stderr = result2.stderr or ""
+        if "moov" in stderr[:5000]:  # moov atom near start = faststart
+            return video_path
+
+    print("  Re-encoding for YouTube compatibility...")
+    safe_path = video_path.replace(".mp4", "_yt.mp4")
+    subprocess.run([
+        "ffmpeg", "-y", "-i", video_path,
+        "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+        "-profile:v", "high", "-level", "4.1",
+        "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
+        safe_path,
+    ], capture_output=True, timeout=1200)
+
+    if os.path.exists(safe_path) and os.path.getsize(safe_path) > 1000:
+        print(f"  Re-encoded: {os.path.getsize(safe_path)/1024/1024:.0f} MB")
+        return safe_path
+    return video_path
+
+
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.force-ssl",
@@ -117,6 +158,9 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
         },
         "status": status,
     }
+
+    # Force re-encode to YouTube-safe format before upload
+    video_path = _ensure_youtube_compatible(video_path)
 
     print(f"  Uploading: {os.path.basename(video_path)}...")
     media = MediaFileUpload(video_path, chunksize=-1, resumable=True)
