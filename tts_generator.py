@@ -76,8 +76,22 @@ def _generate_edge_tts(text: str, lang: str, output_path: str):
     else:
         voice, rate, pitch = VOICE_EN, "-10%", "-2Hz"
 
-    asyncio.run(_edge_tts_async(text, voice, rate, pitch, output_path))
-    print(f"  Voiceover saved (edge-tts {lang.upper()}): {output_path}")
+    # Retry up to 3 times (edge-tts can be flaky)
+    import time as _time
+    for attempt in range(3):
+        try:
+            asyncio.run(_edge_tts_async(text, voice, rate, pitch, output_path))
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+                print(f"  Voiceover saved (edge-tts {lang.upper()}): {output_path}")
+                return
+        except Exception as e:
+            print(f"  [WARN] TTS attempt {attempt+1} failed: {e}")
+            _time.sleep(3)
+
+    # Final fallback: try default voice
+    print("  [WARN] Retrying with default zh-TW voice...")
+    asyncio.run(_edge_tts_async(text, "zh-TW-YunJheNeural", "-8%", "-5Hz", output_path))
+    print(f"  Voiceover saved (fallback voice): {output_path}")
 
 
 def generate_voiceover_with_timing(text: str, lang: str, output_path: str) -> list[dict]:
