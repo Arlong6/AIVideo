@@ -129,7 +129,7 @@ def make_timeline(title: str, year: str,
     # (red bars removed for clean look)
 
     # Big faded year
-    draw.text((80, 50), year, font=_font(110), fill=(45, 45, 65))
+    draw.text((80, 50), str(year), font=_font(110), fill=(45, 45, 65))
 
     # Title — wrap if needed
     title_display = title[:20] if len(title) > 20 else title
