@@ -116,13 +116,13 @@ def overlay_gecko_on_video(video_path: str, audio_path: str,
         last_img = tmp_open if segments[-1][0] else tmp_closed
         f.write(f"file '{last_img}'\n")
 
-    # Create gecko-only video from concat
+    # Create gecko-only video from concat (force 25fps)
     gecko_vid = "/tmp/_gecko_lipsync.mov"
     subprocess.run([
         "ffmpeg", "-y", "-f", "concat", "-safe", "0",
         "-i", concat_file,
-        "-vf", f"scale={gecko_w}:{gecko_h},format=rgba",
-        "-c:v", "png", "-r", "25",
+        "-vf", f"scale={gecko_w}:{gecko_h},format=rgba,fps=25",
+        "-c:v", "png",
         gecko_vid,
     ], capture_output=True, timeout=300)
 
@@ -142,9 +142,11 @@ def overlay_gecko_on_video(video_path: str, audio_path: str,
         "-filter_complex",
         f"[1:v]format=rgba[g];[0:v][g]overlay={x_pos}:{y_pos}:shortest=1[v]",
         "-map", "[v]", "-map", "0:a",
+        "-r", "25",
         "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+        "-profile:v", "high", "-level", "4.1",
         "-pix_fmt", "yuv420p", "-movflags", "+faststart",
-        "-c:a", "copy",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
         output_path,
     ], capture_output=True, timeout=1200)
 

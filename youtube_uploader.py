@@ -48,22 +48,29 @@ def _ensure_youtube_compatible(video_path: str) -> str:
     """
     import subprocess
 
-    # Check if already compatible
+    # Check codec, pixel format, and FPS
     result = subprocess.run(
         ["ffprobe", "-v", "quiet", "-show_entries",
-         "stream=codec_name,pix_fmt", "-of", "csv=p=0", video_path],
+         "stream=codec_name,pix_fmt,r_frame_rate", "-of", "csv=p=0", video_path],
         capture_output=True, text=True)
     info = result.stdout.strip()
 
-    # If already h264 + yuv420p, skip re-encode
-    if "h264" in info and "yuv420p" in info:
-        # Still check for faststart
-        result2 = subprocess.run(
-            ["ffprobe", "-v", "trace", video_path],
-            capture_output=True, text=True, timeout=10)
-        stderr = result2.stderr or ""
-        if "moov" in stderr[:5000]:  # moov atom near start = faststart
-            return video_path
+    # Check FPS — must be standard (24, 25, 30, 60)
+    needs_reencode = False
+    try:
+        for line in info.split("\n"):
+            parts = line.split(",")
+            if len(parts) >= 3 and "/" in parts[2]:
+                num, den = parts[2].split("/")
+                fps = int(num) / int(den) if int(den) > 0 else 0
+                if fps not in (24, 25, 30, 60) and fps < 23:
+                    print(f"  Non-standard FPS detected: {fps:.1f}")
+                    needs_reencode = True
+    except:
+        pass
+
+    if not needs_reencode and "h264" in info and "yuv420p" in info:
+        return video_path
 
     print("  Re-encoding for YouTube compatibility...")
     safe_path = video_path.replace(".mp4", "_yt.mp4")
