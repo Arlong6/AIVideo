@@ -33,36 +33,67 @@
       ]
     },
     {
-      "video_id": "sb7R4U520kw",
-      "topic": "新北國三生割頸案",
-      "slot": 1,
-      "duration_s": 61,
-      "publish_at": "2026-04-06T10:00:00+08:00",
-      "uploaded_at": "2026-04-06T01:33:54.914650+00:00",
-      "stats": [
-        {
-          "date": "2026-04-06",
-          "views": 0,
-          "likes": 0,
-          "comments": 0
-        }
-      ]
+      "video_id": "_gN3tF-swsI",
+      "topic": "白曉燕綁架撕票案：1997年台灣震驚社會的名媛之女綁架案",
+      "slot": 2,
+      "duration_s": 1063,
+      "publish_at": "",
+      "uploaded_at": "2026-04-02T18:29:44.549814+00:00",
+      "stats": []
     },
     {
-      "video_id": "v8g9a-tvRb8",
-      "topic": "小燈泡事件：三歲女童斷頸案，無差別殺人對社會的衝擊",
-      "slot": 3,
-      "duration_s": 97,
-      "publish_at": "2026-04-06T18:00:00+08:00",
-      "uploaded_at": "2026-04-06T01:44:50.738051+00:00",
-      "stats": [
-        {
-          "date": "2026-04-06",
-          "views": 0,
-          "likes": 0,
-          "comments": 0
-        }
-      ]
+      "video_id": "JR6mxxpZ3Bg",
+      "topic": "白曉燕綁架撕票案：1997年台灣震驚社會的名媛之女綁架案",
+      "slot": 2,
+      "duration_s": 896,
+      "publish_at": "",
+      "uploaded_at": "2026-04-03T03:01:29.450316+00:00",
+      "stats": []
+    },
+    {
+      "video_id": "88jmCfPqz6c",
+      "topic": "台北無差別攻擊案 (2023)",
+      "slot": 2,
+      "duration_s": 828,
+      "publish_at": "",
+      "uploaded_at": "2026-04-04T05:54:27.590960+00:00",
+      "stats": []
+    },
+    {
+      "video_id": "mGPQ3jQHe1c",
+      "topic": "小燈泡事件：2016年台北內湖隨機殺童案，社會對死刑與精神疾病的辯論",
+      "slot": 2,
+      "duration_s": 1087,
+      "publish_at": "",
+      "uploaded_at": "2026-04-04T06:40:48.654168+00:00",
+      "stats": []
+    },
+    {
+      "video_id": "AtB64xJ9vZQ",
+      "topic": "洪若潭命案：彰化洪宅滅門慘案——三具屍體、離奇遺書與永恆的謎團",
+      "slot": 2,
+      "duration_s": 940,
+      "publish_at": "",
+      "uploaded_at": "2026-04-04T16:20:32.514875+00:00",
+      "stats": []
+    },
+    {
+      "video_id": "is1TNCe7jns",
+      "topic": "新北國三生殺人案",
+      "slot": 2,
+      "duration_s": 1094,
+      "publish_at": "",
+      "uploaded_at": "2026-04-05T03:39:25.734571+00:00",
+      "stats": []
+    },
+    {
+      "video_id": "aQhpZEcUCzg",
+      "topic": "台灣 - 蘇建和案：歷經21年纏訟的冤案，台灣司法史上重要案例，探討司法正義與人權",
+      "slot": 2,
+      "duration_s": 1118,
+      "publish_at": "",
+      "uploaded_at": "2026-04-05T08:31:11.934510+00:00",
+      "stats": []
     }
   ]
 }
