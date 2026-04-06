@@ -42,6 +42,17 @@ jobs:
           echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> .env
           echo "${{ secrets.YOUTUBE_TOKEN_B64 }}" | base64 -d > youtube_token.pickle
           echo "${{ secrets.CLIENT_SECRETS_B64 }}" | base64 -d > client_secrets.json
+          python3 -c "
+          import pickle
+          from google.auth.transport.requests import Request
+          with open('youtube_token.pickle', 'rb') as f:
+              creds = pickle.load(f)
+          if creds.expired and creds.refresh_token:
+              creds.refresh(Request())
+              with open('youtube_token.pickle', 'wb') as f:
+                  pickle.dump(creds, f)
+              print('YouTube token refreshed')
+          "
 
       - name: Generate long-form video (multi-agent)
         run: |

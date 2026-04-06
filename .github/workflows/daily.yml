@@ -51,6 +51,16 @@ jobs:
           import base64, os
           open('youtube_token.pickle','wb').write(base64.b64decode(os.environ['YOUTUBE_TOKEN_B64']))
           open('client_secrets.json','wb').write(base64.b64decode(os.environ['CLIENT_SECRETS_B64']))
+          # Auto-refresh YouTube token if expired
+          import pickle
+          from google.auth.transport.requests import Request
+          with open('youtube_token.pickle', 'rb') as f:
+              creds = pickle.load(f)
+          if creds.expired and creds.refresh_token:
+              creds.refresh(Request())
+              with open('youtube_token.pickle', 'wb') as f:
+                  pickle.dump(creds, f)
+              print("YouTube token refreshed")
           env_content = "\n".join([
               f"GEMINI_API_KEY={os.environ.get('GEMINI_API_KEY','')}",
               f"ANTHROPIC_API_KEY={os.environ['ANTHROPIC_API_KEY']}",
