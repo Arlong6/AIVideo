@@ -637,22 +637,21 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
     if os.path.exists(concat_path):
         os.remove(concat_path)
 
-    # Burn subtitles into video (chunked PIL for long videos)
-    subtitle_out = final_path.replace("final_", "_sub_")
-    if os.path.exists(srt_path):
-        print(f"  Burning subtitles into video...")
+    # Subtitles: long-form uses SRT upload, Shorts burn into video
+    subtitle_out = temp_path
+    if fmt == "short" and os.path.exists(srt_path):
+        print("  Burning subtitles (Shorts only)...")
+        sub_out = final_path.replace("final_", "_sub_")
         try:
-            if fmt == "long":
-                _burn_subtitles_ffmpeg(temp_path, srt_path, subtitle_out)
-            else:
-                _burn_subtitles_pillow(temp_path, srt_path, subtitle_out)
+            _burn_subtitles_pillow(temp_path, srt_path, sub_out)
             os.remove(temp_path)
+            subtitle_out = sub_out
             print("  Subtitles burned ✅")
         except Exception as e:
-            print(f"  [WARN] Subtitle burn failed: {e}, using video without subs")
+            print(f"  [WARN] Subtitle burn failed: {e}")
             subtitle_out = temp_path
     else:
-        subtitle_out = temp_path
+        print("  Subtitles: will upload SRT to YouTube")
 
     # Apply cinematic effects (grain + vignette + color grade)
     print("  Applying cinematic effects...")
@@ -694,7 +693,7 @@ def _apply_cinematic_effects(input_path: str, output_path: str) -> bool:
             "ffmpeg", "-y", "-i", input_path,
             "-vf", vf,
             "-c:a", "copy",
-            "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "23",
             "-pix_fmt", "yuv420p", "-movflags", "+faststart",
             output_path,
         ], capture_output=True, timeout=1200)
