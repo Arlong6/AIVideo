@@ -13,8 +13,11 @@ def generate_voiceover(text: str, lang: str, output_path: str):
     Chinese: edge-tts (Microsoft neural voices, better Chinese intonation)
     """
     import re
-    # Clean pacing tags from script before TTS
+    # Clean pacing tags + markdown from script before TTS
     text = re.sub(r"\[(?:slow|medium|fast|climax)\]\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\*+", "", text)  # remove **bold** markers
+    text = re.sub(r"#{1,6}\s*", "", text)  # remove ### headings
+    text = re.sub(r"[`~]", "", text)  # remove code/strikethrough markers
     _generate_edge_tts(text, lang, output_path)
 
 
@@ -94,6 +97,9 @@ def generate_voiceover_with_timing(text: str, lang: str, output_path: str) -> li
     """Generate voiceover and return sentence boundary timing for precise subtitles."""
     import re
     text = re.sub(r"\[(?:slow|medium|fast|climax)\]\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\*+", "", text)
+    text = re.sub(r"#{1,6}\s*", "", text)
+    text = re.sub(r"[`~]", "", text)
 
     if lang == "zh":
         voice, rate, pitch = VOICE_ZH, TTS_RATE_ZH, TTS_PITCH_ZH
