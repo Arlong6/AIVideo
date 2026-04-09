@@ -94,7 +94,6 @@
       "publish_at": "",
       "uploaded_at": "2026-04-05T08:31:11.934510+00:00",
       "stats": []
-<<<<<<< Updated upstream
     },
     {
       "video_id": "bZ58RYH5B7M",
@@ -127,8 +126,42 @@
           "comments": 0
         }
       ]
-=======
->>>>>>> Stashed changes
+    },
+    {
+      "video_id": "4KpLzaBD5eg",
+      "topic": "台灣林于如保險金殺人案",
+      "slot": 1,
+      "duration_s": 38,
+      "publish_at": "2026-04-09T10:00:00+08:00",
+      "uploaded_at": "2026-04-08T13:11:24.787120+00:00",
+      "stats": []
+    },
+    {
+      "video_id": "tnSlGsr72fM",
+      "topic": "桃園蘆竹女老師命案 (1990)",
+      "slot": 2,
+      "duration_s": 71,
+      "publish_at": "2026-04-09T14:00:00+08:00",
+      "uploaded_at": "2026-04-08T13:17:26.985662+00:00",
+      "stats": []
+    },
+    {
+      "video_id": "CYHxJ1ab7Ks",
+      "topic": "盧正案：軍營命案背後的體制積弊與司法爭議",
+      "slot": 2,
+      "duration_s": 46,
+      "publish_at": "2026-04-09T14:00:00+08:00",
+      "uploaded_at": "2026-04-08T18:06:19.685689+00:00",
+      "stats": []
+    },
+    {
+      "video_id": "fnr_Jkc1A5E",
+      "topic": "陳高連葉用糖果毒殺七童案：地方媽媽的連續殺人之路，是什麼讓她走向毀滅？",
+      "slot": 2,
+      "duration_s": 84,
+      "publish_at": "2026-04-10T14:00:00+08:00",
+      "uploaded_at": "2026-04-09T15:44:54.892855+00:00",
+      "stats": []
     }
   ]
 }
