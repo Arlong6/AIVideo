@@ -1,18 +1,17 @@
-"""Telegram notifications — uses shared telegram_hub."""
-import sys
+"""Telegram notifications for AIvideo.
+
+2026-04-09: User has only one Telegram chat for this project. The shared
+`telegram_hub` package may route AIVIDEO tag to a different chat than the
+one in .env, so we explicitly DISABLE the hub path here. All notifications
+flow through `_send_raw()` to TELEGRAM_CHAT_ID. See
+memory/feedback_telegram_single_chat.md for context.
+"""
 import os
 
-# Add shared_telegram to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "shared_telegram"))
+# Hub path explicitly disabled — see module docstring.
+_hub = None
 
-try:
-    from telegram_hub import get_hub, Tag
-    _hub = get_hub()
-except ImportError:
-    # Fallback: standalone mode
-    _hub = None
-
-# Also load from .env for standalone
+# Load chat token from .env
 from dotenv import load_dotenv
 load_dotenv()
 
