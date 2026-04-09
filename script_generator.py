@@ -21,6 +21,8 @@ PROMPT_ZH = """你是一位頂尖真實犯罪 YouTube 頻道的腳本作家，�
 
 案件主題：{topic}
 
+{title_dna}
+
 === 腳本結構要求 ===
 
 【第一句：黃金3秒鐘 Hook】
@@ -113,18 +115,41 @@ Return this exact JSON:
 }}"""
 
 
+def _normalize_script_field(result: dict) -> dict:
+    """Gemini/Claude occasionally return the `script` field as a list of
+    sentences instead of a single string (observed 2026-04-09 after DNA
+    injection). Coerce to string so downstream file writes / TTS calls work.
+    Same for `visual_scenes` and `scene_pacing` (should always be list, but
+    be defensive)."""
+    if not isinstance(result, dict):
+        return result
+    script = result.get("script", "")
+    if isinstance(script, list):
+        result["script"] = "\n".join(str(s) for s in script)
+    elif not isinstance(script, str):
+        result["script"] = str(script)
+    return result
+
+
 def generate_scripts(topic: str, fmt: str = "short") -> dict:
     """Generate scripts. fmt='short' for Shorts, 'long' for 15-20 min videos."""
     if fmt == "long":
         return _generate_long_scripts(topic)
 
+    # Inject title DNA (formulas + trigger words + failure patterns) into Chinese
+    # prompt — same mechanism long-form uses at _generate_long_scripts. English
+    # prompt is left untouched since the DNA patterns are Chinese-specific.
+    from title_dna import get_title_prompt_insert
+    title_dna = get_title_prompt_insert()
+
     print(f"  Generating Chinese script...")
-    zh_result = _call_claude(PROMPT_ZH.format(topic=topic))
+    zh_result = _call_claude(PROMPT_ZH.format(topic=topic, title_dna=title_dna))
 
     print(f"  Generating English script...")
     en_result = _call_claude(PROMPT_EN.format(topic=topic))
 
-    return {"zh": zh_result, "en": en_result}
+    return {"zh": _normalize_script_field(zh_result),
+            "en": _normalize_script_field(en_result)}
 
 
 def _generate_long_scripts(topic: str) -> dict:
@@ -260,8 +285,16 @@ def _generate_long_scripts(topic: str) -> dict:
         "format": "long",
     }
 
-    # Build flat script and visual_scenes for backward compatibility
-    merged["script"] = "\n\n".join(s["script"] for s in all_sections)
+    # Build flat script and visual_scenes for backward compatibility.
+    # Coerce each section's script to string first in case Gemini returned
+    # list-of-sentences (observed 2026-04-09 after DNA injection).
+    def _as_str(x):
+        if isinstance(x, list):
+            return "\n".join(str(s) for s in x)
+        return str(x) if not isinstance(x, str) else x
+    merged["script"] = "\n\n".join(_as_str(s.get("script", "")) for s in all_sections)
+    for s in all_sections:
+        s["script"] = _as_str(s.get("script", ""))
     merged["visual_scenes"] = []
     merged["scene_pacing"] = []
     for s in all_sections:

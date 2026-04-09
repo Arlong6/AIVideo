@@ -12,8 +12,21 @@ mkdir -p "$LOG_DIR"
 VIDEOS_PER_RUN=2
 
 cd "$PROJECT_DIR" || exit 1
-export PATH="/Users/arlong/.pyenv/bin:$PATH"
+# Homebrew ffmpeg must be on PATH when run under launchd (no login shell)
+export PATH="/opt/homebrew/bin:/Users/arlong/.pyenv/bin:$PATH"
+# imageio_ffmpeg's bundled binary is missing on this machine — point moviepy at system ffmpeg
+export IMAGEIO_FFMPEG_EXE="/opt/homebrew/bin/ffmpeg"
 eval "$(pyenv init -)"
+
+# Pre-flight health check — bail out early if environment is broken.
+# On failure health_check.py sends a Telegram alert itself.
+HEALTH_LOG="$LOG_DIR/daily_$(date +%Y%m%d)_health.log"
+"$PYTHON" "$PROJECT_DIR/health_check.py" --verbose > "$HEALTH_LOG" 2>&1
+if [ $? -ne 0 ]; then
+    echo "=== Pre-flight health check FAILED: $(date) ===" >> "$HEALTH_LOG"
+    echo "Aborting daily run — see Telegram alert." >> "$HEALTH_LOG"
+    exit 1
+fi
 
 for i in $(seq 1 $VIDEOS_PER_RUN); do
     LOG_FILE="$LOG_DIR/daily_$(date +%Y%m%d)_run${i}.log"

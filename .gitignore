@@ -2,6 +2,7 @@
 .env
 client_secrets.json
 youtube_token.pickle
+*.pickle
 
 # Output videos (too large for git)
 output/
@@ -16,6 +17,12 @@ venv/
 
 # Logs
 logs/
+
+# Runtime state (books channel — not shared between machines)
+data/imagen_quota.json
+data/books/used_topics.json
+data/books/today_topics.json
+data/books/pexels_seen_ids.json
 
 # macOS
 .DS_Store

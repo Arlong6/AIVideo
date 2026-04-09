@@ -1,0 +1,281 @@
+{
+  "channels": {
+    "文森說書": {
+      "total_videos": 50,
+      "median_views": 21304,
+      "outlier_threshold": 63912,
+      "outliers": [
+        {
+          "video_id": "uSlXH0NqHlc",
+          "title": "不是想活在手機世界，而是身體沒有能量去做其他事。精神科名醫對手機成癮的看法和解決方式 feat. 馬大元醫師｜文森Podcast",
+          "views": 509154,
+          "published_at": "2026-03-08T13:01:29Z",
+          "url": "https://youtu.be/uSlXH0NqHlc"
+        },
+        {
+          "video_id": "_sX6c0YQ3sU",
+          "title": "把對方當作全世界，訊息不回就焦慮，這不是愛，是潛意識在尋找熟悉的痛苦 feat. 陳莉婷 諮商心理師",
+          "views": 437423,
+          "published_at": "2026-01-06T13:15:48Z",
+          "url": "https://youtu.be/_sX6c0YQ3sU"
+        },
+        {
+          "video_id": "7fuI4Xys8Vk",
+          "title": "過了幾年，這本書依然是我的前三名｜《我生命中的一段歷險》｜文森說書",
+          "views": 226705,
+          "published_at": "2025-10-06T12:00:16Z",
+          "url": "https://youtu.be/7fuI4Xys8Vk"
+        },
+        {
+          "video_id": "cmx_COU7pf8",
+          "title": "這本書銷售第一名是有原因的｜《我可能錯了》｜文森Podcast",
+          "views": 169621,
+          "published_at": "2025-11-26T14:04:14Z",
+          "url": "https://youtu.be/cmx_COU7pf8"
+        },
+        {
+          "video_id": "5naL-6pdUes",
+          "title": "讓情緒更有價值｜《擺脫煩躁壞習慣！你的憤怒使用說明書》｜文森說書",
+          "views": 135301,
+          "published_at": "2025-09-11T13:36:08Z",
+          "url": "https://youtu.be/5naL-6pdUes"
+        },
+        {
+          "video_id": "lmGxCFoZOiM",
+          "title": "童年時的情感忽視，可以成為我們最棒的特質！一本讓我願意花兩個月讀完的書｜《童年情感忽視》｜文森說書",
+          "views": 116994,
+          "published_at": "2026-01-20T12:24:24Z",
+          "url": "https://youtu.be/lmGxCFoZOiM"
+        },
+        {
+          "video_id": "xPOL-CTNqUQ",
+          "title": "上班的人都該看這本書｜《普通主管才是最強主管》｜文森說書",
+          "views": 114804,
+          "published_at": "2025-08-28T13:30:57Z",
+          "url": "https://youtu.be/xPOL-CTNqUQ"
+        },
+        {
+          "video_id": "pWtsnI7WxQc",
+          "title": "那些高成就的人都是掌握了哪些訣竅？｜《開創心態》｜文森說書",
+          "views": 108317,
+          "published_at": "2025-10-28T13:38:02Z",
+          "url": "https://youtu.be/pWtsnI7WxQc"
+        },
+        {
+          "video_id": "u0QxjqE1vGo",
+          "title": "健身無效、記憶力退化，壓力如何搞壞我們的體質｜《壓力》｜文森說書",
+          "views": 102415,
+          "published_at": "2025-11-18T13:31:09Z",
+          "url": "https://youtu.be/u0QxjqE1vGo"
+        },
+        {
+          "video_id": "xehpzBo_NcI",
+          "title": "忽然的低潮、不想依賴別人，這都是我們從原生家庭中學到的生存方式｜《童年情感忽視》｜文森說書",
+          "views": 100510,
+          "published_at": "2026-03-01T13:31:02Z",
+          "url": "https://youtu.be/xehpzBo_NcI"
+        },
+        {
+          "video_id": "5RfhGpRpysk",
+          "title": "投資中的人性｜《財富的靈魂》｜文森說書",
+          "views": 87888,
+          "published_at": "2025-08-12T13:32:40Z",
+          "url": "https://youtu.be/5RfhGpRpysk"
+        }
+      ],
+      "channel_id": "UCPgGtH2PxZ9xR0ehzQ27FHw",
+      "handle": "@vincent_reading",
+      "subscribers": 947000,
+      "role": "primary"
+    },
+    "英雄說書": {
+      "total_videos": 50,
+      "median_views": 27516,
+      "outlier_threshold": 82548,
+      "outliers": [
+        {
+          "video_id": "JkXP69dwYV4",
+          "title": "為何印度教如此強大，連佛教都無法超越它在印度的地位？｜【歷史大調查】EP19",
+          "views": 99191,
+          "published_at": "2025-08-18T09:00:32Z",
+          "url": "https://youtu.be/JkXP69dwYV4"
+        },
+        {
+          "video_id": "N5CaHqWdBbQ",
+          "title": "「地表最強戰車」M1A2T加入國軍，能替戰力帶來多大升級？｜【台灣列傳】EP48",
+          "views": 91841,
+          "published_at": "2025-04-18T09:30:10Z",
+          "url": "https://youtu.be/N5CaHqWdBbQ"
+        },
+        {
+          "video_id": "dSUicr_pLBQ",
+          "title": "中國「四大發明」只是一場騙局嗎？｜【歷史大調查】EP24",
+          "views": 83622,
+          "published_at": "2026-03-07T09:00:00Z",
+          "url": "https://youtu.be/dSUicr_pLBQ"
+        }
+      ],
+      "channel_id": "UCIpRQFB5af6be62BpQyWbuA",
+      "handle": "@Herostory",
+      "subscribers": 340000,
+      "role": "route_b_exemplar"
+    },
+    "啾啾鞋": {
+      "total_videos": 50,
+      "median_views": 327665,
+      "outlier_threshold": 982995,
+      "outliers": [
+        {
+          "video_id": "ZN97TBEtUBA",
+          "title": "把Excel玩成電競比賽！？全球高手同台交鋒，Excel世界大賽爆發神級對決⚡｜神扯電玩｜啾啾鞋",
+          "views": 1152531,
+          "published_at": "2025-07-10T10:35:42Z",
+          "url": "https://youtu.be/ZN97TBEtUBA"
+        }
+      ],
+      "channel_id": "UCIF_gt4BfsWyM_2GOcKXyEQ",
+      "handle": "@chuchushoeTW",
+      "subscribers": 1600000,
+      "role": "scale_reference"
+    }
+  },
+  "all_outliers": [
+    {
+      "video_id": "ZN97TBEtUBA",
+      "title": "把Excel玩成電競比賽！？全球高手同台交鋒，Excel世界大賽爆發神級對決⚡｜神扯電玩｜啾啾鞋",
+      "views": 1152531,
+      "published_at": "2025-07-10T10:35:42Z",
+      "url": "https://youtu.be/ZN97TBEtUBA",
+      "channel": "啾啾鞋"
+    },
+    {
+      "video_id": "uSlXH0NqHlc",
+      "title": "不是想活在手機世界，而是身體沒有能量去做其他事。精神科名醫對手機成癮的看法和解決方式 feat. 馬大元醫師｜文森Podcast",
+      "views": 509154,
+      "published_at": "2026-03-08T13:01:29Z",
+      "url": "https://youtu.be/uSlXH0NqHlc",
+      "channel": "文森說書"
+    },
+    {
+      "video_id": "_sX6c0YQ3sU",
+      "title": "把對方當作全世界，訊息不回就焦慮，這不是愛，是潛意識在尋找熟悉的痛苦 feat. 陳莉婷 諮商心理師",
+      "views": 437423,
+      "published_at": "2026-01-06T13:15:48Z",
+      "url": "https://youtu.be/_sX6c0YQ3sU",
+      "channel": "文森說書"
+    },
+    {
+      "video_id": "7fuI4Xys8Vk",
+      "title": "過了幾年，這本書依然是我的前三名｜《我生命中的一段歷險》｜文森說書",
+      "views": 226705,
+      "published_at": "2025-10-06T12:00:16Z",
+      "url": "https://youtu.be/7fuI4Xys8Vk",
+      "channel": "文森說書"
+    },
+    {
+      "video_id": "cmx_COU7pf8",
+      "title": "這本書銷售第一名是有原因的｜《我可能錯了》｜文森Podcast",
+      "views": 169621,
+      "published_at": "2025-11-26T14:04:14Z",
+      "url": "https://youtu.be/cmx_COU7pf8",
+      "channel": "文森說書"
+    },
+    {
+      "video_id": "5naL-6pdUes",
+      "title": "讓情緒更有價值｜《擺脫煩躁壞習慣！你的憤怒使用說明書》｜文森說書",
+      "views": 135301,
+      "published_at": "2025-09-11T13:36:08Z",
+      "url": "https://youtu.be/5naL-6pdUes",
+      "channel": "文森說書"
+    },
+    {
+      "video_id": "lmGxCFoZOiM",
+      "title": "童年時的情感忽視，可以成為我們最棒的特質！一本讓我願意花兩個月讀完的書｜《童年情感忽視》｜文森說書",
+      "views": 116994,
+      "published_at": "2026-01-20T12:24:24Z",
+      "url": "https://youtu.be/lmGxCFoZOiM",
+      "channel": "文森說書"
+    },
+    {
+      "video_id": "xPOL-CTNqUQ",
+      "title": "上班的人都該看這本書｜《普通主管才是最強主管》｜文森說書",
+      "views": 114804,
+      "published_at": "2025-08-28T13:30:57Z",
+      "url": "https://youtu.be/xPOL-CTNqUQ",
+      "channel": "文森說書"
+    },
+    {
+      "video_id": "pWtsnI7WxQc",
+      "title": "那些高成就的人都是掌握了哪些訣竅？｜《開創心態》｜文森說書",
+      "views": 108317,
+      "published_at": "2025-10-28T13:38:02Z",
+      "url": "https://youtu.be/pWtsnI7WxQc",
+      "channel": "文森說書"
+    },
+    {
+      "video_id": "u0QxjqE1vGo",
+      "title": "健身無效、記憶力退化，壓力如何搞壞我們的體質｜《壓力》｜文森說書",
+      "views": 102415,
+      "published_at": "2025-11-18T13:31:09Z",
+      "url": "https://youtu.be/u0QxjqE1vGo",
+      "channel": "文森說書"
+    },
+    {
+      "video_id": "xehpzBo_NcI",
+      "title": "忽然的低潮、不想依賴別人，這都是我們從原生家庭中學到的生存方式｜《童年情感忽視》｜文森說書",
+      "views": 100510,
+      "published_at": "2026-03-01T13:31:02Z",
+      "url": "https://youtu.be/xehpzBo_NcI",
+      "channel": "文森說書"
+    },
+    {
+      "video_id": "JkXP69dwYV4",
+      "title": "為何印度教如此強大，連佛教都無法超越它在印度的地位？｜【歷史大調查】EP19",
+      "views": 99191,
+      "published_at": "2025-08-18T09:00:32Z",
+      "url": "https://youtu.be/JkXP69dwYV4",
+      "channel": "英雄說書"
+    },
+    {
+      "video_id": "N5CaHqWdBbQ",
+      "title": "「地表最強戰車」M1A2T加入國軍，能替戰力帶來多大升級？｜【台灣列傳】EP48",
+      "views": 91841,
+      "published_at": "2025-04-18T09:30:10Z",
+      "url": "https://youtu.be/N5CaHqWdBbQ",
+      "channel": "英雄說書"
+    },
+    {
+      "video_id": "5RfhGpRpysk",
+      "title": "投資中的人性｜《財富的靈魂》｜文森說書",
+      "views": 87888,
+      "published_at": "2025-08-12T13:32:40Z",
+      "url": "https://youtu.be/5RfhGpRpysk",
+      "channel": "文森說書"
+    },
+    {
+      "video_id": "dSUicr_pLBQ",
+      "title": "中國「四大發明」只是一場騙局嗎？｜【歷史大調查】EP24",
+      "views": 83622,
+      "published_at": "2026-03-07T09:00:00Z",
+      "url": "https://youtu.be/dSUicr_pLBQ",
+      "channel": "英雄說書"
+    }
+  ],
+  "outlier_titles": [
+    "不是想活在手機世界，而是身體沒有能量去做其他事。精神科名醫對手機成癮的看法和解決方式 feat. 馬大元醫師｜文森Podcast",
+    "把對方當作全世界，訊息不回就焦慮，這不是愛，是潛意識在尋找熟悉的痛苦 feat. 陳莉婷 諮商心理師",
+    "過了幾年，這本書依然是我的前三名｜《我生命中的一段歷險》｜文森說書",
+    "這本書銷售第一名是有原因的｜《我可能錯了》｜文森Podcast",
+    "讓情緒更有價值｜《擺脫煩躁壞習慣！你的憤怒使用說明書》｜文森說書",
+    "童年時的情感忽視，可以成為我們最棒的特質！一本讓我願意花兩個月讀完的書｜《童年情感忽視》｜文森說書",
+    "上班的人都該看這本書｜《普通主管才是最強主管》｜文森說書",
+    "那些高成就的人都是掌握了哪些訣竅？｜《開創心態》｜文森說書",
+    "健身無效、記憶力退化，壓力如何搞壞我們的體質｜《壓力》｜文森說書",
+    "忽然的低潮、不想依賴別人，這都是我們從原生家庭中學到的生存方式｜《童年情感忽視》｜文森說書",
+    "投資中的人性｜《財富的靈魂》｜文森說書",
+    "為何印度教如此強大，連佛教都無法超越它在印度的地位？｜【歷史大調查】EP19",
+    "「地表最強戰車」M1A2T加入國軍，能替戰力帶來多大升級？｜【台灣列傳】EP48",
+    "中國「四大發明」只是一場騙局嗎？｜【歷史大調查】EP24",
+    "把Excel玩成電競比賽！？全球高手同台交鋒，Excel世界大賽爆發神級對決⚡｜神扯電玩｜啾啾鞋"
+  ]
+}

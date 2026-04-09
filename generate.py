@@ -46,7 +46,18 @@ def main():
                         help="Schedule slot: 1=10AM, 2=2PM, 3=6PM, 4=10PM (Taiwan)")
     parser.add_argument("--format", type=str, choices=["short", "long"], default="short",
                         help="Video format: short (60s) or long (15-20min)")
+    parser.add_argument("--channel", type=str, default="truecrime",
+                        help="Content channel: truecrime | books (default: truecrime)")
     args = parser.parse_args()
+
+    # Validate channel early — Phase 3 will add actual dispatch.
+    import channel_config
+    if args.channel not in channel_config.CHANNELS:
+        parser.error(f"Unknown channel: {args.channel}. "
+                     f"Known: {', '.join(channel_config.CHANNELS.keys())}")
+    if args.channel != "truecrime" and not channel_config.get(args.channel).get("enabled", True):
+        parser.error(f"Channel {args.channel!r} exists in config but is not enabled yet "
+                     f"(content modules pending). See channel_config.py.")
 
     if args.format == "long":
         return _generate_long(args)
@@ -340,4 +351,36 @@ def _generate_long(args):
 
 
 if __name__ == "__main__":
-    main()
+    # Wrap main() in a Telegram-reporting error handler. Before this was
+    # added (2026-04-09), crime slot 1 crashed silently at 02:00 with a
+    # TypeError and the user had no awareness until they manually checked
+    # logs the next morning. Per feedback memory `telegram_all_status`,
+    # every crash on this script must ping Telegram.
+    try:
+        main()
+    except SystemExit:
+        raise  # argparse exits etc. — not an error
+    except Exception as _exc:
+        import sys as _sys
+        import traceback as _tb
+        _tb.print_exc()
+        # Best-effort: figure out which topic we were processing
+        _topic = "unknown"
+        try:
+            import json as _json
+            if os.path.exists("today_topics.json"):
+                with open("today_topics.json", "r", encoding="utf-8") as _f:
+                    _d = _json.load(_f)
+                    _topic = ", ".join(_d.get("topics", []))[:120] or "unknown"
+        except Exception:
+            pass
+        try:
+            from telegram_notify import notify_failure
+            notify_failure(
+                "generate.py",
+                f"{type(_exc).__name__}: {str(_exc)[:250]}",
+                topic=_topic,
+            )
+        except Exception as _e:
+            print(f"  (could not send telegram alert: {_e})", file=_sys.stderr)
+        _sys.exit(1)

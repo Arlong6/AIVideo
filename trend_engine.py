@@ -24,7 +24,7 @@ from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 
 from config import GEMINI_API_KEY
-from title_dna import TITLE_PATTERNS, POWER_WORDS, get_title_prompt_insert
+from title_dna import TITLE_DNA, POWER_WORDS, get_title_prompt_insert
 
 try:
     from pytrends.request import TrendReq
@@ -435,7 +435,7 @@ def generate_30_titles(
             outlier_lines.append(f"  - [{channel}] {title} ({views:,} views)")
         outlier_text = "\n".join(outlier_lines)
 
-    patterns_list = "\n".join(f"  {i+1}. {p}" for i, p in enumerate(TITLE_PATTERNS))
+    patterns_list = "\n".join(f"  {i+1}. {p}" for i, p in enumerate(TITLE_DNA))
     power_words_text = "、".join(POWER_WORDS)
 
     prompt = f"""你是一個頂級的 YouTube 真實犯罪頻道標題策略師。

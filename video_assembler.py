@@ -304,9 +304,13 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
     if total_clips > 0:
         # Target duration per clip to fill the entire video without repeats
         target_per_clip = total_duration / total_clips
-        # But don't go shorter than pacing allows or longer than 15s
         min_dur = 3.0
-        max_dur = 15.0
+        # Long-form allows much longer clips — books channel generates exactly
+        # one high-quality illustration per scene (44 for a 21-min video =
+        # ~30s each). Shorts stays at the faster 15s cap. Without this fix
+        # long-form video falls short of voiceover duration and the tail
+        # renders as a black screen (observed 2026-04-09 Churchill v3).
+        max_dur = 35.0 if fmt == "long" else 15.0
         per_clip_dur = max(min_dur, min(max_dur, target_per_clip))
     else:
         per_clip_dur = default_interval
@@ -515,7 +519,16 @@ def _make_opening_card(text: str, output_path: str, duration: float = 2.0,
 
 def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = None,
                    scene_pacing: list | None = None, fmt: str = "short",
-                   info_cards: dict | None = None) -> str | None:
+                   info_cards: dict | None = None,
+                   direct_cut_paths: list[str] | None = None) -> str | None:
+    """Assemble final video from clips + voiceover + music.
+
+    direct_cut_paths (v5 sentence-pair path):
+      If provided, skip _build_video_clips (cut planning) and use these
+      paths as the final cut sequence in order. Each clip is assumed to
+      already be at its correct duration. Used by generate_books v5 where
+      each clip is pre-sized to match a sentence-pair's TTS duration.
+    """
     clips_dir = os.path.join(output_dir, "clips")
     voiceover_path = os.path.join(output_dir, f"voiceover_{lang}.mp3")
     srt_path = os.path.join(output_dir, f"subtitles_{lang}.srt")
@@ -527,24 +540,30 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         print(f"  [ERROR] Voiceover not found: {voiceover_path}")
         return None
 
-    clip_files = sorted([
-        os.path.join(clips_dir, f)
-        for f in os.listdir(clips_dir) if f.endswith(".mp4")
-    ]) if os.path.exists(clips_dir) else []
-
-    if not clip_files:
-        print("  [ERROR] No video clips found in clips/")
-        return None
-
     print("  Loading voiceover...")
     voiceover = AudioFileClip(voiceover_path)
     duration = voiceover.duration
     print(f"  Voiceover duration: {duration:.1f}s")
 
-    temp_cuts_dir = os.path.join(output_dir, "_cuts")
-    print(f"  Building scene cuts from {len(clip_files)} clips ({fmt} mode)...")
-    cut_paths = _build_video_clips(clip_files, duration, temp_cuts_dir,
-                                   scene_pacing=scene_pacing, fmt=fmt)
+    if direct_cut_paths:
+        # v5 path: clips are pre-sized by caller, skip cut planning entirely
+        print(f"  Using {len(direct_cut_paths)} pre-sized pair clips (v5 direct mode)")
+        cut_paths = [p for p in direct_cut_paths if os.path.exists(p)]
+    else:
+        # Legacy path: scan clips/ dir and compute cut plan
+        clip_files = sorted([
+            os.path.join(clips_dir, f)
+            for f in os.listdir(clips_dir) if f.endswith(".mp4")
+        ]) if os.path.exists(clips_dir) else []
+
+        if not clip_files:
+            print("  [ERROR] No video clips found in clips/")
+            return None
+
+        temp_cuts_dir = os.path.join(output_dir, "_cuts")
+        print(f"  Building scene cuts from {len(clip_files)} clips ({fmt} mode)...")
+        cut_paths = _build_video_clips(clip_files, duration, temp_cuts_dir,
+                                       scene_pacing=scene_pacing, fmt=fmt)
 
     if not cut_paths:
         print("  [ERROR] No clips assembled")

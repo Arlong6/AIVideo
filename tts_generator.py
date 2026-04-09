@@ -8,9 +8,16 @@ TTS_RATE_ZH = "-8%"   # slightly slower than default for gravitas
 TTS_PITCH_ZH = "-5Hz" # slightly lower for dark tone
 
 
-def generate_voiceover(text: str, lang: str, output_path: str):
+def generate_voiceover(text: str, lang: str, output_path: str,
+                       voice: str | None = None,
+                       rate: str | None = None,
+                       pitch: str | None = None):
     """
     Chinese: edge-tts (Microsoft neural voices, better Chinese intonation)
+
+    Optional overrides let non-crime channels (e.g. books) use a different
+    voice/rate/pitch without touching the global config. Defaults preserve
+    the crime channel's current behavior.
     """
     import re
     # Clean pacing tags + markdown from script before TTS
@@ -18,7 +25,7 @@ def generate_voiceover(text: str, lang: str, output_path: str):
     text = re.sub(r"\*+", "", text)  # remove **bold** markers
     text = re.sub(r"#{1,6}\s*", "", text)  # remove ### headings
     text = re.sub(r"[`~]", "", text)  # remove code/strikethrough markers
-    _generate_edge_tts(text, lang, output_path)
+    _generate_edge_tts(text, lang, output_path, voice=voice, rate=rate, pitch=pitch)
 
 
 def _generate_elevenlabs(text: str, output_path: str):
@@ -69,11 +76,21 @@ async def _edge_tts_with_timing(text: str, voice: str, rate: str, pitch: str,
     return boundaries
 
 
-def _generate_edge_tts(text: str, lang: str, output_path: str):
+def _generate_edge_tts(text: str, lang: str, output_path: str,
+                       voice: str | None = None,
+                       rate: str | None = None,
+                       pitch: str | None = None):
+    # Per-call overrides take precedence over config defaults. This lets the
+    # books pipeline use a warmer Taiwan female voice without changing the
+    # crime channel's config.
     if lang == "zh":
-        voice, rate, pitch = VOICE_ZH, TTS_RATE_ZH, TTS_PITCH_ZH
+        voice = voice or VOICE_ZH
+        rate = rate or TTS_RATE_ZH
+        pitch = pitch or TTS_PITCH_ZH
     else:
-        voice, rate, pitch = VOICE_EN, "-10%", "-2Hz"
+        voice = voice or VOICE_EN
+        rate = rate or "-10%"
+        pitch = pitch or "-2Hz"
 
     # Retry up to 3 times (edge-tts can be flaky)
     import time as _time
@@ -93,8 +110,18 @@ def _generate_edge_tts(text: str, lang: str, output_path: str):
     print(f"  Voiceover saved (fallback voice): {output_path}")
 
 
-def generate_voiceover_with_timing(text: str, lang: str, output_path: str) -> list[dict]:
-    """Generate voiceover and return sentence boundary timing for precise subtitles."""
+def generate_voiceover_with_timing(text: str, lang: str, output_path: str,
+                                    voice: str | None = None,
+                                    rate: str | None = None,
+                                    pitch: str | None = None) -> list[dict]:
+    """Generate voiceover and return sentence boundary timing for precise subtitles.
+
+    Optional voice/rate/pitch overrides let books channel use A4 HsiaoYu
+    without touching the crime channel's global config.
+
+    Returns list of sentence dicts with keys: offset (100ns), duration (100ns),
+    text (the sentence text).
+    """
     import re
     text = re.sub(r"\[(?:slow|medium|fast|climax)\]\s*", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\*+", "", text)
@@ -102,9 +129,13 @@ def generate_voiceover_with_timing(text: str, lang: str, output_path: str) -> li
     text = re.sub(r"[`~]", "", text)
 
     if lang == "zh":
-        voice, rate, pitch = VOICE_ZH, TTS_RATE_ZH, TTS_PITCH_ZH
+        voice = voice or VOICE_ZH
+        rate = rate or TTS_RATE_ZH
+        pitch = pitch or TTS_PITCH_ZH
     else:
-        voice, rate, pitch = VOICE_EN, "-10%", "-2Hz"
+        voice = voice or VOICE_EN
+        rate = rate or "-10%"
+        pitch = pitch or "-2Hz"
 
     boundaries = asyncio.run(_edge_tts_with_timing(text, voice, rate, pitch, output_path))
     print(f"  Voiceover saved with {len(boundaries)} sentence boundaries: {output_path}")
@@ -112,12 +143,18 @@ def generate_voiceover_with_timing(text: str, lang: str, output_path: str) -> li
 
 
 def generate_voiceover_sections(sections: list[dict], lang: str,
-                                 output_dir: str) -> tuple[str, list[tuple[str, float]]]:
+                                 output_dir: str,
+                                 voice: str | None = None,
+                                 rate: str | None = None,
+                                 pitch: str | None = None) -> tuple[str, list[tuple[str, float]]]:
     """
     Generate TTS per-section, concatenate, return (final_audio_path, section_timings).
 
     sections: list of {"name": "hook", "script": "..."}
     Returns: (combined_audio_path, [(section_name, start_seconds), ...])
+
+    Optional voice/rate/pitch overrides let non-crime channels use a
+    different voice without changing the global config.
     """
     import os
     import subprocess
@@ -135,7 +172,8 @@ def generate_voiceover_sections(sections: list[dict], lang: str,
 
         section_path = os.path.join(output_dir, f"_tts_{name}.mp3")
         print(f"  TTS section {i+1}/{len(sections)}: {name} ({len(text)} chars)")
-        generate_voiceover(text, lang, section_path)
+        generate_voiceover(text, lang, section_path,
+                           voice=voice, rate=rate, pitch=pitch)
 
         # Get duration
         try:

@@ -23,7 +23,7 @@ try:
 except ImportError:
     PIXABAY_API_KEY = ""
 
-# Dark ambient search terms for Pixabay music
+# Dark ambient search terms for Pixabay music (crime channel default)
 PIXABAY_QUERIES = [
     "dark ambient",
     "crime documentary",
@@ -32,6 +32,17 @@ PIXABAY_QUERIES = [
     "mystery ambient",
     "horror ambient",
     "dark tension",
+]
+
+# Contemplative / reflective search terms for books channel (B3 choice)
+PIXABAY_QUERIES_CONTEMPLATIVE = [
+    "ambient acoustic",
+    "gentle strings",
+    "contemplative piano",
+    "reflective documentary",
+    "peaceful cinematic",
+    "acoustic emotional",
+    "warm ambient",
 ]
 
 
@@ -74,13 +85,17 @@ def _download_pixabay_track(track: dict, cache_path: str) -> bool:
     return False
 
 
-def _get_pixabay_music(output_dir: str) -> str | None:
-    """Fetch dark ambient music from Pixabay. Returns path or None."""
+def _get_pixabay_music(output_dir: str, queries: list[str] | None = None) -> str | None:
+    """Fetch ambient music from Pixabay. Returns path or None.
+
+    queries: optional override list of search terms. Defaults to the
+    dark-ambient list used by the crime channel.
+    """
     if not PIXABAY_API_KEY:
         return None
 
     os.makedirs(MUSIC_CACHE_DIR, exist_ok=True)
-    queries = PIXABAY_QUERIES.copy()
+    queries = (queries or PIXABAY_QUERIES).copy()
     random.shuffle(queries)
 
     for query in queries:
@@ -229,12 +244,75 @@ def _synth_section_music(mood: dict, duration_sec: float,
             fade = 1.0 - (i / n)  # linear fade out
             samples[i] += pad[i] * fade
 
+    elif style == "contemplative_piano":
+        # Books channel — warm, reflective piano in major key.
+        # Uses higher register (D3 through D4) and D major chord tones
+        # rather than the dark Am minor used by crime's tension_piano.
+        # D3=146.83  F#3=185.00  A3=220.00  D4=293.66  F#4=369.99  A4=440.00
+        notes = [
+            (293.66, 0.90),  # D4 — sustain
+            (369.99, 0.75),  # F#4
+            (293.66, 0.70),  # D4
+            (220.00, 0.85),  # A3
+            (185.00, 0.80),  # F#3
+            (293.66, 0.85),  # D4
+            (246.94, 0.75),  # B3 — relative minor color
+            (329.63, 0.80),  # E4
+        ]
+        interval = 4.5 if mood["tempo"] == "slow" else 3.0
+        for ni in range(int(duration_sec / interval)):
+            freq, vol = notes[ni % len(notes)]
+            note = _piano_note(freq, interval * 1.2, vol * intensity * 0.10, sample_rate)
+            start = int(ni * interval * sample_rate)
+            for j, s in enumerate(note):
+                if start + j < n:
+                    samples[start + j] += s
+        # Layer a gentle D major string pad underneath
+        chord_freqs = [146.83, 220.00, 293.66]  # D3, A3, D4
+        pad = _string_pad(chord_freqs, duration_sec, intensity * 0.018, sample_rate)
+        for i in range(min(len(pad), n)):
+            samples[i] += pad[i]
+
     return samples
 
 
 def _synth_dark_ambient(duration_sec: int = 300) -> bytes:
     """Generate default background music (used for Shorts or when no sections)."""
     return _synth_section_based_music([], duration_sec)
+
+
+def _synth_contemplative(duration_sec: int = 300) -> bytes:
+    """Generate warm reflective music for the books channel (B3 choice).
+
+    Uses contemplative_piano style throughout — D major chord progression,
+    higher register, spacious 4.5 sec note intervals, layered string pad.
+    Contrast with _synth_dark_ambient which uses Am minor in a lower register.
+    """
+    sample_rate = 44100
+    n = int(duration_sec * sample_rate)
+    mood = {"style": "contemplative_piano", "tempo": "slow", "intensity": 0.6}
+    samples = _synth_section_music(mood, duration_sec, sample_rate)
+
+    # Global fade in/out
+    fade = sample_rate * 3
+    for i in range(min(fade, n)):
+        samples[i] *= i / fade
+        samples[n - 1 - i] *= i / fade
+
+    # Normalize
+    peak = max(abs(s) for s in samples) or 1.0
+    samples = [s * (0.70 / peak) for s in samples]
+
+    # Convert to WAV bytes
+    import io
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sample_rate)
+        for s in samples:
+            w.writeframes(struct.pack("<h", int(s * 32767)))
+    return buf.getvalue()
 
 
 def _synth_section_based_music(sections: list[dict],
@@ -304,15 +382,29 @@ def _synth_section_based_music(sections: list[dict],
     return buf.getvalue()
 
 
-def _get_synth_music(output_dir: str) -> str | None:
-    """Generate and save synthesized ambient music. Returns path."""
+def _get_synth_music(output_dir: str, style: str = "dark") -> str | None:
+    """Generate and save synthesized ambient music. Returns path.
+
+    style:
+      - "dark" (default): crime channel's dark Am ambient drone
+      - "contemplative": books channel's warm D major reflective piano
+    """
     os.makedirs(MUSIC_CACHE_DIR, exist_ok=True)
-    cache_wav = os.path.join(MUSIC_CACHE_DIR, "synth_dark_ambient.wav")
-    cache_mp3 = os.path.join(MUSIC_CACHE_DIR, "synth_dark_ambient.mp3")
+
+    if style == "contemplative":
+        cache_wav = os.path.join(MUSIC_CACHE_DIR, "synth_contemplative.wav")
+        cache_mp3 = os.path.join(MUSIC_CACHE_DIR, "synth_contemplative.mp3")
+        synth_fn = _synth_contemplative
+        label = "contemplative piano"
+    else:
+        cache_wav = os.path.join(MUSIC_CACHE_DIR, "synth_dark_ambient.wav")
+        cache_mp3 = os.path.join(MUSIC_CACHE_DIR, "synth_dark_ambient.mp3")
+        synth_fn = _synth_dark_ambient
+        label = "dark ambient"
 
     if not os.path.exists(cache_mp3):
-        print("  Generating ambient drone music...")
-        wav_bytes = _synth_dark_ambient(duration_sec=300)
+        print(f"  Generating {label} music...")
+        wav_bytes = synth_fn(duration_sec=300)
         with open(cache_wav, "wb") as f:
             f.write(wav_bytes)
         # Convert WAV → MP3 via ffmpeg
@@ -321,31 +413,72 @@ def _get_synth_music(output_dir: str) -> str | None:
             capture_output=True,
         )
         if result.returncode != 0 or not os.path.exists(cache_mp3):
-            # Fallback: use WAV directly
             cache_mp3 = cache_wav
         else:
             os.remove(cache_wav)
-        print("  Ambient drone ready")
+        print(f"  {label.capitalize()} ready")
 
     dest = os.path.join(output_dir, "background_music.mp3")
     with open(cache_mp3, "rb") as src, open(dest, "wb") as dst:
         dst.write(src.read())
-    print("  Music ready (synthesized — 100% copyright-free)")
+    print(f"  Music ready (synthesized {label} — 100% copyright-free)")
     return dest
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
 def get_background_music(output_dir: str, sections: list[dict] = None,
-                         total_duration: float = 300) -> str | None:
+                         total_duration: float = 300,
+                         style: str = "dark") -> str | None:
     """
     Get background music for the video.
-    If sections provided, generates mood-adaptive music per section.
-    Otherwise uses default dark piano style.
+
+    style:
+      - "dark" (default): crime channel — synthesized dark ambient drone
+      - "contemplative": books channel — picks a random track from
+        music_cache/books_library/ (user-managed local MP3 library)
+
+    Synthesized music is explicitly avoided for books because sustained
+    pure-sine pads cause an ear-ringing sensation for the user. See
+    memory/feedback_no_synth_music.md.
+
+    Returns the destination path, or None if no music is available (the
+    video assembler handles None as "no background music, just voiceover").
     """
     if sections:
         return _get_section_music(output_dir, sections, total_duration)
-    return _get_synth_music(output_dir)
+
+    if style == "contemplative":
+        return _get_books_library_music(output_dir)
+
+    return _get_synth_music(output_dir, style=style)
+
+
+def _get_books_library_music(output_dir: str) -> str | None:
+    """Pick a random MP3 from music_cache/books_library/.
+
+    The folder is user-managed: drop any .mp3 you like and it'll be used.
+    Empty folder → returns None → video plays with no background music.
+    """
+    library_dir = os.path.join(MUSIC_CACHE_DIR, "books_library")
+    os.makedirs(library_dir, exist_ok=True)
+
+    tracks = [f for f in os.listdir(library_dir)
+              if f.lower().endswith((".mp3", ".m4a", ".wav"))]
+
+    if not tracks:
+        print(f"  [INFO] No tracks in {library_dir}/ — books video will play")
+        print(f"         without background music. Drop any .mp3 into that")
+        print(f"         folder and the next render will pick it up.")
+        return None
+
+    track = random.choice(tracks)
+    src_path = os.path.join(library_dir, track)
+    dest = os.path.join(output_dir, "background_music.mp3")
+    with open(src_path, "rb") as src, open(dest, "wb") as dst:
+        dst.write(src.read())
+    print(f"  Music ready (books library): {track}")
+    return dest
 
 
 def _get_section_music(output_dir: str, sections: list[dict],

@@ -50,7 +50,8 @@ def _search_wikimedia(query: str, limit: int = 10) -> list[dict]:
                 "format": "json",
             },
             headers={
-                "User-Agent": "TrueCrimeVideoBot/1.0 (educational; https://github.com/truecrime-bot)"
+                # See _download_image() for rationale on the UA format.
+                "User-Agent": "AIvideoBot/1.0 (YouTube educational content; https://github.com/anthropics/claude-code)"
             },
             timeout=15,
         )
@@ -127,7 +128,9 @@ def _download_image(url: str) -> np.ndarray | None:
     for attempt in range(3):
         try:
             resp = requests.get(url, timeout=20, headers={
-                "User-Agent": "TrueCrimeDocBot/1.0 (educational; contact@example.com)"
+                # Wikimedia CDN (upload.wikimedia.org) 403s example.com contacts.
+                # Use a reachable URL instead.
+                "User-Agent": "AIvideoBot/1.0 (YouTube educational content; https://github.com/anthropics/claude-code)"
             })
             if resp.status_code == 429:
                 wait = 10 * (attempt + 1)
