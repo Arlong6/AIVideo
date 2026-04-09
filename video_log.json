@@ -108,6 +108,12 @@
           "views": 0,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-09",
+          "views": 21,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -124,6 +130,12 @@
           "views": 0,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-09",
+          "views": 113,
+          "likes": 2,
+          "comments": 0
         }
       ]
     },
@@ -134,7 +146,14 @@
       "duration_s": 38,
       "publish_at": "2026-04-09T10:00:00+08:00",
       "uploaded_at": "2026-04-08T13:11:24.787120+00:00",
-      "stats": []
+      "stats": [
+        {
+          "date": "2026-04-09",
+          "views": 80,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     },
     {
       "video_id": "tnSlGsr72fM",
@@ -143,7 +162,14 @@
       "duration_s": 71,
       "publish_at": "2026-04-09T14:00:00+08:00",
       "uploaded_at": "2026-04-08T13:17:26.985662+00:00",
-      "stats": []
+      "stats": [
+        {
+          "date": "2026-04-09",
+          "views": 57,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     },
     {
       "video_id": "CYHxJ1ab7Ks",
@@ -152,7 +178,14 @@
       "duration_s": 46,
       "publish_at": "2026-04-09T14:00:00+08:00",
       "uploaded_at": "2026-04-08T18:06:19.685689+00:00",
-      "stats": []
+      "stats": [
+        {
+          "date": "2026-04-09",
+          "views": 34,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     },
     {
       "video_id": "fnr_Jkc1A5E",
@@ -161,7 +194,46 @@
       "duration_s": 84,
       "publish_at": "2026-04-10T14:00:00+08:00",
       "uploaded_at": "2026-04-09T15:44:54.892855+00:00",
-      "stats": []
+      "stats": [
+        {
+          "date": "2026-04-09",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "3xkEOoBvptI",
+      "topic": "韓國濟州島前夫殺人案 (高裕貞事件)：冷血的無屍體殺人，她為何對前夫下此毒手？",
+      "slot": 1,
+      "duration_s": 71,
+      "publish_at": "2026-04-10T10:00:00+08:00",
+      "uploaded_at": "2026-04-09T19:25:33.474063+00:00",
+      "stats": [
+        {
+          "date": "2026-04-09",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "OKSO62BAtgs",
+      "topic": "澎湖七一三事件：軍營裡的男童兇殺案，體制下的權威與真相掩蓋",
+      "slot": 3,
+      "duration_s": 61,
+      "publish_at": "2026-04-10T18:00:00+08:00",
+      "uploaded_at": "2026-04-09T19:31:52.611505+00:00",
+      "stats": [
+        {
+          "date": "2026-04-09",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
