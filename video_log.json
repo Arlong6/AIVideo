@@ -114,6 +114,12 @@
           "views": 21,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-10",
+          "views": 21,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -136,6 +142,12 @@
           "views": 113,
           "likes": 2,
           "comments": 0
+        },
+        {
+          "date": "2026-04-10",
+          "views": 115,
+          "likes": 2,
+          "comments": 0
         }
       ]
     },
@@ -152,6 +164,12 @@
           "views": 80,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-10",
+          "views": 85,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -165,6 +183,12 @@
       "stats": [
         {
           "date": "2026-04-09",
+          "views": 57,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-10",
           "views": 57,
           "likes": 0,
           "comments": 0
@@ -184,6 +208,12 @@
           "views": 34,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-10",
+          "views": 34,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -198,6 +228,12 @@
         {
           "date": "2026-04-09",
           "views": 0,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-10",
+          "views": 10,
           "likes": 0,
           "comments": 0
         }
@@ -216,6 +252,12 @@
           "views": 0,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-10",
+          "views": 10,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -229,6 +271,44 @@
       "stats": [
         {
           "date": "2026-04-09",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-10",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "x0FvCYmlA7s",
+      "topic": "義大利 - 佛羅倫斯殺人魔：長達數十年的連環謀殺案，義大利史上最神祕的無解懸案",
+      "slot": 1,
+      "duration_s": 50,
+      "publish_at": "2026-04-11T10:00:00+08:00",
+      "uploaded_at": "2026-04-10T07:43:58.952403+00:00",
+      "stats": [
+        {
+          "date": "2026-04-10",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "LlqVHNvO_R4",
+      "topic": "台灣鐵路便當毒殺案：員工下毒造成多人傷亡的食安恐怖事件",
+      "slot": 3,
+      "duration_s": 44,
+      "publish_at": "2026-04-10T18:00:00+08:00",
+      "uploaded_at": "2026-04-10T07:49:07.889703+00:00",
+      "stats": [
+        {
+          "date": "2026-04-10",
           "views": 0,
           "likes": 0,
           "comments": 0
