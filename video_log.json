@@ -145,7 +145,7 @@
         },
         {
           "date": "2026-04-10",
-          "views": 115,
+          "views": 119,
           "likes": 2,
           "comments": 0
         }
@@ -167,7 +167,7 @@
         },
         {
           "date": "2026-04-10",
-          "views": 85,
+          "views": 86,
           "likes": 0,
           "comments": 0
         }
@@ -233,7 +233,7 @@
         },
         {
           "date": "2026-04-10",
-          "views": 10,
+          "views": 12,
           "likes": 0,
           "comments": 0
         }
@@ -255,8 +255,8 @@
         },
         {
           "date": "2026-04-10",
-          "views": 10,
-          "likes": 0,
+          "views": 41,
+          "likes": 1,
           "comments": 0
         }
       ]
@@ -306,6 +306,38 @@
       "duration_s": 44,
       "publish_at": "2026-04-10T18:00:00+08:00",
       "uploaded_at": "2026-04-10T07:49:07.889703+00:00",
+      "stats": [
+        {
+          "date": "2026-04-10",
+          "views": 58,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "cLSUd7loFiU",
+      "topic": "彰化葉姓男子活埋案：被家人活埋的真實案件始末",
+      "slot": 1,
+      "duration_s": 51,
+      "publish_at": "2026-04-11T10:00:00+08:00",
+      "uploaded_at": "2026-04-10T19:09:04.298664+00:00",
+      "stats": [
+        {
+          "date": "2026-04-10",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "MOcCnB_M63U",
+      "topic": "台灣 - 東海花園命案：未解的王玉萍冤魂與密室血案",
+      "slot": 3,
+      "duration_s": 58,
+      "publish_at": "2026-04-11T18:00:00+08:00",
+      "uploaded_at": "2026-04-10T19:15:09.657791+00:00",
       "stats": [
         {
           "date": "2026-04-10",
