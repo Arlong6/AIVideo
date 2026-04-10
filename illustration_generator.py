@@ -19,7 +19,8 @@ import os
 import random
 import time
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import requests
@@ -55,7 +56,14 @@ BOOKS_STYLE_PREFIX = (
 IMAGEN_MODEL = "imagen-4.0-fast-generate-001"
 
 # Paid tier 1 daily limit as of 2026-04-09. Hitting this throws 429 with
-# "quota exceeded". Reset occurs at UTC midnight (08:00 Taiwan).
+# "quota exceeded".
+#
+# Google Gemini API RPD quotas reset at midnight PACIFIC TIME (not UTC).
+# Verified 2026-04-10: quota tracker used UTC date and falsely reset at
+# Taiwan 08:00, but the real Google counter didn't clear until Taiwan 15:00
+# (PDT midnight = UTC 07:00 in April DST). See Google docs:
+#   https://ai.google.dev/gemini-api/docs/rate-limits
+# "Requests per day (RPD) quotas reset at midnight Pacific time."
 IMAGEN_DAILY_LIMIT = 70
 # Switch to Pollinations fallback when we hit this many — leaves buffer.
 IMAGEN_SWITCH_AT = 60
@@ -72,18 +80,27 @@ POLLINATIONS_URL_TEMPLATE = (
 QUOTA_FILE = os.path.join("data", "imagen_quota.json")
 
 
+_PT_TZ = ZoneInfo("America/Los_Angeles")
+
+
+def _pt_today() -> str:
+    """Today's date in Pacific Time — the timezone Google uses for RPD reset."""
+    return datetime.now(_PT_TZ).strftime("%Y-%m-%d")
+
+
 # ── Quota tracking ────────────────────────────────────────────────────────────
 
 def _load_quota() -> dict:
-    """Load today's Imagen quota state. Resets on UTC date change."""
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    """Load today's Imagen quota state. Resets on Pacific Time date change
+    (to match Google's actual reset — see IMAGEN_DAILY_LIMIT comment)."""
+    today = _pt_today()
     if not os.path.exists(QUOTA_FILE):
         return {"date": today, "count": 0, "limit": IMAGEN_DAILY_LIMIT}
     try:
         with open(QUOTA_FILE, "r") as f:
             data = json.load(f)
         if data.get("date") != today:
-            # New UTC day — reset
+            # New PT day — Google's daily counter cleared, so we reset too
             return {"date": today, "count": 0, "limit": IMAGEN_DAILY_LIMIT}
         return data
     except Exception:
