@@ -145,34 +145,36 @@ def _burn_subtitles_pillow(input_path: str, srt_path: str, output_path: str):
         subtitles = list(srt.parse(f.read()))
 
     base = VideoFileClip(input_path)
-    video_dur = base.duration
-    vid_w, vid_h = base.size
+    try:
+        video_dur = base.duration
+        vid_w, vid_h = base.size
 
-    # Subtitle position: near bottom, adapted to aspect ratio
-    sub_y = vid_h - 120 if vid_w >= 1920 else vid_h - 220
+        # Subtitle position: near bottom, adapted to aspect ratio
+        sub_y = vid_h - 120 if vid_w >= 1920 else vid_h - 220
 
-    subtitle_clips = []
-    for sub in subtitles:
-        start = sub.start.total_seconds()
-        end = min(sub.end.total_seconds(), video_dur)
-        if start >= video_dur or end <= start:
-            continue
-        txt = sub.content.replace("\n", " ").strip()
-        if not txt:
-            continue
+        subtitle_clips = []
+        for sub in subtitles:
+            start = sub.start.total_seconds()
+            end = min(sub.end.total_seconds(), video_dur)
+            if start >= video_dur or end <= start:
+                continue
+            txt = sub.content.replace("\n", " ").strip()
+            if not txt:
+                continue
 
-        frame = _render_subtitle_frame(txt, target_w=vid_w)
-        sc = (ImageClip(frame, ismask=False)
-              .set_start(start)
-              .set_end(end)
-              .set_position(("center", sub_y)))
-        subtitle_clips.append(sc)
+            frame = _render_subtitle_frame(txt, target_w=vid_w)
+            sc = (ImageClip(frame, ismask=False)
+                  .set_start(start)
+                  .set_end(end)
+                  .set_position(("center", sub_y)))
+            subtitle_clips.append(sc)
 
-    final = CompositeVideoClip([base] + subtitle_clips)
-    final = final.set_audio(base.audio)
-    final.write_videofile(output_path, fps=25, codec="libx264", audio_codec="aac", logger=None)
-    final.close()
-    base.close()
+        final = CompositeVideoClip([base] + subtitle_clips)
+        final = final.set_audio(base.audio)
+        final.write_videofile(output_path, fps=25, codec="libx264", audio_codec="aac", logger=None)
+        final.close()
+    finally:
+        base.close()
 
 
 def _burn_subtitles_ffmpeg(input_path: str, srt_path: str, output_path: str):
@@ -190,8 +192,10 @@ def _burn_subtitles_ffmpeg(input_path: str, srt_path: str, output_path: str):
 
     # Get video duration
     base = VideoFileClip(input_path, audio=False)
-    total_dur = base.duration
-    base.close()
+    try:
+        total_dur = base.duration
+    finally:
+        base.close()
 
     chunk_dur = 180.0  # 3 minutes per chunk
     n_chunks = max(1, int(total_dur / chunk_dur) + 1)
@@ -336,6 +340,7 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
     for i, (si, cp, chunk) in enumerate(plan):
         src_path = scene_groups[si][cp]
         temp_path = os.path.join(temp_dir, f"cut_{i:03d}.mp4")
+        src = None
         try:
             src = VideoFileClip(src_path, audio=False)
             src = _crop_to_target(src, tw, th)
@@ -351,12 +356,14 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
                 sub = src.subclip(0, src.duration)
             sub.write_videofile(temp_path, fps=25, codec="libx264",
                                 audio=False, logger=None)
-            src.close()
             temp_paths.append(temp_path)
             if (i + 1) % 10 == 0:
                 print(f"    Cut {i+1}/{len(plan)}...")
         except Exception as e:
             print(f"  [WARN] Cut {i}: {e}")
+        finally:
+            if src is not None:
+                src.close()
 
     return temp_paths
 
@@ -545,6 +552,8 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
     duration = voiceover.duration
     print(f"  Voiceover duration: {duration:.1f}s")
 
+    temp_cuts_dir = None  # only set in legacy path; v5 direct mode skips it
+
     if direct_cut_paths:
         # v5 path: clips are pre-sized by caller, skip cut planning entirely
         print(f"  Using {len(direct_cut_paths)} pre-sized pair clips (v5 direct mode)")
@@ -609,9 +618,10 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         "-i", concat_list, "-c", "copy", concat_path
     ], capture_output=True, check=True)
 
-    # Clean up temp cut files
+    # Clean up temp cut files (only exists in legacy path, not v5 direct mode)
     import shutil
-    shutil.rmtree(temp_cuts_dir, ignore_errors=True)
+    if temp_cuts_dir and os.path.exists(temp_cuts_dir):
+        shutil.rmtree(temp_cuts_dir, ignore_errors=True)
     os.remove(concat_list)
 
     # Mix audio + combine with video using ffmpeg only (no MoviePy re-render = no OOM)
