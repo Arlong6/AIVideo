@@ -29,6 +29,45 @@ if [ $HEALTH_EXIT -ne 0 ]; then
     exit 1
 fi
 
+# Pre-flight: verify Imagen quota is actually available before burning
+# 15-20 min on TTS + script just to fail at the first illustration.
+echo "Checking Imagen quota availability..." >> "$LOG_FILE"
+"$PYTHON" -c "
+import os, sys
+os.environ.setdefault('IMAGEIO_FFMPEG_EXE', '/opt/homebrew/bin/ffmpeg')
+os.chdir('$PROJECT_DIR')
+from dotenv import load_dotenv; load_dotenv()
+from google import genai
+client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
+try:
+    r = client.models.generate_images(
+        model='imagen-4.0-fast-generate-001',
+        prompt='quota test — a simple blue circle on white background',
+        config={'number_of_images': 1, 'aspect_ratio': '1:1'},
+    )
+    if r.generated_images:
+        print('Imagen quota OK — proceeding with books render')
+        sys.exit(0)
+    print('Imagen returned no image — quota may not be reset')
+    sys.exit(1)
+except Exception as e:
+    if '429' in str(e) or 'RESOURCE_EXHAUSTED' in str(e):
+        print(f'Imagen quota NOT yet reset: {str(e)[:150]}')
+    else:
+        print(f'Imagen API error: {str(e)[:150]}')
+    sys.exit(1)
+" >> "$LOG_FILE" 2>&1
+
+if [ $? -ne 0 ]; then
+    echo "=== Imagen quota NOT available — aborting books run: $(date) ===" >> "$LOG_FILE"
+    "$PYTHON" -c "
+from telegram_notify import _send_raw
+_send_raw('⏸️ [AIvideo Books] 跳過本次 — Imagen 配額尚未重置\n下次嘗試: 下個排程日 (Tue/Fri 15:30)\n或手動跑: python generate_books.py --auto')
+" 2>/dev/null
+    rm -f "$MARKER_FILE" 2>/dev/null
+    exit 0
+fi
+
 # Record the timestamp before the run so we can find output dirs created AFTER this point
 MARKER_FILE="$LOG_DIR/.books_run_marker_$$"
 touch "$MARKER_FILE"
