@@ -120,6 +120,12 @@
           "views": 21,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-11",
+          "views": 21,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -148,6 +154,12 @@
           "views": 119,
           "likes": 2,
           "comments": 0
+        },
+        {
+          "date": "2026-04-11",
+          "views": 133,
+          "likes": 2,
+          "comments": 0
         }
       ]
     },
@@ -170,6 +182,12 @@
           "views": 86,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-11",
+          "views": 87,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -189,6 +207,12 @@
         },
         {
           "date": "2026-04-10",
+          "views": 57,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-11",
           "views": 57,
           "likes": 0,
           "comments": 0
@@ -214,6 +238,12 @@
           "views": 34,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-11",
+          "views": 34,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -233,6 +263,12 @@
         },
         {
           "date": "2026-04-10",
+          "views": 12,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-11",
           "views": 12,
           "likes": 0,
           "comments": 0
@@ -258,6 +294,12 @@
           "views": 41,
           "likes": 1,
           "comments": 0
+        },
+        {
+          "date": "2026-04-11",
+          "views": 49,
+          "likes": 1,
+          "comments": 0
         }
       ]
     },
@@ -280,6 +322,12 @@
           "views": 0,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-11",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -294,6 +342,12 @@
         {
           "date": "2026-04-10",
           "views": 0,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-11",
+          "views": 9,
           "likes": 0,
           "comments": 0
         }
@@ -312,6 +366,12 @@
           "views": 58,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-11",
+          "views": 66,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -328,6 +388,12 @@
           "views": 0,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-11",
+          "views": 77,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -341,6 +407,44 @@
       "stats": [
         {
           "date": "2026-04-10",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-11",
+          "views": 1,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "ZJKNn9hgm_0",
+      "topic": "名古屋市西區主婦殺害事件",
+      "slot": 1,
+      "duration_s": 43,
+      "publish_at": "2026-04-12T10:00:00+08:00",
+      "uploaded_at": "2026-04-11T19:00:34.334801+00:00",
+      "stats": [
+        {
+          "date": "2026-04-11",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "CzQTaWQCWDE",
+      "topic": "江國慶冤案：空軍士兵遭冤殺、DNA還原真相的台灣最大司法悲劇",
+      "slot": 3,
+      "duration_s": 54,
+      "publish_at": "2026-04-12T18:00:00+08:00",
+      "uploaded_at": "2026-04-11T19:06:24.108464+00:00",
+      "stats": [
+        {
+          "date": "2026-04-11",
           "views": 0,
           "likes": 0,
           "comments": 0
