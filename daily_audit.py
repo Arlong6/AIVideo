@@ -30,6 +30,25 @@ from datetime import datetime, timedelta, timezone
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 VIDEO_LOG = os.path.join(PROJECT_DIR, "video_log.json")
+
+
+def _git_pull_quiet():
+    """Pull latest state files from GH Actions before reading video_log.json.
+
+    Since crime pipeline runs on GH Actions (not local), video_log.json is
+    updated by GH Actions commits, not local writes. Without this pull, the
+    audit reads stale local data and falsely reports 0 uploads.
+    Added 2026-04-11 after discovering the local-only audit missed all
+    GH Actions uploads.
+    """
+    import subprocess
+    try:
+        subprocess.run(
+            ["git", "-C", PROJECT_DIR, "pull", "--rebase", "--quiet"],
+            capture_output=True, timeout=30,
+        )
+    except Exception:
+        pass  # Non-critical — proceed with whatever local state we have
 BOOKS_USED_TOPICS = os.path.join(PROJECT_DIR, "data", "books", "used_topics.json")
 IMAGEN_QUOTA_FILE = os.path.join(PROJECT_DIR, "data", "imagen_quota.json")
 
@@ -188,6 +207,9 @@ def main():
     parser.add_argument("--no-telegram", action="store_true",
                         help="Skip Telegram send (for local testing)")
     args = parser.parse_args()
+
+    # Sync latest GH Actions state before reading local files
+    _git_pull_quiet()
 
     crime = crime_audit(args.window_hours, args.min_count)
     books = books_today_status()

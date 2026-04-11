@@ -6,6 +6,27 @@ from googleapiclient.http import MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
+def _sanitize_description(text: str) -> str:
+    """Clean description for YouTube API compliance.
+
+    YouTube rejects descriptions that contain HTML-like tags (<...>), exceed
+    5000 chars, or have certain special Unicode. Observed 2026-04-11 when a
+    long-form crime video's Gemini-generated description caused a 400
+    'invalidDescription' error from the YouTube API.
+    """
+    import re
+    # Strip HTML-like angle bracket content (Gemini sometimes outputs <tags>)
+    text = re.sub(r"<[^>]{1,50}>", "", text)
+    # Strip zero-width chars and other invisible Unicode
+    text = re.sub(r"[\u200b-\u200f\u2028-\u202f\ufeff]", "", text)
+    # Collapse excessive newlines
+    text = re.sub(r"\n{4,}", "\n\n\n", text)
+    # YouTube max description = 5000 chars
+    if len(text) > 4900:
+        text = text[:4900] + "\n\n(... 更多資訊請見留言區)"
+    return text
+
+
 def _build_full_description(desc: str, hashtags: list, metadata: dict,
                             video_path: str) -> str:
     """Build YouTube description with proper attribution and disclosures."""
@@ -38,7 +59,8 @@ def _build_full_description(desc: str, hashtags: list, metadata: dict,
 如有任何事實錯誤，歡迎留言指正。
 ━━━━━━━━━━━━━━━━━""")
 
-    return "\n\n".join(parts)
+    result = "\n\n".join(parts)
+    return _sanitize_description(result)
 
 
 def _ensure_youtube_compatible(video_path: str) -> str:
