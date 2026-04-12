@@ -126,6 +126,12 @@
           "views": 21,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-12",
+          "views": 21,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -160,6 +166,12 @@
           "views": 133,
           "likes": 2,
           "comments": 0
+        },
+        {
+          "date": "2026-04-12",
+          "views": 133,
+          "likes": 2,
+          "comments": 0
         }
       ]
     },
@@ -185,6 +197,12 @@
         },
         {
           "date": "2026-04-11",
+          "views": 87,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-12",
           "views": 87,
           "likes": 0,
           "comments": 0
@@ -216,6 +234,12 @@
           "views": 57,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-12",
+          "views": 57,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -244,6 +268,12 @@
           "views": 34,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-12",
+          "views": 35,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -269,6 +299,12 @@
         },
         {
           "date": "2026-04-11",
+          "views": 12,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-12",
           "views": 12,
           "likes": 0,
           "comments": 0
@@ -300,6 +336,12 @@
           "views": 49,
           "likes": 1,
           "comments": 0
+        },
+        {
+          "date": "2026-04-12",
+          "views": 49,
+          "likes": 1,
+          "comments": 0
         }
       ]
     },
@@ -328,6 +370,12 @@
           "views": 0,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-12",
+          "views": 1,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -347,6 +395,12 @@
         },
         {
           "date": "2026-04-11",
+          "views": 9,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-12",
           "views": 9,
           "likes": 0,
           "comments": 0
@@ -372,6 +426,12 @@
           "views": 66,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-12",
+          "views": 74,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -391,6 +451,12 @@
         },
         {
           "date": "2026-04-11",
+          "views": 77,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-12",
           "views": 77,
           "likes": 0,
           "comments": 0
@@ -416,6 +482,12 @@
           "views": 1,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-12",
+          "views": 2,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -432,6 +504,12 @@
           "views": 0,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-12",
+          "views": 51,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -445,6 +523,44 @@
       "stats": [
         {
           "date": "2026-04-11",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-12",
+          "views": 13,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "DBzSbK0EWFs",
+      "topic": "林宅血案",
+      "slot": 1,
+      "duration_s": 52,
+      "publish_at": "2026-04-13T10:00:00+08:00",
+      "uploaded_at": "2026-04-12T19:05:08.227243+00:00",
+      "stats": [
+        {
+          "date": "2026-04-12",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "LGnQMMhsXnA",
+      "topic": "陳進興挾持人質事件：白曉燕案主嫌闖入南非武官家的72小時恐怖對峙",
+      "slot": 3,
+      "duration_s": 51,
+      "publish_at": "2026-04-13T18:00:00+08:00",
+      "uploaded_at": "2026-04-12T19:11:07.745475+00:00",
+      "stats": [
+        {
+          "date": "2026-04-12",
           "views": 0,
           "likes": 0,
           "comments": 0
