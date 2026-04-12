@@ -68,7 +68,10 @@ IMAGEN_DAILY_LIMIT = 70
 # Switch to Pollinations fallback when we hit this many — leaves buffer.
 IMAGEN_SWITCH_AT = 60
 # Seconds to wait between Imagen calls (prevent burst rate-limit)
-IMAGEN_CALL_DELAY = 4.0
+# 2026-04-12: raised from 4 to 8 seconds after hitting RPM (per-minute) rate
+# limit at pair 43/59. At 4s = 15 RPM which exceeded Imagen 4 Fast's ~10 RPM
+# paid-tier-1 limit. 8s = 7.5 RPM, safely within bounds.
+IMAGEN_CALL_DELAY = 8.0
 
 # Pollinations.ai free Flux endpoint — no auth, no quota (rate-limited).
 POLLINATIONS_URL_TEMPLATE = (

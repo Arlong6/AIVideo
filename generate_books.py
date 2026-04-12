@@ -47,6 +47,7 @@ from chapter_generator import generate_chapters
 
 # Books-specific content layer.
 from script_generator_books import generate_book_scripts
+from script_generator import _normalize_script_field
 from topic_manager_books import pick_topic_books, save_used_topic
 
 
@@ -80,6 +81,114 @@ def _group_sentences_into_pairs(boundaries: list[dict],
             "duration": duration_s,
         })
     return pairs
+
+
+def _parse_book_from_topic(topic: str) -> dict:
+    """Extract book name, author, and event description from the topic string.
+
+    Expected format: '事件描述｜《Book Name》by Author (optional note)'
+    Returns: {book, author, description}
+    """
+    import re
+    book_match = re.search(r"《(.+?)》", topic)
+    author_match = re.search(r"by\s+(.+?)(?:\s*\(|$)", topic)
+    parts = re.split(r"[｜|]", topic)
+    desc = parts[0].strip() if len(parts) > 1 else topic[:60]
+    return {
+        "book": book_match.group(1) if book_match else "unknown",
+        "author": author_match.group(1).strip() if author_match else "unknown",
+        "description": desc,
+    }
+
+
+def _generate_intro_segment(topic: str, output_dir: str,
+                             voice: str, rate: str, pitch: str) -> str | None:
+    """Generate the 'AL 說故事' intro segment: TTS + book card visual.
+
+    Returns path to the intro mp4, or None on failure.
+    The intro is: '大家好，歡迎來到 AL 說故事。今天的書是《X》，作者是 Y...'
+    with a book title card visual behind it.
+    """
+    import asyncio
+    import subprocess
+    import edge_tts
+
+    parsed = _parse_book_from_topic(topic)
+    intro_text = (
+        f"大家好，歡迎來到 AL 說故事。"
+        f"今天要分享的書是《{parsed['book']}》，"
+        f"作者是 {parsed['author']}。"
+        f"這是一個關於{parsed['description']}的故事。"
+        f"讓我們一起來看看。"
+    )
+
+    intro_audio = os.path.join(output_dir, "_intro_audio.mp3")
+    try:
+        asyncio.run(edge_tts.Communicate(
+            intro_text, voice, rate=rate, pitch=pitch
+        ).save(intro_audio))
+    except Exception as e:
+        print(f"  [WARN] Intro TTS failed: {e}")
+        return None
+
+    from moviepy.editor import AudioFileClip
+    a = AudioFileClip(intro_audio)
+    intro_dur = a.duration
+    a.close()
+
+    # Book card visual
+    from video_assembler import _make_opening_card
+    card_path = os.path.join(output_dir, "_intro_card.mp4")
+    card_text = f"本片改編自\n《{parsed['book']}》\n{parsed['author']} 著"
+    _make_opening_card(card_text, card_path, duration=intro_dur, fmt="long")
+
+    # Merge card + audio
+    intro_vid = os.path.join(output_dir, "_intro.mp4")
+    subprocess.run([
+        "ffmpeg", "-y", "-i", card_path, "-i", intro_audio,
+        "-c:v", "copy", "-c:a", "aac", "-shortest", intro_vid,
+    ], capture_output=True, check=True)
+
+    # Cleanup temp
+    for f in (intro_audio, card_path):
+        if os.path.exists(f):
+            os.remove(f)
+
+    print(f"  Intro generated: {intro_dur:.1f}s — 《{parsed['book']}》by {parsed['author']}")
+    return intro_vid
+
+
+def _prepend_intro_to_video(intro_path: str, main_path: str,
+                             output_path: str) -> bool:
+    """Concatenate [intro] + [main video] into output_path via ffmpeg."""
+    import subprocess
+    temp_dir = os.path.dirname(output_path)
+    ts_paths = []
+    try:
+        for i, src in enumerate([intro_path, main_path]):
+            ts = os.path.join(temp_dir, f"_concat_ts_{i}.ts")
+            subprocess.run([
+                "ffmpeg", "-y", "-i", src,
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-c:a", "aac", "-ar", "44100",
+                "-bsf:v", "h264_mp4toannexb", "-f", "mpegts", ts,
+            ], capture_output=True, check=True)
+            ts_paths.append(ts)
+
+        concat_input = "|".join(os.path.abspath(t) for t in ts_paths)
+        subprocess.run([
+            "ffmpeg", "-y", "-i", f"concat:{concat_input}",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-c:a", "aac", "-movflags", "+faststart", output_path,
+        ], capture_output=True, check=True)
+        return True
+    except Exception as e:
+        print(f"  [WARN] Intro concat failed: {e}")
+        return False
+    finally:
+        for f in ts_paths:
+            if os.path.exists(f):
+                os.remove(f)
 
 
 def _infer_section_timings_from_script(sections: list[dict],
@@ -154,6 +263,7 @@ def _run(args):
     print(f"  Visual scenes: {len(zh.get('visual_scenes', []))}")
 
     # Save full script as text
+    zh = _normalize_script_field(zh)
     with open(os.path.join(output_dir, "script_zh.txt"), "w", encoding="utf-8") as f:
         f.write(zh.get("script", ""))
 
@@ -172,9 +282,9 @@ def _run(args):
         return
 
     # ── v5 sentence-pair flow ────────────────────────────────────────────────
-    # Books voice: warmer Taiwan female voice (A4 HsiaoYu) with neutral pitch.
+    # Books voice: V2 台灣女 HsiaoChen (user-approved 2026-04-11).
     # Crime's dark-toned Yunjian is unchanged.
-    BOOKS_VOICE = "zh-TW-HsiaoYuNeural"
+    BOOKS_VOICE = "zh-TW-HsiaoChenNeural"
     BOOKS_RATE = "-3%"
     BOOKS_PITCH = "+0Hz"
 
@@ -244,6 +354,31 @@ def _run(args):
         info_cards=None,
         direct_cut_paths=clip_paths,
     )
+
+    # ── Step 8.5: Prepend AL 說故事 intro ────────────────────────────────────
+    # Auto-generates: "大家好，歡迎來到 AL 說故事。今天的書是《X》..."
+    # with a book title card visual. Concatenates in front of main video.
+    if final_path:
+        print("\n[8.5/9] Generating AL 說故事 intro...")
+        intro_path = _generate_intro_segment(
+            topic, output_dir,
+            voice=BOOKS_VOICE, rate=BOOKS_RATE, pitch=BOOKS_PITCH,
+        )
+        if intro_path:
+            main_path = final_path  # e.g. final_zh.mp4
+            combined_path = os.path.join(output_dir, "final_zh_with_intro.mp4")
+            if _prepend_intro_to_video(intro_path, main_path, combined_path):
+                # Replace main with intro version
+                os.remove(main_path)
+                os.rename(combined_path, main_path)
+                print(f"  ✅ Intro prepended to {os.path.basename(main_path)}")
+            else:
+                print("  [WARN] Intro concat failed — video saved without intro")
+            # Cleanup intro temp
+            if os.path.exists(intro_path):
+                os.remove(intro_path)
+        else:
+            print("  [WARN] Intro generation failed — video saved without intro")
 
     # ── Step 9: Chapter markers (approximate from script proportions) ───────
     print("\n[9/9] Generating chapter markers...")
