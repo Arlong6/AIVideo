@@ -129,9 +129,13 @@ def system_health() -> dict:
     free_gb = shutil.disk_usage(PROJECT_DIR).free / (1024 ** 3)
 
     quota = _load_json(IMAGEN_QUOTA_FILE, {"count": 0, "limit": 70})
-    today_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    if quota.get("date") != today_utc:
-        # Tracker is for a previous UTC day → assume reset
+    # Use PT date for quota (Google resets at PT midnight)
+    try:
+        from zoneinfo import ZoneInfo
+        pt_today = datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d")
+    except Exception:
+        pt_today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if quota.get("date") != pt_today:
         quota_count = 0
     else:
         quota_count = quota.get("count", 0)
@@ -143,56 +147,154 @@ def system_health() -> dict:
     }
 
 
+# ── Incomplete renders ────────────────────────────────────────────────────────
+
+def pending_renders() -> list[dict]:
+    """Find incomplete books renders (have metadata but no final video)."""
+    output_dir = os.path.join(PROJECT_DIR, "output")
+    if not os.path.exists(output_dir):
+        return []
+    results = []
+    for name in sorted(os.listdir(output_dir)):
+        if "books" not in name:
+            continue
+        d = os.path.join(output_dir, name)
+        if not os.path.isdir(d):
+            continue
+        meta = os.path.join(d, "metadata.json")
+        final1 = os.path.join(d, "final_zh.mp4")
+        final2 = os.path.join(d, "final_zh_with_intro.mp4")
+        if os.path.exists(meta) and not os.path.exists(final1) and not os.path.exists(final2):
+            illust_dir = os.path.join(d, "illustrations")
+            done = len(os.listdir(illust_dir)) if os.path.exists(illust_dir) else 0
+            # Estimate total from metadata
+            try:
+                with open(meta, "r", encoding="utf-8") as f:
+                    zh = json.load(f).get("zh", {})
+                script_len = len(zh.get("script", ""))
+                est_total = max(script_len // 80, done + 10)  # rough estimate
+            except Exception:
+                est_total = done + 20
+            results.append({
+                "dir": name,
+                "done": done,
+                "est_total": est_total,
+                "needed": max(0, est_total - done),
+            })
+    return results
+
+
+# ── Recent errors ─────────────────────────────────────────────────────────────
+
+def recent_errors() -> list[str]:
+    """Scan today's log files for errors/failures."""
+    log_dir = os.path.join(PROJECT_DIR, "logs")
+    today_str = datetime.now().strftime("%Y%m%d")
+    errors = []
+    for name in os.listdir(log_dir) if os.path.exists(log_dir) else []:
+        if today_str not in name and (datetime.now() - timedelta(days=1)).strftime("%Y%m%d") not in name:
+            continue
+        path = os.path.join(log_dir, name)
+        try:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    if any(kw in line.lower() for kw in ["fail", "error", "❌", "traceback"]):
+                        errors.append(f"{name}: {line.strip()[:80]}")
+        except Exception:
+            pass
+    return errors[:5]  # max 5
+
+
 # ── Build the message ─────────────────────────────────────────────────────────
 
-def build_summary(crime: dict, books: dict, system: dict) -> str:
+def build_summary(crime: dict, books: dict, system: dict,
+                   pending: list, errors: list) -> str:
     now = datetime.now()
     weekday_zh = ["週一","週二","週三","週四","週五","週六","週日"][now.weekday()]
     header = f"🌅 [AIvideo 每日摘要] {now.strftime('%Y-%m-%d')} {weekday_zh}\n"
 
-    # Crime section
+    # ── Yesterday recap ──────────────────────────────────────
     if crime["ok"]:
         crime_status = f"✅ 過去 24h: {crime['count']} 支上傳"
     else:
         crime_status = (
             f"⚠️ 過去 24h: 只有 {crime['count']} 支上傳 (預期 ≥{crime['min_count']})"
         )
-    crime_lines = ["🎬 Crime", "  " + crime_status]
-    for dt, v in crime["recent"][:5]:
+    crime_lines = ["🎬 Crime（昨日）", "  " + crime_status]
+    for dt, v in crime["recent"][:3]:
         topic = v.get("topic", "")[:36]
         vid = v.get("video_id", "")
-        url = f"https://youtu.be/{vid}" if vid else "(no id)"
+        url = f"https://youtu.be/{vid}" if vid else ""
         crime_lines.append(f"  • {topic}\n    {url}")
 
-    # Books section
-    if books["is_books_day"]:
-        if books["completed"]:
-            books_status = (
-                f"✅ {books['weekday_name']}的 v5 已完成 — {len(books['output_dirs'])} 支"
-            )
-            for d in books["output_dirs"][:2]:
-                books_status += f"\n  • {os.path.basename(d)}"
-        else:
-            books_status = f"⏳ {books['weekday_name']}的 v5 還沒完成或失敗"
-    else:
-        books_status = f"📅 {books['weekday_name']}非排程日（Tue/Fri 才跑）"
-    books_lines = ["📚 Books", "  " + books_status]
+    # ── Today's schedule ─────────────────────────────────────
+    schedule_lines = [
+        "📋 今日排程",
+        "  02:00 Crime Shorts × 2 (GH Actions)",
+        "  09:00 本摘要",
+        "  14:00 Crime 長影片 (GH Actions, private)",
+    ]
 
-    # System section
+    # Books plan depends on pending renders
+    quota_avail = system["imagen_limit"] - system["imagen_used"]
+    if pending:
+        p = pending[0]
+        schedule_lines.append(
+            f"  15:30 Books 續跑: {p['dir']}"
+            f"\n        進度 {p['done']}/~{p['est_total']}，需 ~{p['needed']} 張"
+        )
+        remaining_after = max(0, quota_avail - p["needed"])
+        if remaining_after > 20:
+            schedule_lines.append(
+                f"  15:30 額度剩 ~{remaining_after} → 開始新影片"
+            )
+    else:
+        schedule_lines.append("  15:30 Books 新影片 (自動選題)")
+    schedule_lines.append("  21:00 健康檢查")
+
+    # ── Books status ─────────────────────────────────────────
+    books_lines = ["📚 Books"]
+    if books["completed"]:
+        books_lines.append(
+            f"  ✅ 今日已完成 {len(books['output_dirs'])} 支"
+        )
+    if pending:
+        for p in pending:
+            books_lines.append(
+                f"  ⏳ 未完成: {p['dir']} ({p['done']}/~{p['est_total']})"
+            )
+    if not books["completed"] and not pending:
+        books_lines.append("  📅 尚未開始，15:30 自動執行")
+
+    # ── System ───────────────────────────────────────────────
     sys_lines = [
         "🩺 系統",
-        f"  Imagen quota: {system['imagen_used']}/{system['imagen_limit']} 用",
+        f"  Imagen: {system['imagen_used']}/{system['imagen_limit']} 用"
+        f" (可用 {quota_avail})",
         f"  磁碟: {system['free_gb']:.1f} GB free",
     ]
+
+    # ── Errors ───────────────────────────────────────────────
+    error_lines = []
+    if errors:
+        error_lines = ["⚠️ 近期錯誤"]
+        for e in errors[:3]:
+            error_lines.append(f"  • {e[:70]}")
 
     parts = [
         header,
         "\n".join(crime_lines),
         "",
+        "\n".join(schedule_lines),
+        "",
         "\n".join(books_lines),
         "",
         "\n".join(sys_lines),
     ]
+    if error_lines:
+        parts.append("")
+        parts.append("\n".join(error_lines))
+
     return "\n".join(parts)
 
 
@@ -214,8 +316,10 @@ def main():
     crime = crime_audit(args.window_hours, args.min_count)
     books = books_today_status()
     system = system_health()
+    pending = pending_renders()
+    errors = recent_errors()
 
-    msg = build_summary(crime, books, system)
+    msg = build_summary(crime, books, system, pending, errors)
 
     if args.verbose:
         print(msg)
