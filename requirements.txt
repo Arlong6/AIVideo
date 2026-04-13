@@ -5,7 +5,7 @@ requests>=2.31.0
 python-dotenv>=1.0.0
 moviepy==1.0.3
 Pillow>=10.0.0
-numpy>=1.24.0
+numpy>=1.24.0,<2.0  # scipy/skimage/moviepy compiled against 1.x
 srt>=3.5.3
 google-api-python-client>=2.0.0
 google-auth-oauthlib>=1.0.0
