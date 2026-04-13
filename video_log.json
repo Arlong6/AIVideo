@@ -132,6 +132,12 @@
           "views": 21,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-13",
+          "views": 21,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -172,6 +178,12 @@
           "views": 133,
           "likes": 2,
           "comments": 0
+        },
+        {
+          "date": "2026-04-13",
+          "views": 133,
+          "likes": 2,
+          "comments": 0
         }
       ]
     },
@@ -203,6 +215,12 @@
         },
         {
           "date": "2026-04-12",
+          "views": 87,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-13",
           "views": 87,
           "likes": 0,
           "comments": 0
@@ -240,6 +258,12 @@
           "views": 57,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-13",
+          "views": 57,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -271,6 +295,12 @@
         },
         {
           "date": "2026-04-12",
+          "views": 35,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-13",
           "views": 35,
           "likes": 0,
           "comments": 0
@@ -308,6 +338,12 @@
           "views": 12,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-13",
+          "views": 12,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -339,6 +375,12 @@
         },
         {
           "date": "2026-04-12",
+          "views": 49,
+          "likes": 1,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-13",
           "views": 49,
           "likes": 1,
           "comments": 0
@@ -376,6 +418,12 @@
           "views": 1,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-13",
+          "views": 1,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -401,6 +449,12 @@
         },
         {
           "date": "2026-04-12",
+          "views": 9,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-13",
           "views": 9,
           "likes": 0,
           "comments": 0
@@ -432,6 +486,12 @@
           "views": 74,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-13",
+          "views": 74,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -457,6 +517,12 @@
         },
         {
           "date": "2026-04-12",
+          "views": 77,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-13",
           "views": 77,
           "likes": 0,
           "comments": 0
@@ -488,6 +554,12 @@
           "views": 2,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-13",
+          "views": 2,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -507,6 +579,12 @@
         },
         {
           "date": "2026-04-12",
+          "views": 51,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-13",
           "views": 51,
           "likes": 0,
           "comments": 0
@@ -532,6 +610,12 @@
           "views": 13,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-13",
+          "views": 14,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -548,6 +632,12 @@
           "views": 0,
           "likes": 0,
           "comments": 0
+        },
+        {
+          "date": "2026-04-13",
+          "views": 62,
+          "likes": 0,
+          "comments": 0
         }
       ]
     },
@@ -561,6 +651,44 @@
       "stats": [
         {
           "date": "2026-04-12",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        },
+        {
+          "date": "2026-04-13",
+          "views": 8,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "1Pe7I1Zplb4",
+      "topic": "鄭性澤冤案：酒店槍戰現場唯一倖存者卻被判死刑、坐死囚超過十年",
+      "slot": 1,
+      "duration_s": 82,
+      "publish_at": "2026-04-14T10:00:00+08:00",
+      "uploaded_at": "2026-04-13T19:31:04.076077+00:00",
+      "stats": [
+        {
+          "date": "2026-04-13",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "TesQPdC6OMU",
+      "topic": "翁奇楠槍擊案：議員助理遭黑道光天化日槍殺的政治謀殺疑雲",
+      "slot": 3,
+      "duration_s": 50,
+      "publish_at": "2026-04-14T18:00:00+08:00",
+      "uploaded_at": "2026-04-13T19:37:06.638140+00:00",
+      "stats": [
+        {
+          "date": "2026-04-13",
           "views": 0,
           "likes": 0,
           "comments": 0
