@@ -298,6 +298,93 @@ def build_summary(crime: dict, books: dict, system: dict,
     return "\n".join(parts)
 
 
+# ── Evening review ────────────────────────────────────────────────────────────
+
+def build_evening_review(crime: dict, books: dict, system: dict,
+                          pending: list, errors: list) -> str:
+    """21:00 evening review — today's results, problems encountered, fixes applied."""
+    now = datetime.now()
+    weekday_zh = ["週一","週二","週三","週四","週五","週六","週日"][now.weekday()]
+    header = f"🌙 [AIvideo 晚間回顧] {now.strftime('%Y-%m-%d')} {weekday_zh}\n"
+
+    # ── Today's production results ───────────────────────────
+    result_lines = ["📊 今日產出"]
+    if crime["count"] > 0:
+        result_lines.append(f"  Crime: {crime['count']} 支上傳")
+        for dt, v in crime["recent"][:3]:
+            topic = v.get("topic", "")[:40]
+            vid = v.get("video_id", "")
+            result_lines.append(f"  • {topic}\n    https://youtu.be/{vid}")
+    else:
+        result_lines.append("  Crime: ⚠️ 0 支上傳")
+
+    if books["completed"]:
+        result_lines.append(f"  Books: ✅ {len(books['output_dirs'])} 支完成")
+        for d in books["output_dirs"][:2]:
+            result_lines.append(f"  • {os.path.basename(d)}")
+    else:
+        result_lines.append("  Books: 未完成（見下方問題）")
+
+    # ── Problems encountered ─────────────────────────────────
+    problem_lines = ["🔍 今日問題"]
+    if errors:
+        for e in errors[:5]:
+            problem_lines.append(f"  • {e[:70]}")
+    else:
+        problem_lines.append("  ✅ 無錯誤")
+
+    # ── Pending work ─────────────────────────────────────────
+    pending_lines = ["📋 待完成"]
+    if pending:
+        for p in pending:
+            pending_lines.append(
+                f"  • {p['dir']}: {p['done']}/~{p['est_total']}"
+                f" (需 ~{p['needed']} 張)"
+            )
+    else:
+        pending_lines.append("  ✅ 無待完成項目")
+
+    # ── System status ────────────────────────────────────────
+    quota_avail = system["imagen_limit"] - system["imagen_used"]
+    sys_lines = [
+        "🩺 系統狀態",
+        f"  Imagen: {system['imagen_used']}/{system['imagen_limit']} 用"
+        f" (剩 {quota_avail})",
+        f"  磁碟: {system['free_gb']:.1f} GB free",
+    ]
+
+    # ── Tomorrow preview ─────────────────────────────────────
+    tomorrow = now + timedelta(days=1)
+    tw_zh = ["週一","週二","週三","週四","週五","週六","週日"][tomorrow.weekday()]
+    preview_lines = [
+        f"📅 明日預覽 ({tw_zh})",
+        "  02:00 Crime Shorts × 2",
+        "  14:00 Crime 長影片",
+    ]
+    if pending:
+        p = pending[0]
+        preview_lines.append(
+            f"  15:30 Books 續跑: {p['dir']} ({p['needed']} 張)"
+        )
+    else:
+        preview_lines.append("  15:30 Books 新影片")
+    preview_lines.append("  21:00 晚間回顧")
+
+    parts = [
+        header,
+        "\n".join(result_lines),
+        "",
+        "\n".join(problem_lines),
+        "",
+        "\n".join(pending_lines),
+        "",
+        "\n".join(sys_lines),
+        "",
+        "\n".join(preview_lines),
+    ]
+    return "\n".join(parts)
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -319,7 +406,14 @@ def main():
     pending = pending_renders()
     errors = recent_errors()
 
-    msg = build_summary(crime, books, system, pending, errors)
+    # Detect morning (09:00) vs evening (21:00) mode
+    current_hour = datetime.now().hour
+    is_evening = current_hour >= 18
+
+    if is_evening:
+        msg = build_evening_review(crime, books, system, pending, errors)
+    else:
+        msg = build_summary(crime, books, system, pending, errors)
 
     if args.verbose:
         print(msg)
