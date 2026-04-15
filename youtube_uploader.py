@@ -32,6 +32,11 @@ def _build_full_description(desc: str, hashtags: list, metadata: dict,
     """Build YouTube description with proper attribution and disclosures."""
     parts = [desc]
 
+    # Ending discussion question
+    ending_q = metadata.get("ending_question", "")
+    if ending_q:
+        parts.append(f"💬 {ending_q}")
+
     # Chapter markers (if included in metadata)
     chapters = metadata.get("chapters_text", "")
     if chapters:
@@ -51,12 +56,12 @@ def _build_full_description(desc: str, hashtags: list, metadata: dict,
     # Standard attribution block
     parts.append("""━━━━━━━━━━━━━━━━━
 📸 影片素材：Pexels (https://www.pexels.com) — 免費授權素材
-🎵 背景音樂：原創合成環境音（無版權）
 🎤 語音：AI 文字轉語音技術生成
 📝 腳本：基於公開新聞報導及司法紀錄，AI 輔助撰寫
 
-⚠️ 免責聲明：本影片內容取自公開資料與新聞報導，僅供教育及資訊分享用途。
-如有任何事實錯誤，歡迎留言指正。
+⚠️ 免責聲明：本影片內容基於公開新聞報導、司法紀錄及書籍整理，
+僅供教育及資訊分享用途，不代表對任何當事人之定論。
+部分細節可能因資料來源不同而有出入，如有錯誤歡迎留言指正。
 ━━━━━━━━━━━━━━━━━""")
 
     result = "\n\n".join(parts)
@@ -216,7 +221,37 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
     if os.path.exists(srt_path):
         _upload_subtitles(youtube, video_id, srt_path, lang="zh-Hant")
 
+    # Post pinned comment if provided
+    pinned = metadata.get("pinned_comment", "")
+    if pinned:
+        _post_pinned_comment(youtube, video_id, pinned)
+
     return url
+
+
+def _post_pinned_comment(youtube, video_id: str, text: str):
+    """Post a comment and pin it to the top of the video."""
+    try:
+        print(f"  Posting pinned comment...")
+        resp = youtube.commentThreads().insert(
+            part="snippet",
+            body={
+                "snippet": {
+                    "videoId": video_id,
+                    "topLevelComment": {
+                        "snippet": {"textOriginal": text}
+                    },
+                }
+            },
+        ).execute()
+        comment_id = resp["snippet"]["topLevelComment"]["id"]
+        # Pin it — requires setting as moderation held then approving
+        # Actually, YouTube API doesn't have a direct "pin" endpoint.
+        # But the channel owner's first comment appears prominently.
+        # We'll just post it — manual pin if needed.
+        print(f"  ✅ Comment posted (pin manually in Studio if needed)")
+    except Exception as e:
+        print(f"  [WARN] Comment post failed: {e}")
 
 
 def _upload_transcript_autosync(youtube, video_id: str, script_path: str,

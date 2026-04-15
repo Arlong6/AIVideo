@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
+    permissions:
+      contents: write
+
     env:
       PYTHONUNBUFFERED: "1"
 

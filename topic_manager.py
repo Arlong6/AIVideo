@@ -334,9 +334,23 @@ def pick_topic(refresh_news: bool = True) -> str:
                     return True
         return False
 
+    # Taiwan-priority: reorder so Taiwan/local topics come first
+    # Data shows Taiwan cases avg 49 views vs overseas 27 views
+    _TW_KEYWORDS = {"台灣", "台北", "台南", "台中", "高雄", "桃園", "新北",
+                    "彰化", "嘉義", "屏東", "花蓮", "基隆", "新竹", "苗栗",
+                    "南投", "雲林", "宜蘭", "澎湖", "金門", "馬祖"}
+
+    def _is_taiwan(t: str) -> bool:
+        return any(kw in t for kw in _TW_KEYWORDS)
+
+    tw_candidates = [c for c in candidates if _is_taiwan(c)]
+    other_candidates = [c for c in candidates if not _is_taiwan(c)]
+    candidates = tw_candidates + other_candidates
+
     for candidate in candidates:
         if not _is_too_similar(candidate, used_topics):
-            print(f"  Selected topic: {candidate}")
+            tag = "[台灣優先]" if _is_taiwan(candidate) else "[海外]"
+            print(f"  Selected topic: {candidate} {tag}")
             return candidate
 
     # All candidates are similar — just pick the first one and warn

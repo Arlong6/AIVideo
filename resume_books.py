@@ -220,14 +220,27 @@ def resume_render(outdir: str) -> str | None:
     size_mb = os.path.getsize(final_path) / 1024 / 1024
     print(f"\n  ✅ Complete: {final_path} ({size_mb:.1f} MB)")
 
+    # QA gate
+    print("\n  🔎 QA Agent — reviewing quality...")
+    from agents.qa_agent import review_video
+    qa_report = review_video(outdir, channel="books")
+    qa_verdict = qa_report.get("verdict", "REJECT")
+    try:
+        with open(os.path.join(outdir, "qa_report.json"), "w") as qf:
+            json.dump(qa_report, qf, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
     # Telegram
+    qa_icon = "✅" if qa_verdict == "PASS" else ("❌" if qa_verdict == "REJECT" else "⚠️")
     try:
         from telegram_notify import _send_raw
         _send_raw(
             f"📚 [Books 續跑完成！]\n"
             f"題材: {os.path.basename(outdir)}\n"
             f"大小: {size_mb:.1f} MB\n"
-            f"插圖: {len(all_clips)}/{total_pairs}"
+            f"插圖: {len(all_clips)}/{total_pairs}\n"
+            f"QA: {qa_icon} {qa_verdict}"
         )
     except Exception:
         pass

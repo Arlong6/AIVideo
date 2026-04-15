@@ -166,4 +166,11 @@ def get_title_prompt_insert() -> str:
     for f in FAILURE_PATTERNS[:3]:
         lines.append(f"  ❌ {f}")
 
+    lines.append("\n【標題長度硬性規定】")
+    lines.append("  ⚠️ 標題必須 ≤25 個中文字（含標點）。根據頻道數據分析：")
+    lines.append("  短標題(≤25字) 平均 46 views vs 長標題(>40字) 平均 21 views。")
+    lines.append("  絕對禁止超過 30 字。寧可精煉用詞，不要塞太多資訊。")
+    lines.append("  好的例子：「林宅血案」(4字)、「台灣林于如保險金殺人案」(11字)")
+    lines.append("  壞的例子：「陳金火案：2003年駭人聽聞的殺人分屍焚屍案其殘忍手法...」(54字)")
+
     return "\n".join(lines)

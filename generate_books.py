@@ -391,38 +391,50 @@ def _run(args):
     with open(os.path.join(output_dir, "chapters.txt"), "w", encoding="utf-8") as f:
         f.write(chapters_text)
 
+    # ── QA Gate — pre-upload quality check ──────────────────────────────────
+    qa_verdict = "SKIP"
+    if final_path:
+        print("\n  🔎 QA Agent — reviewing quality...")
+        from agents.qa_agent import review_video
+        qa_report = review_video(output_dir, expected_duration=actual_duration,
+                                 channel="books")
+        qa_verdict = qa_report.get("verdict", "REJECT")
+        # Save report
+        import json as _json
+        with open(os.path.join(output_dir, "qa_report.json"), "w") as f:
+            _json.dump(qa_report, f, ensure_ascii=False, indent=2)
+
     # ── Mark topic as used only if render succeeded ──────────────────────────
     if final_path and args.auto:
         save_used_topic(topic)
 
     # ── Summary ──────────────────────────────────────────────────────────────
     print(f"\n{'=' * 50}")
-    print(f"✅ Books dry run complete — NO upload performed")
+    print(f"📊 QA: {qa_verdict}")
+    if qa_verdict == "PASS":
+        print(f"✅ Books video ready for upload")
+    elif qa_verdict == "REJECT":
+        print(f"❌ QA REJECTED — critical issues found, do NOT upload")
+    else:
+        print(f"⚠️ QA found issues — review before uploading")
     print(f"📁 Output: {os.path.abspath(output_dir)}")
     if final_path:
         print(f"🎬 Video: {os.path.basename(final_path)}")
-        print(f"📝 Script: script_zh.txt")
-        print(f"📋 Metadata: metadata.json")
-        print(f"🖼  Thumbnail: thumbnail.jpg")
         print(f"📑 Subtitles: subtitles_zh.srt")
         print(f"📖 Chapters: chapters.txt")
     print(f"{'=' * 50}")
-    print("\nNext steps:")
-    print("  1. Open the mp4 and watch it")
-    print("  2. Read script_zh.txt — is the story-driven retelling working?")
-    print("  3. If quality is good: open books YT channel and run reauth.py")
-    print("  4. If not: tell me what to adjust in script_generator_books.py")
 
-    # ── Telegram success ping ─────────────────────────────────────────────────
+    # ── Telegram notification ─────────────────────────────────────────────────
     duration_min = int(actual_duration / 60) if actual_duration else 0
     final_name = os.path.basename(final_path) if final_path else "(no video)"
+    qa_icon = "✅" if qa_verdict == "PASS" else ("❌" if qa_verdict == "REJECT" else "⚠️")
     _notify_telegram(
-        f"📚 [AIvideo 說書 dry run 完成]\n"
+        f"📚 [Books 生成完成]\n"
         f"題材: {topic[:80]}\n"
         f"標題: {zh.get('title', '')[:80]}\n"
         f"時長: ~{duration_min} min\n"
+        f"QA: {qa_icon} {qa_verdict}\n"
         f"路徑: {os.path.abspath(output_dir)}\n"
-        f"檔案: {final_name}\n"
         f"(本機 only，未上傳 YT)"
     )
 
