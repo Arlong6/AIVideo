@@ -353,6 +353,7 @@ def _run(args):
         fmt="long",
         info_cards=None,
         direct_cut_paths=clip_paths,
+        skip_cinematic=True,  # books = vintage gouache, no CCTV grading
     )
 
     # ── Step 8.5: Prepend AL 說故事 intro ────────────────────────────────────

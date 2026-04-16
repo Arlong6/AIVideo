@@ -176,6 +176,7 @@ def resume_render(outdir: str) -> str | None:
     final_path = assemble_video(
         outdir, lang="zh", wiki_clips=[], fmt="long",
         info_cards=None, direct_cut_paths=all_clips,
+        skip_cinematic=True,  # books channel
     )
     os.rename(meta_bak, meta)
 

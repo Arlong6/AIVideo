@@ -527,7 +527,8 @@ def _make_opening_card(text: str, output_path: str, duration: float = 2.0,
 def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = None,
                    scene_pacing: list | None = None, fmt: str = "short",
                    info_cards: dict | None = None,
-                   direct_cut_paths: list[str] | None = None) -> str | None:
+                   direct_cut_paths: list[str] | None = None,
+                   skip_cinematic: bool = False) -> str | None:
     """Assemble final video from clips + voiceover + music.
 
     direct_cut_paths (v5 sentence-pair path):
@@ -683,13 +684,25 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         print("  Subtitles: will upload SRT to YouTube")
 
     # Apply cinematic effects (grain + vignette + color grade)
-    print("  Applying cinematic effects...")
-    effects_ok = _apply_cinematic_effects(subtitle_out, final_path)
-    if os.path.exists(subtitle_out) and subtitle_out != final_path:
-        os.remove(subtitle_out)
-    if not effects_ok:
-        if os.path.exists(subtitle_out):
+    # Skip for books channel — gouache illustrations don't need CCTV-style grading
+    if skip_cinematic:
+        print("  Skipping cinematic effects (books channel)")
+        if subtitle_out != final_path:
             os.rename(subtitle_out, final_path)
+        effects_ok = True
+    else:
+        print("  Applying cinematic effects...")
+        effects_ok = _apply_cinematic_effects(subtitle_out, final_path)
+        if not effects_ok:
+            # Effects failed — preserve unprocessed video as fallback
+            if os.path.exists(final_path):
+                os.remove(final_path)  # corrupt ffmpeg output
+            if os.path.exists(subtitle_out) and subtitle_out != final_path:
+                os.rename(subtitle_out, final_path)
+        else:
+            # Effects succeeded — clean up intermediate
+            if os.path.exists(subtitle_out) and subtitle_out != final_path:
+                os.remove(subtitle_out)
 
     size_mb = os.path.getsize(final_path) / 1024 / 1024
     print(f"  ✅ Video ready: final_{lang}.mp4 ({size_mb:.1f} MB, {duration:.0f}s)")

@@ -16,6 +16,9 @@ import json
 import re
 from datetime import datetime
 
+# Module-level imports so nested functions can see them
+from telegram_notify import notify_failure, notify_qa_fail
+
 
 def produce_longform(topic: str, output_base: str = "output",
                      upload: bool = False, slot: int = 1) -> dict:
@@ -36,7 +39,6 @@ def produce_longform(topic: str, output_base: str = "output",
     os.makedirs(output_dir, exist_ok=True)
 
     # Wrap entire pipeline in try/except for failure alerts
-    from telegram_notify import notify_failure, notify_qa_fail
     from agents.llm import ContentBlockedError
 
     try:
@@ -89,6 +91,8 @@ def _run_pipeline(topic, output_dir, upload, slot):
     script_data = generate_script(case_data)
     _save_json(script_data, output_dir, "metadata.json")
 
+    from script_generator import _normalize_script_field
+    script_data = _normalize_script_field(script_data)
     with open(os.path.join(output_dir, "script_zh.txt"), "w", encoding="utf-8") as f:
         f.write(script_data.get("script", ""))
 
