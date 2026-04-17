@@ -349,11 +349,89 @@ def pick_topic(refresh_news: bool = True) -> str:
 
     for candidate in candidates:
         if not _is_too_similar(candidate, used_topics):
+            # Verify topic is a real case via web search before committing.
+            # LLMs fabricate plausible-sounding case names (e.g. 嘉義女教師姦殺案,
+            # 東海花園命案). If Google returns zero relevant results → skip it.
+            if not _verify_topic_exists(candidate):
+                print(f"  [SKIP] Topic failed verification: {candidate}")
+                used_topics.add(candidate)  # don't retry this one
+                continue
             tag = "[台灣優先]" if _is_taiwan(candidate) else "[海外]"
-            print(f"  Selected topic: {candidate} {tag}")
+            print(f"  Selected topic: {candidate} {tag} [已驗證]")
             return candidate
 
-    # All candidates are similar — just pick the first one and warn
-    print(f"  [WARN] All candidates similar to used topics, picking first anyway")
+    # All candidates are similar or unverifiable
+    print(f"  [WARN] All candidates similar/unverifiable, picking first anyway")
     print(f"  Selected topic: {candidates[0]}")
     return candidates[0]
+
+
+def _verify_topic_exists(topic: str) -> bool:
+    """Quick web search to verify a crime topic is a real, documented case.
+
+    Uses Google News RSS (same as fetch_crime_news) to check if the case name
+    appears in any search results. Returns True if at least 1 relevant result.
+    This catches LLM hallucinations like fabricated case names.
+    """
+    import re
+
+    # Extract the core case name (before any ：or | delimiters)
+    core = re.split(r"[：:｜|（(]", topic)[0].strip()
+    if len(core) < 3:
+        return True  # Too short to verify meaningfully
+
+    print(f"  [verify] Checking: {core[:40]}...")
+
+    # Primary: Wikipedia (curated, fabricated cases won't have pages)
+    wiki_hit = False
+    try:
+        resp = requests.get(
+            "https://zh.wikipedia.org/w/api.php",
+            params={"action": "query", "list": "search", "srsearch": core,
+                    "srlimit": 3, "format": "json"},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            hits = resp.json().get("query", {}).get("search", [])
+            if hits:
+                # Check the top result title shares ≥2 Chinese chars with our query
+                top_title = hits[0].get("title", "")
+                shared = sum(1 for c in core if c in top_title and len(c.encode()) > 1)
+                if shared >= 2:
+                    print(f"  [verify] ✓ Wikipedia: {top_title[:30]} (shared={shared})")
+                    wiki_hit = True
+    except Exception as e:
+        print(f"  [verify] Wikipedia failed: {e}")
+
+    if wiki_hit:
+        return True
+
+    # Fallback: Google News RSS — two tiers:
+    #   Tier 1: exact-match (quotes) → ≥1 result = real
+    #   Tier 2: loose match (no quotes) → ≥10 results = real
+    # This handles cases where the exact phrase is rare but individual
+    # keywords are common enough to confirm the case exists.
+    for query_fmt, threshold, label in [
+        (f'"{core}"', 1, "exact"),
+        (core, 10, "loose"),
+    ]:
+        try:
+            resp = requests.get(
+                "https://news.google.com/rss/search",
+                params={"q": query_fmt, "hl": "zh-TW", "gl": "TW", "ceid": "TW:zh-Hant"},
+                timeout=10,
+                headers={"User-Agent": "TrueCrimeBot/1.0"},
+            )
+            if resp.status_code == 200:
+                titles = re.findall(r"<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</title>", resp.text)
+                results = [t for t in titles[1:] if len(t) > 5]
+                if len(results) >= threshold:
+                    print(f"  [verify] ✓ Google News ({label}): {len(results)} results")
+                    return True
+                elif results:
+                    print(f"  [verify] ~ Google News ({label}): {len(results)} results (need {threshold})")
+        except Exception as e:
+            print(f"  [verify] Google News ({label}) failed: {e}")
+
+    print(f"  [verify] ✗ No Wikipedia + insufficient Google — likely fabricated")
+    return False

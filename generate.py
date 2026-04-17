@@ -15,7 +15,7 @@ import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from script_generator import generate_scripts
+from script_generator import generate_scripts, _normalize_script_field
 from tts_generator import generate_voiceover
 from subtitle_generator import generate_srt
 from footage_downloader import download_footage
@@ -80,68 +80,121 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     print(f"\nOutput directory: {output_dir}")
 
+    # Feature flag: switch crime shorts visual pipeline to Remotion.
+    # Affects only short + truecrime. Long-form and books always use MoviePy.
+    VIDEO_ENGINE = os.getenv("VIDEO_ENGINE", "moviepy").lower()
+    use_remotion = (VIDEO_ENGINE == "remotion"
+                    and args.format == "short"
+                    and args.channel == "truecrime")
+
     # Step 1: Generate scripts
     print("\n[1/6] Generating scripts with Claude...")
-    scripts = generate_scripts(topic)
+    scripts = generate_scripts(topic, engine=VIDEO_ENGINE if use_remotion else "moviepy")
     for lang, data in scripts.items():
+        # Remotion's zh is Case-shaped (no `script` field) — serialize whole dict.
+        # MoviePy zh/en have a `script` string field.
         script_path = os.path.join(output_dir, f"script_{lang}.txt")
-        with open(script_path, "w", encoding="utf-8") as f:
-            f.write(data.get("script", ""))
+        if use_remotion and lang == "zh":
+            # Write the joined section texts so the file is still a human-
+            # readable transcript for auditing
+            case = scripts["zh"]
+            text = "\n\n".join([
+                f"【hook】{case['hook']}",
+                f"【setup】{case['setup']}",
+                *[f"【event-{i+1}】{ev['text']}" for i, ev in enumerate(case['events'])],
+                f"【twist】{case['twist']}",
+                f"【aftermath】{case['aftermath']}",
+                f"【cta】{case['cta']}",
+            ])
+            with open(script_path, "w", encoding="utf-8") as f:
+                f.write(text)
+        else:
+            data = _normalize_script_field(data)
+            with open(script_path, "w", encoding="utf-8") as f:
+                f.write(data.get("script", ""))
         print(f"  Script saved: script_{lang}.txt")
     save_metadata(output_dir, scripts)
 
-    # Step 2: Generate voiceovers
-    print("\n[2/6] Generating voiceovers...")
-    for lang, data in scripts.items():
-        audio_path = os.path.join(output_dir, f"voiceover_{lang}.mp3")
-        generate_voiceover(data.get("script", ""), lang, audio_path)
+    # ─── Remotion branch ───────────────────────────────────────────────────
+    # Bypasses MoviePy steps 2-5. TTS is per-section inside the adapter.
+    # Images come from Pexels photos / Wikimedia. BGM is baked into the
+    # Remotion composition. Subtitles are not burned — SRT is derived from
+    # section timings and uploaded to YouTube as a caption track.
+    # After this block, final_path + thumb_path are set; we skip to the
+    # shared Step 6 upload logic via the `_remotion_done` sentinel.
+    final_path = None
+    thumb_path = None
+    _remotion_done = False
+    if use_remotion:
+        print("\n[2/3] Remotion: build case + per-section TTS + images + render...")
+        from crime_reel_adapter import build_crime_reel
+        final_path = build_crime_reel(scripts["zh"], output_dir)
 
-    # Step 3: Generate subtitles (use actual voiceover duration, not hardcoded 180s)
-    print("\n[3/6] Generating subtitles...")
-    for lang, data in scripts.items():
-        srt_path = os.path.join(output_dir, f"subtitles_{lang}.srt")
-        audio_path = os.path.join(output_dir, f"voiceover_{lang}.mp3")
-        if os.path.exists(audio_path):
-            from moviepy.editor import AudioFileClip as _AFC
-            _a = _AFC(audio_path)
-            actual_duration = _a.duration
-            _a.close()
-        else:
-            actual_duration = 180.0
-        generate_srt(data.get("script", ""), actual_duration, srt_path)
+        print("\n[3/3] Generating SRT from case timings (for YouTube CC)...")
+        from subtitle_generator import generate_srt_from_case
+        srt_path = os.path.join(output_dir, "subtitles_zh.srt")
+        case_json_path = os.path.join(output_dir, "case.json")
+        generate_srt_from_case(case_json_path, srt_path)
 
-    # Step 4: Download scene-matched stock footage from Pexels
-    print("\n[4/6] Downloading scene-matched footage...")
-    visual_scenes = scripts["en"].get("visual_scenes") or []
-    if not visual_scenes:
-        keywords = scripts["en"].get("keywords", ["crime", "mystery", "dark"])
-        visual_scenes = keywords * 5
-    visual_scenes = visual_scenes[:15]
-    print(f"  Using {len(visual_scenes)} visual scene queries")
-    download_footage(visual_scenes, output_dir)
+        print("\n  Generating thumbnail...")
+        thumb_path = os.path.join(output_dir, "thumbnail.jpg")
+        zh_title = scripts["zh"].get("title", topic)
+        generate_thumbnail(zh_title, thumb_path)
 
-    # Step 4c: Fetch archival images from Wikimedia Commons (search in English)
-    print("\n[4c/6] Fetching archival images from Wikimedia Commons...")
-    en_keywords = scripts["en"].get("keywords", [])
-    # Use first 2 English keywords as search term (specific enough for Wikimedia)
-    wiki_search_term = " ".join(en_keywords[:2]) if en_keywords else topic
-    wiki_clips = get_wiki_clips(wiki_search_term, output_dir, max_images=5)
+        _remotion_done = True
 
-    # Step 4.5: Download background music
-    print("\n[4.5/6] Downloading background music...")
-    get_background_music(output_dir)
+    # ─── MoviePy branch (default) ────────────────────────────────────────
+    if not _remotion_done:
+        print("\n[2/6] Generating voiceovers...")
+        for lang, data in scripts.items():
+            audio_path = os.path.join(output_dir, f"voiceover_{lang}.mp3")
+            generate_voiceover(data.get("script", ""), lang, audio_path)
 
-    # Step 4.9: Generate thumbnail
-    print("\n[4.9/6] Generating thumbnail...")
-    thumb_path = os.path.join(output_dir, "thumbnail.jpg")
-    zh_title = scripts["zh"].get("title", topic)
-    generate_thumbnail(zh_title, thumb_path)
+        # Step 3: Generate subtitles (use actual voiceover duration, not hardcoded 180s)
+        print("\n[3/6] Generating subtitles...")
+        for lang, data in scripts.items():
+            srt_path = os.path.join(output_dir, f"subtitles_{lang}.srt")
+            audio_path = os.path.join(output_dir, f"voiceover_{lang}.mp3")
+            if os.path.exists(audio_path):
+                from moviepy.editor import AudioFileClip as _AFC
+                _a = _AFC(audio_path)
+                actual_duration = _a.duration
+                _a.close()
+            else:
+                actual_duration = 180.0
+            generate_srt(data.get("script", ""), actual_duration, srt_path)
 
-    # Step 5: Assemble video
-    print("\n[5/6] Assembling video...")
-    scene_pacing = scripts["en"].get("scene_pacing") or None
-    final_path = assemble_video(output_dir, lang="zh", wiki_clips=wiki_clips,
-                                scene_pacing=scene_pacing)
+        # Step 4: Download scene-matched stock footage from Pexels
+        print("\n[4/6] Downloading scene-matched footage...")
+        visual_scenes = scripts["en"].get("visual_scenes") or []
+        if not visual_scenes:
+            keywords = scripts["en"].get("keywords", ["crime", "mystery", "dark"])
+            visual_scenes = keywords * 5
+        visual_scenes = visual_scenes[:15]
+        print(f"  Using {len(visual_scenes)} visual scene queries")
+        download_footage(visual_scenes, output_dir)
+
+        # Step 4c: Fetch archival images from Wikimedia Commons (search in English)
+        print("\n[4c/6] Fetching archival images from Wikimedia Commons...")
+        en_keywords = scripts["en"].get("keywords", [])
+        wiki_search_term = " ".join(en_keywords[:2]) if en_keywords else topic
+        wiki_clips = get_wiki_clips(wiki_search_term, output_dir, max_images=5)
+
+        # Step 4.5: Download background music
+        print("\n[4.5/6] Downloading background music...")
+        get_background_music(output_dir)
+
+        # Step 4.9: Generate thumbnail
+        print("\n[4.9/6] Generating thumbnail...")
+        thumb_path = os.path.join(output_dir, "thumbnail.jpg")
+        zh_title = scripts["zh"].get("title", topic)
+        generate_thumbnail(zh_title, thumb_path)
+
+        # Step 5: Assemble video
+        print("\n[5/6] Assembling video...")
+        scene_pacing = scripts["en"].get("scene_pacing") or None
+        final_path = assemble_video(output_dir, lang="zh", wiki_clips=wiki_clips,
+                                    scene_pacing=scene_pacing)
 
     # Step 6: Upload to YouTube (optional)
     youtube_url = None
@@ -171,7 +224,9 @@ def main():
             video_id = youtube_url.split("youtu.be/")[-1].split("?")[0]
             from moviepy.editor import VideoFileClip as _VFC
             try:
-                _dur = _VFC(final_path, audio=False).duration
+                _v = _VFC(final_path, audio=False)
+                _dur = _v.duration
+                _v.close()
             except Exception:
                 _dur = 0
             log_video(video_id, topic, args.slot or 1, _dur, publish_at or "")
@@ -225,6 +280,7 @@ def _generate_long(args):
     print(f"  Sections: {len(zh.get('sections', []))}")
 
     # Save full script
+    zh = _normalize_script_field(zh)
     with open(os.path.join(output_dir, "script_zh.txt"), "w", encoding="utf-8") as f:
         f.write(zh.get("script", ""))
 

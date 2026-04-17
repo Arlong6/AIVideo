@@ -261,9 +261,12 @@ def review_video(output_dir: str, expected_duration: float = 0,
                        "detail": "SRT 檔案不存在"})
 
     # ── 7. Black frame detection ─────────────────────────────────────
+    # Skip first ~5s: intentional opening card is black by design.
+    # For books channel, intro card can be longer (up to 25s).
     BLACK_THRESHOLD = 5  # brightness below this = black
+    opening_skip = 25.0 if channel == "books" else 5.0
     check_points = {
-        "開頭": min(2.0, duration * 0.05),
+        "開頭": min(opening_skip + 2.0, duration * 0.1),
         "中段": duration / 2,
         "結尾": max(0, duration - 2.0),
     }
@@ -311,7 +314,9 @@ def review_video(output_dir: str, expected_duration: float = 0,
                 if abs(samples[i][1] - samples[i-1][1]) > 15:
                     cuts += 1
             cuts_per_min = cuts / (duration / 60)
-            if cuts_per_min < 1.5:
+            # Books channel is intentionally slower-paced (vintage illustrations + Ken Burns)
+            min_cuts = 1.0 if channel == "books" else 1.5
+            if cuts_per_min < min_cuts:
                 issues.append({"check": "場景切換", "status": "WARN", "severity": "medium",
                                "detail": f"約 {cuts_per_min:.1f} 次/分鐘，可能太靜態"})
             else:

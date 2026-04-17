@@ -200,21 +200,70 @@ def resume_render(outdir: str) -> str | None:
     # Reconstruct topic from metadata
     with open(os.path.join(outdir, "metadata.json"), "r", encoding="utf-8") as f:
         full_meta = json.load(f)
-    # The topic might be stored — check channel field or title
     title = zh.get("title", "")
 
-    # Use topic from seed bank if available in metadata
+    # Look up original topic from seed bank by matching book name
+    # (title only has 《Book》 without "by Author", but topics.json has full form)
+    import re
+    book_match = re.search(r"《(.+?)》", title)
+    original_topic = title
+    if book_match:
+        book_name = book_match.group(1)
+        try:
+            with open("data/books/topics.json", "r", encoding="utf-8") as tf:
+                topics_data = json.load(tf)
+            for cat in ("curated", "ai_generated"):
+                for t in topics_data.get(cat, []):
+                    if book_name in t:
+                        original_topic = t
+                        break
+                if original_topic != title:
+                    break
+        except Exception:
+            pass
+
     intro_path = _generate_intro_segment(
-        title, outdir,
+        original_topic, outdir,
         voice="zh-TW-HsiaoChenNeural", rate="-3%", pitch="+0Hz",
     )
 
     if intro_path:
+        # Get intro duration BEFORE prepending (needed for SRT shift)
+        try:
+            import subprocess as _sp
+            _r = _sp.run(
+                ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+                 "-of", "csv=p=0", intro_path],
+                capture_output=True, text=True, timeout=10,
+            )
+            intro_dur = float(_r.stdout.strip())
+        except Exception:
+            intro_dur = 0
+
         combined = os.path.join(outdir, "final_zh_with_intro.mp4")
         if _prepend_intro_to_video(intro_path, final_path, combined):
             os.remove(final_path)
             os.rename(combined, final_path)
             print("  ✅ Intro added")
+
+            # Shift SRT timestamps to match intro offset
+            srt_path = os.path.join(outdir, "subtitles_zh.srt")
+            if intro_dur > 0.1 and os.path.exists(srt_path):
+                try:
+                    import srt as _srt_lib
+                    from datetime import timedelta as _td
+                    with open(srt_path, encoding="utf-8") as sf:
+                        subs = list(_srt_lib.parse(sf.read()))
+                    shift = _td(seconds=intro_dur)
+                    for s in subs:
+                        s.start += shift
+                        s.end += shift
+                    with open(srt_path, "w", encoding="utf-8") as sf:
+                        sf.write(_srt_lib.compose(subs))
+                    print(f"  ✅ SRT shifted +{intro_dur:.1f}s")
+                except Exception as e:
+                    print(f"  [WARN] SRT shift failed: {e}")
+
         if os.path.exists(intro_path):
             os.remove(intro_path)
 

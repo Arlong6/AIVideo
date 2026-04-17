@@ -125,6 +125,131 @@ Return this exact JSON:
 }}"""
 
 
+PROMPT_ZH_REMOTION = """你是一位頂尖真實犯罪 YouTube 頻道的腳本作家，專門為繁體中文觀眾創作。
+本次影片將由 Remotion 視覺引擎渲染，請直接產出結構化 Case JSON（非單段敘事）。
+
+案件主題：{topic}
+
+{title_dna}
+
+⚠️ 真實性規則（最重要，違反會導致整集下架）
+1. 所有人名、地名、日期、機構名必須是**真實存在、可被查證**的。不確定就不要寫。
+2. **禁止捏造任何「引述」**（用「」或 "" 標記的當事人/警方/法官發言）— 除非是廣為流傳的公開紀錄原文。如果不確定原話，改用間接敘述：「據報導，警方表示...」
+3. **禁止編造案件細節**：受害者人數、死因、兇器、判決結果必須準確。不確定就用模糊語氣（「據傳」「疑似」）。
+4. **禁止混淆不同案件**的細節。每個案件獨立描述。
+5. 數字（年份、人數、金額）必須準確。不確定就不要給具體數字。
+6. 禁止為了戲劇效果而誇大或扭曲事實。震撼感應來自真實事件本身，不是編造。
+
+=== 結構要求 ===
+本案件將拆成 9 幕，每一幕獨立 TTS + 獨立靜態圖片：
+  hook（震撼開場）/ setup（時空背景）/ events[固定 4 個] / twist（反轉揭露）/ aftermath（後續影響）/ cta（結尾呼籲）
+
+【字數預算（繁體中文含標點）】
+  hook      : 35–55 字
+  setup     : 30–50 字
+  每個 event: 25–45 字
+  twist     : 40–70 字
+  aftermath : 50–90 字
+  cta       : 10–20 字
+總計 330–380 字（≈60–90 秒語速）。單段絕對不得超過上限。
+
+【語言要求】
+- 繁體中文、台灣用語。
+- 短句為主（5–12 字），段落內節奏緊湊。
+- 英文人名、地名、機構保留原文（Ted Bundy 不寫泰德邦迪；FBI 不寫聯邦調查局）。
+- 台灣本地人名、地名用中文。
+- 結尾自然收束，不要口號式呼籲。
+
+【image_query 要求】
+每一幕要配一個 English Pexels 搜尋詞（3-6 個字），用於抓靜態照片。
+- 必須是犯罪相關或時代氛圍（例：`dark alley night rain`、`vintage crime scene photo`、`detective interrogation room 1960s`、`police tape forensic evidence`）。
+- 禁止一般中性/快樂/自然風景（例：`beautiful sunset`、`happy family`）。
+- 盡量對應本幕的具體場景。
+
+【wiki_search_term】
+1-3 個英文關鍵字，用於 Wikimedia Commons 歷史圖片備援（例：`Tokyo 1968 bank`、`Peng Wanru`）。
+
+=== JSON 格式（請嚴格依此回傳，不要其他文字） ===
+{{
+  "id": "slug-格式（小寫英數+連字符），≤40 字，例：'tokyo-300m-yen'、'peng-wanru-case'",
+  "title": "影片標題 ≤25 字，hook 句型",
+  "titleZh": "中文副標（畫面上顯示；不確定就跟 title 一樣）",
+  "opening_card": "≤8 字衝擊字卡",
+  "date": "案件主要日期，例：'1968年12月10日' 或 '1996年11月' 或 '1990年代'",
+  "location": "案件地點，例：'東京都府中市' 或 '台北市' 或 '美國洛杉磯'",
+  "status": "必須是 'unsolved' 或 'solved' 之一",
+  "statusLabel": "中文狀態標籤：'未偵破' / '已破案' / '已伏法' / '冤案平反' 等",
+
+  "hook": "35–55 字，最震撼的懸念/反差開場",
+  "hook_image_query": "English Pexels query for hook",
+
+  "setup": "30–50 字，時空背景與人物介紹",
+  "setup_image_query": "English Pexels query for setup",
+
+  "events": [
+    {{"text": "25–45 字，事件 1", "image_query": "English query"}},
+    {{"text": "25–45 字，事件 2", "image_query": "English query"}},
+    {{"text": "25–45 字，事件 3", "image_query": "English query"}},
+    {{"text": "25–45 字，事件 4", "image_query": "English query"}}
+  ],
+
+  "twist": "40–70 字，最高潮揭露",
+  "twist_image_query": "English Pexels query for twist",
+
+  "aftermath": "50–90 字，後續、調查結果、社會影響",
+  "aftermath_image_query": "English Pexels query for aftermath",
+
+  "cta": "10–20 字，結尾呼籲，例：'追蹤看更多真實懸案'",
+
+  "wiki_search_term": "Wikimedia 備援關鍵字（1-3 個英文字）",
+
+  "ending_question": "二選一或道德兩難討論問題",
+  "pinned_comment": "置頂留言（50 字以內）",
+  "keywords": ["english keyword1", "keyword2", "keyword3"],
+  "description": "YouTube 描述 ≤60 字，含案件名稱",
+  "hashtags": ["#真實犯罪", "#犯罪故事", "#懸案", "#Shorts", "#台灣"]
+}}"""
+
+
+def _validate_case_shape(result: dict) -> None:
+    """Validate that a Claude/Gemini response matches the Case schema shape.
+
+    Raises ValueError with a specific field description on any failure.
+    Used by the Remotion engine path — MoviePy path uses _normalize_script_field.
+    """
+    import re as _re
+    if not isinstance(result, dict):
+        raise ValueError(f"Case must be dict, got {type(result).__name__}")
+
+    required_strs = [
+        "id", "title", "date", "location", "status", "statusLabel",
+        "hook", "hook_image_query", "setup", "setup_image_query",
+        "twist", "twist_image_query", "aftermath", "aftermath_image_query",
+        "cta", "wiki_search_term",
+    ]
+    for k in required_strs:
+        v = result.get(k, "")
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError(f"Case field {k!r} missing or empty")
+
+    if result["status"] not in ("unsolved", "solved"):
+        raise ValueError(f"Case status must be 'unsolved' or 'solved', got {result['status']!r}")
+
+    if not _re.match(r"^[a-z0-9-]+$", result["id"]) or len(result["id"]) > 40:
+        raise ValueError(f"Case id must match [a-z0-9-]+ and ≤40 chars, got {result['id']!r}")
+
+    events = result.get("events")
+    if not isinstance(events, list) or len(events) != 4:
+        raise ValueError(f"Case events must be a 4-element list, got {type(events).__name__} len={len(events) if isinstance(events, list) else 'n/a'}")
+    for i, ev in enumerate(events):
+        if not isinstance(ev, dict):
+            raise ValueError(f"events[{i}] must be dict")
+        if not isinstance(ev.get("text"), str) or not ev["text"].strip():
+            raise ValueError(f"events[{i}].text missing or empty")
+        if not isinstance(ev.get("image_query"), str) or not ev["image_query"].strip():
+            raise ValueError(f"events[{i}].image_query missing or empty")
+
+
 def _normalize_script_field(result: dict) -> dict:
     """Gemini/Claude occasionally return the `script` field as a list of
     sentences instead of a single string (observed 2026-04-09 after DNA
@@ -141,17 +266,34 @@ def _normalize_script_field(result: dict) -> dict:
     return result
 
 
-def generate_scripts(topic: str, fmt: str = "short") -> dict:
-    """Generate scripts. fmt='short' for Shorts, 'long' for 15-20 min videos."""
+def generate_scripts(topic: str, fmt: str = "short", engine: str = "moviepy") -> dict:
+    """Generate scripts.
+
+    fmt='short' for Shorts, 'long' for 15-20 min videos.
+    engine='moviepy' (default) uses the classic narrative prompt.
+    engine='remotion' uses PROMPT_ZH_REMOTION to produce a Case-shaped JSON
+      directly (see crime_reel_adapter.build_crime_reel).
+    """
     if fmt == "long":
         return _generate_long_scripts(topic)
 
-    # Inject title DNA (formulas + trigger words + failure patterns) into Chinese
-    # prompt — same mechanism long-form uses at _generate_long_scripts. English
-    # prompt is left untouched since the DNA patterns are Chinese-specific.
     from title_dna import get_title_prompt_insert
     title_dna = get_title_prompt_insert()
 
+    if engine == "remotion":
+        print(f"  Generating Chinese script (Remotion Case schema)...")
+        zh_result = _call_claude(PROMPT_ZH_REMOTION.format(topic=topic, title_dna=title_dna))
+        _validate_case_shape(zh_result)  # raises ValueError on malformed output
+
+        print(f"  Generating English metadata...")
+        en_result = _call_claude(PROMPT_EN.format(topic=topic))
+
+        # Do NOT run _normalize_script_field on zh_result — it expects a
+        # `script` string field which Case schema doesn't have.
+        return {"zh": zh_result,
+                "en": _normalize_script_field(en_result)}
+
+    # MoviePy (classic narrative) path — unchanged.
     print(f"  Generating Chinese script...")
     zh_result = _call_claude(PROMPT_ZH.format(topic=topic, title_dna=title_dna))
 

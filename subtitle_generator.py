@@ -130,3 +130,69 @@ def generate_srt_from_boundaries(boundaries: list[dict], output_path: str):
     with open(output_path, "w", encoding="utf-8") as f:
         f.write("\n".join(srt_entries))
     print(f"  Subtitles saved (synced): {output_path} ({len(srt_entries)} cards)")
+
+
+def generate_srt_from_case(case_json_path: str, output_path: str) -> None:
+    """Build SRT from a Remotion case.json's section texts + timings.
+
+    Scene layout matches the Remotion renderer:
+      each section scene = audio_duration + breath pad
+      breath pad = 1.2s for hook/setup/events/twist/aftermath, 0.5s for cta.
+
+    Within each scene, split text into cards via _split_to_cards and
+    distribute the audio-window time proportionally to card char-length.
+    """
+    import json as _json
+    with open(case_json_path, "r", encoding="utf-8") as f:
+        case = _json.load(f)
+
+    timings = case["timings"]
+    BREATH = 1.2
+    CTA_BREATH = 0.5
+
+    # (text, audio_duration, scene_pad) in playback order
+    scenes = [
+        (case["hook"],      timings["hook"],      BREATH),
+        (case["setup"],     timings["setup"],     BREATH),
+    ]
+    for i, ev in enumerate(case["events"]):
+        scenes.append((ev["text"], timings["events"][i], BREATH))
+    scenes += [
+        (case["twist"],     timings["twist"],     BREATH),
+        (case["aftermath"], timings["aftermath"], BREATH),
+        (case["cta"],       timings["cta"],       CTA_BREATH),
+    ]
+
+    srt_entries = []
+    idx = 1
+    cursor = 0.0
+    for text, audio_dur, pad in scenes:
+        cards = _split_to_cards(text.strip())
+        if not cards:
+            cursor += audio_dur + pad
+            continue
+
+        # Distribute the audio duration (NOT pad) by char-length weight.
+        # Captions disappear during the breath pad — that's intentional.
+        weights = [len(c) for c in cards] or [1]
+        total_w = sum(weights)
+
+        t = cursor
+        for card, w in zip(cards, weights):
+            card_dur = (w / total_w) * audio_dur
+            start = t
+            end = min(t + card_dur - 0.05, cursor + audio_dur - 0.05)
+            if end <= start:
+                end = start + 0.5
+            srt_entries.append(
+                f"{idx}\n{_format_time(start)} --> {_format_time(end)}\n{card}\n"
+            )
+            idx += 1
+            t += card_dur
+
+        cursor += audio_dur + pad
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(srt_entries))
+    print(f"  Subtitles saved (case-derived): {output_path} "
+          f"({len(srt_entries)} cards, {cursor:.1f}s total)")

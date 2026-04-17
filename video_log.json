@@ -1166,6 +1166,24 @@
           "comments": 0
         }
       ]
+    },
+    {
+      "video_id": "beoJDj-yrvQ",
+      "topic": "嘉義女教師姦殺案",
+      "slot": 1,
+      "duration_s": 126,
+      "publish_at": "2026-04-17T10:00:00+08:00",
+      "uploaded_at": "2026-04-17T01:17:14.165814+00:00",
+      "stats": []
+    },
+    {
+      "video_id": "cv3nSlJaTOQ",
+      "topic": "日本和歌山毒咖哩事件：1998年夏日祭典毒咖哩造成4死63傷的謎案",
+      "slot": 1,
+      "duration_s": 118,
+      "publish_at": "2026-04-17T10:00:00+08:00",
+      "uploaded_at": "2026-04-17T01:29:51.916133+00:00",
+      "stats": []
     }
   ]
 }

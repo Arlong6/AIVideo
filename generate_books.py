@@ -366,16 +366,44 @@ def _run(args):
             voice=BOOKS_VOICE, rate=BOOKS_RATE, pitch=BOOKS_PITCH,
         )
         if intro_path:
-            main_path = final_path  # e.g. final_zh.mp4
+            # Get intro duration for SRT shift
+            try:
+                import subprocess as _sp
+                _r = _sp.run(
+                    ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+                     "-of", "csv=p=0", intro_path],
+                    capture_output=True, text=True, timeout=10,
+                )
+                intro_dur = float(_r.stdout.strip())
+            except Exception:
+                intro_dur = 0
+
+            main_path = final_path
             combined_path = os.path.join(output_dir, "final_zh_with_intro.mp4")
             if _prepend_intro_to_video(intro_path, main_path, combined_path):
-                # Replace main with intro version
                 os.remove(main_path)
                 os.rename(combined_path, main_path)
                 print(f"  ✅ Intro prepended to {os.path.basename(main_path)}")
+
+                # Shift SRT timestamps to match intro offset
+                srt_path = os.path.join(output_dir, "subtitles_zh.srt")
+                if intro_dur > 0.1 and os.path.exists(srt_path):
+                    try:
+                        import srt as _srt_lib
+                        from datetime import timedelta as _td
+                        with open(srt_path, encoding="utf-8") as sf:
+                            subs = list(_srt_lib.parse(sf.read()))
+                        shift = _td(seconds=intro_dur)
+                        for s in subs:
+                            s.start += shift
+                            s.end += shift
+                        with open(srt_path, "w", encoding="utf-8") as sf:
+                            sf.write(_srt_lib.compose(subs))
+                        print(f"  ✅ SRT shifted +{intro_dur:.1f}s to match intro")
+                    except Exception as e:
+                        print(f"  [WARN] SRT shift failed: {e}")
             else:
                 print("  [WARN] Intro concat failed — video saved without intro")
-            # Cleanup intro temp
             if os.path.exists(intro_path):
                 os.remove(intro_path)
         else:

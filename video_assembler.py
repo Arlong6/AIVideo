@@ -489,27 +489,56 @@ def _make_opening_card(text: str, output_path: str, duration: float = 2.0,
     img = Image.new("RGB", (tw, th), (0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # (red bars removed for clean look)
+    # Keep text within 88% of width as safe zone
+    safe_w = int(tw * 0.88)
+    lines = text.split("\n")
 
-    # Draw text centered with stroke
-    font_size = 96 if len(text) <= 8 else 78
-    try:
-        font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
-    except Exception:
-        font = ImageFont.load_default()
+    def _load_font(sz):
+        try:
+            return ImageFont.truetype(font_path, sz) if font_path else ImageFont.load_default()
+        except Exception:
+            return ImageFont.load_default()
 
-    bbox = draw.textbbox((0, 0), text, font=font)
-    text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    x = (tw - text_w) // 2
-    y = (th - text_h) // 2
+    # Start with a size appropriate for the longest line, then shrink until all lines fit
+    max_line_len = max((len(l) for l in lines), default=1)
+    font_size = 96 if max_line_len <= 8 else (78 if max_line_len <= 16 else 56)
 
-    # Stroke (black outline)
-    for ox in range(-5, 6):
-        for oy in range(-5, 6):
-            if ox != 0 or oy != 0:
-                draw.text((x + ox, y + oy), text, font=font, fill=(0, 0, 0))
-    # White text
-    draw.text((x, y), text, font=font, fill=(255, 248, 220))
+    # Shrink to fit
+    while font_size > 24:
+        font = _load_font(font_size)
+        widest = max(
+            (draw.textbbox((0, 0), l, font=font)[2] - draw.textbbox((0, 0), l, font=font)[0])
+            for l in lines
+        )
+        if widest <= safe_w:
+            break
+        font_size -= 4
+
+    font = _load_font(font_size)
+
+    # Compute per-line metrics
+    line_heights = []
+    line_widths = []
+    for l in lines:
+        bb = draw.textbbox((0, 0), l, font=font)
+        line_widths.append(bb[2] - bb[0])
+        line_heights.append(bb[3] - bb[1])
+
+    line_spacing = int(font_size * 0.35)
+    total_h = sum(line_heights) + line_spacing * (len(lines) - 1)
+    y = (th - total_h) // 2
+
+    stroke_r = max(2, font_size // 20)
+    for i, l in enumerate(lines):
+        x = (tw - line_widths[i]) // 2
+        # Stroke (black outline)
+        for ox in range(-stroke_r, stroke_r + 1):
+            for oy in range(-stroke_r, stroke_r + 1):
+                if ox != 0 or oy != 0:
+                    draw.text((x + ox, y + oy), l, font=font, fill=(0, 0, 0))
+        # Cream-white text
+        draw.text((x, y), l, font=font, fill=(255, 248, 220))
+        y += line_heights[i] + line_spacing
 
     # Save frame and convert to video with ffmpeg
     frame_path = output_path + "_frame.jpg"

@@ -18,8 +18,9 @@ def main():
     target = sys.argv[1]
     output_dir = target if os.path.isdir(target) else os.path.dirname(target)
 
-    # Auto-detect channel from directory name
-    channel = "books" if "books" in os.path.basename(output_dir).lower() else "truecrime"
+    # Auto-detect channel from directory name (strip trailing slash first)
+    dir_name = os.path.basename(output_dir.rstrip("/"))
+    channel = "books" if "books" in dir_name.lower() else "truecrime"
 
     from agents.qa_agent import review_video
     report = review_video(output_dir, channel=channel)

@@ -35,9 +35,8 @@ for i in $(seq 1 $VIDEOS_PER_RUN); do
     "$PYTHON" generate.py --auto --upload --slot $i >> "$LOG_FILE" 2>&1
     EXIT_CODE=$?
     echo "=== Run $i/$VIDEOS_PER_RUN finished: $(date) | exit=$EXIT_CODE ===" >> "$LOG_FILE"
-    if [ $i -lt $VIDEOS_PER_RUN ]; then
-        sleep 60  # brief pause between runs
-    fi
+    # No sleep between slots — slot N+1 starts only after slot N fully completes
+    # (sequential execution in for loop, no background &)
 done
 
 # Keep only last 30 days of logs

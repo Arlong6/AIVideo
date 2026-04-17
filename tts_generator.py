@@ -8,6 +8,37 @@ TTS_RATE_ZH = "-8%"   # slightly slower than default for gravitas
 TTS_PITCH_ZH = "-5Hz" # slightly lower for dark tone
 
 
+def _fix_pronunciation(text: str) -> str:
+    """Fix known Edge TTS mispronunciations for Traditional Chinese.
+
+    Edge TTS often gets polyphonic chars (多音字) and number conventions wrong.
+    We pre-process the text to guide it toward the correct reading.
+    Add entries as you discover new mispronunciations.
+    """
+    import re
+
+    # ── Number conventions: "228事件" should be "二二八事件" not "兩百二十八" ──
+    # Common Taiwan historical events with numeric names
+    text = re.sub(r"228", "二二八", text)
+    text = re.sub(r"318", "三一八", text)
+    text = re.sub(r"921", "九二一", text)
+    text = re.sub(r"713", "七一三", text)
+    text = re.sub(r"911", "九一一", text)
+    text = re.sub(r"119", "一一九", text)
+
+    # ── Polyphonic character fixes (多音字) ──
+    # 重重 in "問題重重" = chóngchóng, not zhòngzhòng
+    text = text.replace("重重", "層層")  # 層層 always reads céngcéng, close enough
+    # 重大 = zhòngdà (correct by default, leave alone)
+    # 重新 = chóngxīn — TTS usually gets this right
+
+    # ── Other common TTS mistakes ──
+    # 仇 in "報仇" = chóu, not qiú (TTS sometimes reads qiú)
+    # 血 in crime context = xiě (colloquial) but TTS reads xuè (literary) — both OK
+
+    return text
+
+
 def generate_voiceover(text: str, lang: str, output_path: str,
                        voice: str | None = None,
                        rate: str | None = None,
@@ -25,6 +56,7 @@ def generate_voiceover(text: str, lang: str, output_path: str,
     text = re.sub(r"\*+", "", text)  # remove **bold** markers
     text = re.sub(r"#{1,6}\s*", "", text)  # remove ### headings
     text = re.sub(r"[`~]", "", text)  # remove code/strikethrough markers
+    text = _fix_pronunciation(text)
     _generate_edge_tts(text, lang, output_path, voice=voice, rate=rate, pitch=pitch)
 
 
