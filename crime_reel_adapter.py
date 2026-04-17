@@ -69,14 +69,10 @@ def _slugify_id(raw: str) -> str:
 # ── TTS per section ───────────────────────────────────────────────────────────
 
 def _synth_section(text: str, output_path: str, label: str) -> None:
-    """Synthesize one section's audio via edge-tts (Yunjian male voice,
-    preserves crime-channel identity). Retries + validates file size."""
+    """Synthesize one section's audio via edge-tts (Yunjian male voice)."""
     if not text or not text.strip():
         raise RuntimeError(f"Empty text for section {label!r}")
 
-    # generate_voiceover already handles markdown/pacing tag stripping and
-    # internal edge-tts retries. Calls _generate_edge_tts with lang="zh" →
-    # uses VOICE_ZH = "zh-CN-YunjianNeural" + TTS_RATE_ZH = -8% + TTS_PITCH_ZH = -5Hz.
     generate_voiceover(text, "zh", output_path)
 
     if not os.path.exists(output_path) or os.path.getsize(output_path) < 1024:

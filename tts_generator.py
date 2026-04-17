@@ -108,6 +108,64 @@ async def _edge_tts_with_timing(text: str, voice: str, rate: str, pitch: str,
     return boundaries
 
 
+async def _edge_tts_with_word_timing(text: str, voice: str, rate: str, pitch: str,
+                                      output_path: str) -> list[dict]:
+    """Generate TTS and capture WORD-level timing for karaoke-style subtitles.
+
+    Returns list of {offset_ms, duration_ms, text} for each word/character.
+    Remotion uses this for word-by-word reveal animation.
+    """
+    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
+    words = []
+    with open(output_path, "wb") as f:
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                f.write(chunk["data"])
+            elif chunk["type"] == "WordBoundary":
+                words.append({
+                    "offset_ms": chunk["offset"] / 10_000,  # 100ns → ms
+                    "duration_ms": chunk["duration"] / 10_000,
+                    "text": chunk["text"],
+                })
+    return words
+
+
+def generate_voiceover_with_words(text: str, output_path: str,
+                                   voice: str | None = None,
+                                   rate: str | None = None,
+                                   pitch: str | None = None) -> list[dict]:
+    """Generate Chinese TTS with word-level timing. Used by Remotion adapter.
+
+    Returns list of {offset_ms, duration_ms, text} for each word.
+    """
+    import re
+    text = re.sub(r"\[(?:slow|medium|fast|climax)\]\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\*+", "", text)
+    text = re.sub(r"#{1,6}\s*", "", text)
+    text = re.sub(r"[`~]", "", text)
+    text = _fix_pronunciation(text)
+
+    voice = voice or VOICE_ZH
+    rate = rate or TTS_RATE_ZH
+    pitch = pitch or TTS_PITCH_ZH
+
+    for attempt in range(3):
+        try:
+            words = asyncio.run(
+                _edge_tts_with_word_timing(text, voice, rate, pitch, output_path)
+            )
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                print(f"  Voiceover saved (edge-tts ZH + {len(words)} words): {output_path}")
+                return words
+        except Exception as e:
+            if attempt == 2:
+                raise
+            print(f"  [WARN] TTS retry {attempt+1}: {e}")
+            import time
+            time.sleep(3)
+    return []
+
+
 def _generate_edge_tts(text: str, lang: str, output_path: str,
                        voice: str | None = None,
                        rate: str | None = None,

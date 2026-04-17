@@ -42,6 +42,10 @@ def _build_full_description(desc: str, hashtags: list, metadata: dict,
     if chapters:
         parts.append(f"\n📑 章節\n{chapters}")
 
+    # Cross-promotion: Shorts → long-form
+    if video_path and os.path.getsize(video_path) < 100_000_000:  # < 100MB → likely a Short
+        parts.append("📺 想看完整故事？訂閱頻道看我們的長影片深度調查！")
+
     # Hashtags
     if hashtags:
         parts.append(" ".join(hashtags))
@@ -178,7 +182,13 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
     # Build full YouTube description with attribution and disclosures
     full_desc = _build_full_description(description, hashtags, metadata, video_path)
 
-    status = {"privacyStatus": privacy, "selfDeclaredMadeForKids": False}
+    status = {
+        "privacyStatus": privacy,
+        "selfDeclaredMadeForKids": False,
+        # YouTube 2026 mandatory: disclose AI-generated content
+        # (TTS voiceover + AI-assisted script = synthetic media)
+        "containsSyntheticMedia": True,
+    }
     if publish_at:
         status["privacyStatus"] = "private"
         status["publishAt"] = publish_at
