@@ -11,14 +11,23 @@ jobs:
     timeout-minutes: 240
     env:
       PYTHONUNBUFFERED: "1"
+      VIDEO_ENGINE: "remotion"
+      REMOTION_PROJECT_DIR: "${{ github.workspace }}/nihongo-reels"
 
     permissions:
       contents: write        # for committing used_topics.json back to repo
 
     steps:
-      - name: Checkout repo
+      - name: Checkout AIvideo
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout Remotion project (nihongo-reels)
+        uses: actions/checkout@v4
+        with:
+          repository: Arlong6/nihongo-manabi
+          path: nihongo-reels
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
@@ -27,6 +36,13 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: Set up Node.js (for Remotion)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: nihongo-reels/package-lock.json
+
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
@@ -34,6 +50,12 @@ jobs:
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
+
+      - name: Install Remotion dependencies
+        run: |
+          cd nihongo-reels
+          npm ci
+          chmod +x scripts/render-crime.sh
 
       - name: Set up credentials
         env:
@@ -74,57 +96,11 @@ jobs:
           print("Credentials set up OK")
           PYEOF
 
-      - name: Debug credentials
-        run: |
-          python3 -c "
-          from dotenv import load_dotenv
-          import os
-          load_dotenv()
-          key = os.getenv('ANTHROPIC_API_KEY', '')
-          print(f'Anthropic key length: {len(key)}')
-          print(f'Key prefix: {key[:15]}...')
-          print('.env exists:', os.path.exists('.env'))
-          print('.env content length:', len(open('.env').read()) if os.path.exists('.env') else 0)
-          pexels = os.getenv('PEXELS_API_KEY', '')
-          print(f'Pexels key length: {len(pexels)}')
-          "
-
       - name: Shorts 1 — slot 1 (publishes at 10:00 Taiwan)
         run: python generate.py --auto --upload --slot 1
 
       - name: Shorts 2 — slot 3 (publishes at 18:00 Taiwan)
         run: python generate.py --auto --upload --slot 3
-
-      - name: Fetch analytics and send daily report
-        env:
-          YOUTUBE_TOKEN_B64: ${{ secrets.YOUTUBE_TOKEN_B64 }}
-          CLIENT_SECRETS_B64: ${{ secrets.CLIENT_SECRETS_B64 }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          python3 -c "
-          from dotenv import load_dotenv
-          load_dotenv()
-          from analytics_tracker import fetch_and_update_stats, send_daily_report
-          from youtube_uploader import _get_credentials
-          from googleapiclient.discovery import build
-          from analytics_tracker import check_copyright_issues
-          try:
-              creds = _get_credentials()
-              yt = None
-              if creds:
-                  yt = build('youtube', 'v3', credentials=creds)
-                  fetch_and_update_stats(yt)
-                  check_copyright_issues(yt)
-              send_daily_report(youtube=yt)
-          except Exception as e:
-              print(f'[WARN] Analytics step failed: {e}')
-          "
 
       - name: Commit updated topic tracking files
         run: |

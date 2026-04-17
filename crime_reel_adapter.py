@@ -28,7 +28,10 @@ from config import PEXELS_API_KEY
 from script_generator import _validate_case_shape
 from tts_generator import generate_voiceover
 
-REMOTION_PROJECT_DIR = "/Users/arlong/Projects/japanese-learner/nihongo-reels"
+REMOTION_PROJECT_DIR = os.getenv(
+    "REMOTION_PROJECT_DIR",
+    "/Users/arlong/Projects/japanese-learner/nihongo-reels",
+)
 REMOTION_SCRIPT = os.path.join(REMOTION_PROJECT_DIR, "scripts", "render-crime.sh")
 PEXELS_PHOTOS_ENDPOINT = "https://api.pexels.com/v1/search"
 
