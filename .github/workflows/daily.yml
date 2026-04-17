@@ -12,7 +12,7 @@ jobs:
     env:
       PYTHONUNBUFFERED: "1"
       VIDEO_ENGINE: "remotion"
-      REMOTION_PROJECT_DIR: "${{ github.workspace }}/nihongo-reels"
+      REMOTION_PROJECT_DIR: "${{ github.workspace }}/nihongo-reels/nihongo-reels"
 
     permissions:
       contents: write        # for committing used_topics.json back to repo
@@ -53,7 +53,7 @@ jobs:
 
       - name: Install Remotion dependencies
         run: |
-          cd nihongo-reels
+          cd nihongo-reels/nihongo-reels
           npm ci
           chmod +x scripts/render-crime.sh
 
