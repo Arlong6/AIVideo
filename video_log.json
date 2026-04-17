@@ -1193,6 +1193,24 @@
       "publish_at": "",
       "uploaded_at": "2026-04-17T08:48:16.140284+00:00",
       "stats": []
+    },
+    {
+      "video_id": "C9R4Od6UFnI",
+      "topic": "湯英伸案：1987年台灣原住民少年殺人案與死刑爭議",
+      "slot": 1,
+      "duration_s": 117,
+      "publish_at": "2026-04-18T10:00:00+08:00",
+      "uploaded_at": "2026-04-17T09:39:44.062838+00:00",
+      "stats": []
+    },
+    {
+      "video_id": "lTsDu1kllgQ",
+      "topic": "鄭捷台北捷運隨機殺人事件",
+      "slot": 3,
+      "duration_s": 134,
+      "publish_at": "2026-04-17T18:00:00+08:00",
+      "uploaded_at": "2026-04-17T09:49:29.915376+00:00",
+      "stats": []
     }
   ]
 }
