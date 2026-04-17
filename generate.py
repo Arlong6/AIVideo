@@ -219,16 +219,16 @@ def main():
                                    thumb_path=thumb_path, publish_at=publish_at)
         if youtube_url:
             pub_str = publish_dt.strftime('%Y-%m-%d %H:%M') if publish_at else ""
-            notify_upload(topic, youtube_url, args.slot or 1, pub_str)
-            # Log to analytics tracker
+            # Get duration for notification + analytics
             video_id = youtube_url.split("youtu.be/")[-1].split("?")[0]
-            from moviepy.editor import VideoFileClip as _VFC
             try:
-                _v = _VFC(final_path, audio=False)
-                _dur = _v.duration
-                _v.close()
+                from crime_reel_adapter import _probe_duration
+                _dur = _probe_duration(final_path)
             except Exception:
                 _dur = 0
+            notify_upload(topic, youtube_url, args.slot or 1, pub_str,
+                          engine=VIDEO_ENGINE, duration_s=_dur,
+                          verified=use_remotion)
             log_video(video_id, topic, args.slot or 1, _dur, publish_at or "")
     else:
         print("\n[6/6] Skipping YouTube upload (add --upload to enable)")

@@ -34,17 +34,31 @@ def _send_raw(msg: str):
         pass
 
 
-def notify_upload(topic: str, youtube_url: str, slot: int, publish_time: str = ""):
+def notify_upload(topic: str, youtube_url: str, slot: int, publish_time: str = "",
+                  engine: str = "", duration_s: float = 0, verified: bool = False):
     """Notify after successful YouTube upload."""
+    import os
     slot_label = {1: "10:00", 2: "14:00", 3: "18:00", 4: "22:00"}.get(slot, "10:00")
+    eng = engine or os.getenv("VIDEO_ENGINE", "moviepy")
+    dur_str = f"{duration_s/60:.1f}min" if duration_s else ""
+    verify_tag = "✅已驗證" if verified else ""
+    extra = " / ".join(x for x in [eng, dur_str, verify_tag] if x)
+
     if _hub:
         _hub.send(Tag.AIVIDEO, "新影片已上傳", fields={
             "題材": topic,
             "排程播出": f"{publish_time or slot_label} (台灣時間)",
             "連結": youtube_url,
+            "引擎": extra,
         })
     else:
-        _send_raw(f"🎬 [AIvideo] 新影片：{topic}\n{youtube_url}")
+        _send_raw(
+            f"🎬 [AIvideo] 新影片\n"
+            f"題材: {topic[:60]}\n"
+            f"播出: {publish_time or slot_label}\n"
+            f"引擎: {extra}\n"
+            f"{youtube_url}"
+        )
     print("  ✅ Telegram notification sent")
 
 
