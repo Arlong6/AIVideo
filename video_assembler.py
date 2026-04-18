@@ -423,6 +423,136 @@ def _insert_info_cards(cut_paths: list[str], info_cards: dict,
     return result
 
 
+SFX_DIR = os.path.join(os.path.dirname(__file__), "music_cache", "sfx")
+
+def _build_sfx_track(total_duration: float, output_dir: str) -> str | None:
+    """Build a sparse audio track with transition sound effects at section boundaries.
+
+    Uses pre-generated SFX from music_cache/sfx/. Places swoosh at each
+    section boundary (~6 transitions for an 8-section video). Returns path
+    to the mixed SFX track, or None on failure.
+    """
+    import subprocess
+
+    swoosh = os.path.join(SFX_DIR, "swoosh.mp3")
+    boom = os.path.join(SFX_DIR, "boom.mp3")
+    riser = os.path.join(SFX_DIR, "riser.mp3")
+
+    if not os.path.exists(swoosh):
+        return None
+
+    # Section boundaries as fraction of total duration
+    # 8 sections with rough proportions: hook(8%) bg(15%) crime(20%) inv(15%)
+    # twist(13%) resolution(15%) reflection(10%) cta(4%)
+    boundaries = [0.08, 0.23, 0.43, 0.58, 0.71, 0.86, 0.96]
+
+    # Build adelay filter chain: each SFX delayed to its boundary timestamp
+    sfx_track = os.path.join(output_dir, "_sfx_track.mp3")
+
+    # Map section transitions to appropriate SFX
+    sfx_map = [
+        swoosh,  # hook → background
+        swoosh,  # background → crime
+        swoosh,  # crime → investigation
+        boom,    # investigation → twist (dramatic)
+        swoosh,  # twist → resolution
+        swoosh,  # resolution → reflection
+        swoosh,  # reflection → cta
+    ]
+
+    # Use ffmpeg to place each SFX at the right time
+    inputs = []
+    delays = []
+    for i, frac in enumerate(boundaries):
+        sfx_file = sfx_map[i] if i < len(sfx_map) else swoosh
+        if not os.path.exists(sfx_file):
+            continue
+        delay_ms = int(frac * total_duration * 1000)
+        inputs.extend(["-i", sfx_file])
+        delays.append(f"[{i}:a]adelay={delay_ms}|{delay_ms},volume=0.5[s{i}]")
+
+    if not inputs:
+        return None
+
+    n = len(delays)
+    mix_inputs = "".join(f"[s{i}]" for i in range(n))
+    filter_complex = ";".join(delays) + f";{mix_inputs}amix=inputs={n}:duration=longest[out]"
+
+    try:
+        subprocess.run([
+            "ffmpeg", "-y",
+            *inputs,
+            "-filter_complex", filter_complex,
+            "-map", "[out]",
+            "-t", str(total_duration),
+            "-ac", "2", "-ar", "44100",
+            sfx_track,
+        ], capture_output=True, check=True, timeout=30)
+        print(f"  SFX track built ({n} transitions)")
+        return sfx_track
+    except Exception as e:
+        print(f"  [WARN] SFX track failed: {e}")
+        return None
+
+
+def _insert_section_titles(cut_paths: list[str], output_dir: str,
+                           fmt: str = "long") -> list[str]:
+    """Insert 1.5s section title cards at section boundaries.
+
+    Gives viewers a progress indicator and acts as visual pattern interrupt.
+    Uses SECTION_NAMES from title_dna.py for Chinese labels.
+    """
+    from title_dna import SECTION_NAMES
+    n = len(cut_paths)
+    if n < 10:
+        return cut_paths
+
+    # English labels for bilingual title cards
+    en_labels = {
+        "hook": "OPENING", "background": "BACKGROUND",
+        "crime": "THE CRIME", "investigation": "INVESTIGATION",
+        "twist": "TURNING POINT", "resolution": "VERDICT",
+        "reflection": "REFLECTION", "cta": "",
+    }
+
+    # 8 sections → approximate position in timeline
+    # Sections have rough visual_scenes counts: 6+6+8+6+6+6+4+2 = 44
+    # Insert at cumulative boundaries
+    section_sizes = [6, 6, 8, 6, 6, 6, 4, 2]
+    section_keys = ["hook", "background", "crime", "investigation",
+                    "twist", "resolution", "reflection", "cta"]
+
+    titles_dir = os.path.join(output_dir, "_section_titles")
+    os.makedirs(titles_dir, exist_ok=True)
+
+    result = list(cut_paths)
+    cum = 0
+    offset = 0
+    # Skip hook (starts the video) and cta (too short for a title card)
+    for i, (key, size) in enumerate(zip(section_keys, section_sizes)):
+        if key in ("hook", "cta"):
+            cum += size
+            continue
+
+        zh = SECTION_NAMES.get(key, key)
+        en = en_labels.get(key, "")
+        card_text = f"{zh}\n{en}" if en else zh
+
+        card_path = os.path.join(titles_dir, f"section_{key}.mp4")
+        _make_opening_card(card_text, card_path, duration=1.5, fmt=fmt)
+
+        if os.path.exists(card_path):
+            # Scale cum position to actual clip count
+            pos = int(cum / sum(section_sizes) * n) + offset
+            pos = min(pos, len(result))
+            result.insert(pos, card_path)
+            offset += 1
+
+        cum += size
+
+    return result
+
+
 def _interleave_wiki_clips(cut_paths: list[str], wiki_clips: list[str]) -> list[str]:
     """
     Insert wiki archive clips evenly throughout the video.
@@ -634,6 +764,14 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         cut_paths = _insert_info_cards(cut_paths, info_cards, output_dir, duration)
         print(f"  Inserted {len(info_cards)} info cards")
 
+    # Insert section title cards at transitions (long-form only)
+    if fmt == "long" and not direct_cut_paths:
+        pre_count = len(cut_paths)
+        cut_paths = _insert_section_titles(cut_paths, output_dir, fmt=fmt)
+        added = len(cut_paths) - pre_count
+        if added:
+            print(f"  Inserted {added} section title cards")
+
     # Concatenate cut files via ffmpeg concat demuxer (memory-efficient)
     concat_path = os.path.join(output_dir, "_concat.mp4")
     concat_list = os.path.join(output_dir, "_concat.txt")
@@ -654,6 +792,11 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         shutil.rmtree(temp_cuts_dir, ignore_errors=True)
     os.remove(concat_list)
 
+    # Generate transition SFX track (long-form only)
+    sfx_path = None
+    if fmt == "long":
+        sfx_path = _build_sfx_track(duration, output_dir)
+
     # Mix audio + combine with video using ffmpeg only (no MoviePy re-render = no OOM)
     print("  Mixing audio with ffmpeg...")
     if os.path.exists(music_path):
@@ -666,13 +809,20 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
             "-af", "volume=0.30",
             music_loop_path,
         ], capture_output=True, check=True)
-        # Mix voiceover + music, combine with video
+        # Mix voiceover + music (+ SFX if available), combine with video
+        inputs = ["-i", concat_path, "-i", voiceover_path, "-i", music_loop_path]
+        if sfx_path and os.path.exists(sfx_path):
+            inputs += ["-i", sfx_path]
+            n_audio = 3
+            mix_filter = "[1:a][2:a][3:a]amix=inputs=3:duration=first[aout]"
+        else:
+            n_audio = 2
+            mix_filter = "[1:a][2:a]amix=inputs=2:duration=first[aout]"
+
         subprocess.run([
             "ffmpeg", "-y",
-            "-i", concat_path,
-            "-i", voiceover_path,
-            "-i", music_loop_path,
-            "-filter_complex", "[1:a][2:a]amix=inputs=2:duration=first[aout]",
+            *inputs,
+            "-filter_complex", mix_filter,
             "-map", "0:v",
             "-map", "[aout]",
             "-t", str(duration),
@@ -681,6 +831,8 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
             temp_path,
         ], capture_output=True, check=True)
         os.remove(music_loop_path)
+        if sfx_path and os.path.exists(sfx_path):
+            os.remove(sfx_path)
     else:
         subprocess.run([
             "ffmpeg", "-y",

@@ -340,17 +340,22 @@ def _generate_long_scripts(topic: str) -> dict:
 - 介紹受害者的人生、家庭、性格，讓觀眾產生情感連結
 - 介紹案件發生的時代背景和地點
 - 建立「這是一個正常人」的印象，讓之後的悲劇更有衝擊力
+- ⚠️ 段落最後一句必須是 **open loop（前導懸念）**：用一句話暗示接下來會發生可怕的事，讓觀眾不敢離開。
+  範例：「但沒有人知道，這只是噩夢的開始...」「然而，那天晚上等待她的，是她想都不敢想的事。」「一切看似正常——直到那通電話響起。」
 
 【3. 案件經過（600-800字）】
 - 詳細的時間線還原：什麼時候、在哪裡、發生了什麼
 - 用短句製造緊張感
 - 加入感官細節（天氣、時間、聲音）讓觀眾身歷其境
+- 開頭第一句要是一個 **secondary hook（二次鉤子）**：獎勵看到這裡的觀眾，給他們一個新的震撼事實或反差，而不是平淡的「接下來發生了什麼」
 
 【4. 調查過程（500-700字）】
 - 警方怎麼介入的、初步發現了什麼
 - 有哪些嫌疑人、哪些線索
 - 在這裡製造「似乎快要破案了...」的期待感
-- 在段落結尾加一句互動引導：「看到這裡，你覺得兇手會是誰？」
+- 在段落中間加一句互動引導：「看到這裡，你覺得兇手會是誰？」
+- ⚠️ 段落最後一句必須是 **open loop（前導懸念）**：暗示轉折即將來臨。
+  範例：「但警方在他家發現的東西，才是這起案件真正可怕的地方...」「所有人都以為真相已經揭曉——直到那份報告出爐。」
 
 === 語言要求 ===
 - 繁體中文，台灣用語
@@ -359,15 +364,22 @@ def _generate_long_scripts(topic: str) -> dict:
 - 台灣本地人名地名用中文
 - 每個段落結尾都要有 hook 讓觀眾想繼續看
 
+=== 分鏡節奏（每段不同，製造動態感）===
+每段的 visual_scenes 必須搭配 scene_pacing 陣列。不同段落用不同預設節奏：
+  - hook: 大多 "fast"+"climax"（衝擊感）
+  - background: 大多 "slow"+"medium"（鋪陳）
+  - crime: 混合 "fast"+"medium"+"climax"（緊張推進）
+  - investigation: "medium"+"slow"（沉穩偵查）
+
 請用 JSON 格式回傳：
 {{
   "title": "影片標題（使用上方標題 DNA 公式，≤25字，絕對不超過30字）",
   "opening_card": "開場字卡（8字以內，最衝擊的一句話）",
   "sections": [
-    {{"name": "hook", "script": "案件開場全文", "visual_scenes": ["Pexels搜尋1", "搜尋2", "...共6個"]}},
-    {{"name": "background", "script": "人物背景全文", "visual_scenes": ["共6個"]}},
-    {{"name": "crime", "script": "案件經過全文", "visual_scenes": ["共8個"]}},
-    {{"name": "investigation", "script": "調查過程全文", "visual_scenes": ["共6個"]}}
+    {{"name": "hook", "script": "案件開場全文", "visual_scenes": ["Pexels搜尋1", "搜尋2", "...共6個"], "scene_pacing": ["fast","climax","fast","medium","fast","climax"]}},
+    {{"name": "background", "script": "人物背景全文", "visual_scenes": ["共6個"], "scene_pacing": ["slow","medium","slow","medium","slow","medium"]}},
+    {{"name": "crime", "script": "案件經過全文", "visual_scenes": ["共8個"], "scene_pacing": ["medium","fast","fast","climax","fast","medium","fast","climax"]}},
+    {{"name": "investigation", "script": "調查過程全文", "visual_scenes": ["共6個"], "scene_pacing": ["medium","slow","medium","slow","medium","slow"]}}
   ],
   "keywords": ["英文搜尋關鍵字1", "關鍵字2", "關鍵字3", "關鍵字4", "關鍵字5"],
   "description": "YouTube 影片描述（100字以內）",
@@ -423,10 +435,10 @@ def _generate_long_scripts(topic: str) -> dict:
 請用 JSON 格式回傳：
 {{
   "sections": [
-    {{"name": "twist", "script": "關鍵轉折全文", "visual_scenes": ["共6個"]}},
-    {{"name": "resolution", "script": "結局揭曉全文", "visual_scenes": ["共6個"]}},
-    {{"name": "reflection", "script": "案件反思全文", "visual_scenes": ["共4個"]}},
-    {{"name": "cta", "script": "結語全文", "visual_scenes": ["共2個"]}}
+    {{"name": "twist", "script": "關鍵轉折全文", "visual_scenes": ["共6個"], "scene_pacing": ["fast","fast","climax","fast","medium","climax"]}},
+    {{"name": "resolution", "script": "結局揭曉全文", "visual_scenes": ["共6個"], "scene_pacing": ["medium","slow","medium","slow","medium","slow"]}},
+    {{"name": "reflection", "script": "案件反思全文", "visual_scenes": ["共4個"], "scene_pacing": ["slow","medium","slow","medium"]}},
+    {{"name": "cta", "script": "結語全文", "visual_scenes": ["共2個"], "scene_pacing": ["slow","slow"]}}
   ],
   "ending_question": "結尾討論問題：一個具體的二選一或道德兩難問題。例：「你覺得她是含冤入獄，還是罪有應得？」",
   "pinned_comment": "置頂留言：補充一個案件冷知識或投票問題（50字以內）",
@@ -467,11 +479,20 @@ def _generate_long_scripts(topic: str) -> dict:
     for s in all_sections:
         scenes = s.get("visual_scenes", [])
         merged["visual_scenes"].extend(scenes)
-        # Auto-assign pacing based on section type
-        pacing_map = {"hook": "fast", "crime": "medium", "twist": "fast",
-                      "resolution": "medium", "cta": "slow"}
-        default_pace = pacing_map.get(s["name"], "medium")
-        merged["scene_pacing"].extend([default_pace] * len(scenes))
+        # Use per-section scene_pacing if Claude provided it; fallback to
+        # section-type defaults for backward compatibility.
+        section_pacing = s.get("scene_pacing", [])
+        if len(section_pacing) >= len(scenes):
+            merged["scene_pacing"].extend(section_pacing[:len(scenes)])
+        else:
+            pacing_defaults = {
+                "hook": "fast", "background": "slow",
+                "crime": "fast", "investigation": "medium",
+                "twist": "fast", "resolution": "medium",
+                "reflection": "slow", "cta": "slow",
+            }
+            default_pace = pacing_defaults.get(s["name"], "medium")
+            merged["scene_pacing"].extend([default_pace] * len(scenes))
 
     total_chars = len(merged["script"])
     print(f"  Long-form script: {total_chars} chars, {len(all_sections)} sections, "
