@@ -23,6 +23,19 @@ from config import ANTHROPIC_API_KEY
 USED_TOPICS_FILE = "used_topics.json"
 TOPICS_FILE = "topics.json"
 
+# Permanently blocked topics — confirmed fabricated by fact-check (2026-04-15).
+# These sound plausible but DO NOT correspond to any real documented case.
+# LLMs will re-suggest them if not explicitly blocked.
+FABRICATED_BLOCKLIST = {
+    "台灣鐵路便當毒殺案",
+    "東海花園命案",
+    "嘉義女教師姦殺案",
+    "桃園蘆竹女老師命案",
+    "彰化葉姓男子活埋案",
+    "台北無差別攻擊案 (2023)",
+    "師大附中教師命案",
+}
+
 # Google News RSS — prioritize Taiwan/Asia crime news
 NEWS_RSS_URLS = [
     "https://news.google.com/rss/search?q=台灣+犯罪+殺人+案件&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
@@ -308,13 +321,20 @@ def pick_topic(refresh_news: bool = True) -> str:
                 print(f"  Claude suggested from news: {suggestions}")
                 add_topics_to_bank(suggestions)
 
-    # If news didn't yield results, ask Claude directly
-    if not suggestions:
-        print("  No news topics — asking Claude for archive suggestions...")
-        suggestions = suggest_topics_from_archive(used_topics, count=5)
+    # If news didn't yield results, ask Claude to suggest topics DERIVED FROM
+    # real news — NOT invented from scratch. The archive path was the #1 source
+    # of fabricated case names (台灣鐵路便當毒殺案, 嘉義女教師姦殺案, etc.)
+    if not suggestions and headlines:
+        print("  No direct news topics — asking Claude to derive from headlines...")
+        suggestions = suggest_topics_from_news(headlines, used_topics, count=8)
         if suggestions:
-            print(f"  Claude suggested from archive: {suggestions}")
+            print(f"  Claude derived from news: {suggestions}")
             add_topics_to_bank(suggestions)
+
+    # REMOVED: suggest_topics_from_archive() — LLM invents fake case names
+    # when asked to generate topics without news context. This was the root
+    # cause of 5+ fabricated videos being uploaded. If no news-derived topics
+    # are available, we fall back to the curated topic bank only.
 
     # Pick from suggestions first, fall back to topic bank
     topic_bank = _load_topic_bank()
@@ -348,10 +368,15 @@ def pick_topic(refresh_news: bool = True) -> str:
     candidates = tw_candidates + other_candidates
 
     for candidate in candidates:
+        # Layer 1: Blocklist — known fabricated topics
+        core = re.split(r"[：:｜|（(]", candidate)[0].strip()
+        if any(blocked in candidate or blocked in core
+               for blocked in FABRICATED_BLOCKLIST):
+            print(f"  [BLOCK] Known fabricated: {candidate}")
+            continue
+
         if not _is_too_similar(candidate, used_topics):
-            # Verify topic is a real case via web search before committing.
-            # LLMs fabricate plausible-sounding case names (e.g. 嘉義女教師姦殺案,
-            # 東海花園命案). If Google returns zero relevant results → skip it.
+            # Layer 2: Web verification — Wikipedia + Google News
             if not _verify_topic_exists(candidate):
                 print(f"  [SKIP] Topic failed verification: {candidate}")
                 used_topics.add(candidate)  # don't retry this one
@@ -382,24 +407,33 @@ def _verify_topic_exists(topic: str) -> bool:
 
     print(f"  [verify] Checking: {core[:40]}...")
 
-    # Primary: Wikipedia (curated, fabricated cases won't have pages)
+    # Primary: Wikipedia — require the top result to be a DEDICATED PAGE
+    # for this case (title must share ≥4 Chinese chars or key case name).
+    # Simple keyword overlap (≥2 chars) was too loose — "台灣鐵路便當毒殺案"
+    # matched unrelated pages containing "台灣" + "鐵路".
     wiki_hit = False
     try:
         resp = requests.get(
             "https://zh.wikipedia.org/w/api.php",
             params={"action": "query", "list": "search", "srsearch": core,
-                    "srlimit": 3, "format": "json"},
+                    "srlimit": 5, "format": "json"},
             timeout=10,
         )
         if resp.status_code == 200:
             hits = resp.json().get("query", {}).get("search", [])
-            if hits:
-                # Check the top result title shares ≥2 Chinese chars with our query
-                top_title = hits[0].get("title", "")
-                shared = sum(1 for c in core if c in top_title and len(c.encode()) > 1)
-                if shared >= 2:
-                    print(f"  [verify] ✓ Wikipedia: {top_title[:30]} (shared={shared})")
+            for hit in hits[:3]:
+                title = hit.get("title", "")
+                # Require ≥4 shared Chinese characters between our query
+                # and the Wikipedia page title — this ensures the page is
+                # actually ABOUT this case, not just a tangential mention.
+                shared = sum(1 for c in core if c in title and len(c.encode()) > 1)
+                if shared >= 4:
+                    print(f"  [verify] ✓ Wikipedia: {title[:40]} (shared={shared})")
                     wiki_hit = True
+                    break
+            if not wiki_hit and hits:
+                print(f"  [verify] ~ Wikipedia: top result '{hits[0].get('title','')[:30]}' "
+                      f"insufficient overlap with '{core[:20]}'")
     except Exception as e:
         print(f"  [verify] Wikipedia failed: {e}")
 
@@ -412,8 +446,8 @@ def _verify_topic_exists(topic: str) -> bool:
     # This handles cases where the exact phrase is rare but individual
     # keywords are common enough to confirm the case exists.
     for query_fmt, threshold, label in [
-        (f'"{core}"', 1, "exact"),
-        (core, 10, "loose"),
+        (f'"{core}"', 3, "exact"),   # ≥3 exact matches (1 is noise)
+        (core, 15, "loose"),          # ≥15 loose matches (keywords overlap)
     ]:
         try:
             resp = requests.get(
