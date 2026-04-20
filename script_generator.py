@@ -601,10 +601,15 @@ def _call_gemini(prompt: str) -> dict:
     for model in gemini_models:
         for attempt in range(2):
             try:
+                # Bug #4 fix: Gemini has no built-in request timeout.
+                # Use config.http_options or wrap with signal alarm.
                 response = _gemini_client.models.generate_content(
                     model=model,
                     contents=prompt,
-                    config={"response_mime_type": "application/json"},
+                    config={
+                        "response_mime_type": "application/json",
+                        "http_options": {"timeout": 120_000},  # 120s max
+                    },
                 )
                 content = response.text
                 start = content.find("{")

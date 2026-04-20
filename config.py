@@ -15,8 +15,8 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 VOICE_ZH = "zh-CN-YunjianNeural"
 VOICE_EN = "en-US-GuyNeural"
 
-# Video settings — Shorts
-VIDEO_DURATION_SECONDS = 180  # 3-minute video
+# Video duration is measured from actual voiceover, not hardcoded.
+# (VIDEO_DURATION_SECONDS was removed — it was dead code, never imported.)
 
 # Video settings — Long-form
 LONG_TARGET_DURATION = 1200  # ~20 min target

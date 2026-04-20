@@ -62,18 +62,29 @@ def _save_seen_ids(seen: set):
 
 
 def _search_pexels(query: str, page: int, headers: dict) -> list:
-    """Search Pexels and return list of video objects."""
-    try:
-        resp = requests.get(
-            "https://api.pexels.com/videos/search",
-            headers=headers,
-            params={"query": query, "per_page": 8, "page": page, "orientation": "portrait"},
-            timeout=15,
-        )
-        if resp.status_code == 200:
-            return resp.json().get("videos", [])
-    except Exception as e:
-        print(f"    [WARN] Request failed: {e}")
+    """Search Pexels with retry/backoff. Returns list of video objects."""
+    import time as _time
+    for attempt in range(3):
+        try:
+            resp = requests.get(
+                "https://api.pexels.com/videos/search",
+                headers=headers,
+                params={"query": query, "per_page": 8, "page": page, "orientation": "portrait"},
+                timeout=15,
+            )
+            if resp.status_code == 200:
+                return resp.json().get("videos", [])
+            if resp.status_code == 429:
+                wait = 30 * (attempt + 1)
+                print(f"    [WARN] Pexels rate limited, waiting {wait}s...")
+                _time.sleep(wait)
+                continue
+        except Exception as e:
+            if attempt < 2:
+                print(f"    [WARN] Pexels request failed (retry {attempt+1}): {e}")
+                _time.sleep(5 * (attempt + 1))
+            else:
+                print(f"    [WARN] Pexels request failed after 3 retries: {e}")
     return []
 
 
