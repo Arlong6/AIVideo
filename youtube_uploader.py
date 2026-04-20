@@ -42,6 +42,13 @@ def _build_full_description(desc: str, hashtags: list, metadata: dict,
     if chapters:
         parts.append(f"\n📑 章節\n{chapters}")
 
+    # Sources / references
+    sources = metadata.get("sources", [])
+    if sources:
+        source_lines = "\n".join(f"• {s}" for s in sources if s and len(s) > 3)
+        if source_lines:
+            parts.append(f"📚 參考資料\n{source_lines}")
+
     # Cross-promotion: Shorts → long-form
     if video_path and os.path.getsize(video_path) < 100_000_000:  # < 100MB → likely a Short
         parts.append("📺 想看完整故事？訂閱頻道看我們的長影片深度調查！")
