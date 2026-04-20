@@ -69,7 +69,23 @@ jobs:
           "
 
       - name: Fetch analytics and send daily report
-        run: python -c "from analytics_tracker import fetch_and_update_stats, send_daily_report; fetch_and_update_stats(None); send_daily_report()"
+        run: |
+          python3 -c "
+          from dotenv import load_dotenv
+          load_dotenv()
+          from youtube_uploader import _get_credentials
+          from googleapiclient.discovery import build
+          from analytics_tracker import fetch_and_update_stats, send_daily_report, check_copyright_issues
+          try:
+              creds = _get_credentials()
+              yt = build('youtube', 'v3', credentials=creds) if creds else None
+              if yt:
+                  fetch_and_update_stats(yt)
+                  check_copyright_issues(yt)
+              send_daily_report(youtube=yt)
+          except Exception as e:
+              print(f'[WARN] Analytics step failed: {e}')
+          "
         continue-on-error: true
 
       - name: Commit updated data files
