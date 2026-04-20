@@ -405,6 +405,8 @@ def _verify_topic_exists(topic: str) -> bool:
     if len(core) < 3:
         return True  # Too short to verify meaningfully
 
+    # Quick bypass: if topic string itself contains a Wikipedia-verifiable
+    # source citation (from the sources field), use that as strong signal.
     print(f"  [verify] Checking: {core[:40]}...")
 
     # Primary: Wikipedia — require the top result to be a DEDICATED PAGE

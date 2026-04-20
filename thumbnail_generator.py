@@ -209,24 +209,121 @@ def _draw_title(img: Image.Image, title: str, fmt: str = "short",
     return img
 
 
+AI_STYLE_ANCHOR = (
+    "cinematic true crime documentary, dark teal and amber color grade, "
+    "film noir chiaroscuro lighting, shallow depth of field, "
+    "35mm film grain, muted colors, no text, no watermark, no face"
+)
+
+
+def _generate_ai_background(title: str, visual_hint: str = "",
+                             fmt: str = "long") -> Image.Image | None:
+    """Generate a 1280×720 AI background via Pollinations (free) → Imagen (backup).
+
+    Only called for long-form. Shorts stay on PIL.
+    Returns PIL Image or None on failure.
+    """
+    if fmt != "long":
+        return None
+
+    import requests
+    from urllib.parse import quote
+
+    # Build prompt: style anchor + case-specific hint
+    hint = visual_hint.strip() if visual_hint else title[:30]
+    prompt = f"{hint}, {AI_STYLE_ANCHOR}"
+
+    # --- Pollinations.ai (free, primary) ---
+    try:
+        encoded = quote(prompt)
+        url = (f"https://image.pollinations.ai/prompt/{encoded}"
+               f"?width={THUMB_W}&height={THUMB_H}&model=flux&nologo=true")
+        print(f"  [thumb] Pollinations: generating AI background...")
+        resp = requests.get(url, timeout=90)
+        if resp.status_code == 200 and len(resp.content) > 10000:
+            from io import BytesIO
+            img = Image.open(BytesIO(resp.content)).convert("RGB")
+            img = img.resize((THUMB_W, THUMB_H), Image.LANCZOS)
+            print(f"  [thumb] ✓ Pollinations AI background ({len(resp.content)//1024} KB)")
+            return img
+        print(f"  [thumb] Pollinations returned {resp.status_code}, {len(resp.content)} bytes")
+    except Exception as e:
+        print(f"  [thumb] Pollinations failed: {e}")
+
+    # --- Imagen backup (uses 1 quota slot — only if Pollinations fails) ---
+    try:
+        from config import GEMINI_API_KEY
+        if GEMINI_API_KEY:
+            from google import genai
+            client = genai.Client(api_key=GEMINI_API_KEY)
+            print(f"  [thumb] Imagen backup: generating...")
+            result = client.models.generate_images(
+                model="imagen-4.0-fast-generate-001",
+                prompt=prompt,
+                config={"number_of_images": 1, "aspect_ratio": "16:9"},
+            )
+            if result.generated_images:
+                img_bytes = result.generated_images[0].image.image_bytes
+                from io import BytesIO
+                img = Image.open(BytesIO(img_bytes)).convert("RGB")
+                img = img.resize((THUMB_W, THUMB_H), Image.LANCZOS)
+                print(f"  [thumb] ✓ Imagen AI background")
+                return img
+    except Exception as e:
+        print(f"  [thumb] Imagen backup failed: {e}")
+
+    print(f"  [thumb] All AI providers failed, falling back to PIL")
+    return None
+
+
 def generate_thumbnail(title: str, output_path: str, fmt: str = "short",
-                       duration_hint: str = "") -> str:
+                       duration_hint: str = "",
+                       visual_hint: str = "") -> str:
     """
     Generate a dark cinematic YouTube thumbnail.
-    fmt='short' shows Shorts badge, fmt='long' shows duration badge.
+
+    fmt='short': pure PIL (unchanged — Shorts use Remotion's own style).
+    fmt='long': AI-generated background (Pollinations/Imagen) + PIL text overlay.
+                Falls back to PIL if AI fails.
+
+    visual_hint: case-specific scene description from script_generator
+                 (e.g. "模糊老婦人背影 + 紅色電話聽筒特寫").
+
     Returns path to saved 1280×720 JPEG.
     """
     seed = hash(title) & 0xFFFFFFFF
-    img = _make_dark_background()
-    img = _add_city_lights(img, seed)
-    img = _add_fog(img)
-    img = _add_vignette(img)
-    img = _draw_title(img, title, fmt=fmt, duration_hint=duration_hint)
-    img = _add_blood_splatter(img, seed + 1)
 
-    # Final slight blur on background (keeps text sharp, bg cinematic)
+    # Long-form: try AI background
+    ai_bg = _generate_ai_background(title, visual_hint, fmt) if fmt == "long" else None
+
+    if ai_bg:
+        # AI background: just add vignette + title (skip PIL atmosphere effects)
+        img = _add_vignette(ai_bg)
+        img = _draw_title(img, title, fmt=fmt, duration_hint=duration_hint)
+    else:
+        # PIL fallback (also the only path for Shorts)
+        img = _make_dark_background()
+        img = _add_city_lights(img, seed)
+        img = _add_fog(img)
+        img = _add_vignette(img)
+        img = _draw_title(img, title, fmt=fmt, duration_hint=duration_hint)
+        img = _add_blood_splatter(img, seed + 1)
+
     img.save(output_path, "JPEG", quality=95)
     print(f"  Thumbnail saved: {os.path.basename(output_path)}")
+
+    # Long-form: also save PIL version for A/B comparison
+    if fmt == "long" and ai_bg:
+        pil_path = output_path.replace(".jpg", "_pil.jpg")
+        pil_img = _make_dark_background()
+        pil_img = _add_city_lights(pil_img, seed)
+        pil_img = _add_fog(pil_img)
+        pil_img = _add_vignette(pil_img)
+        pil_img = _draw_title(pil_img, title, fmt=fmt, duration_hint=duration_hint)
+        pil_img = _add_blood_splatter(pil_img, seed + 1)
+        pil_img.save(pil_path, "JPEG", quality=95)
+        print(f"  Thumbnail saved (PIL backup): {os.path.basename(pil_path)}")
+
     return output_path
 
 

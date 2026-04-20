@@ -119,7 +119,8 @@ def _run_pipeline(topic, output_dir, upload, slot):
     dur_min = int(audio_results["duration"] / 60)
     dur_sec = int(audio_results["duration"] % 60)
     generate_thumbnail(script_data.get("title", topic), thumb_path,
-                       fmt="long", duration_hint=f"{dur_min}:{dur_sec:02d}")
+                       fmt="long", duration_hint=f"{dur_min}:{dur_sec:02d}",
+                       visual_hint=script_data.get("thumbnail_visual_hint", ""))
 
     # Convert maps to video clips and add to wiki_clips
     map_clips = []
