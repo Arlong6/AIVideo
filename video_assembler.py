@@ -38,6 +38,101 @@ PACING_DURATIONS_LONG = {
 }
 
 
+SFX_DIR = os.path.join("music_cache", "sfx")
+
+
+def _make_location_badge(location: str, date: str, output_path: str,
+                         tw: int = 1920, th: int = 1080):
+    """Generate a transparent PNG overlay with 📍location + 📅date badge.
+    Positioned bottom-left with semi-transparent dark background pill."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    img = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    font_size = 28
+    font = None
+    for fp in ["/System/Library/Fonts/STHeiti Medium.ttc",
+               "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+               "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"]:
+        if os.path.exists(fp):
+            font = ImageFont.truetype(fp, font_size)
+            break
+    if font is None:
+        font = ImageFont.load_default()
+
+    line1 = f"📍 {location}" if location else ""
+    line2 = f"📅 {date}" if date else ""
+    lines = [l for l in (line1, line2) if l]
+    if not lines:
+        return None
+
+    # Measure text
+    line_bboxes = [draw.textbbox((0, 0), l, font=font) for l in lines]
+    max_w = max(bb[2] - bb[0] for bb in line_bboxes)
+    line_h = line_bboxes[0][3] - line_bboxes[0][1]
+    total_h = line_h * len(lines) + 8 * (len(lines) - 1)
+
+    # Badge position: bottom-left with padding
+    pad_x, pad_y = 20, 12
+    badge_x = 60
+    badge_y = th - total_h - pad_y * 2 - 80
+
+    # Draw pill background
+    draw.rounded_rectangle(
+        [badge_x, badge_y, badge_x + max_w + pad_x * 2, badge_y + total_h + pad_y * 2],
+        radius=12, fill=(0, 0, 0, 160))
+
+    # Draw text
+    y = badge_y + pad_y
+    for l in lines:
+        draw.text((badge_x + pad_x, y), l, font=font, fill=(255, 255, 255, 230))
+        y += line_h + 8
+
+    img.save(output_path, "PNG")
+    return output_path
+
+
+def _burn_location_badge(video_path: str, location: str, date: str,
+                         output_dir: str, display_seconds: float = 5.0) -> bool:
+    """Overlay location badge on first N seconds of video, with fade in/out."""
+    import subprocess
+
+    badge_path = os.path.join(output_dir, "_location_badge.png")
+    if not _make_location_badge(location, date, badge_path):
+        return False
+
+    # Overlay badge for first display_seconds with fade in (0.5s) and fade out (0.8s)
+    fade_out_start = display_seconds - 0.8
+    overlay_filter = (
+        f"[1:v]format=rgba,"
+        f"fade=t=in:st=0:d=0.5:alpha=1,"
+        f"fade=t=out:st={fade_out_start:.1f}:d=0.8:alpha=1[badge];"
+        f"[0:v][badge]overlay=0:0:enable='lt(t,{display_seconds})'"
+    )
+
+    out_path = video_path + "_badge.mp4"
+    try:
+        r = subprocess.run([
+            "ffmpeg", "-y", "-i", video_path, "-i", badge_path,
+            "-filter_complex", overlay_filter,
+            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-c:a", "copy", "-pix_fmt", "yuv420p",
+            out_path,
+        ], capture_output=True, timeout=600)
+        if r.returncode == 0:
+            os.replace(out_path, video_path)
+            os.remove(badge_path)
+            return True
+        else:
+            if os.path.exists(out_path):
+                os.remove(out_path)
+            return False
+    except Exception as e:
+        print(f"  [WARN] Location badge failed: {e}")
+        return False
+
+
 def _crop_to_target(clip, tw, th):
     """Crop and resize clip to target dimensions (any aspect ratio)."""
     w, h = clip.size
@@ -368,19 +463,51 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
     return temp_paths
 
 
+_KB_CALL_COUNT = 0  # module-level counter for round-robin Ken Burns variety
+
+
 def _image_to_video(image_path: str, video_path: str, duration: float = 4.0):
-    """Convert a static image to a video clip with slight zoom effect."""
+    """Convert a static image to a video clip with Ken Burns animation.
+    Cycles through 6 motion styles so consecutive images look dynamic."""
     import subprocess
+    global _KB_CALL_COUNT
+
     tw, th = TARGET_W_LONG, TARGET_H_LONG
-    # Slight zoom in effect (1.0 → 1.05 over duration)
-    vf = f"scale={tw}:{th},zoompan=z='min(zoom+0.0008,1.05)':d={int(duration*25)}:s={tw}x{th}:fps=25"
+    frames = int(duration * 25)
+
+    # 6 Ken Burns variations — cycle round-robin for visual variety
+    style = _KB_CALL_COUNT % 6
+    _KB_CALL_COUNT += 1
+
+    # All zoompan filters work on a canvas 20% larger than output, then crop
+    # to allow pan room.  s= is the output size.
+    if style == 0:
+        # Slow zoom in (classic)
+        zp = f"z='min(zoom+0.0008,1.05)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+    elif style == 1:
+        # Slow zoom out
+        zp = f"z='if(eq(on,1),1.05,max(zoom-0.0008,1.0))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+    elif style == 2:
+        # Pan left to right
+        zp = f"z='1.05':x='(iw-iw/zoom)*on/{frames}':y='ih/2-(ih/zoom/2)'"
+    elif style == 3:
+        # Pan right to left
+        zp = f"z='1.05':x='(iw-iw/zoom)*(1-on/{frames})':y='ih/2-(ih/zoom/2)'"
+    elif style == 4:
+        # Pan top to bottom
+        zp = f"z='1.05':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*on/{frames}'"
+    else:
+        # Zoom in + slight drift right
+        zp = f"z='min(zoom+0.001,1.08)':x='iw/2-(iw/zoom/2)+on*0.15':y='ih/2-(ih/zoom/2)'"
+
+    vf = f"scale={tw*2}:{th*2},zoompan={zp}:d={frames}:s={tw}x{th}:fps=25"
     subprocess.run([
         "ffmpeg", "-y", "-loop", "1", "-i", image_path,
         "-vf", vf,
         "-t", str(duration), "-r", "25",
         "-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p",
         video_path,
-    ], capture_output=True, timeout=30)
+    ], capture_output=True, timeout=60)
 
 
 def _insert_info_cards(cut_paths: list[str], info_cards: dict,
@@ -772,6 +899,37 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         if added:
             print(f"  Inserted {added} section title cards")
 
+    # Add fade-in/out to each clip for smooth transitions (long-form only)
+    import subprocess
+    if fmt == "long" and len(cut_paths) > 1:
+        FADE_DUR = 0.4
+        print(f"  Adding {FADE_DUR}s fade transitions to {len(cut_paths)} clips...")
+        for i, cp in enumerate(cut_paths):
+            # Probe clip duration
+            probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=nw=1:nk=1", cp],
+                capture_output=True, text=True)
+            try:
+                clip_dur = float(probe.stdout.strip())
+            except (ValueError, AttributeError):
+                continue
+            if clip_dur < FADE_DUR * 3:
+                continue  # too short for fades
+
+            fade_out_start = max(0, clip_dur - FADE_DUR)
+            faded = cp + "_faded.mp4"
+            vf = f"fade=t=in:st=0:d={FADE_DUR},fade=t=out:st={fade_out_start:.3f}:d={FADE_DUR}"
+            r = subprocess.run([
+                "ffmpeg", "-y", "-i", cp, "-vf", vf,
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-c:a", "copy", "-pix_fmt", "yuv420p", faded,
+            ], capture_output=True, timeout=30)
+            if r.returncode == 0:
+                os.replace(faded, cp)
+            elif os.path.exists(faded):
+                os.remove(faded)
+
     # Concatenate cut files via ffmpeg concat demuxer (memory-efficient)
     concat_path = os.path.join(output_dir, "_concat.mp4")
     concat_list = os.path.join(output_dir, "_concat.txt")
@@ -780,7 +938,6 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
             f.write(f"file '{os.path.abspath(p)}'\n")
 
     print(f"  Concatenating {len(cut_paths)} cuts via ffmpeg...")
-    import subprocess
     subprocess.run([
         "ffmpeg", "-y", "-f", "concat", "-safe", "0",
         "-i", concat_list, "-c", "copy", concat_path
@@ -885,6 +1042,23 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
             if os.path.exists(subtitle_out) and subtitle_out != final_path:
                 os.remove(subtitle_out)
 
+    # Burn location/date badge into first 5s (long-form crime only)
+    if fmt == "long" and not skip_cinematic and os.path.exists(meta_path):
+        try:
+            import json as _json
+            meta = _json.load(open(meta_path, encoding="utf-8"))
+            zh_meta = meta if "title" in meta else meta.get("zh", {})
+            loc = zh_meta.get("location", "")
+            date_str = zh_meta.get("date", "")
+            if loc or date_str:
+                print(f"  Adding location badge: {loc} / {date_str}")
+                if _burn_location_badge(final_path, loc, date_str, output_dir):
+                    print("  Location badge applied ✅")
+                else:
+                    print("  [WARN] Location badge failed, continuing without")
+        except Exception as e:
+            print(f"  [WARN] Location badge error: {e}")
+
     size_mb = os.path.getsize(final_path) / 1024 / 1024
     print(f"  ✅ Video ready: final_{lang}.mp4 ({size_mb:.1f} MB, {duration:.0f}s)")
     return final_path
@@ -892,23 +1066,36 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
 
 def _apply_cinematic_effects(input_path: str, output_path: str) -> bool:
     """
-    Post-process final video with:
-    - Film grain (noise)
-    - Vignette (darken edges)
-    - Slight color grade (darker shadows, cooler tone)
-    - Red accent bars top/bottom
-    - REC indicator (top-left, like CCTV)
+    Post-process final video with cinematic documentary look:
+    - Teal-amber color shift (true crime standard)
+    - Vignette (darken edges, focus center)
+    - Subtle film grain
+    - Lifted blacks (milky shadow detail, not crushed)
+    - Slight contrast boost
     """
     import subprocess
 
-    # Filter chain (no drawtext — not available in all ffmpeg builds)
+    # Teal-amber grade via curves: push shadows teal, highlights warm amber
+    # curves filter: r/g/b channels with control points
+    # Red: shadows pulled down (teal), highlights slightly pushed (amber)
+    # Green: mostly neutral, slight lift in mids
+    # Blue: shadows pushed up (teal), highlights pulled (amber warmth)
+    curves = (
+        "curves="
+        "r='0/0 0.15/0.10 0.5/0.48 0.85/0.88 1/1':"
+        "g='0/0 0.15/0.13 0.5/0.50 0.85/0.85 1/1':"
+        "b='0/0 0.15/0.20 0.5/0.52 0.85/0.80 1/1'"
+    )
+
     vf = ",".join([
-        # Grain
-        "noise=alls=10:allf=t+u",
-        # Vignette
-        "vignette=PI/5",
-        # Color grade: slightly darker, desaturated (documentary feel)
-        "eq=brightness=-0.03:saturation=0.85:contrast=1.05",
+        # Teal-amber color grade
+        curves,
+        # Lift blacks slightly (milky shadows, not crushed)
+        "eq=brightness=0.02:saturation=0.88:contrast=1.08:gamma=1.05",
+        # Vignette (documentary focus)
+        "vignette=PI/4.5",
+        # Subtle grain (less than CCTV — documentary, not surveillance)
+        "noise=alls=6:allf=t+u",
     ])
 
     try:
@@ -916,10 +1103,10 @@ def _apply_cinematic_effects(input_path: str, output_path: str) -> bool:
             "ffmpeg", "-y", "-i", input_path,
             "-vf", vf,
             "-c:a", "copy",
-            "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "22",
             "-pix_fmt", "yuv420p", "-movflags", "+faststart",
             output_path,
-        ], capture_output=True, timeout=1200)
+        ], capture_output=True, timeout=1800)
         if result.returncode == 0:
             print("  Cinematic effects applied ✅")
             return True

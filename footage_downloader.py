@@ -61,7 +61,8 @@ def _save_seen_ids(seen: set):
         json.dump(sorted(seen), f)
 
 
-def _search_pexels(query: str, page: int, headers: dict) -> list:
+def _search_pexels(query: str, page: int, headers: dict,
+                    orientation: str = "portrait") -> list:
     """Search Pexels with retry/backoff. Returns list of video objects."""
     import time as _time
     for attempt in range(3):
@@ -69,7 +70,8 @@ def _search_pexels(query: str, page: int, headers: dict) -> list:
             resp = requests.get(
                 "https://api.pexels.com/videos/search",
                 headers=headers,
-                params={"query": query, "per_page": 8, "page": page, "orientation": "portrait"},
+                params={"query": query, "per_page": 8, "page": page,
+                        "orientation": orientation},
                 timeout=15,
             )
             if resp.status_code == 200:
@@ -123,6 +125,7 @@ def download_footage(visual_scenes: list, output_dir: str, fmt: str = "short"):
     os.makedirs(clips_dir, exist_ok=True)
 
     clips_per = CLIPS_PER_SCENE_LONG if fmt == "long" else CLIPS_PER_SCENE
+    orientation = "landscape" if fmt == "long" else "portrait"
     headers = {"Authorization": PEXELS_API_KEY}
     seen_ids = _load_seen_ids()
     total_downloaded = 0
@@ -139,7 +142,7 @@ def download_footage(visual_scenes: list, output_dir: str, fmt: str = "short"):
         for page in (1, 2, 3):
             if clips_saved >= clips_per:
                 break
-            videos = _search_pexels(query, page, headers)
+            videos = _search_pexels(query, page, headers, orientation)
             for video in videos:
                 if clips_saved >= clips_per:
                     break
@@ -164,7 +167,7 @@ def download_footage(visual_scenes: list, output_dir: str, fmt: str = "short"):
             fb_query = FALLBACK_QUERIES[fallback_idx % len(FALLBACK_QUERIES)]
             fallback_idx += 1
             print(f"    [FALLBACK] '{fb_query}'")
-            videos = _search_pexels(fb_query, 1, headers)
+            videos = _search_pexels(fb_query, 1, headers, orientation)
             for video in videos:
                 if clips_saved >= clips_per:
                     break

@@ -185,14 +185,26 @@ def _run_pipeline(topic, output_dir, upload, slot):
         upload_meta["description"] = script_data.get("description", "")
         upload_meta["chapters_text"] = audio_results.get("chapters_text", "")
 
+        # Schedule publish: slot 2 = 14:00 Taiwan
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+        TW = ZoneInfo("Asia/Taipei")
+        now_tw = datetime.now(TW)
+        slot_hour = {1: 10, 2: 14, 3: 18, 4: 22}.get(slot, 14)
+        publish_dt = now_tw.replace(hour=slot_hour, minute=0, second=0, microsecond=0)
+        if publish_dt <= now_tw:
+            publish_dt += timedelta(days=1)
+        publish_at = publish_dt.isoformat()
+
         youtube_url = upload_video(
             final_path, upload_meta, privacy="private",
-            thumb_path=thumb_path, publish_at=None)
+            thumb_path=thumb_path, publish_at=publish_at)
 
         if youtube_url:
-            notify_upload(topic, youtube_url, slot, "")
+            pub_str = publish_dt.strftime('%Y-%m-%d %H:%M')
+            notify_upload(topic, youtube_url, slot, pub_str)
             video_id = youtube_url.split("youtu.be/")[-1].split("?")[0]
-            log_video(video_id, topic, slot, audio_results["duration"], "")
+            log_video(video_id, topic, slot, audio_results["duration"], publish_at)
 
     # ── Summary ───────────────────────────────────────────────────
     print(f"\n{'=' * 60}")
