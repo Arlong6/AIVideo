@@ -1311,8 +1311,8 @@
         },
         {
           "date": "2026-04-21",
-          "views": 62,
-          "likes": 0,
+          "views": 87,
+          "likes": 1,
           "comments": 0
         }
       ]
@@ -1333,7 +1333,7 @@
         },
         {
           "date": "2026-04-21",
-          "views": 0,
+          "views": 50,
           "likes": 0,
           "comments": 0
         }
@@ -1346,6 +1346,38 @@
       "duration_s": 839,
       "publish_at": "",
       "uploaded_at": "2026-04-21T08:50:12.109797+00:00",
+      "stats": [
+        {
+          "date": "2026-04-21",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "yzNtfEOc2fE",
+      "topic": "泰國芭提雅謀殺案：外國遊客失蹤背後的黑色旅遊業",
+      "slot": 1,
+      "duration_s": 78,
+      "publish_at": "2026-04-22T10:00:00+08:00",
+      "uploaded_at": "2026-04-21T19:27:53.440896+00:00",
+      "stats": [
+        {
+          "date": "2026-04-21",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "PnHXKMACc84",
+      "topic": "Golden State Killer：隱藏40年的強姦殺手最終被DNA鎖定逮捕",
+      "slot": 3,
+      "duration_s": 78,
+      "publish_at": "2026-04-22T18:00:00+08:00",
+      "uploaded_at": "2026-04-21T19:34:29.724954+00:00",
       "stats": [
         {
           "date": "2026-04-21",
