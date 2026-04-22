@@ -409,52 +409,72 @@ def _verify_topic_exists(topic: str) -> bool:
     # source citation (from the sources field), use that as strong signal.
     print(f"  [verify] Checking: {core[:40]}...")
 
+    # Extract English portion (for mixed zh+en topics like "John Wayne Gacy小丑殺手")
+    en_part = " ".join(re.findall(r"[A-Za-z][A-Za-z\s.'-]+", core)).strip()
+
     # Primary: Wikipedia — require the top result to be a DEDICATED PAGE
     # for this case (title must share ≥4 Chinese chars or key case name).
-    # Simple keyword overlap (≥2 chars) was too loose — "台灣鐵路便當毒殺案"
-    # matched unrelated pages containing "台灣" + "鐵路".
     wiki_hit = False
-    try:
-        resp = requests.get(
-            "https://zh.wikipedia.org/w/api.php",
-            params={"action": "query", "list": "search", "srsearch": core,
-                    "srlimit": 5, "format": "json"},
-            timeout=10,
-        )
-        if resp.status_code == 200:
-            hits = resp.json().get("query", {}).get("search", [])
-            for hit in hits[:3]:
-                title = hit.get("title", "")
-                # Require ≥4 shared Chinese characters between our query
-                # and the Wikipedia page title — this ensures the page is
-                # actually ABOUT this case, not just a tangential mention.
-                shared = sum(1 for c in core if c in title and len(c.encode()) > 1)
-                if shared >= 4:
-                    print(f"  [verify] ✓ Wikipedia: {title[:40]} (shared={shared})")
-                    wiki_hit = True
-                    break
-            if not wiki_hit and hits:
-                print(f"  [verify] ~ Wikipedia: top result '{hits[0].get('title','')[:30]}' "
-                      f"insufficient overlap with '{core[:20]}'")
-    except Exception as e:
-        print(f"  [verify] Wikipedia failed: {e}")
+
+    # Try Chinese Wikipedia first, then English Wikipedia for en_part
+    wiki_searches = [("zh.wikipedia.org", core)]
+    if en_part and len(en_part) >= 5:
+        wiki_searches.append(("en.wikipedia.org", en_part))
+
+    for wiki_host, query in wiki_searches:
+        try:
+            resp = requests.get(
+                f"https://{wiki_host}/w/api.php",
+                params={"action": "query", "list": "search", "srsearch": query,
+                        "srlimit": 5, "format": "json"},
+                timeout=10,
+                headers={"User-Agent": "AIvideoBot/1.0"},
+            )
+            if resp.status_code == 200:
+                hits = resp.json().get("query", {}).get("search", [])
+                for hit in hits[:3]:
+                    title = hit.get("title", "")
+                    if wiki_host.startswith("en"):
+                        # English: check if query words appear in title
+                        q_words = set(en_part.lower().split())
+                        t_words = set(title.lower().split())
+                        if len(q_words & t_words) >= 2:
+                            print(f"  [verify] ✓ Wikipedia (en): {title[:40]}")
+                            wiki_hit = True
+                            break
+                    else:
+                        shared = sum(1 for c in core if c in title and len(c.encode()) > 1)
+                        if shared >= 4:
+                            print(f"  [verify] ✓ Wikipedia (zh): {title[:40]} (shared={shared})")
+                            wiki_hit = True
+                            break
+                if not wiki_hit and hits:
+                    print(f"  [verify] ~ Wikipedia ({wiki_host[:2]}): top '{hits[0].get('title','')[:30]}' "
+                          f"insufficient overlap with '{query[:20]}'")
+        except Exception as e:
+            print(f"  [verify] Wikipedia ({wiki_host[:2]}) failed: {e}")
+        if wiki_hit:
+            break
 
     if wiki_hit:
         return True
 
     # Fallback: Google News RSS — two tiers:
-    #   Tier 1: exact-match (quotes) → ≥1 result = real
-    #   Tier 2: loose match (no quotes) → ≥10 results = real
-    # This handles cases where the exact phrase is rare but individual
-    # keywords are common enough to confirm the case exists.
-    for query_fmt, threshold, label in [
-        (f'"{core}"', 3, "exact"),   # ≥3 exact matches (1 is noise)
-        (core, 15, "loose"),          # ≥15 loose matches (keywords overlap)
-    ]:
+    #   Tier 1: exact-match (quotes) → ≥3 results = real
+    #   Tier 2: loose match (no quotes) → ≥15 results = real
+    # For mixed zh+en topics, also try English Google News with en_part.
+    news_queries = [
+        (f'"{core}"', 3, "exact", "zh-TW", "TW", "TW:zh-Hant"),
+        (core, 15, "loose", "zh-TW", "TW", "TW:zh-Hant"),
+    ]
+    if en_part and len(en_part) >= 5:
+        news_queries.append((f'"{en_part}"', 3, "exact-en", "en", "US", "US:en"))
+
+    for query_fmt, threshold, label, hl, gl, ceid in news_queries:
         try:
             resp = requests.get(
                 "https://news.google.com/rss/search",
-                params={"q": query_fmt, "hl": "zh-TW", "gl": "TW", "ceid": "TW:zh-Hant"},
+                params={"q": query_fmt, "hl": hl, "gl": gl, "ceid": ceid},
                 timeout=10,
                 headers={"User-Agent": "TrueCrimeBot/1.0"},
             )

@@ -89,6 +89,14 @@ def _run_pipeline(topic, output_dir, upload, slot):
     print("\n[2/5] ✍️ Script Agent — writing 8-section script...")
     from agents.script_agent import generate_script
     script_data = generate_script(case_data)
+    # Ensure date/location are in metadata for location badge overlay
+    if not script_data.get("date"):
+        script_data["date"] = case_data.get("date", "")
+    if not script_data.get("location"):
+        # Build location from research agent's city + country
+        city = case_data.get("city", "")
+        country = case_data.get("country", "")
+        script_data["location"] = city or country
     _save_json(script_data, output_dir, "metadata.json")
 
     from script_generator import _normalize_script_field
