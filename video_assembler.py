@@ -111,26 +111,62 @@ def _burn_location_badge(video_path: str, location: str, date: str,
         f"[0:v][badge]overlay=0:0:enable='lt(t,{display_seconds})'"
     )
 
+    # Strategy: split first 8s → overlay badge → concat with rest (no full re-encode)
+    head_dur = display_seconds + 3.0  # a bit extra for clean split
+    head_path = video_path + "_head.mp4"
+    tail_path = video_path + "_tail.mp4"
+    head_badge = video_path + "_head_badge.mp4"
     out_path = video_path + "_badge.mp4"
+
     try:
+        # 1. Split: extract head (re-encode for overlay) + tail (stream copy)
+        subprocess.run([
+            "ffmpeg", "-y", "-i", video_path,
+            "-t", str(head_dur), "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-c:a", "aac", "-pix_fmt", "yuv420p", head_path,
+        ], capture_output=True, timeout=120)
+
+        subprocess.run([
+            "ffmpeg", "-y", "-ss", str(head_dur), "-i", video_path,
+            "-c", "copy", tail_path,
+        ], capture_output=True, timeout=60)
+
+        # 2. Overlay badge on head only (fast — only 8s of video)
         r = subprocess.run([
-            "ffmpeg", "-y", "-i", video_path, "-i", badge_path,
+            "ffmpeg", "-y", "-i", head_path, "-i", badge_path,
             "-filter_complex", overlay_filter,
             "-c:v", "libx264", "-preset", "fast", "-crf", "22",
             "-c:a", "copy", "-pix_fmt", "yuv420p",
-            out_path,
-        ], capture_output=True, timeout=600)
-        if r.returncode == 0:
-            os.replace(out_path, video_path)
-            os.remove(badge_path)
-            return True
-        else:
-            if os.path.exists(out_path):
-                os.remove(out_path)
+            head_badge,
+        ], capture_output=True, timeout=60)
+
+        if r.returncode != 0:
             return False
+
+        # 3. Concat head_badge + tail
+        concat_txt = video_path + "_badge_concat.txt"
+        with open(concat_txt, "w") as f:
+            f.write(f"file '{os.path.abspath(head_badge)}'\n")
+            f.write(f"file '{os.path.abspath(tail_path)}'\n")
+        subprocess.run([
+            "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+            "-i", concat_txt, "-c", "copy", out_path,
+        ], capture_output=True, timeout=60)
+
+        if os.path.exists(out_path) and os.path.getsize(out_path) > 1024:
+            os.replace(out_path, video_path)
+            return True
+        return False
     except Exception as e:
         print(f"  [WARN] Location badge failed: {e}")
         return False
+    finally:
+        for tmp in [head_path, tail_path, head_badge, badge_path,
+                    video_path + "_badge_concat.txt"]:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        if os.path.exists(out_path):
+            os.remove(out_path)
 
 
 def _crop_to_target(clip, tw, th):

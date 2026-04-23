@@ -247,28 +247,32 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
 
 
 def _post_pinned_comment(youtube, video_id: str, text: str):
-    """Post a comment and pin it to the top of the video."""
-    try:
-        print(f"  Posting pinned comment...")
-        resp = youtube.commentThreads().insert(
-            part="snippet",
-            body={
-                "snippet": {
-                    "videoId": video_id,
-                    "topLevelComment": {
-                        "snippet": {"textOriginal": text}
-                    },
-                }
-            },
-        ).execute()
-        comment_id = resp["snippet"]["topLevelComment"]["id"]
-        # Pin it — requires setting as moderation held then approving
-        # Actually, YouTube API doesn't have a direct "pin" endpoint.
-        # But the channel owner's first comment appears prominently.
-        # We'll just post it — manual pin if needed.
-        print(f"  ✅ Comment posted (pin manually in Studio if needed)")
-    except Exception as e:
-        print(f"  [WARN] Comment post failed: {e}")
+    """Post a comment on the video. Retries once after delay for newly uploaded videos."""
+    import time as _time
+    for attempt in range(2):
+        try:
+            if attempt > 0:
+                print(f"  Retrying comment post after delay...")
+                _time.sleep(30)
+            else:
+                print(f"  Posting pinned comment...")
+            resp = youtube.commentThreads().insert(
+                part="snippet",
+                body={
+                    "snippet": {
+                        "videoId": video_id,
+                        "topLevelComment": {
+                            "snippet": {"textOriginal": text}
+                        },
+                    }
+                },
+            ).execute()
+            print(f"  ✅ Comment posted")
+            return
+        except Exception as e:
+            if attempt == 0 and "403" in str(e):
+                continue  # retry once
+            print(f"  [WARN] Comment post failed: {e}")
 
 
 def _upload_transcript_autosync(youtube, video_id: str, script_path: str,
