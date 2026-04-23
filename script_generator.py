@@ -346,6 +346,33 @@ def _verify_sources(sources: list) -> list:
     return verified
 
 
+def _get_recent_titles(days: int = 14) -> list[str]:
+    """Load recent video titles from YouTube API to avoid duplicates."""
+    import os
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        from youtube_uploader import _get_credentials
+        from googleapiclient.discovery import build
+        creds = _get_credentials()
+        if not creds:
+            return []
+        yt = build('youtube', 'v3', credentials=creds)
+        # Get recent uploads from video_log
+        if not os.path.exists("video_log.json"):
+            return []
+        with open("video_log.json") as f:
+            data = json.load(f)
+        recent_ids = [v["video_id"] for v in data.get("videos", [])[-30:]]
+        if not recent_ids:
+            return []
+        resp = yt.videos().list(part="snippet", id=",".join(recent_ids[-50:])).execute()
+        return [item["snippet"]["title"] for item in resp.get("items", [])]
+    except Exception as e:
+        print(f"  [WARN] Could not load recent titles: {e}")
+        return []
+
+
 def _normalize_script_field(result: dict) -> dict:
     """Gemini/Claude occasionally return the `script` field as a list of
     sentences instead of a single string (observed 2026-04-09 after DNA
@@ -377,7 +404,13 @@ def generate_scripts(topic: str, fmt: str = "short", engine: str = "moviepy") ->
     title_dna = get_title_prompt_insert()
 
     if engine == "remotion":
-        prompt = PROMPT_ZH_REMOTION.format(topic=topic, title_dna=title_dna)
+        # Inject recent titles so LLM avoids duplicates
+        recent_titles = _get_recent_titles(days=14)
+        title_avoid = ""
+        if recent_titles:
+            titles_list = "、".join(f"「{t}」" for t in recent_titles[:15])
+            title_avoid = f"\n⚠️ 以下標題已經用過，絕對不能重複或相似：{titles_list}\n"
+        prompt = PROMPT_ZH_REMOTION.format(topic=topic, title_dna=title_dna + title_avoid)
 
         for attempt in range(2):
             label = "(retry) " if attempt else ""
