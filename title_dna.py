@@ -98,6 +98,42 @@ TITLE_DNA = {
         ],
         "trigger_words": ["懸案", "至今", "真相", "震驚", "失蹤", "離奇"],
     },
+
+    "獵奇反轉體": {
+        "formula": "[年齡/身份反差] + [極端細節] + [制度荒誕結局]",
+        "avg_views": 920_000,
+        "share": "~15% of competitor outliers",
+        "templates": [
+            "{age}歲{identity}竟{extreme_action}，{outcome}",
+            "{region}最惡毒事件！{victim}被{detail}，兇手竟{ending}",
+            "{identity}活活{action}，事後竟{absurd_result}",
+            "找{role}招來活閻王！{shocking_detail}",
+        ],
+        "examples": [
+            ("12歲女孩用可樂毒殺閨蜜", 1_200_000),
+            ("保姆電鋸分屍雇主，嬰兒至今下落不明", 980_000),
+            ("14歲兇手挑釁警察，出獄後竟出書賺版稅", 850_000),
+        ],
+        "trigger_words": ["竟", "活活", "惡魔", "究竟", "甚至", "事後"],
+    },
+
+    "舊案新線體": {
+        "formula": "[案件定位最XX] + [年份/最新進展] + [核心獵奇細節]",
+        "avg_views": 890_000,
+        "share": "~10% of competitor outliers",
+        "templates": [
+            "{region}{crime_type}第一懸案，{year}最新進展！",
+            "失蹤{time}終於有線索，真相浮出水面後{reaction}",
+            "{region}史上最{superlative}案件，至今無人敢碰",
+            "{time}前的懸案，{year}終於真相大白",
+        ],
+        "examples": [
+            ("中國第一懸案，2026終於有新線索", 1_100_000),
+            ("消失30年的兇手，DNA技術讓真相浮出水面", 920_000),
+            ("台灣史上最離奇失蹤案，至今無人敢碰", 780_000),
+        ],
+        "trigger_words": ["最新進展", "至今未解", "終於", "浮出水面", "史上最"],
+    },
 }
 
 
@@ -115,6 +151,14 @@ POWER_WORDS = {
     "背後/幕後": {"count": 14, "view_boost": "+31%"},
     "沒人敢說": {"count": 6, "view_boost": "+28%"},
     "驚人/驚天": {"count": 12, "view_boost": "+20%"},
+    # New — from competitor analysis (2026-04)
+    "竟/竟然": {"count": 15, "view_boost": "+40%"},
+    "活活": {"count": 6, "view_boost": "+35%"},
+    "惡魔": {"count": 8, "view_boost": "+33%"},
+    "細思極恐": {"count": 5, "view_boost": "+30%"},
+    "至今未解": {"count": 7, "view_boost": "+28%"},
+    "甚至/居然": {"count": 10, "view_boost": "+25%"},
+    "最新進展": {"count": 4, "view_boost": "+22%"},
 }
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -158,9 +202,9 @@ def get_title_prompt_insert() -> str:
             lines.append(f"  實例：{title} → {views:,} views")
         lines.append("")
 
-    lines.append("【高效觸發詞】")
-    for word, info in list(POWER_WORDS.items())[:8]:
-        lines.append(f"  「{word}」出現{info['count']}次，觀看加成 {info['view_boost']}")
+    lines.append("【高效觸發詞（必須至少使用 1 個）】")
+    for word, info in POWER_WORDS.items():
+        lines.append(f"  「{word}」觀看加成 {info['view_boost']}")
 
     lines.append("\n【必須避免的失敗模式】")
     for f in FAILURE_PATTERNS[:3]:
@@ -172,5 +216,13 @@ def get_title_prompt_insert() -> str:
     lines.append("  絕對禁止超過 30 字。寧可精煉用詞，不要塞太多資訊。")
     lines.append("  好的例子：「林宅血案」(4字)、「台灣林于如保險金殺人案」(11字)")
     lines.append("  壞的例子：「陳金火案：2003年駭人聽聞的殺人分屍焚屍案其殘忍手法...」(54字)")
+
+    lines.append("\n【標題自檢清單（生成後必須通過全部）】")
+    lines.append("  ✅ 包含至少 1 個高效觸發詞")
+    lines.append("  ✅ ≤25 字（含標點）")
+    lines.append("  ✅ 不是「案件名：說明」的冒號格式")
+    lines.append("  ✅ 製造好奇缺口（讀完標題想知道更多）")
+    lines.append("  ✅ 有身份/年齡/數字等具體細節（不要太抽象）")
+    lines.append("  ✅ 禁止用「震驚」單獨開頭")
 
     return "\n".join(lines)
