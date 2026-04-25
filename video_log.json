@@ -2302,6 +2302,38 @@
           "comments": 0
         }
       ]
+    },
+    {
+      "video_id": "aBFL4DuzWRI",
+      "topic": "酒鬼薔薇聖斗事件 (神戸連続児童殺傷事件)",
+      "slot": 1,
+      "duration_s": 87,
+      "publish_at": "2026-04-26T10:00:00+08:00",
+      "uploaded_at": "2026-04-25T19:09:43.060011+00:00",
+      "stats": [
+        {
+          "date": "2026-04-25",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "Dp5ny0QHVcg",
+      "topic": "張文北捷殺人案",
+      "slot": 3,
+      "duration_s": 89,
+      "publish_at": "2026-04-26T18:00:00+08:00",
+      "uploaded_at": "2026-04-25T19:17:05.484038+00:00",
+      "stats": [
+        {
+          "date": "2026-04-25",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
