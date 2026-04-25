@@ -3,7 +3,16 @@ name: Daily Video Generation
 on:
   schedule:
     - cron: '0 18 * * *'   # 02:00 AM Taiwan (UTC+8) = 18:00 UTC
-  workflow_dispatch:         # allow manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      slot_a:
+        description: 'First slot (1=10am 2=2pm 3=6pm 4=10pm TW)'
+        required: false
+        default: '1'
+      slot_b:
+        description: 'Second slot (1=10am 2=2pm 3=6pm 4=10pm TW)'
+        required: false
+        default: '3'
 
 jobs:
   generate:
@@ -96,11 +105,11 @@ jobs:
           print("Credentials set up OK")
           PYEOF
 
-      - name: Shorts 1 — slot 1 (publishes at 10:00 Taiwan)
-        run: python generate.py --auto --upload --slot 1
+      - name: Shorts 1 — first slot
+        run: python generate.py --auto --upload --slot ${{ github.event.inputs.slot_a || '1' }}
 
-      - name: Shorts 2 — slot 3 (publishes at 18:00 Taiwan)
-        run: python generate.py --auto --upload --slot 3
+      - name: Shorts 2 — second slot
+        run: python generate.py --auto --upload --slot ${{ github.event.inputs.slot_b || '3' }}
 
       - name: Fetch analytics and send daily report
         run: |
