@@ -1,0 +1,50 @@
+name: Weekly Title DNA Review
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'    # 10:00 AM Taiwan (UTC+8) Sunday = 02:00 UTC
+  workflow_dispatch:
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout AIvideo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install google-api-python-client google-auth google-auth-oauthlib python-dotenv requests
+
+      - name: Decode YouTube token + write .env
+        env:
+          YOUTUBE_TOKEN_B64: ${{ secrets.YOUTUBE_TOKEN_B64 }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python3 - << 'PYEOF'
+          import base64, os, pickle
+          from google.auth.transport.requests import Request
+          open('youtube_token.pickle','wb').write(base64.b64decode(os.environ['YOUTUBE_TOKEN_B64']))
+          with open('youtube_token.pickle','rb') as f:
+              creds = pickle.load(f)
+          if creds.expired and creds.refresh_token:
+              creds.refresh(Request())
+              with open('youtube_token.pickle','wb') as f:
+                  pickle.dump(creds, f)
+          open('.env','w').write(
+              f"TELEGRAM_BOT_TOKEN={os.environ.get('TELEGRAM_BOT_TOKEN','')}\n"
+              f"TELEGRAM_CHAT_ID={os.environ.get('TELEGRAM_CHAT_ID','')}\n"
+          )
+          PYEOF
+
+      - name: Run weekly title review
+        run: python weekly_title_review.py
