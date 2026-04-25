@@ -237,8 +237,15 @@ def _validate_case_shape(result: dict) -> None:
     if result["status"] not in ("unsolved", "solved"):
         raise ValueError(f"Case status must be 'unsolved' or 'solved', got {result['status']!r}")
 
-    if not _re.match(r"^[a-z0-9-]+$", result["id"]) or len(result["id"]) > 40:
-        raise ValueError(f"Case id must match [a-z0-9-]+ and ≤40 chars, got {result['id']!r}")
+    raw_id = result["id"]
+    cleaned_id = _re.sub(r"[^a-z0-9-]+", "-", raw_id.lower()).strip("-")
+    if len(cleaned_id) > 40:
+        cleaned_id = cleaned_id[:40].rstrip("-")
+    if not cleaned_id:
+        raise ValueError(f"Case id is empty after sanitization, got {raw_id!r}")
+    if cleaned_id != raw_id:
+        print(f"  [INFO] Sanitized case id: {raw_id!r} -> {cleaned_id!r}")
+    result["id"] = cleaned_id
 
     events = result.get("events")
     if not isinstance(events, list) or len(events) != 4:
