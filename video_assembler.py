@@ -956,15 +956,20 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
             fade_out_start = max(0, clip_dur - FADE_DUR)
             faded = cp + "_faded.mp4"
             vf = f"fade=t=in:st=0:d={FADE_DUR},fade=t=out:st={fade_out_start:.3f}:d={FADE_DUR}"
-            r = subprocess.run([
-                "ffmpeg", "-y", "-i", cp, "-vf", vf,
-                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                "-c:a", "copy", "-pix_fmt", "yuv420p", faded,
-            ], capture_output=True, timeout=30)
-            if r.returncode == 0:
-                os.replace(faded, cp)
-            elif os.path.exists(faded):
-                os.remove(faded)
+            try:
+                r = subprocess.run([
+                    "ffmpeg", "-y", "-i", cp, "-vf", vf,
+                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+                    "-c:a", "copy", "-pix_fmt", "yuv420p", faded,
+                ], capture_output=True, timeout=90)
+                if r.returncode == 0:
+                    os.replace(faded, cp)
+                elif os.path.exists(faded):
+                    os.remove(faded)
+            except subprocess.TimeoutExpired:
+                if os.path.exists(faded):
+                    os.remove(faded)
+                # Skip this clip's fade rather than aborting the whole pipeline
 
     # Concatenate cut files via ffmpeg concat demuxer (memory-efficient)
     concat_path = os.path.join(output_dir, "_concat.mp4")
