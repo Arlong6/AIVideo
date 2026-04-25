@@ -1,0 +1,84 @@
+name: Process Pending Comments
+
+on:
+  schedule:
+    - cron: '15 * * * *'   # Every hour at :15
+  workflow_dispatch:
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    permissions:
+      contents: write   # commit pending_comments.json updates
+
+    steps:
+      - name: Checkout AIvideo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip if no pending queue
+        id: check
+        run: |
+          if [ ! -f pending_comments.json ] || [ ! -s pending_comments.json ] || [ "$(cat pending_comments.json)" = "{}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "No pending comments, skipping"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Python
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        if: steps.check.outputs.skip == 'false'
+        run: pip install google-api-python-client google-auth google-auth-oauthlib python-dotenv requests
+
+      - name: Decode YouTube token
+        if: steps.check.outputs.skip == 'false'
+        env:
+          YOUTUBE_TOKEN_B64: ${{ secrets.YOUTUBE_TOKEN_B64 }}
+        run: |
+          python3 - << 'PYEOF'
+          import base64, os, pickle
+          from google.auth.transport.requests import Request
+          open('youtube_token.pickle','wb').write(base64.b64decode(os.environ['YOUTUBE_TOKEN_B64']))
+          with open('youtube_token.pickle','rb') as f:
+              creds = pickle.load(f)
+          if creds.expired and creds.refresh_token:
+              creds.refresh(Request())
+              with open('youtube_token.pickle','wb') as f:
+                  pickle.dump(creds, f)
+          PYEOF
+
+      - name: Process pending comments
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          python3 - << 'PYEOF'
+          import pickle
+          from googleapiclient.discovery import build
+          from youtube_uploader import process_pending_comments
+          with open('youtube_token.pickle','rb') as f:
+              creds = pickle.load(f)
+          yt = build('youtube','v3', credentials=creds)
+          posted, pending = process_pending_comments(yt)
+          print(f'Posted: {posted}, Still pending: {pending}')
+          PYEOF
+
+      - name: Commit queue updates
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main || true
+          if ! git diff --quiet pending_comments.json 2>/dev/null; then
+            git add pending_comments.json
+            git commit -m "chore: update pending comments queue [skip ci]"
+            git push origin main
+          fi
