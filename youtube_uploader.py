@@ -247,32 +247,95 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
 
 
 def _post_pinned_comment(youtube, video_id: str, text: str):
-    """Post a comment on the video. Retries once after delay for newly uploaded videos."""
-    import time as _time
-    for attempt in range(2):
+    """Post a comment, or queue it if the video is scheduled (private). YouTube
+    rejects comments on private/scheduled videos with 403, so we defer posting
+    until the video goes public via process_pending_comments()."""
+    import json as _json
+    import os as _os
+    try:
+        youtube.commentThreads().insert(
+            part="snippet",
+            body={
+                "snippet": {
+                    "videoId": video_id,
+                    "topLevelComment": {
+                        "snippet": {"textOriginal": text}
+                    },
+                }
+            },
+        ).execute()
+        print(f"  ✅ Comment posted")
+        return
+    except Exception as e:
+        if "403" in str(e):
+            print(f"  [INFO] Video not yet public; queueing comment for later")
+            queue_path = "pending_comments.json"
+            queue = {}
+            if _os.path.exists(queue_path):
+                try:
+                    queue = _json.load(open(queue_path))
+                except Exception:
+                    queue = {}
+            queue[video_id] = text
+            _json.dump(queue, open(queue_path, "w"), ensure_ascii=False, indent=2)
+        else:
+            print(f"  [WARN] Comment post failed: {e}")
+
+
+def process_pending_comments(youtube):
+    """Post any queued comments whose videos are now public.
+
+    Returns (posted_count, still_pending_count).
+    """
+    import json as _json
+    import os as _os
+    queue_path = "pending_comments.json"
+    if not _os.path.exists(queue_path):
+        return 0, 0
+    try:
+        queue = _json.load(open(queue_path))
+    except Exception:
+        return 0, 0
+    if not queue:
+        return 0, 0
+
+    ids = list(queue.keys())
+    # batch status lookups (50 max per call)
+    public_ids = set()
+    for i in range(0, len(ids), 50):
+        chunk = ids[i:i + 50]
         try:
-            if attempt > 0:
-                print(f"  Retrying comment post after delay...")
-                _time.sleep(30)
-            else:
-                print(f"  Posting pinned comment...")
-            resp = youtube.commentThreads().insert(
+            r = youtube.videos().list(part="status", id=",".join(chunk)).execute()
+            for item in r.get("items", []):
+                if item["status"].get("privacyStatus") == "public":
+                    public_ids.add(item["id"])
+        except Exception as e:
+            print(f"  [WARN] Failed to check video status: {e}")
+
+    posted = 0
+    for vid in list(queue.keys()):
+        if vid not in public_ids:
+            continue
+        try:
+            youtube.commentThreads().insert(
                 part="snippet",
                 body={
                     "snippet": {
-                        "videoId": video_id,
+                        "videoId": vid,
                         "topLevelComment": {
-                            "snippet": {"textOriginal": text}
+                            "snippet": {"textOriginal": queue[vid]}
                         },
                     }
                 },
             ).execute()
-            print(f"  ✅ Comment posted")
-            return
+            print(f"  ✅ Pending comment posted for {vid}")
+            del queue[vid]
+            posted += 1
         except Exception as e:
-            if attempt == 0 and "403" in str(e):
-                continue  # retry once
-            print(f"  [WARN] Comment post failed: {e}")
+            print(f"  [WARN] Pending comment for {vid} still failing: {e}")
+
+    _json.dump(queue, open(queue_path, "w"), ensure_ascii=False, indent=2)
+    return posted, len(queue)
 
 
 def _upload_transcript_autosync(youtube, video_id: str, script_path: str,

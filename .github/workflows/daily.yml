@@ -119,12 +119,15 @@ jobs:
           from youtube_uploader import _get_credentials
           from googleapiclient.discovery import build
           from analytics_tracker import fetch_and_update_stats, send_daily_report, check_copyright_issues
+          from youtube_uploader import process_pending_comments
           try:
               creds = _get_credentials()
               yt = build('youtube', 'v3', credentials=creds) if creds else None
               if yt:
                   fetch_and_update_stats(yt)
                   check_copyright_issues(yt)
+                  posted, pending = process_pending_comments(yt)
+                  print(f'Pending comments: posted={posted} still_pending={pending}')
               send_daily_report(youtube=yt)
           except Exception as e:
               print(f'[WARN] Analytics step failed: {e}')
