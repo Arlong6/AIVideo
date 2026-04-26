@@ -91,4 +91,33 @@
 - Phase 4: 30 min later
 
 ## Review
-(populated after completion)
+
+### Done in this session (2026-04-26)
+- Phase 1: dual-voice TTS, Shorts scanner, dialogue [ALT] schema, multirole audio
+- Phase 2: cross-promo `has_longform` flag end-to-end (case → renderer)
+- Phase 3.1: longform.yml workflow_dispatch supports topic + source_tag
+- Phase 3.2: triggered D.B.庫柏 long-form (run 24946381573, source=shorts_upgrade)
+
+### Pending / decisions needed
+- Verify D.B. render succeeds with dialogue blocks (smoke test for the
+  whole new pipeline). If it fails, fix before triggering 洪仲丘 / 芭提雅.
+- Pacing decision: 3-day spacing vs back-to-back batch.
+- Phase 4 (auto ≥500 view trigger): deferred until first batch's
+  performance is observed.
+
+### What worked
+- Inline [ALT]...[/ALT] markers turned out cleaner than separate
+  dialogue_blocks array — no schema explosion, easy to validate.
+- Reusing existing `_topic_key` normalization across scanner +
+  has-longform check kept logic DRY.
+- workflow_dispatch inputs (topic, source_tag, slot_a, slot_b earlier)
+  is the right escape hatch — future overrides can layer on the same
+  pattern without forking the cron path.
+
+### What didn't
+- Initially tried "0Hz" pitch in VOICE_ROLES.alt — edge-tts requires
+  "+0Hz" / "-0Hz" sign prefix. Caught immediately by smoke test.
+- Books pipeline fade timeout (30s) was a latent bug from the Crime
+  fade addition — exposed only when Books resumed 60+ clip videos.
+  Fixed in the same session by switching to ultrafast preset + 90s
+  timeout + skip-on-timeout.
