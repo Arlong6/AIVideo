@@ -276,9 +276,163 @@ def _generate_ai_background(title: str, visual_hint: str = "",
     return None
 
 
+def _fetch_real_photo(search_term: str) -> Image.Image | None:
+    """Try Wikimedia first, then Pexels, for a real photo. Returns PIL Image
+    cropped/resized to THUMB_W x THUMB_H, or None if both fail.
+
+    Real photos let us escape the 'AI slop' visual category that YouTube's
+    2026 viewer rejection signal targets.
+    """
+    if not search_term or len(search_term.strip()) < 2:
+        return None
+
+    # ── Wikimedia path ──────────────────────────────────────────────
+    try:
+        from wiki_footage import _search_wikimedia, _download_image, _extract_meta
+        pages = _search_wikimedia(search_term, limit=8)
+        for p in pages:
+            meta = _extract_meta(p)
+            if not meta:
+                continue
+            arr = _download_image(meta.get("url", ""))
+            if arr is None:
+                continue
+            img = Image.fromarray(arr)
+            return _fit_thumbnail(img)
+    except Exception as e:
+        print(f"  [thumb] Wikimedia fetch failed: {e}")
+
+    # ── Pexels fallback ────────────────────────────────────────────
+    try:
+        from config import PEXELS_API_KEY
+        import requests as _r
+        if PEXELS_API_KEY:
+            r = _r.get(
+                "https://api.pexels.com/v1/search",
+                headers={"Authorization": PEXELS_API_KEY},
+                params={"query": search_term, "per_page": 5, "orientation": "landscape"},
+                timeout=10,
+            )
+            if r.ok:
+                photos = r.json().get("photos", [])
+                for ph in photos:
+                    src = ph.get("src", {}).get("large", "")
+                    if not src:
+                        continue
+                    pr = _r.get(src, timeout=10)
+                    if pr.ok:
+                        from io import BytesIO
+                        img = Image.open(BytesIO(pr.content)).convert("RGB")
+                        return _fit_thumbnail(img)
+    except Exception as e:
+        print(f"  [thumb] Pexels fallback failed: {e}")
+
+    return None
+
+
+def _fit_thumbnail(img: Image.Image) -> Image.Image:
+    """Center-crop and resize to exactly THUMB_W × THUMB_H."""
+    img = img.convert("RGB")
+    w, h = img.size
+    target_ratio = THUMB_W / THUMB_H
+    src_ratio = w / h
+    if src_ratio > target_ratio:
+        # source wider — crop sides
+        new_w = int(h * target_ratio)
+        x = (w - new_w) // 2
+        img = img.crop((x, 0, x + new_w, h))
+    else:
+        # source taller — crop top/bottom
+        new_h = int(w / target_ratio)
+        y = (h - new_h) // 2
+        img = img.crop((0, y, w, y + new_h))
+    return img.resize((THUMB_W, THUMB_H), Image.LANCZOS)
+
+
+def _darken_for_text(img: Image.Image, strength: float = 0.55) -> Image.Image:
+    """Apply gradient darkening over bottom half so text is legible."""
+    overlay = Image.new("RGBA", (THUMB_W, THUMB_H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    for y in range(THUMB_H):
+        t = y / THUMB_H
+        # Stronger darkening on bottom 60%
+        if t < 0.4:
+            alpha = int(60 * t / 0.4)
+        else:
+            alpha = int(60 + (255 * strength - 60) * (t - 0.4) / 0.6)
+        draw.line([(0, y), (THUMB_W, y)], fill=(0, 0, 0, alpha))
+    return Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+
+
+def _draw_red_circle(img: Image.Image, cx: int, cy: int, radius: int = 90) -> Image.Image:
+    """Draw a thick red circle annotation at (cx, cy) — the 'mystery point' marker."""
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    # Outer glow (subtle)
+    for r in range(radius + 18, radius + 4, -2):
+        draw.ellipse(
+            [(cx - r, cy - r), (cx + r, cy + r)],
+            outline=(220, 30, 30, 50),
+            width=2,
+        )
+    # Main circle — bright red, thick stroke
+    draw.ellipse(
+        [(cx - radius, cy - radius), (cx + radius, cy + radius)],
+        outline=(230, 40, 40, 240),
+        width=12,
+    )
+    # Inner secondary stroke for emphasis
+    draw.ellipse(
+        [(cx - radius + 14, cy - radius + 14), (cx + radius - 14, cy + radius - 14)],
+        outline=(255, 80, 80, 180),
+        width=4,
+    )
+    return Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+
+
+def _draw_punch_text(img: Image.Image, text: str) -> Image.Image:
+    """Draw 4-8 char punchline at bottom-center, very large, with red shadow."""
+    if not text:
+        return img
+    text = text[:8]
+    draw = ImageDraw.Draw(img)
+    # Pick font size so text fits ~80% of width
+    font_size = 220 if len(text) <= 4 else (180 if len(text) <= 6 else 150)
+    font = ImageFont.truetype(FONT_PATH, font_size) if FONT_PATH else ImageFont.load_default()
+    bbox = draw.textbbox((0, 0), text, font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    x = (THUMB_W - tw) // 2
+    y = THUMB_H - th - 60
+    # Red shadow
+    for dx, dy in ((6, 6), (4, 4), (2, 2)):
+        draw.text((x + dx, y + dy), text, font=font, fill=(180, 20, 20))
+    # Black outline
+    for dx in range(-3, 4):
+        for dy in range(-3, 4):
+            if dx or dy:
+                draw.text((x + dx, y + dy), text, font=font, fill=(0, 0, 0))
+    # Main white text
+    draw.text((x, y), text, font=font, fill=(255, 245, 230))
+    return img
+
+
+def _make_real_photo_thumbnail(search_term: str, punch_text: str) -> Image.Image | None:
+    """Build a thumbnail from a real photo + red circle + Chinese punch text.
+    Returns None if no usable photo could be fetched."""
+    base = _fetch_real_photo(search_term)
+    if base is None:
+        return None
+    img = _darken_for_text(base)
+    # Red circle marker — top-right rule-of-thirds focal area
+    img = _draw_red_circle(img, cx=int(THUMB_W * 0.72), cy=int(THUMB_H * 0.32), radius=110)
+    img = _draw_punch_text(img, punch_text)
+    return img
+
+
 def generate_thumbnail(title: str, output_path: str, fmt: str = "short",
                        duration_hint: str = "",
-                       visual_hint: str = "") -> str:
+                       visual_hint: str = "",
+                       case_data: dict | None = None) -> str:
     """
     Generate a dark cinematic YouTube thumbnail.
 
@@ -293,6 +447,21 @@ def generate_thumbnail(title: str, output_path: str, fmt: str = "short",
     """
     seed = hash(title) & 0xFFFFFFFF
 
+    # ── Shorts: try real-photo thumbnail (escape AI-slop visual category) ──
+    if fmt == "short" and case_data:
+        search_term = (
+            case_data.get("wiki_search_term", "").strip()
+            or case_data.get("title", "").strip()
+        )
+        # opening_card is ≤8 字 punch text — perfect for thumbnail
+        punch = case_data.get("opening_card", "").strip() or title[:6]
+        real_thumb = _make_real_photo_thumbnail(search_term, punch)
+        if real_thumb is not None:
+            real_thumb.save(output_path, "JPEG", quality=95)
+            print(f"  [thumb] ✓ Real-photo thumbnail (search={search_term!r})")
+            return output_path
+        # else fall through to existing logic
+
     # Long-form: try AI background
     ai_bg = _generate_ai_background(title, visual_hint, fmt) if fmt == "long" else None
 
@@ -301,7 +470,7 @@ def generate_thumbnail(title: str, output_path: str, fmt: str = "short",
         img = _add_vignette(ai_bg)
         img = _draw_title(img, title, fmt=fmt, duration_hint=duration_hint)
     else:
-        # PIL fallback (also the only path for Shorts)
+        # PIL fallback (also the only path for Shorts when real-photo failed)
         img = _make_dark_background()
         img = _add_city_lights(img, seed)
         img = _add_fog(img)

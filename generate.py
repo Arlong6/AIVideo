@@ -139,7 +139,7 @@ def main():
         print("\n  Generating thumbnail...")
         thumb_path = os.path.join(output_dir, "thumbnail.jpg")
         zh_title = scripts["zh"].get("title", topic)
-        generate_thumbnail(zh_title, thumb_path)
+        generate_thumbnail(zh_title, thumb_path, fmt="short", case_data=scripts["zh"])
 
         _remotion_done = True
 
