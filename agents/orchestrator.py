@@ -43,7 +43,7 @@ def produce_longform(topic: str, output_base: str = "output",
     from agents.llm import ContentBlockedError
 
     try:
-        return _run_pipeline(topic, output_dir, upload, slot)
+        return _run_pipeline(topic, output_dir, upload, slot, source=source)
     except ContentBlockedError as e:
         print(f"\n⚠️ Topic blocked by safety filter: {topic}")
         print(f"  Reason: {e}")
@@ -61,7 +61,7 @@ def produce_longform(topic: str, output_base: str = "output",
         new_dir = os.path.join(output_base, f"{date_str}_long_{new_safe}")
         os.makedirs(new_dir, exist_ok=True)
         try:
-            return _run_pipeline(new_topic, new_dir, upload, slot)
+            return _run_pipeline(new_topic, new_dir, upload, slot, source=source)
         except Exception as e2:
             notify_failure("Pipeline", str(e2), new_topic)
             raise
@@ -71,7 +71,7 @@ def produce_longform(topic: str, output_base: str = "output",
         raise
 
 
-def _run_pipeline(topic, output_dir, upload, slot):
+def _run_pipeline(topic, output_dir, upload, slot, source=""):
     """Internal pipeline — optimized to 3 LLM calls total."""
 
     # ── Step 1: Research + Design (1 LLM call) ────────────────────
