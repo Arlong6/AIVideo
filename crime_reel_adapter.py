@@ -302,6 +302,7 @@ def build_crime_reel(case: dict, output_dir: str) -> str:
         "aftermath": case["aftermath"],
         "aftermathImage": "images/aftermath.jpg",
         "cta": case["cta"],
+        "has_longform": bool(case.get("has_longform", False)),
         "credits": "照片來源：Pexels / Wikimedia Commons",
         "timings": timings,
     }

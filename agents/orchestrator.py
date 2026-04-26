@@ -21,7 +21,8 @@ from telegram_notify import notify_failure, notify_qa_fail
 
 
 def produce_longform(topic: str, output_base: str = "output",
-                     upload: bool = False, slot: int = 1) -> dict:
+                     upload: bool = False, slot: int = 1,
+                     source: str = "") -> dict:
     """
     Full multi-agent pipeline to produce a long-form crime documentary.
     Returns: {"video_path": ..., "qa_report": ..., "metadata": ...}
@@ -212,7 +213,7 @@ def _run_pipeline(topic, output_dir, upload, slot):
             pub_str = publish_dt.strftime('%Y-%m-%d %H:%M')
             notify_upload(topic, youtube_url, slot, pub_str)
             video_id = youtube_url.split("youtu.be/")[-1].split("?")[0]
-            log_video(video_id, topic, slot, audio_results["duration"], publish_at)
+            log_video(video_id, topic, slot, audio_results["duration"], publish_at, source=source)
 
     # ── Summary ───────────────────────────────────────────────────
     print(f"\n{'=' * 60}")

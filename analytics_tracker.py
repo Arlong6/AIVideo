@@ -30,13 +30,17 @@ def _save_log(data: dict):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def log_video(video_id: str, topic: str, slot: int, duration_s: float, publish_at: str = ""):
-    """Record a newly uploaded video."""
+def log_video(video_id: str, topic: str, slot: int, duration_s: float,
+              publish_at: str = "", source: str = ""):
+    """Record a newly uploaded video.
+
+    source: optional tag like "shorts_upgrade" to track origin (manual vs
+    automated, regenerated from a top-performing Short, etc.)
+    """
     data = _load_log()
-    # Avoid duplicate entries
     if any(v["video_id"] == video_id for v in data["videos"]):
         return
-    data["videos"].append({
+    entry = {
         "video_id": video_id,
         "topic": topic,
         "slot": slot,
@@ -44,9 +48,12 @@ def log_video(video_id: str, topic: str, slot: int, duration_s: float, publish_a
         "publish_at": publish_at,
         "uploaded_at": datetime.now(timezone.utc).isoformat(),
         "stats": [],
-    })
+    }
+    if source:
+        entry["source"] = source
+    data["videos"].append(entry)
     _save_log(data)
-    print(f"  📊 Logged video {video_id} to analytics tracker")
+    print(f"  📊 Logged video {video_id}" + (f" [source={source}]" if source else ""))
 
 
 # ── Stats fetching ─────────────────────────────────────────────────────────────

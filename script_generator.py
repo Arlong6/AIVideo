@@ -353,6 +353,24 @@ def _verify_sources(sources: list) -> list:
     return verified
 
 
+def _has_existing_longform(topic: str) -> bool:
+    """Check video_log for a long-form covering the same topic. Used by the
+    Remotion CTA to decide whether to show "看完整版主頁" cross-promo line."""
+    try:
+        import json as _json
+        from shorts_to_longform_queue import _topic_key
+        log = _json.load(open("video_log.json"))
+        new_key = _topic_key(topic)
+        if not new_key:
+            return False
+        for v in log.get("videos", []):
+            if v.get("duration_s", 0) > 120 and _topic_key(v.get("topic", "")) == new_key:
+                return True
+        return False
+    except Exception:
+        return False
+
+
 def _get_recent_titles(days: int = 14) -> list[str]:
     """Load recent video titles from YouTube API to avoid duplicates."""
     import os
@@ -443,6 +461,11 @@ def generate_scripts(topic: str, fmt: str = "short", engine: str = "moviepy") ->
 
         print(f"  Generating English metadata...")
         en_result = _call_claude(PROMPT_EN.format(topic=topic))
+
+        # Cross-promo flag: does a long-form already exist for this topic?
+        zh_result["has_longform"] = _has_existing_longform(topic)
+        if zh_result["has_longform"]:
+            print(f"  [info] Long-form exists for this topic — Remotion CTA will show channel jump")
 
         return {"zh": zh_result,
                 "en": _normalize_script_field(en_result)}

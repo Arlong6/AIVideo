@@ -5,6 +5,15 @@ on:
     # Run daily at 06:00 UTC (14:00 Taiwan) — 1 long-form video per day
     - cron: "0 6 * * *"
   workflow_dispatch:
+    inputs:
+      topic:
+        description: 'Override topic (e.g. "D.B.庫柏劫機案"). Leave blank for auto-pick.'
+        required: false
+        default: ''
+      source_tag:
+        description: 'Source tag (e.g. "shorts_upgrade") for video_log.'
+        required: false
+        default: ''
 
 jobs:
   generate-longform:
@@ -58,14 +67,24 @@ jobs:
           "
 
       - name: Generate long-form video (multi-agent)
+        env:
+          OVERRIDE_TOPIC: ${{ github.event.inputs.topic }}
+          SOURCE_TAG: ${{ github.event.inputs.source_tag }}
         run: |
           python -c "
-          import sys; sys.path.insert(0, '.')
-          from topic_manager import pick_topic, save_today_reserved
+          import os, sys
+          sys.path.insert(0, '.')
           from agents.orchestrator import produce_longform
-          topic = pick_topic(refresh_news=True)
-          save_today_reserved(topic)
-          produce_longform(topic, upload=True, slot=2)
+          override = os.environ.get('OVERRIDE_TOPIC', '').strip()
+          source_tag = os.environ.get('SOURCE_TAG', '').strip()
+          if override:
+              topic = override
+              print(f'[manual] Using override topic: {topic}')
+          else:
+              from topic_manager import pick_topic, save_today_reserved
+              topic = pick_topic(refresh_news=True)
+              save_today_reserved(topic)
+          produce_longform(topic, upload=True, slot=2, source=source_tag)
           "
 
       - name: Fetch analytics and send daily report
