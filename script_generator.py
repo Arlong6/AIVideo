@@ -534,8 +534,8 @@ def _generate_long_scripts(topic: str) -> dict:
   "sections": [
     {{"name": "hook", "script": "案件開場全文", "visual_scenes": ["Pexels搜尋1", "搜尋2", "...共6個"], "scene_pacing": ["fast","climax","fast","medium","fast","climax"]}},
     {{"name": "background", "script": "人物背景全文", "visual_scenes": ["共6個"], "scene_pacing": ["slow","medium","slow","medium","slow","medium"]}},
-    {{"name": "crime", "script": "案件經過全文", "visual_scenes": ["共8個"], "scene_pacing": ["medium","fast","fast","climax","fast","medium","fast","climax"]}},
-    {{"name": "investigation", "script": "調查過程全文", "visual_scenes": ["共6個"], "scene_pacing": ["medium","slow","medium","slow","medium","slow"]}}
+    {{"name": "crime", "script": "案件經過全文（**必須包含 1 段對話片段**：警察、目擊者、嫌犯或受害者的話，用 [ALT]他們的話[/ALT] 標記。例：警察問道：[ALT]你昨晚十點在哪裡？[/ALT] 嫌犯遲疑了片刻。）", "visual_scenes": ["共8個"], "scene_pacing": ["medium","fast","fast","climax","fast","medium","fast","climax"]}},
+    {{"name": "investigation", "script": "調查過程全文（**可選**：1 段對話如法官、律師、檢察官的話，用 [ALT]...[/ALT] 標記）", "visual_scenes": ["共6個"], "scene_pacing": ["medium","slow","medium","slow","medium","slow"]}}
   ],
   "thumbnail_visual_hint": "縮圖背景場景描述（英文，30字以內）。描述一個跟案件相關的具體視覺：人物剪影、關鍵物品、犯罪現場氛圍。例：'blurry silhouette of woman in dark alley with red phone booth' 或 'abandoned warehouse at night with police car lights'。不要寫文字/標題，只描述畫面。",
   "keywords": ["英文搜尋關鍵字1", "關鍵字2", "關鍵字3", "關鍵字4", "關鍵字5"],
@@ -597,11 +597,13 @@ def _generate_long_scripts(topic: str) -> dict:
 請用 JSON 格式回傳：
 {{
   "sections": [
-    {{"name": "twist", "script": "關鍵轉折全文", "visual_scenes": ["共6個"], "scene_pacing": ["fast","fast","climax","fast","medium","climax"]}},
-    {{"name": "resolution", "script": "結局揭曉全文", "visual_scenes": ["共6個"], "scene_pacing": ["medium","slow","medium","slow","medium","slow"]}},
+    {{"name": "twist", "script": "關鍵轉折全文（**必須包含 1 段對話片段**：證人證詞、嫌犯辯解、轉折關鍵的對白，用 [ALT]他們的話[/ALT] 標記）", "visual_scenes": ["共6個"], "scene_pacing": ["fast","fast","climax","fast","medium","climax"]}},
+    {{"name": "resolution", "script": "結局揭曉全文（**可選**：1 段對話如兇手認罪、判決朗讀、被害家屬陳述，用 [ALT]...[/ALT] 標記）", "visual_scenes": ["共6個"], "scene_pacing": ["medium","slow","medium","slow","medium","slow"]}},
     {{"name": "reflection", "script": "案件反思全文", "visual_scenes": ["共4個"], "scene_pacing": ["slow","medium","slow","medium"]}},
     {{"name": "cta", "script": "結語全文", "visual_scenes": ["共2個"], "scene_pacing": ["slow","slow"]}}
   ],
+
+  "dialogue_guidelines": "對話標記規則：[ALT]文字[/ALT] 表示由不同音色（女聲）朗讀的引述/對話。整支影片應有 2-4 段對話，每段 15-40 字。用於：證人證詞、嫌犯辯解、警察審訊、法官宣判、受害者最後一句話、媒體標題引述等。對話必須與案件真實內容相符（如有真實的審訊紀錄、判決書、新聞引述，優先採用），禁止編造。**不要超過總時長 30%**。",
   "ending_question": "結尾討論問題：一個具體的二選一或道德兩難問題。例：「你覺得她是含冤入獄，還是罪有應得？」",
   "pinned_comment": "置頂留言：補充一個案件冷知識或投票問題（50字以內）",
   "shorts_candidates": [

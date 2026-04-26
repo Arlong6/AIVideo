@@ -7,6 +7,24 @@ from config import VOICE_ZH, VOICE_EN, ELEVENLABS_API_KEY
 TTS_RATE_ZH = "-8%"   # slightly slower than default for gravitas
 TTS_PITCH_ZH = "-5Hz" # slightly lower for dark tone
 
+# Dual-voice support for dialogue blocks in long-form videos.
+# NARRATOR = same as VOICE_ZH (default monologue voice).
+# ALT = contrasting female voice for dialogue counterpart (witnesses,
+# court transcripts, victim's last words, etc.) — research shows
+# multi-voice cuts the 35% drop-off observed with single-voice AI narration.
+VOICE_ROLES = {
+    "narrator": {
+        "voice": "zh-CN-YunjianNeural",  # Male, deep — matches existing
+        "rate": "-8%",
+        "pitch": "-5Hz",
+    },
+    "alt": {
+        "voice": "zh-TW-HsiaoYuNeural",  # TW female, expressive
+        "rate": "-5%",
+        "pitch": "+0Hz",
+    },
+}
+
 
 def _fix_pronunciation(text: str) -> str:
     """Fix known Edge TTS mispronunciations for Traditional Chinese.
@@ -42,14 +60,23 @@ def _fix_pronunciation(text: str) -> str:
 def generate_voiceover(text: str, lang: str, output_path: str,
                        voice: str | None = None,
                        rate: str | None = None,
-                       pitch: str | None = None):
+                       pitch: str | None = None,
+                       role: str | None = None):
     """
     Chinese: edge-tts (Microsoft neural voices, better Chinese intonation)
 
     Optional overrides let non-crime channels (e.g. books) use a different
     voice/rate/pitch without touching the global config. Defaults preserve
     the crime channel's current behavior.
+
+    role: "narrator" or "alt" — selects from VOICE_ROLES for dual-voice
+    long-form dialogue. Overrides voice/rate/pitch if both are specified.
     """
+    if role and role in VOICE_ROLES and lang == "zh":
+        spec = VOICE_ROLES[role]
+        voice = voice or spec["voice"]
+        rate = rate or spec["rate"]
+        pitch = pitch or spec["pitch"]
     import re
     # Clean pacing tags + markdown from script before TTS
     text = re.sub(r"\[(?:slow|medium|fast|climax)\]\s*", "", text, flags=re.IGNORECASE)
@@ -58,6 +85,76 @@ def generate_voiceover(text: str, lang: str, output_path: str,
     text = re.sub(r"[`~]", "", text)  # remove code/strikethrough markers
     text = _fix_pronunciation(text)
     _generate_edge_tts(text, lang, output_path, voice=voice, rate=rate, pitch=pitch)
+
+
+def generate_voiceover_multirole(text: str, lang: str, output_path: str):
+    """Generate voiceover with role switching at [ALT]...[/ALT] markers.
+
+    Splits text into segments, generates each segment with its respective
+    voice (narrator outside markers, alt inside), then concatenates all
+    audio files with ffmpeg.
+
+    Falls back to plain narrator voice if no markers detected.
+    """
+    import re
+    import subprocess as _sp
+    import tempfile
+
+    if "[ALT]" not in text or "[/ALT]" not in text:
+        # No dialogue markers — plain narrator path
+        generate_voiceover(text, lang, output_path, role="narrator")
+        return
+
+    # Tokenize: emit (role, text) tuples
+    tokens = []
+    pos = 0
+    pat = re.compile(r"\[ALT\](.*?)\[/ALT\]", re.DOTALL)
+    for m in pat.finditer(text):
+        before = text[pos:m.start()].strip()
+        if before:
+            tokens.append(("narrator", before))
+        alt = m.group(1).strip()
+        if alt:
+            tokens.append(("alt", alt))
+        pos = m.end()
+    tail = text[pos:].strip()
+    if tail:
+        tokens.append(("narrator", tail))
+
+    if not tokens:
+        generate_voiceover(text, lang, output_path, role="narrator")
+        return
+
+    # Generate per-segment audio + collect paths
+    tmpdir = tempfile.mkdtemp(prefix="multirole_tts_")
+    seg_paths = []
+    for i, (role, seg_text) in enumerate(tokens):
+        seg_path = os.path.join(tmpdir, f"seg_{i:03d}_{role}.mp3")
+        generate_voiceover(seg_text, lang, seg_path, role=role)
+        if os.path.exists(seg_path) and os.path.getsize(seg_path) > 1000:
+            seg_paths.append(seg_path)
+
+    if not seg_paths:
+        raise RuntimeError("All multirole segments failed to generate")
+
+    # Concatenate via ffmpeg concat demuxer
+    concat_list = os.path.join(tmpdir, "concat.txt")
+    with open(concat_list, "w") as f:
+        for p in seg_paths:
+            f.write(f"file '{p}'\n")
+    _sp.run([
+        "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_list,
+        "-c", "copy", output_path,
+    ], capture_output=True, check=True)
+
+    # Cleanup temp dir
+    import shutil
+    try:
+        shutil.rmtree(tmpdir)
+    except Exception:
+        pass
+
+    print(f"  Voiceover saved (multirole, {len(tokens)} segments): {output_path}")
 
 
 def _generate_elevenlabs(text: str, output_path: str):
@@ -261,9 +358,20 @@ def generate_voiceover_sections(sections: list[dict], lang: str,
             continue
 
         section_path = os.path.join(output_dir, f"_tts_{name}.mp3")
-        print(f"  TTS section {i+1}/{len(sections)}: {name} ({len(text)} chars)")
-        generate_voiceover(text, lang, section_path,
-                           voice=voice, rate=rate, pitch=pitch)
+        has_dialogue = "[ALT]" in text and "[/ALT]" in text
+        print(f"  TTS section {i+1}/{len(sections)}: {name} ({len(text)} chars)"
+              + (" [dialogue]" if has_dialogue else ""))
+        if has_dialogue and not voice:
+            # Use multirole pipeline for dialogue. Skip per-channel voice
+            # overrides (books etc.) since multirole only kicks in for crime.
+            generate_voiceover_multirole(text, lang, section_path)
+        else:
+            # Strip any leftover dialogue markers if voice override is set
+            # (books pipeline doesn't have multirole tuned).
+            import re as _re
+            clean_text = _re.sub(r"\[/?ALT\]", "", text) if has_dialogue else text
+            generate_voiceover(clean_text, lang, section_path,
+                               voice=voice, rate=rate, pitch=pitch)
 
         # Get duration
         try:

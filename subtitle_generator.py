@@ -59,6 +59,8 @@ def generate_srt(script: str, duration_seconds: float, output_path: str):
     clean = re.sub(r"\n+", "\n", clean)
     # Remove pacing tags that LLM sometimes puts in the script
     clean = re.sub(r"\[(?:slow|medium|fast|climax)\]\s*", "", clean, flags=re.IGNORECASE)
+    # Strip dialogue role markers (audio handles role switching, subtitles stay neutral)
+    clean = re.sub(r"\[/?ALT\]\s*", "", clean)
 
     sentences = re.split(r"(?<=[。！？])\s*", clean)
     sentences = [s.strip().replace("\n", " ") for s in sentences if s.strip()]
