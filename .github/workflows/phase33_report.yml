@@ -1,0 +1,128 @@
+name: Phase 3.3 Report (one-shot)
+
+# Fires once on 2026-05-17 17:27 KST (= 08:27 UTC), 14 days after the
+# last Phase 3.2 publish (鄭性澤 on 5/3). Compares the 3 Shorts-upgrade
+# long-forms against the old long-form baseline and asks Gemini for a
+# short interpretation + next-batch guidance.
+on:
+  schedule:
+    - cron: "27 8 17 5 *"
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install google-genai python-dotenv requests
+      - name: Compose + send Phase 3.3 report
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python3 << 'PYEOF'
+          import json, os
+          from datetime import datetime, timezone, timedelta
+          from telegram_notify import _send_raw
+
+          with open('video_log.json') as f:
+              videos = json.load(f).get('videos', [])
+
+          def latest_views(v):
+              stats = v.get('stats') or []
+              return stats[-1].get('views', 0) if stats else 0
+
+          def upload_kst_date(v):
+              s = v.get('uploaded_at', '')
+              if not s:
+                  return ''
+              try:
+                  dt = datetime.fromisoformat(s.replace('Z', '+00:00'))
+                  if dt.tzinfo is None:
+                      dt = dt.replace(tzinfo=timezone.utc)
+                  kst = timezone(timedelta(hours=9))
+                  return dt.astimezone(kst).strftime('%Y-%m-%d')
+              except Exception:
+                  return s[:10]
+
+          # Phase 3.2 trio: shorts_upgrade-tagged long-forms uploaded 4/27 - 5/4 KST
+          trio_window = lambda v: '2026-04-27' <= upload_kst_date(v) <= '2026-05-04'
+          trio = [v for v in videos
+                  if 'shorts_upgrade' in str(v.get('source', ''))
+                  and v.get('duration_s', 0) > 600
+                  and trio_window(v)]
+
+          short_views = [('芭提雅', 208), ('湯英伸', 135), ('鄭性澤', 132)]
+          rows = []
+          for kw, sv in short_views:
+              match = next((v for v in trio if kw in v.get('topic', '')), None)
+              rows.append({
+                  'keyword': kw,
+                  'short_views': sv,
+                  'long_views': latest_views(match) if match else None,
+                  'video_id': match.get('video_id') if match else None,
+                  'topic': match.get('topic', '') if match else '',
+              })
+
+          # Baseline: other long-forms (no shorts_upgrade tag), uploaded ≥14d ago
+          kst = timezone(timedelta(hours=9))
+          cutoff = (datetime.now(kst).date() - timedelta(days=14)).strftime('%Y-%m-%d')
+          baseline_pool = [latest_views(v) for v in videos
+                           if v.get('duration_s', 0) > 600
+                           and 'shorts_upgrade' not in str(v.get('source', ''))
+                           and upload_kst_date(v) and upload_kst_date(v) <= cutoff]
+          baseline_avg = round(sum(baseline_pool) / len(baseline_pool)) if baseline_pool else 0
+
+          def verdict(views, base):
+              if views is None or not base:
+                  return '?'
+              if views >= base * 2:
+                  return '🟢 WIN'
+              if views >= base * 0.5:
+                  return '🟡 MEH'
+              return '🔴 FAIL'
+
+          lines = ['📊 [Phase 3.3] Shorts→long-form 14-day report\n']
+          for r in rows:
+              if r['long_views'] is None:
+                  lines.append(f"• {r['keyword']}:(尚未發布或未抓到)")
+              else:
+                  ratio = f"{r['long_views']/r['short_views']:.1f}x Short" if r['short_views'] else ''
+                  lines.append(f"• {r['keyword']}: {r['long_views']}v ({ratio}) {verdict(r['long_views'], baseline_avg)}")
+          lines.append(f"\n• Baseline (舊 long-form ≥14d): {baseline_avg}v avg, n={len(baseline_pool)}")
+
+          # Gemini analysis (best-effort)
+          analysis = ''
+          if os.environ.get('GEMINI_API_KEY'):
+              try:
+                  from google import genai
+                  client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
+                  prompt = (
+                      '你是 YouTube 經營顧問。Phase 3.2 三支 Shorts→long-form 升級實驗結果'
+                      f'(14 天 view):\n\n{json.dumps(rows, ensure_ascii=False, indent=2)}\n\n'
+                      f'舊 long-form baseline 平均 {baseline_avg}v(n={len(baseline_pool)})。\n\n'
+                      '用 100 字內中文回答 3 條,直接條列、不客套:\n'
+                      '1. 贏家共同點(1 句)\n'
+                      '2. 輸家共同點(1 句)\n'
+                      '3. 下批挑選原則(1 句,具體到題材或結構)'
+                  )
+                  r = client.models.generate_content(
+                      model='gemini-2.5-flash', contents=prompt)
+                  if r.text:
+                      analysis = '\n\n🤖 Gemini:\n' + r.text.strip()
+              except Exception as e:
+                  print(f'[gemini] failed: {e}')
+                  analysis = f'\n\n🤖 Gemini 不可用: {str(e)[:80]}'
+
+          _send_raw('\n'.join(lines) + analysis)
+          print('Phase 3.3 report sent')
+          PYEOF

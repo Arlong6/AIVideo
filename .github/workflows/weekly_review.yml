@@ -1,0 +1,134 @@
+name: Weekly Review (Gemini)
+
+# Every Sunday 21:13 KST (= 12:13 UTC). One Telegram per week with last-7d
+# stats vs prior-7d, plus a Gemini 100-字 interpretation + next-week
+# topic suggestion.
+on:
+  schedule:
+    - cron: "13 12 * * 0"
+  workflow_dispatch:
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install google-genai python-dotenv requests
+      - name: Compose + send weekly review
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python3 << 'PYEOF'
+          import json, os
+          from datetime import datetime, timezone, timedelta
+          from telegram_notify import _send_raw
+
+          with open('video_log.json') as f:
+              videos = json.load(f).get('videos', [])
+
+          kst = timezone(timedelta(hours=9))
+          today = datetime.now(kst).date()
+          week_start = today - timedelta(days=7)
+          prev_start = today - timedelta(days=14)
+
+          def latest_views(v):
+              stats = v.get('stats') or []
+              return stats[-1].get('views', 0) if stats else 0
+
+          def upload_date(v):
+              s = v.get('uploaded_at', '')
+              if not s:
+                  return None
+              try:
+                  dt = datetime.fromisoformat(s.replace('Z', '+00:00'))
+                  if dt.tzinfo is None:
+                      dt = dt.replace(tzinfo=timezone.utc)
+                  return dt.astimezone(kst).date()
+              except Exception:
+                  try:
+                      return datetime.strptime(s[:10], '%Y-%m-%d').date()
+                  except Exception:
+                      return None
+
+          def in_range(v, start, end):
+              d = upload_date(v)
+              return d is not None and start <= d < end
+
+          this_week = [v for v in videos if in_range(v, week_start, today + timedelta(days=1))]
+          prev_week = [v for v in videos if in_range(v, prev_start, week_start)]
+
+          def split(arr):
+              longs = sorted([v for v in arr if v.get('duration_s', 0) > 600],
+                             key=latest_views, reverse=True)
+              shorts = sorted([v for v in arr if v.get('duration_s', 0) <= 600],
+                              key=latest_views, reverse=True)
+              return longs, shorts
+
+          tw_long, tw_short = split(this_week)
+          pw_long, pw_short = split(prev_week)
+
+          def avg(arr):
+              return round(sum(latest_views(v) for v in arr) / len(arr)) if arr else 0
+
+          tw_long_avg, pw_long_avg = avg(tw_long), avg(pw_long)
+          tw_short_avg, pw_short_avg = avg(tw_short), avg(pw_short)
+
+          def delta(now, prev):
+              if not prev:
+                  return '(no prior wk)'
+              pct = (now - prev) / prev * 100
+              return f"{'↑' if pct >= 0 else '↓'}{abs(pct):.0f}% vs 上週"
+
+          def fmt_video(v):
+              return f"  • {latest_views(v)}v — {v.get('topic', '?')[:38]}"
+
+          lines = [f"📈 [Weekly Review] {week_start.strftime('%m/%d')}–{today.strftime('%m/%d')}\n"]
+          lines.append(f"Long-form: {len(tw_long)} 支, avg {tw_long_avg}v {delta(tw_long_avg, pw_long_avg)}")
+          lines.extend(fmt_video(v) for v in tw_long[:5])
+          lines.append('')
+          lines.append(f"Shorts: {len(tw_short)} 支, avg {tw_short_avg}v {delta(tw_short_avg, pw_short_avg)}")
+          lines.extend(fmt_video(v) for v in tw_short[:5])
+
+          # Gemini analysis (best-effort)
+          analysis = ''
+          if os.environ.get('GEMINI_API_KEY') and (tw_long or tw_short):
+              try:
+                  from google import genai
+                  client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
+                  payload = {
+                      'this_week_long': [{'topic': v.get('topic', ''), 'views': latest_views(v),
+                                          'duration_s': v.get('duration_s')} for v in tw_long],
+                      'this_week_short': [{'topic': v.get('topic', ''), 'views': latest_views(v),
+                                           'duration_s': v.get('duration_s')} for v in tw_short],
+                      'prev_week_long_avg': pw_long_avg,
+                      'prev_week_short_avg': pw_short_avg,
+                  }
+                  prompt = (
+                      '你是 YouTube 真實罪案頻道顧問。以下是過去 7 天 vs 前 7 天的數據:\n\n'
+                      f'{json.dumps(payload, ensure_ascii=False, indent=2)}\n\n'
+                      '用 120 字內中文回答 3 條,直接條列、不客套:\n'
+                      '1. 本週贏家(>2x 本週 avg)的共同點(題材/標題/視覺哪一面)\n'
+                      '2. 本週輸家(<0.5x 本週 avg)的共同點\n'
+                      '3. 下週選題建議 1 條(具體到題材方向,可參考贏家模式)'
+                  )
+                  r = client.models.generate_content(
+                      model='gemini-2.5-flash', contents=prompt)
+                  if r.text:
+                      analysis = '\n\n🤖 Gemini:\n' + r.text.strip()
+              except Exception as e:
+                  print(f'[gemini] failed: {e}')
+                  analysis = f'\n\n🤖 Gemini 不可用: {str(e)[:80]}'
+
+          _send_raw('\n'.join(lines) + analysis)
+          print('Weekly review sent')
+          PYEOF
