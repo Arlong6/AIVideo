@@ -306,6 +306,10 @@ def generate_voiceover_with_timing(text: str, lang: str, output_path: str,
     Optional voice/rate/pitch overrides let books channel use A4 HsiaoYu
     without touching the crime channel's global config.
 
+    If text contains [ALT]...[/ALT] dialogue markers and no voice override is
+    given, splits per role, generates each segment with the matching VOICE_ROLE
+    voice, and merges audio + boundaries with cumulative offsets.
+
     Returns list of sentence dicts with keys: offset (100ns), duration (100ns),
     text (the sentence text).
     """
@@ -314,6 +318,16 @@ def generate_voiceover_with_timing(text: str, lang: str, output_path: str,
     text = re.sub(r"\*+", "", text)
     text = re.sub(r"#{1,6}\s*", "", text)
     text = re.sub(r"[`~]", "", text)
+
+    has_dialogue = "[ALT]" in text and "[/ALT]" in text
+
+    if lang == "zh" and has_dialogue and not voice:
+        return _voiceover_with_timing_multirole(text, output_path)
+
+    # Strip stray ALT markers if voice override is set or markers somehow
+    # leaked into a non-zh path — never speak them aloud.
+    if has_dialogue:
+        text = re.sub(r"\[/?ALT\]\s*", "", text)
 
     if lang == "zh":
         voice = voice or VOICE_ZH
@@ -327,6 +341,97 @@ def generate_voiceover_with_timing(text: str, lang: str, output_path: str,
     boundaries = asyncio.run(_edge_tts_with_timing(text, voice, rate, pitch, output_path))
     print(f"  Voiceover saved with {len(boundaries)} sentence boundaries: {output_path}")
     return boundaries
+
+
+def _voiceover_with_timing_multirole(text: str, output_path: str) -> list[dict]:
+    """Multi-role variant of generate_voiceover_with_timing.
+
+    Splits on [ALT]...[/ALT], generates each segment with NARRATOR/ALT voice,
+    concats audio, and emits merged boundaries with offsets accounting for
+    each segment's duration.
+    """
+    import re
+    import subprocess as _sp
+    import tempfile
+
+    pat = re.compile(r"\[ALT\](.*?)\[/ALT\]", re.DOTALL)
+    tokens = []
+    pos = 0
+    for m in pat.finditer(text):
+        before = text[pos:m.start()].strip()
+        if before:
+            tokens.append(("narrator", before))
+        alt = m.group(1).strip()
+        if alt:
+            tokens.append(("alt", alt))
+        pos = m.end()
+    tail = text[pos:].strip()
+    if tail:
+        tokens.append(("narrator", tail))
+
+    if not tokens:
+        # Markers existed but produced no usable segments — strip + fallback
+        plain = re.sub(r"\[/?ALT\]\s*", "", text)
+        return generate_voiceover_with_timing(plain, "zh", output_path)
+
+    tmpdir = tempfile.mkdtemp(prefix="multirole_timing_")
+    seg_paths: list[str] = []
+    merged_boundaries: list[dict] = []
+    cumulative_offset_100ns = 0  # offset in 100-ns units (edge-tts native)
+
+    for i, (role, seg_text) in enumerate(tokens):
+        spec = VOICE_ROLES[role]
+        seg_path = os.path.join(tmpdir, f"seg_{i:03d}_{role}.mp3")
+        seg_boundaries = asyncio.run(_edge_tts_with_timing(
+            seg_text, spec["voice"], spec["rate"], spec["pitch"], seg_path,
+        ))
+        if not (os.path.exists(seg_path) and os.path.getsize(seg_path) > 1000):
+            print(f"  [WARN] multirole segment {i} ({role}) failed, skipping")
+            continue
+
+        # Re-base each boundary by the cumulative offset
+        for b in seg_boundaries:
+            merged_boundaries.append({
+                "offset": b["offset"] + cumulative_offset_100ns,
+                "duration": b["duration"],
+                "text": b["text"],
+            })
+
+        # Probe segment duration and advance offset
+        r = _sp.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=nw=1:nk=1", seg_path],
+            capture_output=True, text=True,
+        )
+        try:
+            seg_dur_s = float(r.stdout.strip())
+        except (ValueError, AttributeError):
+            seg_dur_s = sum(b["duration"] for b in seg_boundaries) / 10_000_000
+        cumulative_offset_100ns += int(seg_dur_s * 10_000_000)
+        seg_paths.append(seg_path)
+
+    if not seg_paths:
+        raise RuntimeError("All multirole timing segments failed")
+
+    # Concat audio
+    concat_list = os.path.join(tmpdir, "concat.txt")
+    with open(concat_list, "w") as f:
+        for p in seg_paths:
+            f.write(f"file '{p}'\n")
+    _sp.run([
+        "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_list,
+        "-c", "copy", output_path,
+    ], capture_output=True, check=True)
+
+    import shutil
+    try:
+        shutil.rmtree(tmpdir)
+    except Exception:
+        pass
+
+    print(f"  Voiceover saved (multirole timing, {len(tokens)} segments, "
+          f"{len(merged_boundaries)} boundaries): {output_path}")
+    return merged_boundaries
 
 
 def generate_voiceover_sections(sections: list[dict], lang: str,
