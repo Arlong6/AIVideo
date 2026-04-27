@@ -71,11 +71,53 @@ jobs:
           OVERRIDE_TOPIC: ${{ github.event.inputs.topic }}
           SOURCE_TAG: ${{ github.event.inputs.source_tag }}
         run: |
-          python -c "
+          python3 << 'PYEOF'
           import os, sys
           sys.path.insert(0, '.')
-          from agents.orchestrator import produce_longform
+
+          # Guard: skip if a long-form already published today (KST).
+          # Bypassed when OVERRIDE_TOPIC is set — manual topic = intentional.
           override = os.environ.get('OVERRIDE_TOPIC', '').strip()
+          if not override:
+              import json
+              from datetime import datetime, timezone, timedelta
+              kst = timezone(timedelta(hours=9))
+              today_kst = datetime.now(kst).strftime('%Y-%m-%d')
+              try:
+                  with open('video_log.json') as _f:
+                      _videos = json.load(_f).get('videos', [])
+              except FileNotFoundError:
+                  _videos = []
+
+              def _kst_date(v):
+                  s = v.get('uploaded_at', '')
+                  if not s:
+                      return ''
+                  try:
+                      dt = datetime.fromisoformat(s.replace('Z', '+00:00'))
+                      if dt.tzinfo is None:
+                          dt = dt.replace(tzinfo=timezone.utc)
+                      return dt.astimezone(kst).strftime('%Y-%m-%d')
+                  except Exception:
+                      return s[:10]
+
+              _today = [v for v in _videos
+                        if v.get('duration_s', 0) > 600
+                        and _kst_date(v) == today_kst]
+              if _today:
+                  v = _today[0]
+                  vid = v.get('video_id', '?')
+                  top = v.get('topic', '')[:50]
+                  msg = f'⏭️ [longform] Guard skipped — {vid} already published today ({top})'
+                  print(f'[guard] {msg}')
+                  try:
+                      from telegram_notify import _send_raw
+                      _send_raw(msg)
+                  except Exception as _e:
+                      print(f'[guard] Telegram notify failed: {_e}')
+                  sys.exit(0)
+
+          from agents.orchestrator import produce_longform
           source_tag = os.environ.get('SOURCE_TAG', '').strip()
           if override:
               topic = override
@@ -85,7 +127,7 @@ jobs:
               topic = pick_topic(refresh_news=True)
               save_today_reserved(topic)
           produce_longform(topic, upload=True, slot=2, source=source_tag)
-          "
+          PYEOF
 
       - name: Fetch analytics and send daily report
         run: |
