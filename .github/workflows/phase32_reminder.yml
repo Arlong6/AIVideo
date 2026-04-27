@@ -1,0 +1,68 @@
+name: Phase 3.2 Reminder (one-shot)
+
+# Two scheduled fires only — auto-deletes when both dates pass.
+# Cron is UTC; both dates resolve to 17:27 KST (= 08:27 UTC).
+on:
+  schedule:
+    - cron: "27 8 30 4 *"  # 2026-04-30 17:27 KST → 湯英伸
+    - cron: "27 8 3 5 *"   # 2026-05-03 17:27 KST → 鄭性澤
+  workflow_dispatch:        # manual fire to test wiring
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install python-dotenv requests
+      - name: Send Telegram reminder
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python3 << 'PYEOF'
+          import os, sys
+          from datetime import datetime, timezone, timedelta
+          from telegram_notify import _send_raw
+
+          kst = timezone(timedelta(hours=9))
+          today = datetime.now(kst).strftime("%Y-%m-%d")
+
+          messages = {
+              "2026-04-30": (
+                  "📅 [Phase 3.2] 該觸發湯英伸 long-form 了\n\n"
+                  "Short: jSvkqaKvFhI (135v, uploaded 4/06)\n\n"
+                  "指令:\n"
+                  "gh workflow run longform.yml "
+                  '-f topic="湯英伸案：1987年台灣原住民少年殺人案與死刑爭議" '
+                  '-f source_tag="shorts_upgrade"'
+              ),
+              "2026-05-03": (
+                  "📅 [Phase 3.2] 該觸發鄭性澤 long-form 了(最後一支)\n\n"
+                  "Short: 1Pe7I1Zplb4 (132v, uploaded 4/13)\n\n"
+                  "指令:\n"
+                  "gh workflow run longform.yml "
+                  '-f topic="鄭性澤冤案：酒店槍戰現場唯一倖存者卻被判死刑、坐死囚超過十年" '
+                  '-f source_tag="shorts_upgrade"\n\n'
+                  "Phase 3.2 完成後 → Phase 3.3 對比 14-day 表現"
+              ),
+          }
+
+          msg = messages.get(today)
+          if not msg:
+              if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
+                  msg = f"🧪 phase32_reminder.yml test fire ({today}) — wiring OK."
+              else:
+                  print(f"No reminder configured for {today} — exit clean.")
+                  sys.exit(0)
+
+          _send_raw(msg)
+          print(f"Sent reminder for {today}")
+          PYEOF
