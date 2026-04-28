@@ -552,6 +552,7 @@ def _generate_long_scripts(topic: str) -> dict:
 {{
   "title": "影片標題（使用上方標題 DNA 公式，≤25字，絕對不超過30字）",
   "opening_card": "開場字卡（8字以內，最衝擊的一句話）",
+  "cold_open_text": "冷開場 tagline（10-15 字，敘事感的單一句子，比 opening_card 更長更有畫面）。例：「她殺了七個小孩，然後當市場媽媽。」「血案發生那晚，警車到得太晚。」這句會在影片最開始 3 秒純黑、純靜音時出現，給觀眾紀錄片冷開場的感覺。如果想不出有力的句子，回傳空字串而不是空泛內容。",
   "date": "案件主要日期，例：'1968年12月10日' 或 '1996年11月'",
   "location": "案件地點，例：'台北市' 或 '東京都'",
   "sections": [
@@ -647,6 +648,7 @@ def _generate_long_scripts(topic: str) -> dict:
     merged = {
         "title": p1_result.get("title", topic),
         "opening_card": p1_result.get("opening_card", ""),
+        "cold_open_text": p1_result.get("cold_open_text", ""),
         "sections": all_sections,
         "keywords": p1_result.get("keywords", []),
         "description": p1_result.get("description", ""),

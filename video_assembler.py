@@ -769,6 +769,92 @@ def _interleave_wiki_clips(cut_paths: list[str], wiki_clips: list[str]) -> list[
     return result
 
 
+def _apply_cold_open_audio_prefix(output_dir: str, prefix_sec: float = 3.0,
+                                  lang: str = "zh") -> bool:
+    """Prepend `prefix_sec` of silence to voiceover and shift SRT cues to match.
+
+    Used when a cold-open card is prepended to the visual: narration must
+    start AFTER the cold open so the tagline plays over silence (cinematic).
+
+    Returns True on success, False on failure (caller should disable cold open).
+    """
+    import re
+    import shutil
+    import subprocess
+
+    voiceover_path = os.path.join(output_dir, f"voiceover_{lang}.mp3")
+    if not os.path.exists(voiceover_path):
+        print(f"  [cold-open] Voiceover not found, skipping prefix")
+        return False
+
+    silence_path = os.path.join(output_dir, "_silence_prefix.mp3")
+    padded_path = os.path.join(output_dir, "_voiceover_padded.mp3")
+    concat_list = os.path.join(output_dir, "_audio_concat.txt")
+
+    try:
+        # 1. Generate silent prefix
+        subprocess.run([
+            "ffmpeg", "-y", "-f", "lavfi",
+            "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+            "-t", str(prefix_sec), "-q:a", "9", silence_path,
+        ], capture_output=True, check=True, timeout=20)
+
+        # 2. Concat silence + voiceover. Re-encode to AAC then back to mp3 to
+        #    avoid concat demuxer issues when sample rates differ.
+        with open(concat_list, "w") as f:
+            f.write(f"file '{os.path.abspath(silence_path)}'\n")
+            f.write(f"file '{os.path.abspath(voiceover_path)}'\n")
+
+        subprocess.run([
+            "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+            "-i", concat_list, "-c:a", "libmp3lame", "-q:a", "4",
+            padded_path,
+        ], capture_output=True, check=True, timeout=60)
+
+        # 3. Replace original voiceover
+        shutil.move(padded_path, voiceover_path)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        print(f"  [cold-open] Audio padding failed: {e}")
+        for p in (silence_path, padded_path, concat_list):
+            if os.path.exists(p):
+                os.remove(p)
+        return False
+    finally:
+        for p in (silence_path, concat_list):
+            if os.path.exists(p):
+                os.remove(p)
+
+    # 4. Shift SRT cues by prefix_sec
+    srt_path = os.path.join(output_dir, f"subtitles_{lang}.srt")
+    if os.path.exists(srt_path):
+        try:
+            with open(srt_path, "r", encoding="utf-8") as sf:
+                srt = sf.read()
+
+            shift_ms = int(prefix_sec * 1000)
+            srt_time_re = re.compile(r"(\d{2}):(\d{2}):(\d{2}),(\d{3})")
+
+            def _shift(match):
+                h, m, s, ms = (int(g) for g in match.groups())
+                total = h * 3_600_000 + m * 60_000 + s * 1000 + ms + shift_ms
+                nh = total // 3_600_000
+                rem = total % 3_600_000
+                nm = rem // 60_000
+                rem %= 60_000
+                ns = rem // 1000
+                nms = rem % 1000
+                return f"{nh:02d}:{nm:02d}:{ns:02d},{nms:03d}"
+
+            shifted = srt_time_re.sub(_shift, srt)
+            with open(srt_path, "w", encoding="utf-8") as sf:
+                sf.write(shifted)
+        except Exception as e:
+            print(f"  [cold-open] SRT shift failed (non-fatal): {e}")
+
+    print(f"  [cold-open] Voiceover padded with {prefix_sec:.1f}s silence + SRT shifted")
+    return True
+
+
 def _make_opening_card(text: str, output_path: str, duration: float = 2.0,
                        fmt: str = "short"):
     """Generate a title card with large white text using ffmpeg."""
@@ -876,6 +962,38 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         print(f"  [ERROR] Voiceover not found: {voiceover_path}")
         return None
 
+    # ── Cold open (long-form only): peek metadata, pad voiceover BEFORE load ──
+    # If a cold_open_text is present we prepend `cold_open_dur` of silence to
+    # the voiceover (and shift SRT) so when we later prepend a tagline card to
+    # the visual, narration starts AFTER it. Audio sync stays automatic because
+    # everything downstream keys off voiceover.duration.
+    cold_open_text = ""
+    cold_open_dur = 3.0
+    if fmt == "long":
+        meta_path_co = os.path.join(output_dir, "metadata.json")
+        if os.path.exists(meta_path_co):
+            try:
+                import json as _json_co
+                with open(meta_path_co, encoding="utf-8") as _mf:
+                    _meta_co = _json_co.load(_mf)
+                _zh_co = _meta_co if "cold_open_text" in _meta_co else _meta_co.get("zh", {})
+                cold_open_text = (_zh_co.get("cold_open_text") or "").strip()
+                # Hard length cap — anything longer than 30 chars is Gemini
+                # ignoring the 10-15 char rule and would render tiny.
+                if len(cold_open_text) > 30:
+                    print(f"  [cold-open] Tagline too long ({len(cold_open_text)} chars), skipping")
+                    cold_open_text = ""
+            except Exception as _e:
+                print(f"  [cold-open] Metadata read failed: {_e}")
+                cold_open_text = ""
+
+        if cold_open_text:
+            print(f"  [cold-open] Tagline: 「{cold_open_text}」")
+            ok = _apply_cold_open_audio_prefix(output_dir, prefix_sec=cold_open_dur, lang=lang)
+            if not ok:
+                # Fall back: skip cold open entirely if audio padding failed
+                cold_open_text = ""
+
     print("  Loading voiceover...")
     voiceover = AudioFileClip(voiceover_path)
     duration = voiceover.duration
@@ -922,6 +1040,19 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
                 cut_paths = [card_path] + cut_paths
         except Exception as e:
             print(f"  [WARN] Opening card failed: {e}")
+
+    # Prepend cold-open card BEFORE the opening card (silent, narrative tagline).
+    # Audio prefix was already applied above so duration math just works.
+    if cold_open_text:
+        cold_open_path = os.path.join(output_dir, "_cold_open.mp4")
+        try:
+            _make_opening_card(cold_open_text, cold_open_path,
+                               duration=cold_open_dur, fmt=fmt)
+            if os.path.exists(cold_open_path):
+                cut_paths = [cold_open_path] + cut_paths
+                print(f"  Cold-open card prepended ({cold_open_dur:.1f}s)")
+        except Exception as e:
+            print(f"  [WARN] Cold-open card render failed: {e}")
 
     # Interleave Wikimedia archive clips at key story positions
     if wiki_clips:
