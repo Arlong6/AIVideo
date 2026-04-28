@@ -2027,7 +2027,7 @@
         },
         {
           "date": "2026-04-28",
-          "views": 1,
+          "views": 2,
           "likes": 0,
           "comments": 1
         }
@@ -3031,7 +3031,7 @@
         },
         {
           "date": "2026-04-28",
-          "views": 73,
+          "views": 76,
           "likes": 2,
           "comments": 2
         }
@@ -3059,7 +3059,7 @@
         },
         {
           "date": "2026-04-28",
-          "views": 43,
+          "views": 44,
           "likes": 0,
           "comments": 1
         }
@@ -3109,8 +3109,8 @@
         },
         {
           "date": "2026-04-28",
-          "views": 176,
-          "likes": 2,
+          "views": 422,
+          "likes": 3,
           "comments": 1
         }
       ]
@@ -3133,7 +3133,7 @@
           "date": "2026-04-28",
           "views": 0,
           "likes": 0,
-          "comments": 0
+          "comments": 1
         }
       ]
     },
@@ -3144,6 +3144,38 @@
       "duration_s": 1005,
       "publish_at": "2026-04-29T14:00:00+08:00",
       "uploaded_at": "2026-04-28T09:53:15.980330+00:00",
+      "stats": [
+        {
+          "date": "2026-04-28",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "TjTqN6LNj6k",
+      "topic": "劉邦友血案：台灣政治史上最駭人聽聞的滅門血案，八條人命與無解的真相",
+      "slot": 1,
+      "duration_s": 88,
+      "publish_at": "2026-04-29T10:00:00+08:00",
+      "uploaded_at": "2026-04-28T19:56:56.433402+00:00",
+      "stats": [
+        {
+          "date": "2026-04-28",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "jxzk7Zp3j6g",
+      "topic": "2014 鄭捷台北捷運隨機殺人案",
+      "slot": 3,
+      "duration_s": 87,
+      "publish_at": "2026-04-29T18:00:00+08:00",
+      "uploaded_at": "2026-04-28T20:03:59.422544+00:00",
       "stats": [
         {
           "date": "2026-04-28",
