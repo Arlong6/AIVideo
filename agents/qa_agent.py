@@ -263,24 +263,42 @@ def review_video(output_dir: str, expected_duration: float = 0,
     # ── 7. Black frame detection ─────────────────────────────────────
     # Skip first ~5s: intentional opening card is black by design.
     # For books channel, intro card can be longer (up to 25s).
+    # Each clip has a 0.4s fade-in/out (video_assembler), so a single sample
+    # landing on a transition junction trivially reads as black. Sample 3
+    # frames per check window and only fail if ALL are below threshold —
+    # real failures (frozen black, missing footage) span the whole window;
+    # transient fade junctions don't.
     BLACK_THRESHOLD = 5  # brightness below this = black
     opening_skip = 25.0 if channel == "books" else 5.0
-    check_points = {
-        "開頭": min(opening_skip + 2.0, duration * 0.1),
-        "中段": duration / 2,
-        "結尾": max(0, duration - 2.0),
+    opening_end = min(opening_skip + 5.0, duration * 0.15)
+
+    check_windows = {
+        "開頭": (opening_skip, opening_end),
+        "中段": (duration / 2 - 1.5, duration / 2 + 1.5),
+        "結尾": (max(0, duration - 4.0), max(0, duration - 1.0)),
     }
+
     black_fails = []
-    for label, t in check_points.items():
-        b = _extract_frame_brightness(final_path, t)
-        if b is not None and b < BLACK_THRESHOLD:
-            black_fails.append(f"{label}({t:.0f}s)")
+    for label, (start, end) in check_windows.items():
+        if end <= start:
+            continue
+        # 3 evenly-spaced samples across the window
+        sample_times = [start, (start + end) / 2, end]
+        brightnesses = []
+        for t in sample_times:
+            b = _extract_frame_brightness(final_path, t)
+            if b is not None:
+                brightnesses.append(b)
+        # Fail only if every readable sample in the window is black
+        if brightnesses and all(b < BLACK_THRESHOLD for b in brightnesses):
+            mid = (start + end) / 2
+            black_fails.append(f"{label}({mid:.0f}s,{len(brightnesses)}/{len(sample_times)} samples)")
 
     if black_fails:
         issues.append({"check": "黑畫面", "status": "FAIL", "severity": "high",
-                       "detail": f"偵測到黑畫面: {', '.join(black_fails)}"})
+                       "detail": f"偵測到持續黑畫面: {', '.join(black_fails)}"})
     else:
-        issues.append({"check": "黑畫面", "status": "PASS", "detail": "無黑畫面 ✓"})
+        issues.append({"check": "黑畫面", "status": "PASS", "detail": "無持續黑畫面 ✓"})
 
     # ── 8. Frozen frame detection (last 20% of video) ────────────────
     # This catches the Theranos bug: last N minutes stuck on same frame
