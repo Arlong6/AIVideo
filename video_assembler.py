@@ -659,16 +659,21 @@ def _build_sfx_track(total_duration: float, output_dir: str) -> str | None:
 
 
 def _insert_section_titles(cut_paths: list[str], output_dir: str,
-                           fmt: str = "long") -> list[str]:
+                           fmt: str = "long") -> tuple[list[str], dict[str, int]]:
     """Insert 1.5s section title cards at section boundaries.
 
     Gives viewers a progress indicator and acts as visual pattern interrupt.
     Uses SECTION_NAMES from title_dna.py for Chinese labels.
+
+    Returns (modified cut_paths, {section_key: final_index}). The index map
+    is used downstream to compute YouTube chapter timestamps from the actual
+    per-clip durations.
     """
     from title_dna import SECTION_NAMES
+    section_positions: dict[str, int] = {}
     n = len(cut_paths)
     if n < 10:
-        return cut_paths
+        return cut_paths, section_positions
 
     # English labels for bilingual title cards
     en_labels = {
@@ -709,11 +714,12 @@ def _insert_section_titles(cut_paths: list[str], output_dir: str,
             pos = int(cum / sum(section_sizes) * n) + offset
             pos = min(pos, len(result))
             result.insert(pos, card_path)
+            section_positions[key] = pos
             offset += 1
 
         cum += size
 
-    return result
+    return result, section_positions
 
 
 def _interleave_wiki_clips(cut_paths: list[str], wiki_clips: list[str]) -> list[str]:
@@ -928,15 +934,19 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         print(f"  Inserted {len(info_cards)} info cards")
 
     # Insert section title cards at transitions (long-form only)
+    section_positions: dict[str, int] = {}
     if fmt == "long" and not direct_cut_paths:
         pre_count = len(cut_paths)
-        cut_paths = _insert_section_titles(cut_paths, output_dir, fmt=fmt)
+        cut_paths, section_positions = _insert_section_titles(cut_paths, output_dir, fmt=fmt)
         added = len(cut_paths) - pre_count
         if added:
             print(f"  Inserted {added} section title cards")
 
-    # Add fade-in/out to each clip for smooth transitions (long-form only)
+    # Add fade-in/out to each clip for smooth transitions (long-form only).
+    # We also collect per-clip durations as we probe — same data is needed
+    # below to compute YouTube chapter timestamps from section_positions.
     import subprocess
+    clip_durations: list[float] = []
     if fmt == "long" and len(cut_paths) > 1:
         FADE_DUR = 0.4
         print(f"  Adding {FADE_DUR}s fade transitions to {len(cut_paths)} clips...")
@@ -949,7 +959,9 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
             try:
                 clip_dur = float(probe.stdout.strip())
             except (ValueError, AttributeError):
+                clip_durations.append(0.0)
                 continue
+            clip_durations.append(clip_dur)
             if clip_dur < FADE_DUR * 3:
                 continue  # too short for fades
 
@@ -970,6 +982,48 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
                 if os.path.exists(faded):
                     os.remove(faded)
                 # Skip this clip's fade rather than aborting the whole pipeline
+
+    # Build YouTube chapter timestamps from section_positions + clip_durations.
+    # Resulting `chapters_text` is read by youtube_uploader._build_full_description
+    # and YouTube auto-renders clickable chapters when the description contains
+    # `00:00 ...` followed by ascending HH:MM markers, one per line.
+    if section_positions and clip_durations and len(clip_durations) >= max(section_positions.values(), default=0):
+        from title_dna import SECTION_NAMES
+        section_order = ["background", "crime", "investigation",
+                         "twist", "resolution", "reflection"]
+        chapters: list[tuple[int, str]] = [(0, SECTION_NAMES.get("hook", "案件開場"))]
+        for key in section_order:
+            pos = section_positions.get(key)
+            if pos is None or pos > len(clip_durations):
+                continue
+            t_sec = int(sum(clip_durations[:pos]))
+            label = SECTION_NAMES.get(key, key)
+            # Skip if this would be at the same minute as the previous (YouTube
+            # requires monotonic increase, ≥10s gap is the safe margin).
+            if t_sec - chapters[-1][0] < 10:
+                continue
+            chapters.append((t_sec, label))
+
+        if len(chapters) >= 3:  # YouTube requires ≥3 chapters to render UI
+            chapters_text = "\n".join(
+                f"{t // 60:02d}:{t % 60:02d} {label}" for t, label in chapters
+            )
+            meta_path_chap = os.path.join(output_dir, "metadata.json")
+            if os.path.exists(meta_path_chap):
+                try:
+                    import json as _json_chap
+                    with open(meta_path_chap, "r", encoding="utf-8") as mf:
+                        _meta_chap = _json_chap.load(mf)
+                    _meta_chap["chapters_text"] = chapters_text
+                    with open(meta_path_chap, "w", encoding="utf-8") as mf:
+                        _json_chap.dump(_meta_chap, mf, ensure_ascii=False, indent=2)
+                    print(f"  Chapters: {len(chapters)} markers written to metadata.json")
+                except Exception as e:
+                    print(f"  [WARN] Chapter write failed: {e}")
+            else:
+                print(f"  [WARN] No metadata.json — skipping chapter write")
+        else:
+            print(f"  Chapters: only {len(chapters)} markers (need ≥3 for YouTube UI), skipping")
 
     # Concatenate cut files via ffmpeg concat demuxer (memory-efficient)
     concat_path = os.path.join(output_dir, "_concat.mp4")
