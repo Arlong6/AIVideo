@@ -143,7 +143,11 @@ def _run_pipeline(topic, output_dir, upload, slot, source=""):
                 map_clips.append(map_vid)
                 print(f"  📍 Map added: {map_name}")
 
-    all_wiki = (visual_results.get("wiki_clips") or []) + map_clips
+    # Imagen clips for hook/twist/resolution lead the wiki bucket so the
+    # cinematic anchors land at the highest-attention beats. Map clips
+    # follow the photo bucket.
+    imagen_clips = visual_results.get("imagen_clips") or []
+    all_wiki = imagen_clips + (visual_results.get("wiki_clips") or []) + map_clips
 
     # Assemble
     final_path = assemble_video(

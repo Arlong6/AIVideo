@@ -90,6 +90,38 @@ def _search_pexels(query: str, page: int, headers: dict,
     return []
 
 
+# 2026-04-29: bias dark-keyword scenes toward darker stock footage.
+# Same query "tokyo night" can return either lit shopping streets (mean lum ~150)
+# or actual night alleys (mean lum ~40). Crime aesthetic wants the latter.
+DARK_KEYWORDS = ("night", "dark", "noir", "shadow", "rain", "alley",
+                 "moody", "low light", "midnight", "neon")
+
+
+def _score_video_darkness(video: dict) -> float:
+    """Mean luminance 0-255 of Pexels-supplied thumbnail. Lower = darker.
+
+    Uses the 'image' field on the video object (a still preview Pexels
+    already provides — no extra video download needed). Falls back to
+    128.0 (neutral) on any failure so candidates without thumbnails
+    don't get penalized or boosted artificially.
+    """
+    thumb_url = video.get("image", "")
+    if not thumb_url:
+        return 128.0
+    try:
+        from io import BytesIO
+        from PIL import Image
+        resp = requests.get(thumb_url, timeout=8)
+        if resp.status_code != 200 or len(resp.content) < 1000:
+            return 128.0
+        img = Image.open(BytesIO(resp.content)).convert("L")
+        small = img.resize((40, 22))  # cheap downsample
+        pixels = list(small.getdata())
+        return sum(pixels) / max(1, len(pixels))
+    except Exception:
+        return 128.0
+
+
 def _download_clip(video: dict, filepath: str) -> bool:
     files = sorted(
         [f for f in video["video_files"] if f["quality"] in ("hd", "sd")],
@@ -138,11 +170,17 @@ def download_footage(visual_scenes: list, output_dir: str, fmt: str = "short"):
         print(f"  Scene {scene_idx+1:02d}/{len(visual_scenes)}: '{query}'")
         clips_saved = 0
 
+        # If query implies a dark scene, sort candidates by darkness first
+        # so we pick the moodiest stock instead of generic daytime.
+        is_dark_scene = any(kw in query.lower() for kw in DARK_KEYWORDS)
+
         # Try page 1 then page 2 for this query
         for page in (1, 2, 3):
             if clips_saved >= clips_per:
                 break
             videos = _search_pexels(query, page, headers, orientation)
+            if is_dark_scene and videos:
+                videos = sorted(videos, key=_score_video_darkness)
             for video in videos:
                 if clips_saved >= clips_per:
                     break
