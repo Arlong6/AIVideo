@@ -210,9 +210,14 @@ def _draw_title(img: Image.Image, title: str, fmt: str = "short",
 
 
 AI_STYLE_ANCHOR = (
-    "cinematic true crime documentary, dark teal and amber color grade, "
-    "film noir chiaroscuro lighting, shallow depth of field, "
-    "35mm film grain, muted colors, no text, no watermark, no face"
+    "cinematic true crime documentary, "
+    "single key object dominating foreground "
+    "(weapon, knife blade, police badge, evidence bag, photo, "
+    "police tape, broken glass, bloody handprint, lone shoe), "
+    "high contrast dark moody noir, deep shadow occupying 60% of frame, "
+    "single hard light source from upper-side creating dramatic chiaroscuro, "
+    "dark teal and amber color grade, shallow depth of field, "
+    "35mm film grain, no text, no watermark, no faces, no people"
 )
 
 

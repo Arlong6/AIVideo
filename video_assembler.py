@@ -1306,20 +1306,24 @@ def _apply_cinematic_effects(input_path: str, output_path: str) -> bool:
     # Red: shadows pulled down (teal), highlights slightly pushed (amber)
     # Green: mostly neutral, slight lift in mids
     # Blue: shadows pushed up (teal), highlights pulled (amber warmth)
+    # 2026-04-29: bumped from subtle → assertive teal-amber.
+    # Old grade (r-shadow 0.10, b-shadow 0.20) was barely visible vs raw Pexels.
+    # New: shadows clearly cool (b 0.25), highlights clearly warm (r 0.92, b 0.75),
+    # contrast 1.12, saturation 0.95 (was 0.88 — was washing out colors too much).
     curves = (
         "curves="
-        "r='0/0 0.15/0.10 0.5/0.48 0.85/0.88 1/1':"
-        "g='0/0 0.15/0.13 0.5/0.50 0.85/0.85 1/1':"
-        "b='0/0 0.15/0.20 0.5/0.52 0.85/0.80 1/1'"
+        "r='0/0 0.15/0.08 0.5/0.50 0.85/0.92 1/1':"
+        "g='0/0 0.15/0.12 0.5/0.50 0.85/0.86 1/1':"
+        "b='0/0 0.15/0.25 0.5/0.50 0.85/0.75 1/1'"
     )
 
     vf = ",".join([
-        # Teal-amber color grade
+        # Teal-amber color grade (aggressive, true crime cinematic)
         curves,
-        # Lift blacks slightly (milky shadows, not crushed)
-        "eq=brightness=0.02:saturation=0.88:contrast=1.08:gamma=1.05",
-        # Vignette (documentary focus)
-        "vignette=PI/4.5",
+        # Slight black lift + stronger contrast + keep some saturation
+        "eq=brightness=0.02:saturation=0.95:contrast=1.12:gamma=1.05",
+        # Vignette tighter (stronger focal pull)
+        "vignette=PI/4.0",
         # Subtle grain (less than CCTV — documentary, not surveillance)
         "noise=alls=6:allf=t+u",
     ])
