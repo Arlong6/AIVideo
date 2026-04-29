@@ -3476,6 +3476,24 @@
           "comments": 0
         }
       ]
+    },
+    {
+      "video_id": "PtwXZUd5r-0",
+      "topic": "王迎先命案",
+      "slot": 1,
+      "duration_s": 70,
+      "publish_at": "2026-04-28T10:00:00+08:00",
+      "uploaded_at": "2026-04-27T17:09:30.358092+00:00",
+      "stats": []
+    },
+    {
+      "video_id": "sji_6PyfR9E",
+      "topic": "新北國三生殺人案 (2023)",
+      "slot": 2,
+      "duration_s": 79,
+      "publish_at": "2026-04-28T14:00:00+08:00",
+      "uploaded_at": "2026-04-27T17:16:54.959274+00:00",
+      "stats": []
     }
   ]
 }

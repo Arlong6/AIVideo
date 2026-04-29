@@ -1,0 +1,75 @@
+name: ctr_review_reminder
+
+# One-shot Telegram reminder on 2026-05-02 09:13 KST.
+# 3-day mid-term review of CTR upgrade shipped 2026-04-29 (commit 26dd510).
+# By 5/2, the 4/30 湯英伸 long-form should be live and reviewable.
+#
+# After it fires, this workflow can be deleted (or left as a no-op since
+# the date condition guards it).
+
+on:
+  schedule:
+    # 09:13 KST = 00:13 UTC, on 2026-05-02
+    - cron: "13 0 2 5 *"
+  workflow_dispatch:  # allow manual test
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Send CTR review reminder
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python3 << 'PYEOF'
+          import os
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+
+          # workflow_dispatch test path
+          is_test = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+          today_kst = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d")
+
+          if is_test:
+              msg = (
+                  "🧪 [AIvideo] ctr_review_reminder workflow wiring OK\n"
+                  f"今天: {today_kst}\n"
+                  "正式啟動: 5/2 09:13 KST"
+              )
+          else:
+              msg = (
+                  "📊 [AIvideo] CTR upgrade 中期 review 提醒\n"
+                  "\n"
+                  "3 天前 (4/29) 上的 commit 26dd510:\n"
+                  "  • Title 加情緒詞+數字硬規則\n"
+                  "  • Thumbnail noir + key object\n"
+                  "  • 色調 grade 加重\n"
+                  "\n"
+                  "4/30 湯英伸長片應該已發, 該來檢視效果了。\n"
+                  "\n"
+                  "開 Claude Code 跟我說:\n"
+                  "「跑 CTR upgrade 中期 review」\n"
+                  "我會比對 4/30 vs 4/28 之前的 thumbnail/title/色調"
+              )
+
+          import requests
+          token = os.environ["TELEGRAM_BOT_TOKEN"]
+          chat_id = os.environ["TELEGRAM_CHAT_ID"]
+          resp = requests.post(
+              f"https://api.telegram.org/bot{token}/sendMessage",
+              json={"chat_id": chat_id, "text": msg},
+              timeout=15,
+          )
+          resp.raise_for_status()
+          print(f"✓ Telegram sent: {len(msg)} chars")
+          PYEOF
