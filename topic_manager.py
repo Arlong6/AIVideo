@@ -277,36 +277,10 @@ def suggest_topics_from_news(headlines: list[str], used_topics: set, count: int 
         return []
 
 
-def suggest_topics_from_archive(used_topics: set, count: int = 5) -> list[str]:
-    """Use Claude to generate fresh topics without news (pure creative/historical)."""
-    used_list = "\n".join(f"- {t}" for t in list(used_topics)[-30:]) or "（無）"
-
-    prompt = f"""你是真實犯罪 YouTube 頻道的內容策劃。請提出 {count} 個適合製作成3分鐘短影片的真實犯罪題材。
-
-已使用過的題材（不要重複）：
-{used_list}
-
-要求：
-- 選擇有豐富公開資料的真實案件
-- 涵蓋不同類型：連環殺手、懸案、綁架、詐欺、間諜案、隨機殺人等
-- 【優先順序】：台灣本地案件 > 日本/韓國/中國案件 > 東南亞案件 > 知名歐美案件
-- 前3個題材必須是台灣或亞洲案件（例：台灣隨機殺人案、日本奧姆真理教、韓國華城連環殺人案、中國滅門案等）
-- 每個題材要夠具體（含案件名稱或人名）
-- 台灣觀眾對本地案件有更強共鳴，優先選擇
-
-請直接回傳 JSON 陣列：
-["題材1", "題材2", "題材3", "題材4", "題材5"]"""
-
-    try:
-        text = _call_claude_text(prompt)
-        m = re.search(r'\[.*?\]', text, re.DOTALL)
-        if m:
-            topics = json.loads(m.group())
-            return [t for t in topics if t not in used_topics]
-        return []
-    except Exception as e:
-        print(f"  [WARN] Claude archive suggestion failed: {e}")
-        return []
+# suggest_topics_from_archive() removed 2026-04-30 (audit important #12).
+# It was unwired dead code per the comment in pick_topic, but leaving the
+# definition risked accidental reintroduction of fabricated topics. The
+# absolute_truth_requirement memory documents why this path must stay dead.
 
 
 # ── Topic bank management ──────────────────────────────────────────────────────

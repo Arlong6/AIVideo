@@ -230,6 +230,19 @@ def main():
                           engine=VIDEO_ENGINE, duration_s=_dur,
                           verified=use_remotion)
             log_video(video_id, topic, args.slot or 1, _dur, publish_at or "")
+        else:
+            # Audit 2026-04-30 important: render-then-no-upload used to be
+            # silent. Now Telegram pings so the operator knows the file is
+            # local-only (creds, network, or YT API issue).
+            try:
+                from telegram_notify import notify_failure
+                notify_failure(
+                    "youtube_upload",
+                    f"渲染成功但 YouTube 上傳沒回 URL,影片只存在本地: {final_path}",
+                    topic=topic,
+                )
+            except Exception:
+                pass
     else:
         print("\n[6/6] Skipping YouTube upload (add --upload to enable)")
 

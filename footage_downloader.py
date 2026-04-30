@@ -97,28 +97,44 @@ DARK_KEYWORDS = ("night", "dark", "noir", "shadow", "rain", "alley",
                  "moody", "low light", "midnight", "neon")
 
 
+# Per-run cache so a video appearing in multiple search pages isn't
+# re-downloaded just to score it again (audit 2026-04-30 worth-knowing #3).
+# Keyed by Pexels video id — preview URLs are stable per id.
+_DARKNESS_CACHE: dict[int, float] = {}
+
+
 def _score_video_darkness(video: dict) -> float:
     """Mean luminance 0-255 of Pexels-supplied thumbnail. Lower = darker.
 
     Uses the 'image' field on the video object (a still preview Pexels
     already provides — no extra video download needed). Falls back to
     128.0 (neutral) on any failure so candidates without thumbnails
-    don't get penalized or boosted artificially.
+    don't get penalized or boosted artificially. Cached per-video-id
+    for the run.
     """
+    vid = video.get("id")
+    if vid in _DARKNESS_CACHE:
+        return _DARKNESS_CACHE[vid]
+
     thumb_url = video.get("image", "")
     if not thumb_url:
+        _DARKNESS_CACHE[vid] = 128.0
         return 128.0
     try:
         from io import BytesIO
         from PIL import Image
         resp = requests.get(thumb_url, timeout=8)
         if resp.status_code != 200 or len(resp.content) < 1000:
+            _DARKNESS_CACHE[vid] = 128.0
             return 128.0
         img = Image.open(BytesIO(resp.content)).convert("L")
         small = img.resize((40, 22))  # cheap downsample
         pixels = list(small.getdata())
-        return sum(pixels) / max(1, len(pixels))
+        score = sum(pixels) / max(1, len(pixels))
+        _DARKNESS_CACHE[vid] = score
+        return score
     except Exception:
+        _DARKNESS_CACHE[vid] = 128.0
         return 128.0
 
 

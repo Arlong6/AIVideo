@@ -19,19 +19,31 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 
-def _send_raw(msg: str):
-    """Fallback send if hub not available."""
+def _send_raw(msg: str) -> bool:
+    """Send a Telegram message. Returns True iff Telegram returned 200.
+
+    Audit 2026-04-30 important #9: previously this returned None on missing
+    creds and silently swallowed every request exception, so callers that
+    printed "notification sent" were lying. Now returns a bool so the caller
+    can log accurately, and prints the failure reason locally.
+    """
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        return
+        print("  [telegram] skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID missing")
+        return False
     import requests
     try:
-        requests.post(
+        resp = requests.post(
             f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
             json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "HTML"},
             timeout=10,
         )
-    except Exception:
-        pass
+        if resp.status_code == 200:
+            return True
+        print(f"  [telegram] HTTP {resp.status_code}: {resp.text[:200]}")
+        return False
+    except Exception as e:
+        print(f"  [telegram] request failed: {e}")
+        return False
 
 
 def notify_upload(topic: str, youtube_url: str, slot: int, publish_time: str = "",
@@ -51,15 +63,17 @@ def notify_upload(topic: str, youtube_url: str, slot: int, publish_time: str = "
             "連結": youtube_url,
             "引擎": extra,
         })
+        print("  ✅ Telegram notification sent (hub)")
     else:
-        _send_raw(
+        ok = _send_raw(
             f"🎬 [AIvideo] 新影片\n"
             f"題材: {topic[:60]}\n"
             f"播出: {publish_time or slot_label}\n"
             f"引擎: {extra}\n"
             f"{youtube_url}"
         )
-    print("  ✅ Telegram notification sent")
+        print(f"  {'✅' if ok else '⚠️'} Telegram notification "
+              f"{'sent' if ok else 'FAILED — see [telegram] line above'}")
 
 
 def notify_failure(step: str, error: str, topic: str = ""):

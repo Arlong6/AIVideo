@@ -211,14 +211,15 @@ def source_visuals(case_data: dict, script_data: dict,
     script_sections = script_data.get("sections", [])
     ultra_count = 0
     fast_count = 0
-    for sec in script_sections:
+    # enumerate avoids the O(n^2) script_sections.index(sec) the original
+    # loop did per match (audit 2026-04-30 worth-knowing #5).
+    for sec_idx, sec in enumerate(script_sections):
         if sec.get("name") not in KEY_SECTION_NAMES:
             continue
         hints = sec.get("visual_hints", []) or []
         if not hints:
             continue
         primary_hint = hints[0]
-        sec_idx = script_sections.index(sec)
 
         # 1 Ultra primary
         p = _generate_imagen_clip(primary_hint, sec_idx, output_dir,

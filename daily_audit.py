@@ -32,23 +32,29 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 VIDEO_LOG = os.path.join(PROJECT_DIR, "video_log.json")
 
 
-def _git_pull_quiet():
+def _git_pull_quiet() -> tuple[bool, str]:
     """Pull latest state files from GH Actions before reading video_log.json.
 
     Since crime pipeline runs on GH Actions (not local), video_log.json is
     updated by GH Actions commits, not local writes. Without this pull, the
     audit reads stale local data and falsely reports 0 uploads.
-    Added 2026-04-11 after discovering the local-only audit missed all
-    GH Actions uploads.
+
+    Returns (ok, msg). Audit 2026-04-30 worth-knowing #4: previously this
+    silently swallowed every failure, so a stale audit (e.g. dirty tree
+    blocking rebase, network down) looked identical to a healthy one.
+    Now the caller can warn instead of pretending sync succeeded.
     """
     import subprocess
     try:
-        subprocess.run(
+        result = subprocess.run(
             ["git", "-C", PROJECT_DIR, "pull", "--rebase", "--quiet"],
-            capture_output=True, timeout=30,
+            capture_output=True, timeout=30, text=True,
         )
-    except Exception:
-        pass  # Non-critical — proceed with whatever local state we have
+        if result.returncode == 0:
+            return True, "ok"
+        return False, (result.stderr or result.stdout or "non-zero exit").strip()[:200]
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"[:200]
 BOOKS_USED_TOPICS = os.path.join(PROJECT_DIR, "data", "books", "used_topics.json")
 IMAGEN_QUOTA_FILE = os.path.join(PROJECT_DIR, "data", "imagen_quota.json")
 
@@ -397,8 +403,11 @@ def main():
                         help="Skip Telegram send (for local testing)")
     args = parser.parse_args()
 
-    # Sync latest GH Actions state before reading local files
-    _git_pull_quiet()
+    # Sync latest GH Actions state before reading local files. Surface
+    # failures so a stale audit doesn't silently report 0 uploads.
+    git_ok, git_msg = _git_pull_quiet()
+    if not git_ok:
+        print(f"  [WARN] git pull failed — audit may show stale data: {git_msg}")
 
     crime = crime_audit(args.window_hours, args.min_count)
     books = books_today_status()

@@ -12,7 +12,8 @@ video assembler consumes them just like Pexels footage.
 
 2026-04-09 v3+: Added quota tracking to avoid the "silent quota exhaustion"
 trap where a render fails halfway through with 429 errors. The tracker
-persists to `data/imagen_quota.json` and resets on UTC date change.
+persists to `data/imagen_quota.json` and resets on Pacific Time date change
+(matching Google's actual quota reset).
 """
 import json
 import os
@@ -135,7 +136,7 @@ def _consume_imagen_quota():
                 f"⚠️ [AIvideo] Imagen 配額 80% 警告\n"
                 f"今日已用: {q['count']}/{IMAGEN_DAILY_LIMIT}\n"
                 f"剩餘 {IMAGEN_DAILY_LIMIT - q['count']} 張前會自動切換 Pollinations 備援\n"
-                f"UTC 0:00 (台灣 08:00) 會 reset"
+                f"PT 00:00 (台灣 15:00 / 16:00 看 DST) 會 reset"
             )
         except Exception:
             pass
@@ -151,7 +152,7 @@ def _mark_imagen_exhausted():
         _send_raw(
             f"🔄 [AIvideo] Imagen 配額用完，本次及後續改用 Pollinations.ai 備援\n"
             f"(免費、品質略遜但可接受)\n"
-            f"明天 UTC 0:00 (台灣 08:00) 自動 reset"
+            f"PT 00:00 (台灣 15:00 / 16:00 看 DST) 自動 reset"
         )
     except Exception:
         pass
@@ -284,7 +285,7 @@ def generate_illustration(scene: str, output_path: str,
             "Imagen 4 Fast unavailable (quota or error). "
             "Fallback to Pollinations is DISABLED by default to preserve "
             "quality baseline. Re-run with --allow-fallback to use free Flux, "
-            "or wait for UTC 0:00 quota reset."
+            "or wait for PT 00:00 (≈ Taiwan 15:00/16:00) quota reset."
         )
 
     # Opt-in fallback: Pollinations.ai free Flux
@@ -454,13 +455,13 @@ def generate_illustrations_from_pairs(
             _send_raw(
                 f"❌ [AIvideo books] Imagen 配額已耗盡 ({q['count']}/{IMAGEN_DAILY_LIMIT})\n"
                 f"Route B 品質要求禁止切免費備援\n"
-                f"請等 UTC 0:00 (台灣 08:00) reset，或加 --allow-fallback"
+                f"請等 PT 00:00 (台灣 15:00 / 16:00 看 DST) reset，或加 --allow-fallback"
             )
         except Exception:
             pass
         raise ImagenQuotaExhausted(
             f"Imagen quota already exhausted at start ({q['count']}/{IMAGEN_DAILY_LIMIT}). "
-            f"Wait for UTC 0:00 reset or pass allow_fallback=True."
+            f"Wait for PT 00:00 reset (≈ Taiwan 15:00/16:00) or pass allow_fallback=True."
         )
 
     for i, pair in enumerate(pairs):
@@ -486,7 +487,7 @@ def generate_illustrations_from_pairs(
                     f"❌ [AIvideo books] 渲染中途 Imagen 配額耗盡\n"
                     f"已產出: {len(clip_paths)}/{total_pairs} 張\n"
                     f"停在第 {i + 1} 張\n"
-                    f"等 UTC 0:00 (台灣 08:00) reset 再試"
+                    f"等 PT 00:00 (台灣 15:00 / 16:00 看 DST) reset 再試"
                 )
             except Exception:
                 pass

@@ -1,6 +1,7 @@
 import os
 import json
 import pickle
+import time
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -217,12 +218,40 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
     media = MediaFileUpload(video_path, chunksize=-1, resumable=True)
     request = youtube.videos().insert(part=",".join(body.keys()), body=body, media_body=media)
 
+    # Bounded exponential backoff for transient errors (5xx, socket timeout,
+    # rate-limit blips). Audit 2026-04-30 important: a single hiccup mid-upload
+    # used to abort the whole render.
+    from googleapiclient.errors import HttpError
+    import socket
+    RETRIABLE_STATUS = {500, 502, 503, 504}
+    MAX_RETRIES = 6
     response = None
+    retry = 0
     while response is None:
-        status, response = request.next_chunk()
-        if status:
-            pct = int(status.progress() * 100)
-            print(f"  Uploading... {pct}%", end="\r")
+        try:
+            status, response = request.next_chunk()
+            if status:
+                pct = int(status.progress() * 100)
+                print(f"  Uploading... {pct}%", end="\r")
+            retry = 0  # reset on successful chunk
+        except HttpError as e:
+            if e.resp.status in RETRIABLE_STATUS and retry < MAX_RETRIES:
+                wait = 2 ** retry
+                retry += 1
+                print(f"\n  [retry {retry}/{MAX_RETRIES}] HTTP {e.resp.status}, "
+                      f"sleeping {wait}s")
+                time.sleep(wait)
+                continue
+            raise
+        except (socket.error, OSError, ConnectionError, TimeoutError) as e:
+            if retry < MAX_RETRIES:
+                wait = 2 ** retry
+                retry += 1
+                print(f"\n  [retry {retry}/{MAX_RETRIES}] {type(e).__name__}: {e}, "
+                      f"sleeping {wait}s")
+                time.sleep(wait)
+                continue
+            raise
 
     video_id = response["id"]
     url = f"https://youtu.be/{video_id}"
@@ -238,18 +267,31 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
     if os.path.exists(srt_path):
         _upload_subtitles(youtube, video_id, srt_path, lang="zh-Hant")
 
-    # Post pinned comment if provided
+    # Post pinned comment if provided. Surface non-403 failures so engagement
+    # automation isn't silently broken (audit 2026-04-30 important).
     pinned = metadata.get("pinned_comment", "")
     if pinned:
-        _post_pinned_comment(youtube, video_id, pinned)
+        comment_status = _post_pinned_comment(youtube, video_id, pinned)
+        if comment_status == "failed":
+            try:
+                from telegram_notify import notify_failure
+                notify_failure("pinned_comment",
+                               f"無法 post 置頂留言到 {url}",
+                               topic=metadata.get("title", "")[:60])
+            except Exception:
+                pass
 
     return url
 
 
-def _post_pinned_comment(youtube, video_id: str, text: str):
-    """Post a comment, or queue it if the video is scheduled (private). YouTube
-    rejects comments on private/scheduled videos with 403, so we defer posting
-    until the video goes public via process_pending_comments()."""
+def _post_pinned_comment(youtube, video_id: str, text: str) -> str:
+    """Post a comment, or queue if the video is scheduled (private).
+
+    Returns one of: "posted" / "queued" / "failed". Audit 2026-04-30
+    important: previously this swallowed all non-403 exceptions to print-only,
+    so the caller (and Telegram alerts) had no idea engagement automation
+    had broken. Caller can now branch on the status.
+    """
     import json as _json
     import os as _os
     try:
@@ -265,7 +307,7 @@ def _post_pinned_comment(youtube, video_id: str, text: str):
             },
         ).execute()
         print(f"  ✅ Comment posted")
-        return
+        return "posted"
     except Exception as e:
         if "403" in str(e):
             print(f"  [INFO] Video not yet public; queueing comment for later")
@@ -278,8 +320,9 @@ def _post_pinned_comment(youtube, video_id: str, text: str):
                     queue = {}
             queue[video_id] = text
             _json.dump(queue, open(queue_path, "w"), ensure_ascii=False, indent=2)
-        else:
-            print(f"  [WARN] Comment post failed: {e}")
+            return "queued"
+        print(f"  [WARN] Comment post failed: {e}")
+        return "failed"
 
 
 def process_pending_comments(youtube):
