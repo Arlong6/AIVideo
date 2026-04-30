@@ -337,7 +337,7 @@
         },
         {
           "date": "2026-04-30",
-          "views": 135,
+          "views": 136,
           "likes": 2,
           "comments": 1
         }
@@ -3675,7 +3675,7 @@
         },
         {
           "date": "2026-04-30",
-          "views": 15,
+          "views": 17,
           "likes": 0,
           "comments": 0
         }
@@ -3703,7 +3703,7 @@
         },
         {
           "date": "2026-04-30",
-          "views": 129,
+          "views": 136,
           "likes": 0,
           "comments": 2
         }
@@ -3731,7 +3731,7 @@
         },
         {
           "date": "2026-04-30",
-          "views": 719,
+          "views": 718,
           "likes": 8,
           "comments": 1
         }
@@ -3753,7 +3753,7 @@
         },
         {
           "date": "2026-04-30",
-          "views": 0,
+          "views": 22,
           "likes": 0,
           "comments": 0
         }
@@ -3775,7 +3775,7 @@
         },
         {
           "date": "2026-04-30",
-          "views": 24,
+          "views": 28,
           "likes": 0,
           "comments": 0
         }
@@ -3797,7 +3797,7 @@
         },
         {
           "date": "2026-04-30",
-          "views": 27,
+          "views": 28,
           "likes": 0,
           "comments": 0
         }
@@ -3819,7 +3819,7 @@
         },
         {
           "date": "2026-04-30",
-          "views": 12,
+          "views": 62,
           "likes": 0,
           "comments": 1
         }
@@ -3843,7 +3843,7 @@
           "date": "2026-04-30",
           "views": 0,
           "likes": 0,
-          "comments": 0
+          "comments": 1
         }
       ]
     },
@@ -3854,6 +3854,38 @@
       "duration_s": 1047,
       "publish_at": "2026-05-01T14:00:00+08:00",
       "uploaded_at": "2026-04-30T09:54:22.679758+00:00",
+      "stats": [
+        {
+          "date": "2026-04-30",
+          "views": 1,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "n3IRe-2vDRI",
+      "topic": "林宅血案：台灣政治受難者家屬滅門慘案，長達數十年的未解之謎",
+      "slot": 1,
+      "duration_s": 85,
+      "publish_at": "2026-05-01T10:00:00+08:00",
+      "uploaded_at": "2026-04-30T19:48:39.232849+00:00",
+      "stats": [
+        {
+          "date": "2026-04-30",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "Z-f0I9vnRXM",
+      "topic": "白曉燕綁架撕票案：1997年台灣震驚社會的名媛之女綁架案與陳進興逃亡始末",
+      "slot": 3,
+      "duration_s": 87,
+      "publish_at": "2026-05-01T18:00:00+08:00",
+      "uploaded_at": "2026-04-30T19:54:33.342445+00:00",
       "stats": [
         {
           "date": "2026-04-30",
