@@ -44,7 +44,13 @@ def ask(prompt: str, json_mode: bool = True) -> dict | str:
     if not _gemini and not _claude:
         raise RuntimeError("No LLM configured")
 
+    # If only Claude is configured, skip Gemini loop entirely so we don't
+    # AttributeError on _gemini.models. (audit 2026-04-30 critical #2)
+    if not _gemini:
+        return ask_claude(prompt, json_mode=json_mode)
+
     config = {"response_mime_type": "application/json"} if json_mode else {}
+    last_exc: Exception | None = None
     for model in ["gemini-2.5-flash", "gemini-2.0-flash"]:
         for attempt in range(3):
             try:
@@ -73,13 +79,19 @@ def ask(prompt: str, json_mode: bool = True) -> dict | str:
             except ContentBlockedError:
                 raise  # Don't retry, propagate immediately
             except Exception as e:
+                last_exc = e
                 if "429" in str(e):
                     time.sleep(20)
                     continue
                 if attempt == 2:
-                    raise
+                    break  # try next model or fall to Claude
                 time.sleep(5)
-    raise RuntimeError("Gemini call failed after all retries.")
+
+    # All Gemini attempts exhausted — try Claude if available before giving up.
+    if _claude:
+        print(f"  [LLM] Gemini exhausted, falling back to Claude")
+        return ask_claude(prompt, json_mode=json_mode)
+    raise RuntimeError(f"Gemini call failed after all retries: {last_exc}")
 
 
 CLAUDE_USAGE_FILE = os.path.join(os.path.dirname(__file__), "..", "claude_daily_usage.json")
@@ -119,6 +131,11 @@ def ask_claude(prompt: str, json_mode: bool = True) -> dict | str:
     """Explicitly call Claude (paid). Use when Gemini quota is exhausted."""
     if not _claude:
         raise RuntimeError("Claude not configured")
+
+    # Wire the budget guard that was defined-but-never-called
+    # (audit 2026-04-30 important #13).
+    if not _check_claude_budget():
+        raise RuntimeError("Claude daily budget cap reached — refusing call")
 
     try:
         msg = _claude.messages.create(

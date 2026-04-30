@@ -9,10 +9,13 @@ Flow:
 5. Save chosen topic to used_topics.json
 """
 
+import fcntl
 import json
 import os
 import re
+import tempfile
 import time
+from contextlib import contextmanager
 from datetime import datetime
 
 import anthropic
@@ -22,6 +25,50 @@ from config import ANTHROPIC_API_KEY
 
 USED_TOPICS_FILE = "used_topics.json"
 TOPICS_FILE = "topics.json"
+
+
+# ── Atomic + lock helpers (audit 2026-04-30 critical #3) ─────────────────────
+# Original save_today_reserved / save_used_topic were read-modify-write with
+# no lock. Two slot jobs starting within the same second could both read the
+# pre-write state, mutate the same in-memory list independently, and overwrite
+# each other on flush — losing one slot's reservation. Adding fcntl.flock on a
+# sidecar lockfile + atomic temp-file replace makes both writes safe.
+
+def _lock_path(path: str) -> str:
+    return path + ".lock"
+
+
+@contextmanager
+def _file_lock(path: str):
+    """Hold an exclusive flock on a sidecar lockfile for the duration of the
+    with-block. Released and removed on exit."""
+    lock_path = _lock_path(path)
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+
+def _atomic_write_json(path: str, data) -> None:
+    """Write JSON via temp file + rename so partial writes never appear on disk."""
+    dir_ = os.path.dirname(os.path.abspath(path)) or "."
+    fd, tmp = tempfile.mkstemp(prefix=".", suffix=".tmp", dir=dir_)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, path)
+    except Exception:
+        if os.path.exists(tmp):
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+        raise
 
 # Permanently blocked topics — confirmed fabricated by fact-check (2026-04-15).
 # These sound plausible but DO NOT correspond to any real documented case.
@@ -121,29 +168,35 @@ def _load_today_reserved() -> set:
 
 
 def save_today_reserved(topic: str):
-    """Reserve topic for today so other slots don't reuse it."""
+    """Reserve topic for today so other slots don't reuse it.
+
+    Concurrency-safe (audit 2026-04-30 critical #3): exclusive file lock for
+    the read-modify-write window + atomic rename on commit.
+    """
     today = datetime.now().strftime("%Y-%m-%d")
-    data = {"date": today, "topics": []}
-    if os.path.exists(TODAY_TOPICS_FILE):
-        with open(TODAY_TOPICS_FILE, "r", encoding="utf-8") as f:
-            existing = json.load(f)
-        if existing.get("date") == today:
-            data["topics"] = existing.get("topics", [])
-    if topic not in data["topics"]:
-        data["topics"].append(topic)
-    with open(TODAY_TOPICS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    with _file_lock(TODAY_TOPICS_FILE):
+        data = {"date": today, "topics": []}
+        if os.path.exists(TODAY_TOPICS_FILE):
+            with open(TODAY_TOPICS_FILE, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+            if existing.get("date") == today:
+                data["topics"] = existing.get("topics", [])
+        if topic not in data["topics"]:
+            data["topics"].append(topic)
+        _atomic_write_json(TODAY_TOPICS_FILE, data)
 
 
 def save_used_topic(topic: str):
-    used = list(load_used_topics())
-    if topic not in used:
-        used.append(topic)
-    with open(USED_TOPICS_FILE, "w", encoding="utf-8") as f:
-        json.dump({
+    """Append a topic to used_topics.json. Same lock + atomic guarantees as
+    save_today_reserved (audit 2026-04-30 critical #3)."""
+    with _file_lock(USED_TOPICS_FILE):
+        used = list(load_used_topics())
+        if topic not in used:
+            used.append(topic)
+        _atomic_write_json(USED_TOPICS_FILE, {
             "used": used,
             "last_updated": datetime.now().isoformat(),
-        }, f, ensure_ascii=False, indent=2)
+        })
     print(f"  Saved to used topics: {topic}")
 
 

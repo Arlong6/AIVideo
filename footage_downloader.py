@@ -200,8 +200,16 @@ def download_footage(visual_scenes: list, output_dir: str, fmt: str = "short"):
                     pexels_credits.append(f"{creator} (Pexels ID: {video['id']})")
                     print(f"    ✅ {filename}")
 
-        # Fallback: if scene query returned nothing, use a generic dark query
-        while clips_saved < clips_per:
+        # Fallback: if scene query returned nothing, use a generic dark query.
+        # Bounded retry: stop after MAX fallback queries OR when an iteration
+        # adds zero new clips (audit 2026-04-30: original `while clips_saved
+        # < clips_per` could spin forever once `clips_saved == 1` since the
+        # `clips_saved == 0` break never triggered).
+        MAX_FALLBACK_TRIES = len(FALLBACK_QUERIES)
+        tries = 0
+        while clips_saved < clips_per and tries < MAX_FALLBACK_TRIES:
+            tries += 1
+            saved_before = clips_saved
             fb_query = FALLBACK_QUERIES[fallback_idx % len(FALLBACK_QUERIES)]
             fallback_idx += 1
             print(f"    [FALLBACK] '{fb_query}'")
@@ -220,8 +228,11 @@ def download_footage(visual_scenes: list, output_dir: str, fmt: str = "short"):
                     creator = video.get("user", {}).get("name", "Unknown")
                     pexels_credits.append(f"{creator} (Pexels ID: {video['id']})")
                     print(f"    ✅ {filename} (fallback)")
-            if clips_saved == 0:
-                break  # give up on this scene
+            if clips_saved == saved_before:
+                # This iteration added nothing. Try next query, but if we've
+                # been stalled for several tries, give up so we don't churn.
+                if tries >= 5 and clips_saved == 0:
+                    break
 
     _save_seen_ids(seen_ids)
     print(f"  Downloaded {total_downloaded} clips ({len(visual_scenes)} scenes × {clips_per})")
