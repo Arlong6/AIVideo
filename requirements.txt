@@ -13,3 +13,4 @@ google-auth-httplib2>=0.1.0
 google-genai
 pytrends>=4.9.0
 beautifulsoup4>=4.12.0
+yt-dlp>=2025.1.0  # competitor channel scrape (scripts/competitor_analysis.py)

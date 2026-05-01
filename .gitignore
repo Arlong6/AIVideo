@@ -26,3 +26,9 @@ data/books/pexels_seen_ids.json
 
 # macOS
 .DS_Store
+
+# topic_manager fcntl sidecar lock files (transient, runtime-only)
+*.json.lock
+
+# Local Claude Code project state
+.claude/
