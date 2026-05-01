@@ -371,13 +371,39 @@ def pick_topic(refresh_news: bool = True) -> str:
     if not candidates:
         raise RuntimeError("No unused topics available! Add more to topics.json.")
 
-    # Fuzzy dedup: skip topics that share 4+ consecutive chars with any used topic
+    # Fuzzy dedup — extracts the case-name "stem" (text before the first
+    # colon/comma), strips generic suffixes (殺人案, 命案, etc.), and
+    # slides a 3-char window against the full CJK text of each used topic.
+    # Catches same-case paraphrases like "白曉燕命案" vs "白曉燕綁架撕票案"
+    # without false-positive on generic suffixes shared across cases.
+    _GENERIC_SUFFIXES = (
+        '隨機殺人案', '連環殺人案', '綁架撕票案', '殺人分屍案',
+        '殺人案', '綁架案', '搶劫案', '兇殺案', '撕票案', '冤案',
+        '懸案', '命案', '兇案', '搶案', '事件', '事案', '案件', '案',
+    )
+
+    def _cjk_only(t: str) -> str:
+        return ''.join(ch for ch in t if '一' <= ch <= '鿿')
+
+    def _stem(t: str) -> str:
+        t = re.sub(r"^[一-鿿]{2,3}\s*[-・–—]\s*", "", t)
+        return re.split(r"[：:,，、（(]", t, 1)[0].strip()
+
+    def _name_key(t: str) -> str:
+        s = _cjk_only(_stem(t))
+        for suf in _GENERIC_SUFFIXES:
+            if s.endswith(suf) and len(s) > len(suf):
+                return s[:-len(suf)]
+        return s
+
     def _is_too_similar(candidate: str, used: set) -> bool:
-        c = candidate.replace(" ", "").lower()
+        ckey = _name_key(candidate)
+        if len(ckey) < 3:
+            return False
         for u in used:
-            u2 = u.replace(" ", "").lower()
-            for i in range(len(c) - 3):
-                if c[i:i+4] in u2:
+            u2 = _cjk_only(u)
+            for i in range(len(ckey) - 2):
+                if ckey[i:i+3] in u2:
                     return True
         return False
 
