@@ -126,13 +126,35 @@ TITLE_DNA = {
             "失蹤{time}終於有線索，真相浮出水面後{reaction}",
             "{region}史上最{superlative}案件，至今無人敢碰",
             "{time}前的懸案，{year}終於真相大白",
+            "就剛剛，{event}！全{country}轟動，{detail}",
         ],
         "examples": [
             ("中國第一懸案，2026終於有新線索", 1_100_000),
             ("消失30年的兇手，DNA技術讓真相浮出水面", 920_000),
             ("台灣史上最離奇失蹤案，至今無人敢碰", 780_000),
+            ("就剛剛，FBI公布了嫌犯視頻！全美轟動", 253_281),  # UCzut 2026-04
         ],
-        "trigger_words": ["最新進展", "至今未解", "終於", "浮出水面", "史上最"],
+        "trigger_words": ["最新進展", "至今未解", "終於", "浮出水面", "史上最", "就剛剛"],
+    },
+
+    # New — from 5-channel competitor analysis 2026-05-01
+    # 3/3 outliers (387k, 253k, 364k views) shared this DNA: 微小荒誕誘因 → 毀滅後果
+    "荒誕對比體": {
+        "formula": "[微小荒誕誘因(購物卡/幾美元/想有爸爸)] + [保護者身份] + [毀滅後果] + [第三方情緒佐證]",
+        "avg_views": 335_000,
+        "share": "100% of 2026-04 outliers",
+        "templates": [
+            "為了{trivial_thing}，{protector}竟把{victim}{horror}！{authority}{reaction}",
+            "{trivial_amount}換來{huge_loss}，{protector}的{shocking_action}",
+            "想{innocent_wish}，{protector}卻{horror_action}，連{authority}都{reaction}",
+            "{trivial_trigger}就要{victim}的命？{location}{absurd_case}全紀錄",
+        ],
+        "examples": [
+            ("為了一張購物卡，媽媽竟把女兒送到惡魔手中！？驗屍官崩潰", 364_250),
+            ("單親媽媽養兒4年，他想有個爸爸，卻在生父手中…被整沒了", 387_285),
+            ("因沒付幾美元訂閱費，兇手差點消失！FBI 24小時直播", 253_281),
+        ],
+        "trigger_words": ["為了", "竟把", "想要", "卻在", "差點", "崩潰", "全紀錄"],
     },
 }
 
@@ -159,6 +181,10 @@ POWER_WORDS = {
     "至今未解": {"count": 7, "view_boost": "+28%"},
     "甚至/居然": {"count": 10, "view_boost": "+25%"},
     "最新進展": {"count": 4, "view_boost": "+22%"},
+    # New — 2026-05 5-channel analysis (avg 335k outliers all use these)
+    "為了": {"count": 3, "view_boost": "+45%"},      # 荒誕小因前置
+    "就剛剛": {"count": 2, "view_boost": "+40%"},    # 即時感
+    "崩潰/震怒": {"count": 4, "view_boost": "+33%"},  # 第三方情緒
 }
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -224,5 +250,12 @@ def get_title_prompt_insert() -> str:
     lines.append("  ✅ 製造好奇缺口（讀完標題想知道更多）")
     lines.append("  ✅ 有身份/年齡/數字等具體細節（不要太抽象）")
     lines.append("  ✅ 禁止用「震驚」單獨開頭")
+    lines.append("  ✅ **強烈建議**：含具體數字 OR 台灣地名/機構（@mystery2018 367k 中位數的關鍵）")
+
+    lines.append("\n【2026-05 競品爆款共同 DNA（3 個 outlier 全中）】")
+    lines.append("  📌 荒誕小因前置：把案件中最荒誕、最不成比例的微小細節放標題前半")
+    lines.append("     範例：「為了一張購物卡，媽媽把女兒…」(364k views)")
+    lines.append("  📌 保護者反轉：父母/老師/醫生/警察當加害者時，標題要明示身份落差(用「竟」「卻」)")
+    lines.append("  📌 第三方情緒佐證：用「驗屍官崩潰」「全美轟動」比直接寫殘忍更有衝擊")
 
     return "\n".join(lines)
