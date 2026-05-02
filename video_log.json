@@ -3093,7 +3093,7 @@
         },
         {
           "date": "2026-05-02",
-          "views": 213,
+          "views": 214,
           "likes": 0,
           "comments": 2
         }
@@ -4317,7 +4317,7 @@
         },
         {
           "date": "2026-05-02",
-          "views": 29,
+          "views": 30,
           "likes": 0,
           "comments": 0
         }
@@ -4481,7 +4481,7 @@
         },
         {
           "date": "2026-05-02",
-          "views": 39,
+          "views": 45,
           "likes": 0,
           "comments": 0
         }
@@ -4509,7 +4509,7 @@
         },
         {
           "date": "2026-05-02",
-          "views": 26,
+          "views": 40,
           "likes": 1,
           "comments": 1
         }
@@ -4559,8 +4559,8 @@
         },
         {
           "date": "2026-05-02",
-          "views": 0,
-          "likes": 0,
+          "views": 43,
+          "likes": 1,
           "comments": 0
         }
       ]
@@ -4581,7 +4581,7 @@
         },
         {
           "date": "2026-05-02",
-          "views": 56,
+          "views": 65,
           "likes": 1,
           "comments": 1
         }
@@ -4603,9 +4603,9 @@
         },
         {
           "date": "2026-05-02",
-          "views": 0,
+          "views": 1,
           "likes": 0,
-          "comments": 0
+          "comments": 1
         }
       ]
     },
@@ -4616,6 +4616,38 @@
       "duration_s": 1066,
       "publish_at": "2026-05-03T14:00:00+08:00",
       "uploaded_at": "2026-05-02T09:05:12.048558+00:00",
+      "stats": [
+        {
+          "date": "2026-05-02",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "hz6_k0Ldgpk",
+      "topic": "呂炳宏殺人案：台灣第一宗經基因鑑定定罪的強姦殺人案",
+      "slot": 1,
+      "duration_s": 82,
+      "publish_at": "2026-05-03T10:00:00+08:00",
+      "uploaded_at": "2026-05-02T19:15:55.309659+00:00",
+      "stats": [
+        {
+          "date": "2026-05-02",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "YsEtNW_EJNk",
+      "topic": "南迴搞軌案：台灣鐵路史上最離奇的火車出軌，人為破壞與保險金詐領疑雲",
+      "slot": 3,
+      "duration_s": 86,
+      "publish_at": "2026-05-03T18:00:00+08:00",
+      "uploaded_at": "2026-05-02T19:23:05.795713+00:00",
       "stats": [
         {
           "date": "2026-05-02",
