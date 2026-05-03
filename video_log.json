@@ -4201,7 +4201,7 @@
         },
         {
           "date": "2026-05-03",
-          "views": 78,
+          "views": 79,
           "likes": 3,
           "comments": 2
         }
@@ -4559,7 +4559,7 @@
         },
         {
           "date": "2026-05-03",
-          "views": 721,
+          "views": 724,
           "likes": 8,
           "comments": 1
         }
@@ -4679,7 +4679,7 @@
         },
         {
           "date": "2026-05-03",
-          "views": 28,
+          "views": 29,
           "likes": 0,
           "comments": 0
         }
@@ -4793,7 +4793,7 @@
         },
         {
           "date": "2026-05-03",
-          "views": 46,
+          "views": 47,
           "likes": 0,
           "comments": 0
         }
@@ -4827,7 +4827,7 @@
         },
         {
           "date": "2026-05-03",
-          "views": 46,
+          "views": 57,
           "likes": 1,
           "comments": 1
         }
@@ -4861,7 +4861,7 @@
         },
         {
           "date": "2026-05-03",
-          "views": 5,
+          "views": 7,
           "likes": 0,
           "comments": 1
         }
@@ -4889,7 +4889,7 @@
         },
         {
           "date": "2026-05-03",
-          "views": 46,
+          "views": 47,
           "likes": 1,
           "comments": 0
         }
@@ -4917,7 +4917,7 @@
         },
         {
           "date": "2026-05-03",
-          "views": 67,
+          "views": 72,
           "likes": 1,
           "comments": 1
         }
@@ -4967,7 +4967,7 @@
         },
         {
           "date": "2026-05-03",
-          "views": 0,
+          "views": 24,
           "likes": 0,
           "comments": 0
         }
@@ -4989,7 +4989,7 @@
         },
         {
           "date": "2026-05-03",
-          "views": 194,
+          "views": 204,
           "likes": 2,
           "comments": 1
         }
@@ -5013,7 +5013,7 @@
           "date": "2026-05-03",
           "views": 0,
           "likes": 0,
-          "comments": 0
+          "comments": 1
         }
       ]
     },
@@ -5024,6 +5024,38 @@
       "duration_s": 958,
       "publish_at": "2026-05-04T14:00:00+08:00",
       "uploaded_at": "2026-05-03T09:25:38.016910+00:00",
+      "stats": [
+        {
+          "date": "2026-05-03",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "8SnvlV3zWoY",
+      "topic": "台南鐵路殺人案：深夜列車上的隨機殺人事件讓乘客人心惶惶",
+      "slot": 1,
+      "duration_s": 86,
+      "publish_at": "2026-05-04T10:00:00+08:00",
+      "uploaded_at": "2026-05-03T19:15:31.284188+00:00",
+      "stats": [
+        {
+          "date": "2026-05-03",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "60yEMqwI3u0",
+      "topic": "台北信義區分屍案：繁華都市裡的殘忍命案與兇手的冷靜作案手法",
+      "slot": 3,
+      "duration_s": 81,
+      "publish_at": "2026-05-04T18:00:00+08:00",
+      "uploaded_at": "2026-05-03T19:21:53.148215+00:00",
       "stats": [
         {
           "date": "2026-05-03",
