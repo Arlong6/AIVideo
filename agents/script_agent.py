@@ -59,7 +59,7 @@ def generate_script(case_data: dict) -> dict:
     sections_context = "\n".join(
         f"【{s['name']}】{s['script'][:150]}..." for s in p1.get("sections", []))
 
-    p2 = ask(f"""繼續生成後半部（4段，約 1500字）。
+    p2 = ask(f"""繼續生成後半部（4段，約 1500字）+ YouTube 描述欄。
 
 案件：{case_data.get('case_name', '')}
 前半部摘要：{sections_context}
@@ -71,6 +71,14 @@ def generate_script(case_data: dict) -> dict:
 
 同時選出 2-3 個最適合截取為 Shorts 的精彩段落。
 
+=== YouTube 描述欄要求（依 UCzut 競品分析,中位數 63k 靠這個）===
+前 150 字必須三段式鉤子（這是搜尋預覽 + AI Overview 看到的部分）：
+  ① 場景句：「{{年}}年{{月}},{{地點}},{{人物身份}}」一句帶出時間+地點+人物
+  ② 衝突句：「{{核心矛盾或最荒誕細節}}」用最具體的一句點出案件核心
+  ③ 開放問題：「{{留鉤子的問題}}?」引發觀眾繼續看
+接著 200-300 字案件深度摘要（事件脈絡 + 結局），自然置入 SEO 關鍵字：
+  「台灣真實犯罪」「{{地名}}事件」「真實案件記錄」「未解懸案」（依案件擇用）
+
 回傳 JSON：
 {{
   "sections": [
@@ -81,7 +89,8 @@ def generate_script(case_data: dict) -> dict:
   ],
   "shorts_candidates": [
     {{"title": "Shorts標題", "script": "200字獨立片段", "section_source": "twist"}}
-  ]
+  ],
+  "youtube_description": "前150字三段式鉤子 + 200-300字案件深度摘要"
 }}""")
 
     print(f"  [Script] Pass 2 done: {sum(len(s['script']) for s in p2.get('sections', []))} chars")
@@ -113,7 +122,7 @@ def generate_script(case_data: dict) -> dict:
         "visual_scenes": visual_scenes,
         "scene_pacing": scene_pacing,
         "keywords": p1.get("keywords_en", case_data.get("search_keywords_en", [])),
-        "description": case_data.get("summary", ""),
+        "description": p2.get("youtube_description") or case_data.get("summary", ""),
         "hashtags": ["#真實犯罪", "#犯罪紀實", "#懸案", "#深度解析", "#台灣"],
         "shorts_candidates": p2.get("shorts_candidates", []),
         "format": "long",
