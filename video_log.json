@@ -5287,7 +5287,7 @@
         },
         {
           "date": "2026-05-04",
-          "views": 1,
+          "views": 2,
           "likes": 0,
           "comments": 1
         }
@@ -5315,7 +5315,7 @@
         },
         {
           "date": "2026-05-04",
-          "views": 26,
+          "views": 27,
           "likes": 0,
           "comments": 0
         }
@@ -5343,8 +5343,8 @@
         },
         {
           "date": "2026-05-04",
-          "views": 216,
-          "likes": 4,
+          "views": 222,
+          "likes": 5,
           "comments": 1
         }
       ]
@@ -5393,7 +5393,7 @@
         },
         {
           "date": "2026-05-04",
-          "views": 0,
+          "views": 95,
           "likes": 0,
           "comments": 0
         }
@@ -5415,7 +5415,7 @@
         },
         {
           "date": "2026-05-04",
-          "views": 20,
+          "views": 38,
           "likes": 0,
           "comments": 1
         }
@@ -5437,9 +5437,9 @@
         },
         {
           "date": "2026-05-04",
-          "views": 0,
+          "views": 1,
           "likes": 0,
-          "comments": 0
+          "comments": 1
         }
       ]
     },
@@ -5450,6 +5450,38 @@
       "duration_s": 997,
       "publish_at": "2026-05-05T14:00:00+08:00",
       "uploaded_at": "2026-05-04T09:53:29.736513+00:00",
+      "stats": [
+        {
+          "date": "2026-05-04",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "zV6jXmPwChk",
+      "topic": "台灣金山槍擊案：軍營裡的男童兇殺與體制黑幕",
+      "slot": 1,
+      "duration_s": 76,
+      "publish_at": "2026-05-05T10:00:00+08:00",
+      "uploaded_at": "2026-05-04T19:56:30.695279+00:00",
+      "stats": [
+        {
+          "date": "2026-05-04",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "lXyGNSp3e9Y",
+      "topic": "台中耕讀園槍擊案：咖啡店裡的黑道火拼，四死懸案背後複雜的恩怨情仇",
+      "slot": 3,
+      "duration_s": 79,
+      "publish_at": "2026-05-05T18:00:00+08:00",
+      "uploaded_at": "2026-05-04T20:03:16.382767+00:00",
       "stats": [
         {
           "date": "2026-05-04",
