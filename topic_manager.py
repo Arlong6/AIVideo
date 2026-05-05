@@ -396,14 +396,40 @@ def pick_topic(refresh_news: bool = True) -> str:
                 return s[:-len(suf)]
         return s
 
+    # Geographic / country prefixes — NOT proper nouns, must skip 2-char
+    # window check on these (e.g. 台南湯姆熊 vs 台南鐵路 are different cases
+    # but both start with "台南"). Causes massive false positives without
+    # this filter.
+    _GEO_PREFIXES = {
+        '台灣', '台北', '台南', '台中', '高雄', '桃園', '新北', '彰化',
+        '嘉義', '屏東', '花蓮', '基隆', '新竹', '苗栗', '南投', '雲林',
+        '宜蘭', '澎湖', '金門', '馬祖',
+        '韓國', '中國', '日本', '美國', '英國', '法國', '德國', '泰國',
+        '印尼', '越南', '菲律', '馬來', '柬埔', '俄羅', '加拿', '澳洲',
+        '東京', '京都', '大阪', '首爾', '釜山', '北京', '上海', '香港',
+        '澳門', '深圳', '廣州', '名古',
+    }
+
     def _is_too_similar(candidate: str, used: set) -> bool:
         ckey = _name_key(candidate)
-        if len(ckey) < 3:
+        if len(ckey) < 2:
             return False
+        # Build candidate windows:
+        #   - 3-char sliding window for keys ≥ 3 (precise, low false-positive)
+        #   - 2-char prefix for proper-noun names (catches case identifiers
+        #     like 鄭捷 even when stem is "鄭捷北捷隨機殺人案"). SKIPPED
+        #     when prefix is a geographic word (台南, 韓國, etc.).
+        windows = set()
+        if len(ckey) >= 3:
+            for i in range(len(ckey) - 2):
+                windows.add(ckey[i:i+3])
+        prefix2 = ckey[:2]
+        if prefix2 not in _GEO_PREFIXES:
+            windows.add(prefix2)
         for u in used:
             u2 = _cjk_only(u)
-            for i in range(len(ckey) - 2):
-                if ckey[i:i+3] in u2:
+            for w in windows:
+                if w in u2:
                     return True
         return False
 
