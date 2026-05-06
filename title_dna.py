@@ -219,6 +219,16 @@ SECTION_NAMES = {
 def get_title_prompt_insert() -> str:
     """Return Title DNA guidance for Claude/Gemini prompt injection."""
     lines = ["=== 標題 DNA 公式（從腦洞烏托邦 252萬訂閱頻道 49 部爆款影片提取）===\n"]
+
+    # ⭐ TIER-S TRIGGER: 「99%的人」實測 ROI 8× 平均 (我們頻道 720 views vs 平均 94)
+    # 5/6 review 顯示這個 trigger 沒被使用導致整體平均腰斬 (94 → 56)
+    lines.append("⭐⭐⭐ 最高優先級：99% 觸發詞 ⭐⭐⭐")
+    lines.append("「99%的人沒看懂」「99%人不知道」「99%沒人說」實測效果 8× 平均觀看")
+    lines.append("(我們頻道 720 views 爆款 vs 平均 56)。**標題優先嘗試嵌入此觸發詞**,")
+    lines.append("除非案件性質完全不適合 (e.g. 純歷史案件), 否則必嵌入。")
+    lines.append("實例：「他為何血洗捷運？99%的人沒看懂的真相」(我們頻道 720 views)")
+    lines.append("")
+
     for name, data in TITLE_DNA.items():
         lines.append(f"【{name}】(平均觀看 {data['avg_views']:,})")
         lines.append(f"  公式：{data['formula']}")
