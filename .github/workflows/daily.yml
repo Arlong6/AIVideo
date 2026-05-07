@@ -1,8 +1,11 @@
 name: Daily Video Generation
 
 on:
-  schedule:
-    - cron: '0 18 * * *'   # 02:00 AM Taiwan (UTC+8) = 18:00 UTC
+  # 2026-05-07: Shorts cron disabled. Data shows Shorts mean 47 views vs
+  # long-form 106 views (2.3× lower), and RPM is 5-10× lower for Shorts.
+  # 16 Shorts累計 754 views, ROI < 5%. Manual trigger still works.
+  # schedule:
+  #   - cron: '0 18 * * *'   # 02:00 AM Taiwan (UTC+8) = 18:00 UTC
   workflow_dispatch:
     inputs:
       slot_a:
