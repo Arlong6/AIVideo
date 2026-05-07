@@ -31,11 +31,12 @@ def _save_log(data: dict):
 
 
 def log_video(video_id: str, topic: str, slot: int, duration_s: float,
-              publish_at: str = "", source: str = ""):
+              publish_at: str = "", source: str = "", series_tag: str = ""):
     """Record a newly uploaded video.
 
     source: optional tag like "shorts_upgrade" to track origin (manual vs
     automated, regenerated from a top-performing Short, etc.)
+    series_tag: optional tag for series ("wrongful_conviction", "campus", etc.)
     """
     data = _load_log()
     if any(v["video_id"] == video_id for v in data["videos"]):
@@ -51,9 +52,13 @@ def log_video(video_id: str, topic: str, slot: int, duration_s: float,
     }
     if source:
         entry["source"] = source
+    if series_tag:
+        entry["series_tag"] = series_tag
     data["videos"].append(entry)
     _save_log(data)
-    print(f"  📊 Logged video {video_id}" + (f" [source={source}]" if source else ""))
+    print(f"  📊 Logged video {video_id}"
+          + (f" [source={source}]" if source else "")
+          + (f" [series={series_tag}]" if series_tag else ""))
 
 
 # ── Stats fetching ─────────────────────────────────────────────────────────────

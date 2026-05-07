@@ -205,6 +205,19 @@ def _run_pipeline(topic, output_dir, upload, slot, source=""):
         upload_meta["description"] = script_data.get("description", "")
         upload_meta["chapters_text"] = audio_results.get("chapters_text", "")
 
+        # Series detection — auto-tag + prepend description header (Phase 2)
+        try:
+            from series_manager import detect_series, get_series_count, build_series_description_header
+            series = detect_series(case_data, script_data.get("title", ""))
+            episode = get_series_count(series["tag"]) + 1
+            upload_meta["series"] = series
+            upload_meta["series_tag"] = series["tag"]
+            header = build_series_description_header(series, episode)
+            upload_meta["description"] = header + upload_meta["description"]
+            print(f"   Series: {series['name']} #{episode} (tag={series['tag']})")
+        except Exception as e:
+            print(f"   [Series] detection failed (non-fatal): {e}")
+
         # Schedule publish: slot 2 = 14:00 Taiwan
         from datetime import datetime, timedelta
         from zoneinfo import ZoneInfo
@@ -224,7 +237,8 @@ def _run_pipeline(topic, output_dir, upload, slot, source=""):
             pub_str = publish_dt.strftime('%Y-%m-%d %H:%M')
             notify_upload(topic, youtube_url, slot, pub_str)
             video_id = youtube_url.split("youtu.be/")[-1].split("?")[0]
-            log_video(video_id, topic, slot, audio_results["duration"], publish_at, source=source)
+            log_video(video_id, topic, slot, audio_results["duration"], publish_at,
+                      source=source, series_tag=upload_meta.get("series_tag", ""))
 
     # ── Summary ───────────────────────────────────────────────────
     print(f"\n{'=' * 60}")

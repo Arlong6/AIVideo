@@ -238,7 +238,8 @@ def _make_ken_burns_clip(img: np.ndarray, duration: float = 4.0) -> VideoClip:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def _generate_search_queries(topic: str) -> list[str]:
-    """Generate diverse search queries to find more real case images."""
+    """Generate diverse search queries to find more real case images.
+    2026-05-07: \u5f37\u5316\u4e2d\u6587\u641c\u7d22 \u2014 \u53f0\u7063\u6848\u4ef6\u4e3b\u8981\u9760\u4e2d\u6587 commons \u624d\u6709\u7d50\u679c."""
     import re
     queries = [topic]
 
@@ -251,18 +252,29 @@ def _generate_search_queries(topic: str) -> list[str]:
             queries.append(f"{w} murder")
             queries.append(f"{w} case")
 
-    # Extract Chinese key terms
-    zh_parts = re.findall(r'[\u4e00-\u9fff]+', topic)
+    # Extract Chinese proper-noun-like terms (3-4 chars before colon)
+    stem = re.split(r"[\uff1a:\uff5c|\uff08(]", topic)[0].strip()
+    zh_parts = re.findall(r'[\u4e00-\u9fff]+', stem)
     for p in zh_parts:
         if len(p) >= 2:
             queries.append(p)
+            # \u4e2d\u6587 case name + \u901a\u7528\u72af\u7f6a\u8a5e \u2014 \u63d0\u9ad8 commons hit \u7387
+            if len(p) >= 3:
+                queries.extend([
+                    f"{p} \u6848", f"{p} \u4e8b\u4ef6", f"{p} \u547d\u6848",
+                    f"{p} \u4e2d\u83ef\u6c11\u570b", f"{p} \u53f0\u7063",
+                ])
 
-    # Common modifiers
-    base = en_words[0].strip() if en_words else topic[:20]
+    # Common modifiers (English + Chinese)
+    base = en_words[0].strip() if en_words else stem[:8]
     queries.extend([
+        # English modifiers (kept for international cases)
         f"{base} suspect", f"{base} victim", f"{base} crime scene",
         f"{base} court", f"{base} trial", f"{base} newspaper",
         f"{base} police", f"{base} arrest", f"{base} memorial",
+        # Chinese modifiers (NEW \u2014 for Taiwan/Asian cases)
+        f"{base} \u6cd5\u9662", f"{base} \u8b66\u5bdf", f"{base} \u65b0\u805e",
+        f"{base} \u53d7\u5bb3\u8005", f"{base} \u5acc\u72af",
     ])
 
     # Deduplicate while preserving order
@@ -273,7 +285,7 @@ def _generate_search_queries(topic: str) -> list[str]:
         if q_lower and q_lower not in seen:
             seen.add(q_lower)
             unique.append(q.strip())
-    return unique[:20]
+    return unique[:25]
 
 
 def get_wiki_clips(topic: str, output_dir: str, max_images: int = 5) -> list[str]:

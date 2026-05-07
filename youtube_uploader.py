@@ -257,6 +257,17 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
     url = f"https://youtu.be/{video_id}"
     print(f"\n  ✅ Uploaded: {url}")
 
+    # Add to series playlist (Phase 2 STRATEGY_2026Q2.md)
+    series = metadata.get("series")
+    if series and series.get("playlist_id_file"):
+        try:
+            from series_manager import get_or_create_playlist, add_to_playlist
+            pid = get_or_create_playlist(youtube, series)
+            if pid:
+                add_to_playlist(youtube, video_id, pid)
+        except Exception as e:
+            print(f"  [Series] non-fatal: {e}")
+
     # Upload thumbnail if provided
     if thumb_path and os.path.exists(thumb_path):
         from thumbnail_generator import upload_thumbnail
