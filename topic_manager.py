@@ -81,6 +81,12 @@ FABRICATED_BLOCKLIST = {
     "彰化葉姓男子活埋案",
     "台北無差別攻擊案 (2023)",
     "師大附中教師命案",
+    # 2026-05-07 audit — Wikipedia 0 hit + Google News 0 exact match
+    # User flagged after seeing on YouTube. Either pure fabrication or
+    # LLM 混搭 unrelated events into single fake case.
+    "光華島事件",          # 真實地名(南海)但「台灣軍營集體失蹤」是編造
+    "台灣金山槍擊案",      # 「軍營男童兇殺」框架混搭不相關事件
+    "彰化母女失蹤案",      # 1998 specific 版只 2 hits, 細節未考證
 }
 
 # Google News RSS — prioritize Taiwan/Asia crime news

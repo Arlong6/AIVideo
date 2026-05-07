@@ -108,6 +108,13 @@ def _run_pipeline(topic, output_dir, upload, slot, source=""):
     print(f"   Title: {script_data.get('title', '?')}")
     print(f"   Script: {len(script_data.get('script', ''))} chars")
 
+    # Claim verification — flag if script contains unverified specific claims
+    try:
+        from claim_verifier import check_and_warn
+        check_and_warn(script_data.get("script", ""), case_data, topic)
+    except Exception as e:
+        print(f"   [Claims] verifier failed (non-blocking): {e}")
+
     # ── Step 3: Visual Sourcing (0 LLM calls) ─────────────────────
     print("\n[3/5] 📸 Visual Agent — sourcing footage + info cards...")
     from agents.visual_agent import source_visuals
