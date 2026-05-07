@@ -122,12 +122,48 @@ def _draw_text_with_stroke(draw, pos, text, font, fill, stroke_fill, stroke_widt
     draw.text((x, y), text, font=font, fill=fill)
 
 
+def _extract_punch(title: str) -> tuple[str, str]:
+    """從 25-字標題抽出 4-8 字 punch text (long-form thumbnail 主視覺).
+    @mystery2018 style: 縮圖只有大字 hook, 不放完整標題.
+
+    Returns (punch_text, accent_keyword) — accent_keyword 用紅色強調.
+    """
+    # Priority hook keywords — 找到就以此為核心建構 punch
+    HOOK_KEYS = [
+        ("99%", "99%"), ("為什麼", "為什麼"), ("水有多深", "水有多深"),
+        ("竟", "竟"), ("活活", "活活"), ("惡魔", "惡魔"),
+        ("人間蒸發", "人間蒸發"), ("真兇", "真兇"), ("封殺", "封殺"),
+        ("沒人敢說", "沒人敢說"), ("顛覆", "顛覆"), ("驚天", "驚天"),
+        ("為了", "為了"), ("就剛剛", "就剛剛"), ("崩潰", "崩潰"),
+    ]
+    for kw, accent in HOOK_KEYS:
+        if kw in title:
+            # 找到 keyword 的位置, 抽前後共 4-8 字
+            idx = title.find(kw)
+            start = max(0, idx - 2)
+            end = min(len(title), idx + len(kw) + 4)
+            punch = title[start:end].strip("，。、！？：:｜| ")
+            # 限制長度
+            if len(punch) > 8:
+                punch = title[idx:idx + min(len(kw) + 4, len(title) - idx)]
+            return punch, accent
+    # Fallback: 取冒號前段、再取前 6 字
+    import re as _re
+    head = _re.split(r"[：:｜|（(]", title, 1)[0].strip("，。、！？ ")
+    return head[:6] or title[:6], ""
+
+
 def _draw_title(img: Image.Image, title: str, fmt: str = "short",
                 duration_hint: str = "") -> Image.Image:
     """Draw large Chinese title with stroke outline, background panel, and accent bars."""
     draw = ImageDraw.Draw(img)
 
-    # No red bars (clean look)
+    # 2026-05-07: Long-form 用 4-8 字 punch text 而非完整標題
+    # (短小才能放大, @mystery2018 367k median 的關鍵)
+    accent_kw = ""
+    if fmt == "long":
+        punch, accent_kw = _extract_punch(title)
+        title = punch
 
     # Split title into lines: prefer punctuation breaks, force-break at MAX_CHARS
     MAX_CHARS = 10
@@ -145,7 +181,13 @@ def _draw_title(img: Image.Image, title: str, fmt: str = "short",
         lines.append(line)
     lines = lines[:3]
 
-    FONT_SIZE = 108 if len(lines) == 1 else (94 if len(lines) == 2 else 78)
+    # Long-form punch text 用更大字
+    if fmt == "long" and len(lines) == 1:
+        FONT_SIZE = 180  # ⭐ 大字 punch
+    elif fmt == "long" and len(lines) == 2:
+        FONT_SIZE = 130
+    else:
+        FONT_SIZE = 108 if len(lines) == 1 else (94 if len(lines) == 2 else 78)
     try:
         font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
         label_font = ImageFont.truetype(FONT_PATH, 36)
@@ -174,9 +216,28 @@ def _draw_title(img: Image.Image, title: str, fmt: str = "short",
         w = bbox[2] - bbox[0]
         x = (THUMB_W - w) // 2
         y = start_y + i * line_gap
-        # White text with black stroke
-        _draw_text_with_stroke(draw, (x, y), line_text, font,
-                               fill=(255, 252, 220), stroke_fill=(0, 0, 0), stroke_width=5)
+        # 2026-05-07: 紅字強調 accent keyword (long-form punch text)
+        if fmt == "long" and accent_kw and accent_kw in line_text:
+            # Split line around accent keyword and render in red
+            idx = line_text.find(accent_kw)
+            before = line_text[:idx]
+            after = line_text[idx + len(accent_kw):]
+            cur_x = x
+            if before:
+                _draw_text_with_stroke(draw, (cur_x, y), before, font,
+                                       fill=(255, 252, 220), stroke_fill=(0, 0, 0), stroke_width=6)
+                cur_x += draw.textbbox((0, 0), before, font=font)[2]
+            # Red accent
+            _draw_text_with_stroke(draw, (cur_x, y), accent_kw, font,
+                                   fill=(255, 50, 50), stroke_fill=(0, 0, 0), stroke_width=6)
+            cur_x += draw.textbbox((0, 0), accent_kw, font=font)[2]
+            if after:
+                _draw_text_with_stroke(draw, (cur_x, y), after, font,
+                                       fill=(255, 252, 220), stroke_fill=(0, 0, 0), stroke_width=6)
+        else:
+            # White text with black stroke
+            _draw_text_with_stroke(draw, (x, y), line_text, font,
+                                   fill=(255, 252, 220), stroke_fill=(0, 0, 0), stroke_width=5)
 
     # (red bars removed for clean look)
 
@@ -210,14 +271,17 @@ def _draw_title(img: Image.Image, title: str, fmt: str = "short",
 
 
 AI_STYLE_ANCHOR = (
-    "cinematic true crime documentary, "
-    "single key object dominating foreground "
-    "(weapon, knife blade, police badge, evidence bag, photo, "
-    "police tape, broken glass, bloody handprint, lone shoe), "
-    "high contrast dark moody noir, deep shadow occupying 60% of frame, "
-    "single hard light source from upper-side creating dramatic chiaroscuro, "
-    "dark teal and amber color grade, shallow depth of field, "
-    "35mm film grain, no text, no watermark, no faces, no people"
+    # 2026-05-07 v2 — 強化 hero subject 戲劇感（@mystery2018 風格）
+    "cinematic true crime documentary thumbnail, "
+    "ONE strong focal subject dominating left or center "
+    "(silhouette of person from behind, hooded figure in shadow, "
+    "key object like weapon/badge/evidence bag, single empty chair, "
+    "broken window, empty interrogation room), "
+    "DRAMATIC chiaroscuro: 70% deep shadow + 30% hard rim light from upper side, "
+    "dark teal and amber color grade, ultra high contrast, "
+    "shallow depth of field with strong bokeh, 35mm film grain, "
+    "right-side area kept relatively dark/clean for text overlay, "
+    "no text, no watermark, no recognizable real people's faces"
 )
 
 
@@ -238,32 +302,17 @@ def _generate_ai_background(title: str, visual_hint: str = "",
     hint = visual_hint.strip() if visual_hint else title[:30]
     prompt = f"{hint}, {AI_STYLE_ANCHOR}"
 
-    # --- Pollinations.ai (free, primary) ---
-    try:
-        encoded = quote(prompt)
-        url = (f"https://image.pollinations.ai/prompt/{encoded}"
-               f"?width={THUMB_W}&height={THUMB_H}&model=flux&nologo=true")
-        print(f"  [thumb] Pollinations: generating AI background...")
-        resp = requests.get(url, timeout=90)
-        if resp.status_code == 200 and len(resp.content) > 10000:
-            from io import BytesIO
-            img = Image.open(BytesIO(resp.content)).convert("RGB")
-            img = img.resize((THUMB_W, THUMB_H), Image.LANCZOS)
-            print(f"  [thumb] ✓ Pollinations AI background ({len(resp.content)//1024} KB)")
-            return img
-        print(f"  [thumb] Pollinations returned {resp.status_code}, {len(resp.content)} bytes")
-    except Exception as e:
-        print(f"  [thumb] Pollinations failed: {e}")
-
-    # --- Imagen backup (uses 1 quota slot — only if Pollinations fails) ---
+    # --- Imagen Ultra (primary, 2026-05-07) ---
+    # Phase 1 strategy: thumbnail 是最大短板,值得 1 Ultra 配額/部 ($0.06).
+    # Pollinations Flux 質感不夠 cinematic, 影響 CTR.
     try:
         from config import GEMINI_API_KEY
         if GEMINI_API_KEY:
             from google import genai
             client = genai.Client(api_key=GEMINI_API_KEY)
-            print(f"  [thumb] Imagen backup: generating...")
+            print(f"  [thumb] Imagen Ultra (primary): generating...")
             result = client.models.generate_images(
-                model="imagen-4.0-fast-generate-001",
+                model="imagen-4.0-ultra-generate-001",
                 prompt=prompt,
                 config={"number_of_images": 1, "aspect_ratio": "16:9"},
             )
@@ -272,10 +321,27 @@ def _generate_ai_background(title: str, visual_hint: str = "",
                 from io import BytesIO
                 img = Image.open(BytesIO(img_bytes)).convert("RGB")
                 img = img.resize((THUMB_W, THUMB_H), Image.LANCZOS)
-                print(f"  [thumb] ✓ Imagen AI background")
+                print(f"  [thumb] ✓ Imagen Ultra (cinematic)")
                 return img
     except Exception as e:
-        print(f"  [thumb] Imagen backup failed: {e}")
+        print(f"  [thumb] Imagen Ultra failed: {e}, falling back to Pollinations")
+
+    # --- Pollinations.ai (free fallback) ---
+    try:
+        encoded = quote(prompt)
+        url = (f"https://image.pollinations.ai/prompt/{encoded}"
+               f"?width={THUMB_W}&height={THUMB_H}&model=flux&nologo=true")
+        print(f"  [thumb] Pollinations fallback...")
+        resp = requests.get(url, timeout=90)
+        if resp.status_code == 200 and len(resp.content) > 10000:
+            from io import BytesIO
+            img = Image.open(BytesIO(resp.content)).convert("RGB")
+            img = img.resize((THUMB_W, THUMB_H), Image.LANCZOS)
+            print(f"  [thumb] ✓ Pollinations AI background ({len(resp.content)//1024} KB)")
+            return img
+        print(f"  [thumb] Pollinations returned {resp.status_code}")
+    except Exception as e:
+        print(f"  [thumb] Pollinations failed: {e}")
 
     print(f"  [thumb] All AI providers failed, falling back to PIL")
     return None

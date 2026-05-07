@@ -448,9 +448,30 @@ def pick_topic(refresh_news: bool = True) -> str:
     def _is_taiwan(t: str) -> bool:
         return any(kw in t for kw in _TW_KEYWORDS)
 
-    tw_candidates = [c for c in candidates if _is_taiwan(c)]
-    other_candidates = [c for c in candidates if not _is_taiwan(c)]
-    candidates = tw_candidates + other_candidates
+    # 2026-05-07: Score-based picker (Phase 1 STRATEGY_2026Q2.md)
+    # 用過去爆款 DNA + 台灣關鍵字打分。預估高 views 的 case 先選。
+    # 評分依據:
+    #   - 台灣關鍵字 +5 (本土流量證實 3.6× 國外)
+    #   - 高 ROI trigger words 出現於 case 名稱: +3 each
+    #   - 含具體數字: +2 (數字 case 平均 view 較高)
+    #   - 含 "懸案/未解/真兇/秘密" 字眼: +2
+    #   - 過長標題 (>30 字): -2 (CTR 較差)
+    HIGH_ROI_TRIGGERS = ("人間蒸發", "活活", "兇手", "封殺", "真相",
+                          "顛覆", "至今", "懸案", "未解", "秘密",
+                          "竟", "卻", "惡魔", "崩潰")
+
+    def _score_topic(t: str) -> int:
+        s = 0
+        if _is_taiwan(t): s += 5
+        for trig in HIGH_ROI_TRIGGERS:
+            if trig in t: s += 3
+        if re.search(r"\d", t): s += 2  # contains digit (年份/數字)
+        if any(kw in t for kw in ("懸案", "未解", "真兇", "秘密", "謎")):
+            s += 2
+        if len(t) > 30: s -= 2
+        return s
+
+    candidates = sorted(candidates, key=lambda c: -_score_topic(c))
 
     for candidate in candidates:
         # Layer 1: Blocklist — known fabricated topics
@@ -467,7 +488,8 @@ def pick_topic(refresh_news: bool = True) -> str:
                 used_topics.add(candidate)  # don't retry this one
                 continue
             tag = "[台灣優先]" if _is_taiwan(candidate) else "[海外]"
-            print(f"  Selected topic: {candidate} {tag} [已驗證]")
+            score = _score_topic(candidate)
+            print(f"  Selected topic: {candidate} {tag} [score={score}] [已驗證]")
             return candidate
 
     # All candidates are similar or unverifiable
