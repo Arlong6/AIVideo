@@ -6996,46 +6996,6 @@
       ]
     },
     {
-      "video_id": "zV6jXmPwChk",
-      "topic": "台灣金山槍擊案：軍營裡的男童兇殺與體制黑幕",
-      "slot": 1,
-      "duration_s": 76,
-      "publish_at": "2026-05-05T10:00:00+08:00",
-      "uploaded_at": "2026-05-04T19:56:30.695279+00:00",
-      "stats": [
-        {
-          "date": "2026-05-04",
-          "views": 0,
-          "likes": 0,
-          "comments": 0
-        },
-        {
-          "date": "2026-05-05",
-          "views": 56,
-          "likes": 0,
-          "comments": 1
-        },
-        {
-          "date": "2026-05-06",
-          "views": 61,
-          "likes": 0,
-          "comments": 1
-        },
-        {
-          "date": "2026-05-07",
-          "views": 61,
-          "likes": 0,
-          "comments": 1
-        },
-        {
-          "date": "2026-05-08",
-          "views": 61,
-          "likes": 0,
-          "comments": 1
-        }
-      ]
-    },
-    {
       "video_id": "lXyGNSp3e9Y",
       "topic": "台中耕讀園槍擊案：咖啡店裡的黑道火拼，四死懸案背後複雜的恩怨情仇",
       "slot": 3,
@@ -7106,74 +7066,6 @@
           "views": 15,
           "likes": 0,
           "comments": 0
-        }
-      ]
-    },
-    {
-      "video_id": "Fuv6-lIW2CU",
-      "topic": "光華島事件：台灣軍營的集體失蹤案，體制下的陰謀與士兵的生死之謎",
-      "slot": 1,
-      "duration_s": 80,
-      "publish_at": "2026-05-06T10:00:00+08:00",
-      "uploaded_at": "2026-05-05T19:49:06.172302+00:00",
-      "stats": [
-        {
-          "date": "2026-05-05",
-          "views": 0,
-          "likes": 0,
-          "comments": 0
-        },
-        {
-          "date": "2026-05-06",
-          "views": 73,
-          "likes": 0,
-          "comments": 1
-        },
-        {
-          "date": "2026-05-07",
-          "views": 78,
-          "likes": 0,
-          "comments": 1
-        },
-        {
-          "date": "2026-05-08",
-          "views": 78,
-          "likes": 0,
-          "comments": 1
-        }
-      ]
-    },
-    {
-      "video_id": "OLgarU-0bp0",
-      "topic": "彰化母女失蹤案：1998年彰化母女離奇失蹤，至今未尋獲屍體的懸疑案件",
-      "slot": 3,
-      "duration_s": 81,
-      "publish_at": "2026-05-06T18:00:00+08:00",
-      "uploaded_at": "2026-05-05T19:55:24.744691+00:00",
-      "stats": [
-        {
-          "date": "2026-05-05",
-          "views": 0,
-          "likes": 0,
-          "comments": 0
-        },
-        {
-          "date": "2026-05-06",
-          "views": 0,
-          "likes": 0,
-          "comments": 1
-        },
-        {
-          "date": "2026-05-07",
-          "views": 0,
-          "likes": 0,
-          "comments": 1
-        },
-        {
-          "date": "2026-05-08",
-          "views": 0,
-          "likes": 0,
-          "comments": 1
         }
       ]
     },
