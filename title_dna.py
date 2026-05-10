@@ -220,13 +220,22 @@ def get_title_prompt_insert() -> str:
     """Return Title DNA guidance for Claude/Gemini prompt injection."""
     lines = ["=== 標題 DNA 公式（從腦洞烏托邦 252萬訂閱頻道 49 部爆款影片提取）===\n"]
 
-    # ⭐ TIER-S TRIGGER: 「99%的人」實測 ROI 8× 平均 (我們頻道 720 views vs 平均 94)
-    # 5/6 review 顯示這個 trigger 沒被使用導致整體平均腰斬 (94 → 56)
-    lines.append("⭐⭐⭐ 最高優先級：99% 觸發詞 ⭐⭐⭐")
-    lines.append("「99%的人沒看懂」「99%人不知道」「99%沒人說」實測效果 8× 平均觀看")
-    lines.append("(我們頻道 720 views 爆款 vs 平均 56)。**標題優先嘗試嵌入此觸發詞**,")
-    lines.append("除非案件性質完全不適合 (e.g. 純歷史案件), 否則必嵌入。")
-    lines.append("實例：「他為何血洗捷運？99%的人沒看懂的真相」(我們頻道 720 views)")
+    # ⭐⭐⭐ HARD REQUIREMENT (2026-05-10): 從「優先嘗試」升級為「必嵌入」
+    # 5/9 review: 99% trigger 採用率僅 1/20, 為了 1/20, 就剛剛/崩潰 0/20
+    # LLM 把這些當「可選」, 必須改為硬性 rule.
+    lines.append("⭐⭐⭐ HARD REQUIREMENT — 高 ROI trigger words ⭐⭐⭐")
+    lines.append("從以下 4 個 TIER-S trigger 中**必須採用至少 2 個**(不是 1 個):")
+    lines.append("  1. 「99%的人」/「99%人不知道」/「99%沒人說」 (ROI 8×, 720 views 爆款)")
+    lines.append("  2. 「為了」+ 微小荒誕誘因 (e.g. 為了一張購物卡 → 364k views)")
+    lines.append("  3. 「就剛剛」/「最新進展」(即時感, 4× 中位數)")
+    lines.append("  4. 「崩潰」/「震怒」第三方情緒佐證 (3.3× boost)")
+    lines.append("")
+    lines.append("⭐⭐⭐ HARD REQUIREMENT — 標題具體化 ⭐⭐⭐")
+    lines.append("標題**必須包含至少 1 項**:")
+    lines.append("  ✅ 具體數字 (年份 1996/案發年數 37年/受害者 5人/金額 5億)")
+    lines.append("  ✅ 台灣地名 (台北/新北/台中/高雄/桃園/彰化/花蓮 etc.)")
+    lines.append("  ✅ 機構/職業 (空軍/檢察官/縣長/教授/校長 etc.)")
+    lines.append("理由: 5/9 review 47% 標題缺 has_specific 細節, 平均 views 直接腰斬.")
     lines.append("")
 
     for name, data in TITLE_DNA.items():
@@ -254,13 +263,12 @@ def get_title_prompt_insert() -> str:
     lines.append("  壞的例子：「陳金火案：2003年駭人聽聞的殺人分屍焚屍案其殘忍手法...」(54字)")
 
     lines.append("\n【標題自檢清單（生成後必須通過全部）】")
-    lines.append("  ✅ 包含至少 1 個高效觸發詞")
+    lines.append("  ✅ **HARD**: 至少 2 個 TIER-S trigger (99%/為了/就剛剛/崩潰) 之中採用 ≥2")
+    lines.append("  ✅ **HARD**: 含具體數字 OR 台灣地名 OR 機構/職業 (有 1 個就行)")
     lines.append("  ✅ ≤25 字（含標點）")
     lines.append("  ✅ 不是「案件名：說明」的冒號格式")
     lines.append("  ✅ 製造好奇缺口（讀完標題想知道更多）")
-    lines.append("  ✅ 有身份/年齡/數字等具體細節（不要太抽象）")
     lines.append("  ✅ 禁止用「震驚」單獨開頭")
-    lines.append("  ✅ **強烈建議**：含具體數字 OR 台灣地名/機構（@mystery2018 367k 中位數的關鍵）")
 
     lines.append("\n【2026-05 競品爆款共同 DNA（3 個 outlier 全中）】")
     lines.append("  📌 荒誕小因前置：把案件中最荒誕、最不成比例的微小細節放標題前半")
