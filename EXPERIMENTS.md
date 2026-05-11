@@ -148,6 +148,33 @@
 
 ---
 
+## EXP-12 (2026-05-11) — Resume A 完成 + 3.3 baseline 修正
+
+- **假設:** Shorts→Long-form 升級策略 (todo.md Phase 3) 真的提升 views
+- **改動:**
+  - 1.4 dialogue rendering 視覺 cue (subtitle 『...』wrap)
+  - 3.2(c) source_tag bug 修 (generate.py 加 --source CLI arg)
+  - 3.3 tracker script 建立
+- **預期:** 跑 tracker → 看到 D.B.庫柏 long-form upgrade 表現好不好
+- **實際 (first attempt, 錯的!):** 庫柏 732 views / 14 baseline = 52× — 標記為 ✅
+- **使用者抓包:** 「732 views 怎麼來的?」
+- **重新查證:**
+  - 4N7z7JS_gi8 是 71 秒 **Short**, 不是 long-form
+  - GH Actions run 24946381573 (4/26 庫柏 long-form trigger) **FAILED**
+  - 從來沒有 long-form 產出, source=shorts_upgrade 是 aspirational tag
+  - 把 71s Short 跟 long-form baseline (14) 比 = apples vs oranges
+- **學到 (這個最重要):**
+  - **「verify 別猜」是真的, 連我自己也會掉坑**
+  - tracker baseline 應該 format-matched (Short ↔ Short median, Long ↔ Long)
+  - Shorts baseline (median) 自動算 = 51 views, 庫柏 732/51 = **14× Shorts median** (依然爆款但不是 52×)
+- **修正:**
+  - tracker 重寫: format-matched baseline, 自動分類 Short vs Long
+  - 4N7z7JS_gi8 移除誤導的 source=shorts_upgrade tag
+  - 現況: **0 個真正的 Shorts→Long-form 升級樣本** (3.2 從未成功)
+- **Follow-up:** Phase 3 升級假設仍未測試. 若未來 Short 又破 500 views (耕讀園 535), 手動 workflow_dispatch 跑 long-form 升級 + 確認跑成功.
+
+---
+
 ## 待嘗試 (backlog)
 
 - **真人配音實驗** (ElevenLabs Pro $22/月 / 外包 $30/部) — Phase 2 deferred

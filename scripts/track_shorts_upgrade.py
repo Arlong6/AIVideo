@@ -1,9 +1,14 @@
 """
-Track Shorts → Long-form upgrade performance vs old long-form baseline.
+Track Shorts → Long-form upgrade performance.
 
-Filters video_log entries where source=shorts_upgrade, fetches latest YT
-views, and compares against the baseline (avg 14 views per old long-form,
-established in tasks/todo.md context).
+Filters video_log entries where source=shorts_upgrade, classifies each as
+Short or Long-form, then compares against the format-matched baseline:
+  - Short upgrade entries: compared against current Shorts baseline (auto-computed)
+  - Long-form upgrade entries: compared against old Long-form baseline (14)
+
+⚠️ 2026-05-11 history note: original version compared Short views to
+   Long-form baseline (apples vs oranges, inflated 52×). Fixed to compute
+   per-format baseline from the same video_log.
 
 Output: stdout table + Telegram summary.
 """
@@ -18,12 +23,28 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from googleapiclient.discovery import build
 
 
-BASELINE_AVG_VIEWS = 14  # Old long-form baseline (per tasks/todo.md context line 7)
+OLD_LONGFORM_BASELINE = 14  # Established in tasks/todo.md context line 7 (13 videos avg 14)
+SHORT_THRESHOLD_SEC = 90  # YT short = ≤60s, but allow buffer for our durations
 
 
 def load_shorts_upgrade_videos() -> list[dict]:
     log = json.load(open("video_log.json"))
     return [v for v in log.get("videos", []) if v.get("source") == "shorts_upgrade"]
+
+
+def compute_shorts_baseline(video_log_path: str = "video_log.json") -> float:
+    """Median views of channel's Shorts (apples-vs-apples baseline)."""
+    with open(video_log_path) as f:
+        log = json.load(f)
+    short_views = []
+    for v in log.get("videos", []):
+        if v.get("duration_s", 999) <= SHORT_THRESHOLD_SEC and v.get("stats"):
+            latest = max(v["stats"], key=lambda s: s.get("date", ""))
+            short_views.append(latest.get("views", 0))
+    if not short_views:
+        return 50.0
+    short_views.sort()
+    return short_views[len(short_views) // 2]
 
 
 def fetch_views(video_ids: list[str]) -> dict[str, int]:
@@ -55,23 +76,29 @@ def age_days(uploaded_at: str) -> int:
 def main():
     print("=" * 70)
     print("📊 Shorts → Long-form upgrade performance tracker")
-    print(f"   Baseline (old long-form avg): {BASELINE_AVG_VIEWS} views")
+
+    shorts_baseline = compute_shorts_baseline()
+    print(f"   Old Long-form baseline: {OLD_LONGFORM_BASELINE} views")
+    print(f"   Current Shorts baseline (median): {shorts_baseline:.0f} views")
+    print(f"   Threshold: ≤{SHORT_THRESHOLD_SEC}s = Short, >{SHORT_THRESHOLD_SEC}s = Long-form")
     print("=" * 70)
 
     videos = load_shorts_upgrade_videos()
     if not videos:
         print("\n⚠️  No videos tagged source=shorts_upgrade in video_log.json")
-        print("   Did the upgrade pipeline run? Or is the source_tag broken?")
+        print("   Possible reasons:")
+        print("   - Upgrade pipeline never produced a long-form yet")
+        print("   - workflow_dispatch source_tag never passed (use --source on manual runs)")
+        print(f"   Shorts baseline {shorts_baseline:.0f} stays as reference for future upgrades.")
         return 1
 
     print(f"\nFound {len(videos)} shorts_upgrade video(s):\n")
     views_map = fetch_views([v["video_id"] for v in videos])
 
     # Header
-    print(f"  {'Date':12} {'Video ID':12} {'Age':>5} {'Views':>7} {'vs base':>9}  Topic")
-    print(f"  {'-'*12} {'-'*12} {'-'*5} {'-'*7} {'-'*9}  {'-'*40}")
+    print(f"  {'Date':12} {'Video ID':12} {'Fmt':>4} {'Age':>5} {'Views':>7} {'vs base':>9}  Topic")
+    print(f"  {'-'*12} {'-'*12} {'-'*4} {'-'*5} {'-'*7} {'-'*9}  {'-'*40}")
 
-    total_views = 0
     rows = []
     for v in sorted(videos, key=lambda v: v.get("uploaded_at", "")):
         vid = v["video_id"]
@@ -79,24 +106,37 @@ def main():
         age = age_days(v.get("uploaded_at", ""))
         topic = (v.get("topic") or "")[:40]
         upload_date = v.get("uploaded_at", "")[:10]
-        boost = views / BASELINE_AVG_VIEWS if BASELINE_AVG_VIEWS > 0 else 0
-        print(f"  {upload_date:12} {vid:12} {age:>4}d {views:>7} {boost:>7.1f}×  {topic}")
-        total_views += views
+        dur = v.get("duration_s", 0)
+        is_short = dur <= SHORT_THRESHOLD_SEC
+        fmt = "S" if is_short else "L"
+        baseline = shorts_baseline if is_short else OLD_LONGFORM_BASELINE
+        boost = views / baseline if baseline > 0 else 0
+        print(f"  {upload_date:12} {vid:12} {fmt:>4} {age:>4}d {views:>7} {boost:>7.1f}×  {topic}")
         rows.append({
-            "video_id": vid,
-            "topic": topic,
-            "age_days": age,
-            "views": views,
-            "boost": boost,
+            "video_id": vid, "topic": topic, "format": fmt,
+            "age_days": age, "views": views, "boost": boost,
+            "baseline_used": baseline,
         })
 
-    n = len(videos)
-    avg = total_views / n if n else 0
-    avg_boost = avg / BASELINE_AVG_VIEWS if BASELINE_AVG_VIEWS > 0 else 0
-
-    print(f"\n  Total: {n} video(s) / {total_views} views")
-    print(f"  Avg: {avg:.0f} views ({avg_boost:.1f}× baseline)")
-    print(f"  {'✅ Upgrade hypothesis CONFIRMED' if avg_boost >= 2 else '⚠️  No clear lift vs baseline'}")
+    # Aggregate per format
+    shorts = [r for r in rows if r["format"] == "S"]
+    longs = [r for r in rows if r["format"] == "L"]
+    print()
+    if shorts:
+        avg_s = sum(r["views"] for r in shorts) / len(shorts)
+        print(f"  Shorts: {len(shorts)} 部, 平均 {avg_s:.0f} views "
+              f"({avg_s/shorts_baseline:.1f}× Shorts baseline {shorts_baseline:.0f})")
+    if longs:
+        avg_l = sum(r["views"] for r in longs) / len(longs)
+        print(f"  Long-form: {len(longs)} 部, 平均 {avg_l:.0f} views "
+              f"({avg_l/OLD_LONGFORM_BASELINE:.1f}× old Long-form baseline {OLD_LONGFORM_BASELINE})")
+        if avg_l / OLD_LONGFORM_BASELINE >= 2:
+            print(f"  ✅ Upgrade hypothesis CONFIRMED (Long-form upgrade ≥2× baseline)")
+        else:
+            print(f"  ⚠️  Long-form upgrade <2× baseline, hypothesis weak")
+    else:
+        print(f"  ⚠️  No long-form upgrade videos yet — main hypothesis NOT YET TESTED")
+        print(f"  (Original 'D.B.庫柏 long-form' run 24946381573 failed 4/26, never re-tried)")
 
     # Telegram summary
     try:

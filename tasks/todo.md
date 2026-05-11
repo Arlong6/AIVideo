@@ -60,10 +60,16 @@
   - Verify all 3 have enough verifiable source material for 15-min depth
   - User confirms picks before generation
 
-- [~] **3.2 Generate long-form for batch** (1/3 only — D.B.庫柏 done, 洪仲丘+芭提雅 deferred)
+- [ ] **3.2 Generate long-form for batch** (0/3 actually completed — see correction below)
   - Run new pipeline against the 3 picks
   - QA check each output
   - Schedule publish: 3 videos over 9 days (1 every 3 days, not back-to-back)
+  - **2026-05-11 CORRECTION**: Original Review claimed D.B.庫柏 long-form
+    was triggered (run 24946381573, source=shorts_upgrade). Actual:
+    that run **FAILED** on 4/26, no long-form ever uploaded.
+    4N7z7JS_gi8 is the 71s Short (kept its 732 views = 14× Shorts median,
+    but never became a long-form). 洪仲丘+芭提雅 also never triggered.
+    Phase 3 upgrade hypothesis still UNTESTED in production.
 
 - [x] **3.3 Track performance**
   - Tag these long-forms in video_log with `source: "shorts_upgrade"`
@@ -115,10 +121,15 @@
   - Backfill: 4N7z7JS_gi8 (D.B.庫柏) manually tagged source=shorts_upgrade.
 
 - [x] **3.3 Build 14-day perf tracking script**
-  - `scripts/track_shorts_upgrade.py` — done
-  - Smoke test: 1 video found (D.B.庫柏 backfilled), 732 views,
-    **52.3× baseline (14)**. Upgrade hypothesis ✅ CONFIRMED.
-  - Telegram summary sent OK.
+  - `scripts/track_shorts_upgrade.py` — done with **2026-05-11 baseline fix**.
+  - **First run (錯的)**: 庫柏 732 / 14 = 52× ✅ CONFIRMED
+  - **Re-verify exposed bug**: 庫柏 是 71 秒 Short, 不是 long-form. Comparing
+    Short views to Long-form baseline = apples vs oranges. GH Actions run
+    24946381573 long-form attempt FAILED 4/26.
+  - **Fix**: format-matched baseline (auto-compute Shorts median = 51 views).
+    4N7z7JS_gi8 source tag removed. Tracker now reports 0 actual upgrade
+    videos — Phase 3 hypothesis still untested.
+  - Learning: **「verify 別猜」also applies to my own conclusions**.
 
 ## Review
 
