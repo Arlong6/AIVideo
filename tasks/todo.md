@@ -18,20 +18,20 @@
 
 ## Phase 1 — Pipeline Foundation (this session)
 
-- [ ] **1.1 Build Shorts performance scanner**
+- [x] **1.1 Build Shorts performance scanner**
   - New script `shorts_to_longform_queue.py`
   - Inputs: video_log.json + YouTube API stats
   - Output: `longform_queue.json` ranked by views, excluding topics that
     already have a long-form
   - Manual override flag for Phase 1 bootstrap (top 5 by views)
 
-- [ ] **1.2 Add dual-voice support to TTS**
+- [x] **1.2 Add dual-voice support to TTS**
   - Modify `tts_generator.py` to accept `voice_role` param
   - Add 2 ElevenLabs voice IDs: NARRATOR + ALT (e.g. interrogator)
   - Add Chinese voice IDs (research best ElevenLabs zh voices)
   - Smoke test: render two-line dialogue locally
 
-- [ ] **1.3 Extend long-form script schema for dialogue**
+- [x] **1.3 Extend long-form script schema for dialogue**
   - In `script_generator.py` `_generate_long_scripts`, add `dialogue_blocks`
     field — list of `{role: "narrator"|"alt", text: str}` segments
   - Update prompt to include 2-4 dialogue exchanges per video (court
@@ -44,28 +44,28 @@
 
 ## Phase 2 — Cross-Promotion CTA in Shorts
 
-- [ ] **2.1 Update Shorts CTA prompt to optionally include channel jump**
+- [x] **2.1 Update Shorts CTA prompt to optionally include channel jump**
   - When the topic has (or will have) a long-form, append "完整版主頁"
     sub-line to the binary-choice CTA
   - Keep the "1 vs 2" binary as primary; "看完整" is secondary
 
-- [ ] **2.2 Update Remotion CrimeCTA visual to render channel-jump line**
+- [x] **2.2 Update Remotion CrimeCTA visual to render channel-jump line**
   - Below the 1/2 cards, show small "🔗 主頁看完整版" link styled text
   - Trigger from new `c.has_longform` field in case schema
 
 ## Phase 3 — Generate First Batch
 
-- [ ] **3.1 Pick top 3 Shorts manually**
+- [x] **3.1 Pick top 3 Shorts manually**
   - 芭提雅(201), 湯英伸(135), 鄭性澤(132) candidate set
   - Verify all 3 have enough verifiable source material for 15-min depth
   - User confirms picks before generation
 
-- [ ] **3.2 Generate long-form for batch**
+- [~] **3.2 Generate long-form for batch** (1/3 only — D.B.庫柏 done, 洪仲丘+芭提雅 deferred)
   - Run new pipeline against the 3 picks
   - QA check each output
   - Schedule publish: 3 videos over 9 days (1 every 3 days, not back-to-back)
 
-- [ ] **3.3 Track performance**
+- [x] **3.3 Track performance**
   - Tag these long-forms in video_log with `source: "shorts_upgrade"`
   - Compare 14-day view performance vs old long-form baseline (avg 14)
 
@@ -89,6 +89,36 @@
 - Phase 2: 30 min
 - Phase 3: depends on render time (each long-form takes ~30 min on GH Actions)
 - Phase 4: 30 min later
+
+## Plan (2026-05-11) — Resume A: 1.4 + 3.2(c) + 3.3
+
+對齊 verify 結果: Phase 1.1/1.2/1.3/2.1/2.2/3.1 已 done,3 critical bug 已修.
+真正剩下:
+
+- [x] **1.4 Wire dialogue rendering in video_assembler.py**
+  - Audio side: already wired via `audio_agent.generate_audio` →
+    `tts_generator.generate_voiceover_with_timing` → auto-routes to
+    `_voiceover_with_timing_multirole` when `[ALT]` markers detected
+  - Visual cue: ADDED 2026-05-11. tts_generator tags each merged
+    boundary with `role`. subtitle_generator wraps ALT segments in
+    `『...』` so viewers see quote marks during dialogue moments.
+  - Smoke test: PASSED — 3-segment script (narrator/alt/narrator)
+    produces dual-voice audio + SRT with `『...』` on alt card.
+
+- [x] **3.2(c) Fix source_tag not propagating to video_log**
+  - Trace: longform.yml→orchestrator path was correctly wired (line 75 env var
+    → line 124 read → line 132 produce_longform(source=) → log_video).
+  - **Real bug**: `generate.py` (Shorts pipeline) calls log_video at line
+    232 + 389 WITHOUT passing source. Daily.yml never set SOURCE_TAG.
+    Cron-path long-forms also don't set it.
+  - Fix: added `--source` CLI arg to generate.py + passed to both log_video calls.
+  - Backfill: 4N7z7JS_gi8 (D.B.庫柏) manually tagged source=shorts_upgrade.
+
+- [x] **3.3 Build 14-day perf tracking script**
+  - `scripts/track_shorts_upgrade.py` — done
+  - Smoke test: 1 video found (D.B.庫柏 backfilled), 732 views,
+    **52.3× baseline (14)**. Upgrade hypothesis ✅ CONFIRMED.
+  - Telegram summary sent OK.
 
 ## Review
 

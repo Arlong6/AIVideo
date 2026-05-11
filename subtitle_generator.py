@@ -111,6 +111,11 @@ def generate_srt_from_boundaries(boundaries: list[dict], output_path: str):
         dur_sec = b["duration"] / 10_000_000
         end_sec = start_sec + dur_sec
 
+        # 2026-05-11 Phase 1.4 — Wrap ALT/dialogue segments in 『』 quotation
+        # marks so viewers see a visual cue matching the different voice.
+        if b.get("role") == "alt":
+            text = f"『{text}』"
+
         # Split long sentences into subtitle cards
         cards = _split_to_cards(text)
         n_cards = len(cards)

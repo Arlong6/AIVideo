@@ -48,6 +48,8 @@ def main():
                         help="Video format: short (60s) or long (15-20min)")
     parser.add_argument("--channel", type=str, default="truecrime",
                         help="Content channel: truecrime | books (default: truecrime)")
+    parser.add_argument("--source", type=str, default="",
+                        help="Source tag for video_log (e.g. shorts_upgrade)")
     args = parser.parse_args()
 
     # Validate channel early — Phase 3 will add actual dispatch.
@@ -229,7 +231,8 @@ def main():
             notify_upload(topic, youtube_url, args.slot or 1, pub_str,
                           engine=VIDEO_ENGINE, duration_s=_dur,
                           verified=use_remotion)
-            log_video(video_id, topic, args.slot or 1, _dur, publish_at or "")
+            log_video(video_id, topic, args.slot or 1, _dur, publish_at or "",
+                      source=args.source)
         else:
             # Audit 2026-04-30 important: render-then-no-upload used to be
             # silent. Now Telegram pings so the operator knows the file is
@@ -386,7 +389,8 @@ def _generate_long(args):
             pub_str = publish_dt.strftime('%Y-%m-%d %H:%M') if publish_at else ""
             notify_upload(topic, youtube_url, args.slot or 1, pub_str)
             video_id = youtube_url.split("youtu.be/")[-1].split("?")[0]
-            log_video(video_id, topic, args.slot or 1, actual_duration, publish_at or "")
+            log_video(video_id, topic, args.slot or 1, actual_duration, publish_at or "",
+                      source=args.source)
 
     # Upload extracted Shorts
     if args.upload and shorts_results:

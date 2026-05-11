@@ -389,12 +389,15 @@ def _voiceover_with_timing_multirole(text: str, output_path: str) -> list[dict]:
             print(f"  [WARN] multirole segment {i} ({role}) failed, skipping")
             continue
 
-        # Re-base each boundary by the cumulative offset
+        # Re-base each boundary by the cumulative offset.
+        # Tag with role so subtitle_generator can render visual cue
+        # (e.g. 『...』 quotation marks for ALT/dialogue segments).
         for b in seg_boundaries:
             merged_boundaries.append({
                 "offset": b["offset"] + cumulative_offset_100ns,
                 "duration": b["duration"],
                 "text": b["text"],
+                "role": role,
             })
 
         # Probe segment duration and advance offset
