@@ -1231,21 +1231,28 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
     if os.path.exists(concat_path):
         os.remove(concat_path)
 
-    # Subtitles: long-form uses SRT upload, Shorts burn into video
+    # Subtitles: burn into video for both Shorts and long-form.
+    # Shorts use the single-pass Pillow path; long-form uses the chunked
+    # ffmpeg path to avoid OOM on 12-20 min videos. SRT is still uploaded
+    # to YouTube alongside (CC is off by default, helps SEO + auto-translate).
+    # On burn failure, fall back to SRT-only — never block the pipeline.
     subtitle_out = temp_path
-    if fmt == "short" and os.path.exists(srt_path):
-        print("  Burning subtitles (Shorts only)...")
+    if os.path.exists(srt_path):
+        print(f"  Burning subtitles ({fmt})...")
         sub_out = final_path.replace("final_", "_sub_")
         try:
-            _burn_subtitles_pillow(temp_path, srt_path, sub_out)
+            if fmt == "short":
+                _burn_subtitles_pillow(temp_path, srt_path, sub_out)
+            else:
+                _burn_subtitles_ffmpeg(temp_path, srt_path, sub_out)
             os.remove(temp_path)
             subtitle_out = sub_out
             print("  Subtitles burned ✅")
         except Exception as e:
-            print(f"  [WARN] Subtitle burn failed: {e}")
+            print(f"  [WARN] Subtitle burn failed, falling back to SRT upload: {e}")
             subtitle_out = temp_path
     else:
-        print("  Subtitles: will upload SRT to YouTube")
+        print("  No SRT found — skipping subtitle burn")
 
     # Apply cinematic effects (grain + vignette + color grade)
     # Skip for books channel — gouache illustrations don't need CCTV-style grading
