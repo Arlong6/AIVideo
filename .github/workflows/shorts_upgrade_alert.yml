@@ -1,0 +1,38 @@
+name: Shorts Upgrade Candidates Alert
+
+# Daily scan for Shorts that crossed the upgrade threshold but have no
+# long-form successor yet. Surfaces them via Telegram with one-liner
+# gh workflow dispatch commands. Does NOT auto-dispatch (yet) — gates
+# kept human-in-the-loop until detection has proven stable for a week.
+
+on:
+  schedule:
+    # 08:00 KST = 23:00 UTC (previous day). Catches overnight view growth.
+    - cron: "0 23 * * *"
+  workflow_dispatch:
+    inputs:
+      threshold:
+        description: "View threshold (default 300)"
+        required: false
+        default: "300"
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PYTHONUNBUFFERED: "1"
+      UPGRADE_THRESHOLD: ${{ github.event.inputs.threshold || '300' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install python-dotenv requests
+      - name: Run detection
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 scripts/detect_shorts_upgrade_candidates.py

@@ -138,21 +138,32 @@ def main():
         print(f"  ⚠️  No long-form upgrade videos yet — main hypothesis NOT YET TESTED")
         print(f"  (Original 'D.B.庫柏 long-form' run 24946381573 failed 4/26, never re-tried)")
 
-    # Telegram summary
     try:
         from telegram_notify import _send_raw
-        msg = (
-            f"📊 <b>Shorts→Long-form Upgrade Track</b>\n\n"
-            f"Baseline: {BASELINE_AVG_VIEWS} views\n"
-            f"Upgraded: {n} 部 / 平均 {avg:.0f} views ({avg_boost:.1f}×)\n\n"
-        )
-        for r in rows[:5]:
-            msg += f"• {r['topic'][:30]} — {r['views']} views ({r['boost']:.1f}×, {r['age_days']}d)\n"
-        if avg_boost >= 2:
-            msg += "\n✅ 假設成立 (≥2× baseline)"
+        lines = ["📊 <b>Shorts→Long-form Upgrade Track</b>", ""]
+        if shorts:
+            avg_s = sum(r["views"] for r in shorts) / len(shorts)
+            lines.append(
+                f"Shorts: {len(shorts)} 部 / avg {avg_s:.0f}v "
+                f"({avg_s/shorts_baseline:.1f}× baseline {shorts_baseline:.0f})"
+            )
+        if longs:
+            avg_l = sum(r["views"] for r in longs) / len(longs)
+            lines.append(
+                f"Long-form: {len(longs)} 部 / avg {avg_l:.0f}v "
+                f"({avg_l/OLD_LONGFORM_BASELINE:.1f}× baseline {OLD_LONGFORM_BASELINE})"
+            )
+            verdict = "✅ 假設成立 (≥2×)" if avg_l/OLD_LONGFORM_BASELINE >= 2 else "⚠️ 沒明顯提升 (<2×)"
+            lines.append(verdict)
         else:
-            msg += "\n⚠️ 沒明顯提升 (<2×), 重新評估"
-        _send_raw(msg)
+            lines.append("⚠️ 尚未有 long-form upgrade 樣本")
+        lines.append("")
+        for r in rows[:5]:
+            lines.append(
+                f"• [{r['format']}] {r['topic'][:28]} — {r['views']}v "
+                f"({r['boost']:.1f}×, {r['age_days']}d)"
+            )
+        _send_raw("\n".join(lines))
         print("\n✓ Telegram 已通知")
     except Exception as e:
         print(f"\n  Telegram failed (non-fatal): {e}")
