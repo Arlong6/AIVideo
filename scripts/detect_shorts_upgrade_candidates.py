@@ -37,6 +37,16 @@ _GEO_PREFIXES = {
 }
 _GENERIC_SUFFIXES = ("案", "事件", "命案", "懸案", "冤案", "謎案", "凶案")
 
+# Title corrections — the Short was published with a factually wrong frame.
+# When surfacing the long-form dispatch command, use the corrected topic so
+# the LLM script isn't seeded with the error. Keyed by Short video_id.
+# Ref: feedback_absolute_truth_requirement (every topic must be verifiable).
+_TITLE_CORRECTIONS = {
+    # 耕讀園: Short said "四死懸案" — actual case is 3死2傷 and fully solved
+    # (林明樺 suicided; 李嘉軒+紀俊毅 executed 2013). 2004-11-27 Taichung.
+    "lXyGNSp3e9Y": "台中耕讀園槍擊案：2004年茶館談判破裂的黑道火拼，3死2傷、4嫌落網",
+}
+
 
 def _cjk_only(s: str) -> str:
     return re.sub(r"[^一-鿿]", "", s)
@@ -123,9 +133,11 @@ def find_candidates(threshold: int = DEFAULT_THRESHOLD) -> list[dict]:
             continue
         if _has_longform_match(topic, longform_topics):
             continue
+        vid = v.get("video_id")
         candidates.append({
-            "video_id": v.get("video_id"),
+            "video_id": vid,
             "topic": topic,
+            "dispatch_topic": _TITLE_CORRECTIONS.get(vid, topic),
             "views": views,
             "uploaded_at": v.get("uploaded_at", "")[:10],
         })
@@ -153,7 +165,8 @@ def main():
 
     print(f"Found {len(candidates)} pending candidate(s):\n")
     for c in candidates:
-        print(f"  {c['views']:>5}v  {c['video_id']:11}  {c['uploaded_at']}  {c['topic'][:50]}")
+        flag = " ⚠️title-corrected" if c["dispatch_topic"] != c["topic"] else ""
+        print(f"  {c['views']:>5}v  {c['video_id']:11}  {c['uploaded_at']}  {c['topic'][:50]}{flag}")
 
     try:
         from telegram_notify import _send_raw
@@ -163,10 +176,10 @@ def main():
             "",
         ]
         for c in candidates[:5]:
-            lines.append(
-                f"• {c['views']}v · {c['topic'][:35]}"
-            )
-            lines.append(f"  <code>{format_dispatch_cmd(c['topic'])}</code>")
+            corrected = c["dispatch_topic"] != c["topic"]
+            label = c["topic"][:35] + (" ⚠️已修正標題" if corrected else "")
+            lines.append(f"• {c['views']}v · {label}")
+            lines.append(f"  <code>{format_dispatch_cmd(c['dispatch_topic'])}</code>")
             lines.append("")
         _send_raw("\n".join(lines))
         print("\n✓ Telegram 已通知")
