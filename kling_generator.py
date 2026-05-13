@@ -16,6 +16,25 @@ AI_CLIPS_PER_VIDEO = 6
 # Clip duration in seconds (5s is cheapest tier)
 CLIP_DURATION = 5
 
+# ── Long-form variant constants (2026-05-13 wiring, default OFF) ─────────
+# This block adds Kling support for the 16:9 long-form crime pipeline as
+# B-tier visual upgrade. Existing 9:16 Shorts path above is unchanged.
+# Activation: set ENABLE_KLING=1 in env (or GH Actions secret).
+LONGFORM_MODEL = os.environ.get("KLING_LONGFORM_MODEL", "kling-v1-6")
+# Mirror visual_agent.CRIME_STYLE_PREFIX semantics (English, oblique-framed,
+# no faces/text/signs) so Imagen stills + Kling clips share a visual grammar.
+LONGFORM_STYLE_SUFFIX = (
+    ". cinematic 16:9, neo-noir crime film aesthetic, "
+    "extreme chiaroscuro lighting, desaturated cool palette, "
+    "single hard practical light source, heavy 35mm film grain, "
+    "ominous atmosphere, slow drift camera movement, "
+    "no text, no people, no faces"
+)
+LONGFORM_NEGATIVE = (
+    "text, watermark, logo, signs, billboards, faces, people, "
+    "bright daylight, cheerful, cartoon, 3D render"
+)
+
 
 def _make_jwt() -> str:
     """Generate a short-lived JWT token for Kling API auth."""
@@ -113,6 +132,82 @@ def _download_clip(url: str, filepath: str) -> bool:
     except Exception as e:
         print(f"  [WARN] Clip download failed: {e}")
         return False
+
+
+def _submit_longform(prompt: str) -> str | None:
+    """Submit a 16:9 long-form generation. Mirrors _submit_generation but
+    targets the noir crime documentary look used by the Imagen pipeline."""
+    token = _make_jwt()
+    resp = requests.post(
+        f"{KLING_API_BASE}/v1/videos/text2video",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model_name": LONGFORM_MODEL,
+            "prompt": prompt + LONGFORM_STYLE_SUFFIX,
+            "negative_prompt": LONGFORM_NEGATIVE,
+            "cfg_scale": 0.5,
+            "mode": "std",
+            "aspect_ratio": "16:9",
+            "duration": str(CLIP_DURATION),
+        },
+        timeout=30,
+    )
+    if resp.status_code != 200:
+        print(f"  [Kling-long] submit failed {resp.status_code}: {resp.text[:200]}")
+        return None
+    return resp.json().get("data", {}).get("task_id")
+
+
+def generate_kling_longform_clips(
+    visual_hints: list[str],
+    output_dir: str,
+    max_clips: int = 3,
+) -> list[str]:
+    """Generate ≤max_clips Kling 16:9 noir clips for the long-form pipeline.
+
+    Returns saved mp4 paths under <output_dir>/wiki_clips/ so the assembler
+    picks them up identically to Imagen + Wiki Ken-Burns clips. Designed
+    to be called from visual_agent.source_visuals() behind ENABLE_KLING
+    feature flag — never invoked when flag is unset.
+
+    visual_hints: English oblique scene descriptions (from script_agent).
+    """
+    if not KLING_ACCESS_KEY or not KLING_SECRET_KEY:
+        print("  [Kling-long] no KLING_ACCESS_KEY/SECRET — skipping")
+        return []
+    if not visual_hints:
+        return []
+
+    wiki_clips_dir = os.path.join(output_dir, "wiki_clips")
+    os.makedirs(wiki_clips_dir, exist_ok=True)
+    selected = visual_hints[:max_clips]
+
+    print(f"  [Kling-long] submitting {len(selected)} 16:9 noir clips...")
+    tasks = []
+    for i, hint in enumerate(selected):
+        task_id = _submit_longform(hint)
+        if task_id:
+            tasks.append((i, task_id, hint))
+            print(f"    submitted {i+1}/{len(selected)}: {hint[:40]}...")
+        else:
+            print(f"    [SKIP] submit failed {i+1}/{len(selected)}")
+        time.sleep(1)
+
+    saved = []
+    for i, task_id, hint in tasks:
+        print(f"    polling clip {i+1} ({task_id[:12]}...)")
+        url = _poll_task(task_id, timeout_sec=420)
+        if not url:
+            continue
+        filepath = os.path.join(wiki_clips_dir, f"kling_long_{i:02d}.mp4")
+        if _download_clip(url, filepath):
+            print(f"    ✅ {os.path.basename(filepath)}")
+            saved.append(filepath)
+    print(f"  [Kling-long] {len(saved)}/{len(selected)} clips ready")
+    return saved
 
 
 def generate_ai_clips(

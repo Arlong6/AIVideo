@@ -273,6 +273,33 @@ def source_visuals(case_data: dict, script_data: dict,
     print(f"  [Visual] Imagen: {len(imagen_clips)} clips "
           f"({ultra_count}U + {fast_count}F = ${cost:.2f})")
 
+    # 6. Kling motion clips for key beats (FEATURE FLAG, default OFF).
+    # When ENABLE_KLING=1 in env, generate 3 noir 16:9 5s clips for the
+    # hook/twist/resolution visual_hints. Clips land in wiki_clips/ so the
+    # assembler treats them like any other clip. Failure modes (no creds,
+    # API timeout, model missing) all return [] silently — pipeline never
+    # blocks on this. Validate A first; flip flag only after noir Imagen
+    # output has been confirmed visually.
+    if os.environ.get("ENABLE_KLING") == "1":
+        print("  [Visual] ENABLE_KLING=1 — generating Kling motion clips...")
+        try:
+            from kling_generator import generate_kling_longform_clips
+            key_hints = []
+            for sec in script_sections:
+                if sec.get("name") in KEY_SECTION_NAMES:
+                    hints = sec.get("visual_hints", []) or []
+                    if hints:
+                        key_hints.append(hints[0])
+            kling_clips = generate_kling_longform_clips(key_hints, output_dir, max_clips=3)
+            results["kling_clips"] = kling_clips
+            results["wiki_clips"].extend(kling_clips)
+            print(f"  [Visual] Kling: {len(kling_clips)} motion clips added")
+        except Exception as e:
+            print(f"  [Visual] Kling generation failed (non-fatal): {e}")
+            results["kling_clips"] = []
+    else:
+        results["kling_clips"] = []
+
     wiki_count = len(results["wiki_clips"])
     pexels_count = len(os.listdir(results["pexels_clips_dir"])) if os.path.exists(results["pexels_clips_dir"]) else 0
     card_count = len(results["info_cards"])
