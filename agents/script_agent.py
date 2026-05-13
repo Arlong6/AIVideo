@@ -77,15 +77,25 @@ def generate_script(case_data: dict) -> dict:
 6. 標題可以聳動但**不可虛構** — 「99%沒看懂」「真相顛覆想像」OK,「為求健康竟活活餓死親兒」必須案件確實有此情節才能用
 7. 若你發現 case_data 內部矛盾或太薄弱,在 hook 第一句加一個 `[FACT_DOUBT]` 標記讓人類審查者知道
 
+=== visual_hints 必須遵守的規則(2026-05-13 noir 升級)===
+visual_hints 是 Imagen 生圖的 prompt,跟旁白文本不同要求:
+1. **英文撰寫**(Imagen 中文識別差) — 每個 hint 12-25 字
+2. **Oblique framing**:拍「殘留物 / 場所 / 物件」,**不要拍**「暴力動作 / 具體人物臉」
+   ✓「empty tea house at night, overturned chair, police evidence markers, ceiling fan motionless」
+   ✗「two men shooting each other」(safety filter 必擋)
+3. **不要描述任何文字 / 招牌 / 報紙標題 / sign / marquee / billboard** — Imagen 會亂寫字產 typo
+4. **不要描述特定人物**(no character, no face)— faceless 頻道 + 安全濾鏡
+5. 風格已由 noir prefix 統一處理,你**不要**重複 "noir / cinematic / dark" — 只寫場景物件
+
 回傳 JSON：
 {{
   "title": "影片標題（使用標題DNA公式，30字以內）",
   "opening_card": "開場字卡（8字以內）",
   "sections": [
-    {{"name": "hook", "script": "全文", "visual_hints": ["這段需要什麼畫面1", "畫面2"]}},
-    {{"name": "background", "script": "全文", "visual_hints": ["畫面描述"]}},
-    {{"name": "crime", "script": "全文", "visual_hints": ["畫面描述"]}},
-    {{"name": "investigation", "script": "全文", "visual_hints": ["畫面描述"]}}
+    {{"name": "hook", "script": "全文", "visual_hints": ["English oblique scene 1", "scene 2"]}},
+    {{"name": "background", "script": "全文", "visual_hints": ["English oblique scene"]}},
+    {{"name": "crime", "script": "全文", "visual_hints": ["English oblique scene"]}},
+    {{"name": "investigation", "script": "全文", "visual_hints": ["English oblique scene"]}}
   ],
   "keywords_en": ["English Pexels search 1", "search 2", "...共20個"]
 }}""")
@@ -116,13 +126,16 @@ def generate_script(case_data: dict) -> dict:
 接著 200-300 字案件深度摘要（事件脈絡 + 結局），自然置入 SEO 關鍵字：
   「台灣真實犯罪」「{{地名}}事件」「真實案件記錄」「未解懸案」（依案件擇用）
 
+⚠️ visual_hints 沿用前半段規則:英文、oblique framing(物件+場所,非人物動作)、
+   無文字/招牌、不描述特定人物、12-25 字/條.
+
 回傳 JSON：
 {{
   "sections": [
-    {{"name": "twist", "script": "全文", "visual_hints": ["畫面描述"]}},
-    {{"name": "resolution", "script": "全文", "visual_hints": ["畫面描述"]}},
-    {{"name": "reflection", "script": "全文", "visual_hints": ["畫面描述"]}},
-    {{"name": "cta", "script": "全文", "visual_hints": ["畫面描述"]}}
+    {{"name": "twist", "script": "全文", "visual_hints": ["English oblique scene"]}},
+    {{"name": "resolution", "script": "全文", "visual_hints": ["English oblique scene"]}},
+    {{"name": "reflection", "script": "全文", "visual_hints": ["English oblique scene"]}},
+    {{"name": "cta", "script": "全文", "visual_hints": ["English oblique scene"]}}
   ],
   "shorts_candidates": [
     {{"title": "Shorts標題", "script": "200字獨立片段", "section_source": "twist"}}
