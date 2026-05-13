@@ -24,15 +24,28 @@ if _ROOT not in sys.path:
 # existing quota tracker so we don't double-spend the 70/day budget that
 # thumbnail_generator and (formerly) books also tap.
 
+# Neo-noir prefix validated 2026-05-13 against 4 crime scenes (aftermath /
+# investigation / location / exterior). All 4 passed Imagen safety filter
+# using oblique framing (objects + setting, not violent acts). See
+# scripts/test_noir_style.py for the validation harness.
 CRIME_STYLE_PREFIX = (
-    "cinematic 16:9, true crime documentary aesthetic, "
-    "Roger Deakins lighting, dramatic chiaroscuro, "
-    "muted teal-amber color grade, 35mm film grain, "
-    "shallow depth of field, deep shadows, single hard light source, "
-    "no text, no watermark, no faces, no people, of "
+    "cinematic 16:9, neo-noir crime film aesthetic, "
+    "extreme chiaroscuro lighting with deep shadows obscuring half the frame, "
+    "desaturated near-monochrome palette, cool steel-blue and amber sodium tones, "
+    "single hard practical light source like a streetlight or naked bulb or neon glow, "
+    "heavy 35mm film grain, atmospheric haze, dust motes in the light beam, "
+    "ominous oppressive mood, empty abandoned space, "
+    "no text, no letters, no signs, no watermark, no faces, no people, no humans, "
+    "shot on ARRI Alexa, of "
 )
 
+# 3 beats get multi-variant emphasis (1 Ultra + 2 Fast for angle variety).
 KEY_SECTION_NAMES = ("hook", "twist", "resolution")
+# Other narrative sections also get Imagen coverage to kill the Pexels stock
+# soup that made the long-form look like disconnected clips. Each gets 1 Fast
+# image. Section names per script_agent: hook/background/crime/investigation/
+# twist/resolution/reflection/cta.
+SECONDARY_SECTION_NAMES = ("background", "crime", "investigation", "reflection")
 IMAGEN_FAST_MODEL = "imagen-4.0-fast-generate-001"
 IMAGEN_ULTRA_MODEL = "imagen-4.0-ultra-generate-001"
 
@@ -149,11 +162,15 @@ def source_visuals(case_data: dict, script_data: dict,
     seen = set()
     unique_queries = [q for q in wiki_queries if q.lower() not in seen and not seen.add(q.lower())]
 
-    print(f"  [Visual] Wikimedia: {len(unique_queries)} search queries")
+    # 2026-05-13: Wikimedia reduced from 25 → 8 as part of the all-noir
+    # visual upgrade. The remaining 8 serve as fallback only — Imagen
+    # noir scenes are now the primary visual layer. Memory note: most
+    # Wiki hits were generic Taipei city photos, not case-specific.
+    print(f"  [Visual] Wikimedia: {len(unique_queries)} search queries (fallback layer, max 8)")
     from wiki_footage import get_wiki_clips
     results["wiki_clips"] = get_wiki_clips(
         " ".join(unique_queries[:5]),
-        output_dir, max_images=25
+        output_dir, max_images=8
     )
 
     # If Wikimedia returned too few (rate limited), try Pixabay images as backup
@@ -184,9 +201,13 @@ def source_visuals(case_data: dict, script_data: dict,
     seen = set()
     unique_pexels = [q for q in pexels_queries if q.lower() not in seen and not seen.add(q.lower())]
 
-    print(f"  [Visual] Pexels: {len(unique_pexels)} Asia-focused queries")
+    # 2026-05-13: Pexels capped at 10 (was 50) for the noir upgrade. The
+    # generic "city street" stock was the worst offender for breaking
+    # visual consistency. Kept at non-zero so the assembler still has
+    # some video clips for transitions when Imagen stills can't cover.
+    print(f"  [Visual] Pexels: {len(unique_pexels)} queries (capped at 10 for noir consistency)")
     from footage_downloader import download_footage
-    download_footage(unique_pexels[:50], output_dir, fmt="long")
+    download_footage(unique_pexels[:10], output_dir, fmt="long")
     results["pexels_clips_dir"] = os.path.join(output_dir, "clips")
 
     # 3. Info cards (uses case_data directly, no LLM call)
@@ -203,38 +224,48 @@ def source_visuals(case_data: dict, script_data: dict,
         print(f"  [Visual] Map generation failed (non-fatal): {e}")
         results["maps"] = {}
 
-    # 5. Imagen for key narrative beats (hook / twist / resolution).
-    # 1 Ultra primary + 2 Fast variants per beat. Sequential to stay under
-    # Imagen RPM (8s spacing already enforced inside illustration_generator).
-    print("  [Visual] Generating Imagen for key scenes...")
+    # 5. Imagen all-noir generation:
+    #    - Key beats (hook/twist/resolution): 1 Ultra + 2 Fast variants
+    #    - Secondary beats (background/crime/investigation/reflection):
+    #      1 Fast image each (single angle, sufficient for narrative flow)
+    #    Result: ~14 Imagen calls/video at ~$0.40/video. Quota guard inside
+    #    _generate_imagen_clip stops gracefully if 70/day limit is hit, so
+    #    secondary scenes degrade to "fewer Imagen, more Wiki/Pexels fallback"
+    #    rather than crashing.
+    print("  [Visual] Generating Imagen (noir, all sections)...")
     imagen_clips: list[str] = []
     script_sections = script_data.get("sections", [])
     ultra_count = 0
     fast_count = 0
-    # enumerate avoids the O(n^2) script_sections.index(sec) the original
-    # loop did per match (audit 2026-04-30 worth-knowing #5).
     for sec_idx, sec in enumerate(script_sections):
-        if sec.get("name") not in KEY_SECTION_NAMES:
-            continue
+        sec_name = sec.get("name")
         hints = sec.get("visual_hints", []) or []
         if not hints:
             continue
         primary_hint = hints[0]
 
-        # 1 Ultra primary
-        p = _generate_imagen_clip(primary_hint, sec_idx, output_dir,
-                                  model="ultra", suffix="ultra")
-        if p:
-            imagen_clips.append(p)
-            ultra_count += 1
-        # 2 Fast variants — different angles for visual variety
-        for ang_label, ang_phrase in (("wide", "wide establishing shot"),
-                                      ("close", "extreme close-up dramatic")):
-            v = _generate_imagen_clip(f"{primary_hint}, {ang_phrase}",
-                                      sec_idx, output_dir,
-                                      model="fast", suffix=ang_label)
-            if v:
-                imagen_clips.append(v)
+        if sec_name in KEY_SECTION_NAMES:
+            # 1 Ultra primary + 2 Fast variant angles
+            p = _generate_imagen_clip(primary_hint, sec_idx, output_dir,
+                                      model="ultra", suffix="ultra")
+            if p:
+                imagen_clips.append(p)
+                ultra_count += 1
+            for ang_label, ang_phrase in (("wide", "wide establishing shot"),
+                                          ("close", "extreme close-up dramatic")):
+                v = _generate_imagen_clip(f"{primary_hint}, {ang_phrase}",
+                                          sec_idx, output_dir,
+                                          model="fast", suffix=ang_label)
+                if v:
+                    imagen_clips.append(v)
+                    fast_count += 1
+        elif sec_name in SECONDARY_SECTION_NAMES:
+            # 1 Fast image per secondary section — fills the narrative arc
+            # without burning quota. Uses primary hint, no angle suffix.
+            f_clip = _generate_imagen_clip(primary_hint, sec_idx, output_dir,
+                                           model="fast", suffix="noir")
+            if f_clip:
+                imagen_clips.append(f_clip)
                 fast_count += 1
 
     results["imagen_clips"] = imagen_clips
