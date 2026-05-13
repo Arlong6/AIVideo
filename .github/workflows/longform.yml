@@ -132,6 +132,56 @@ jobs:
           produce_longform(topic, upload=True, slot=2, source=source_tag)
           PYEOF
 
+      # On failure, preserve any rendered mp4 + srt + thumbnail so the
+      # video can be re-uploaded manually instead of lost to the runner GC.
+      # Hardening shipped 2026-05-13 after a YT upload TimeoutError ate a
+      # 12-min video that was 99% finished. Retention 7 days = free tier.
+      - name: Backup rendered output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: longform-recovery-${{ github.run_id }}
+          path: |
+            output/**/final_zh*.mp4
+            output/**/subtitles_zh.srt
+            output/**/thumbnail.jpg
+            output/**/metadata.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Notify Telegram on upload failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python3 - <<'PYEOF'
+          import os, urllib.parse, urllib.request
+          token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+          chat_id = os.environ.get('TELEGRAM_CHAT_ID', '')
+          if not (token and chat_id):
+              print('Telegram secrets missing — skipping notify')
+              raise SystemExit(0)
+          run_id = os.environ.get('GITHUB_RUN_ID', '?')
+          repo = os.environ.get('GITHUB_REPOSITORY', '?')
+          msg = (
+              f"❌ longform.yml FAILED (run {run_id})\n\n"
+              f"Rendered video preserved as artifact (if generation got that far).\n"
+              f"Recover with:\n"
+              f"<code>gh run download {run_id} -R {repo} -n longform-recovery-{run_id}</code>\n\n"
+              f"Then re-upload manually via YouTube Studio."
+          )
+          url = f"https://api.telegram.org/bot{token}/sendMessage"
+          data = urllib.parse.urlencode({
+              'chat_id': chat_id, 'text': msg, 'parse_mode': 'HTML'
+          }).encode()
+          try:
+              urllib.request.urlopen(url, data=data, timeout=10)
+              print('Telegram failure alert sent')
+          except Exception as e:
+              print(f'Telegram notify failed: {e}')
+          PYEOF
+
       - name: Fetch analytics and send daily report
         run: |
           python3 -c "

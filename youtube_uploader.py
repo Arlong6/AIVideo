@@ -221,12 +221,30 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
     # Bounded exponential backoff for transient errors (5xx, socket timeout,
     # rate-limit blips). Audit 2026-04-30 important: a single hiccup mid-upload
     # used to abort the whole render.
+    #
+    # 2026-05-13 hardening (lost 1 video to today's MWF cron): old
+    # MAX_RETRIES=6 with uncapped exponential gave ~63s total patience —
+    # not enough for the 5-10 min YT API outages that actually happen.
+    # New: 10 retries with per-wait cap at 60s, totalling ~7-8 min of
+    # patience. Plus a final-failure print of the local video path so
+    # the workflow's artifact-upload step (longform.yml) can preserve it.
     from googleapiclient.errors import HttpError
     import socket
     RETRIABLE_STATUS = {500, 502, 503, 504}
-    MAX_RETRIES = 6
+    MAX_RETRIES = 10
+    MAX_WAIT_S = 60
     response = None
     retry = 0
+
+    def _final_failure(exc: Exception):
+        """Loud failure: surface the local mp4 path for artifact recovery."""
+        print(f"\n  ❌ UPLOAD GAVE UP after {MAX_RETRIES} retries: "
+              f"{type(exc).__name__}: {exc}")
+        if os.path.exists(video_path):
+            sz_mb = os.path.getsize(video_path) // (1024 * 1024)
+            print(f"  💾 Rendered video preserved at: {video_path} ({sz_mb} MB)")
+            print(f"  → Re-upload manually: gh run download --name longform-recovery")
+
     while response is None:
         try:
             status, response = request.next_chunk()
@@ -236,21 +254,23 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
             retry = 0  # reset on successful chunk
         except HttpError as e:
             if e.resp.status in RETRIABLE_STATUS and retry < MAX_RETRIES:
-                wait = 2 ** retry
+                wait = min(2 ** retry, MAX_WAIT_S)
                 retry += 1
                 print(f"\n  [retry {retry}/{MAX_RETRIES}] HTTP {e.resp.status}, "
                       f"sleeping {wait}s")
                 time.sleep(wait)
                 continue
+            _final_failure(e)
             raise
         except (socket.error, OSError, ConnectionError, TimeoutError) as e:
             if retry < MAX_RETRIES:
-                wait = 2 ** retry
+                wait = min(2 ** retry, MAX_WAIT_S)
                 retry += 1
                 print(f"\n  [retry {retry}/{MAX_RETRIES}] {type(e).__name__}: {e}, "
                       f"sleeping {wait}s")
                 time.sleep(wait)
                 continue
+            _final_failure(e)
             raise
 
     video_id = response["id"]
