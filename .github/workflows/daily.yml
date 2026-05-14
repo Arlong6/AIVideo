@@ -1,11 +1,17 @@
 name: Daily Video Generation
 
 on:
-  # 2026-05-07: Shorts cron disabled. Data shows Shorts mean 47 views vs
-  # long-form 106 views (2.3× lower), and RPM is 5-10× lower for Shorts.
-  # 16 Shorts累計 754 views, ROI < 5%. Manual trigger still works.
-  # schedule:
-  #   - cron: '0 18 * * *'   # 02:00 AM Taiwan (UTC+8) = 18:00 UTC
+  # 2026-05-07: cron disabled (Shorts mean 47v vs long-form 106v, RPM 5-10×
+  #   lower, ROI < 5% as direct content).
+  # 2026-05-14: re-enabled at 1/day (was 2/day). New rationale — Shorts
+  #   serve as the *funnel* for the Shorts→Long-form upgrade pipeline
+  #   (shipped 2026-05-12). All 5 upgrade candidates ≥300v originated
+  #   from 5/1-5/6's Shorts. Cron stopped 5/7 → funnel went dry; we lost
+  #   8 days of "find a viral one" lottery tickets. 1/day = halved cost
+  #   vs original, still keeps the funnel alive. Manual dispatch can
+  #   still trigger both slots when desired.
+  schedule:
+    - cron: '0 18 * * *'   # 02:00 AM Taiwan (UTC+8) = 18:00 UTC
   workflow_dispatch:
     inputs:
       slot_a:
@@ -111,7 +117,10 @@ jobs:
       - name: Shorts 1 — first slot
         run: python generate.py --auto --upload --slot ${{ github.event.inputs.slot_a || '1' }}
 
+      # 2026-05-14: cron only fires slot 1 (1/day funnel). workflow_dispatch
+      # still runs both slots so manual runs work like before.
       - name: Shorts 2 — second slot
+        if: github.event_name == 'workflow_dispatch'
         run: python generate.py --auto --upload --slot ${{ github.event.inputs.slot_b || '3' }}
 
       - name: Fetch analytics and send daily report
