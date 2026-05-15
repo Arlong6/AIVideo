@@ -55,6 +55,7 @@ jobs:
           echo "PEXELS_API_KEY=${{ secrets.PEXELS_API_KEY }}" >> .env
           echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> .env
           echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> .env
+          echo "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" >> .env
           echo "${{ secrets.YOUTUBE_TOKEN_B64 }}" | base64 -d > youtube_token.pickle
           echo "${{ secrets.CLIENT_SECRETS_B64 }}" | base64 -d > client_secrets.json
           python3 -c "
@@ -73,6 +74,10 @@ jobs:
         env:
           OVERRIDE_TOPIC: ${{ github.event.inputs.topic }}
           SOURCE_TAG: ${{ github.event.inputs.source_tag }}
+          # 2026-05-15: TTS_PROVIDER=elevenlabs routes ZH TTS through Bill
+          # (sober mature broadcaster). Default unset = Edge TTS (unchanged).
+          # Set repo secret TTS_PROVIDER to "elevenlabs" to enable.
+          TTS_PROVIDER: ${{ secrets.TTS_PROVIDER }}
         run: |
           python3 << 'PYEOF'
           import os, sys

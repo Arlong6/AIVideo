@@ -182,6 +182,88 @@ def _generate_elevenlabs(text: str, output_path: str):
     print(f"  Voiceover saved (ElevenLabs EN): {output_path}")
 
 
+# 2026-05-15 (B upgrade): ElevenLabs Mandarin path with sentence boundaries.
+# Selected after voice-comparison test (data/elevenlabs_voice_test/) —
+# arlong picked Bill for sober mature documentary tone (Boring History
+# style). voice_id verified via voices.get_all().
+ELABS_BILL_ZH = "pqHfZKP75CvOlQylNhV4"
+ELABS_ZH_SETTINGS = dict(
+    stability=0.55,         # higher = monotone (good for sober narration)
+    similarity_boost=0.85,
+    style=0.15,             # low = sober, not theatrical
+    use_speaker_boost=True,
+)
+_SENTENCE_TERMINATORS = set("。！？!?")
+
+
+def _elevenlabs_with_timing_zh(text: str, output_path: str) -> list[dict]:
+    """ElevenLabs Mandarin variant that returns Edge-TTS-shaped sentence
+    boundaries. Character-level alignment from convert_with_timestamps is
+    walked and split at 。/!/? to produce the {offset, duration, text}
+    list audio_agent expects for SRT generation.
+
+    Returns the same list[dict] shape as Edge TTS (offset/duration in
+    100-nanosecond units, text is the sentence). Empty list on failure.
+    """
+    import base64
+    from elevenlabs.client import ElevenLabs
+    from elevenlabs import VoiceSettings
+
+    client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+    r = client.text_to_speech.convert_with_timestamps(
+        voice_id=ELABS_BILL_ZH,
+        text=text,
+        model_id="eleven_multilingual_v2",
+        voice_settings=VoiceSettings(**ELABS_ZH_SETTINGS),
+    )
+
+    audio_b64 = getattr(r, "audio_base_64", "") or ""
+    if not audio_b64:
+        raise RuntimeError("ElevenLabs returned empty audio")
+    with open(output_path, "wb") as f:
+        f.write(base64.b64decode(audio_b64))
+
+    align = getattr(r, "alignment", None)
+    if not align:
+        return []
+    d = align.model_dump()
+    chars = d.get("characters", [])
+    starts = d.get("character_start_times_seconds", [])
+    ends = d.get("character_end_times_seconds", [])
+
+    # Walk chars, split at terminators. 100ns = 1/10_000_000 second.
+    boundaries = []
+    buf = []
+    seg_start = None
+    for i, ch in enumerate(chars):
+        if seg_start is None:
+            seg_start = starts[i] if i < len(starts) else 0.0
+        buf.append(ch)
+        if ch in _SENTENCE_TERMINATORS:
+            seg_end = ends[i] if i < len(ends) else (seg_start + 0.3)
+            sent = "".join(buf).strip()
+            if sent:
+                boundaries.append({
+                    "offset": int(seg_start * 10_000_000),
+                    "duration": int(max(0.0, seg_end - seg_start) * 10_000_000),
+                    "text": sent,
+                })
+            buf = []
+            seg_start = None
+    # Trailing fragment without terminator
+    if buf and seg_start is not None:
+        last_end = ends[-1] if ends else seg_start + 0.3
+        sent = "".join(buf).strip()
+        if sent:
+            boundaries.append({
+                "offset": int(seg_start * 10_000_000),
+                "duration": int(max(0.0, last_end - seg_start) * 10_000_000),
+                "text": sent,
+            })
+    print(f"  Voiceover saved (ElevenLabs ZH/Bill, {len(boundaries)} sentences): {output_path}")
+    return boundaries
+
+
 async def _edge_tts_async(text: str, voice: str, rate: str, pitch: str, output_path: str):
     communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
     await communicate.save(output_path)
@@ -328,6 +410,25 @@ def generate_voiceover_with_timing(text: str, lang: str, output_path: str,
     # leaked into a non-zh path — never speak them aloud.
     if has_dialogue:
         text = re.sub(r"\[/?ALT\]\s*", "", text)
+
+    # 2026-05-15 — TTS_PROVIDER feature flag for ZH only.
+    # Default: edge-tts (unchanged). When TTS_PROVIDER=elevenlabs and
+    # lang=zh, route to Bill (sober mature broadcaster) with sentence
+    # boundaries reconstructed from char-level alignment. Books channel
+    # still uses Edge TTS (its rate/pitch tuning is voice-specific). On
+    # failure the call raises — outer retry in generate_voiceover_with_words
+    # doesn't wrap this path, so caller must handle.
+    if (
+        lang == "zh"
+        and not voice
+        and os.environ.get("TTS_PROVIDER", "").lower() == "elevenlabs"
+        and ELEVENLABS_API_KEY
+    ):
+        try:
+            return _elevenlabs_with_timing_zh(text, output_path)
+        except Exception as e:
+            print(f"  [WARN] ElevenLabs ZH failed, falling back to Edge TTS: {e}")
+            # Fall through to Edge TTS below.
 
     if lang == "zh":
         voice = voice or VOICE_ZH
