@@ -313,6 +313,16 @@ def _burn_subtitles_ffmpeg(input_path: str, srt_path: str, output_path: str):
     Burn subtitles for long videos by splitting into chunks, processing
     each with PIL (low memory), then concatenating back.
     Falls back to PIL method if ffmpeg subtitles filter is unavailable.
+
+    ⚠️ KNOWN BUG (2026-05-15): chunk extraction uses 'ffmpeg -ss -t -c copy'
+    which can produce broken chunks when -ss doesn't land on a keyframe.
+    The last chunk silently fails downstream concat, truncating the final
+    video and breaking audio/video sync (122s drift seen on 鄭捷 long-form).
+    Long-form path is gated by BURN_SUBS_LONGFORM env (default OFF) until
+    this is fixed by either (a) re-encoding chunks instead of -c copy,
+    (b) validating each chunk's duration after extraction, or (c) only
+    chunking when total duration > some threshold (single-pass for short).
+    Shorts use _burn_subtitles_pillow (no chunking, unaffected).
     """
     import subprocess
 
@@ -1231,13 +1241,21 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
     if os.path.exists(concat_path):
         os.remove(concat_path)
 
-    # Subtitles: burn into video for both Shorts and long-form.
-    # Shorts use the single-pass Pillow path; long-form uses the chunked
-    # ffmpeg path to avoid OOM on 12-20 min videos. SRT is still uploaded
-    # to YouTube alongside (CC is off by default, helps SEO + auto-translate).
+    # Subtitles: burn into video.
+    #   - Shorts: always burn (single-pass Pillow, stable).
+    #   - Long-form: only when BURN_SUBS_LONGFORM=1 (default OFF after the
+    #     2026-05-15 bug — chunked ffmpeg path silently dropped the last
+    #     chunk when '-c copy' was used across a non-keyframe boundary,
+    #     producing 122s of audio without video → QA REJECT). Long-form
+    #     still uploads SRT to YouTube either way.
     # On burn failure, fall back to SRT-only — never block the pipeline.
     subtitle_out = temp_path
-    if os.path.exists(srt_path):
+    long_burn_enabled = os.environ.get("BURN_SUBS_LONGFORM") == "1"
+    should_burn = (
+        os.path.exists(srt_path)
+        and (fmt == "short" or long_burn_enabled)
+    )
+    if should_burn:
         print(f"  Burning subtitles ({fmt})...")
         sub_out = final_path.replace("final_", "_sub_")
         try:
@@ -1251,6 +1269,8 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         except Exception as e:
             print(f"  [WARN] Subtitle burn failed, falling back to SRT upload: {e}")
             subtitle_out = temp_path
+    elif fmt == "long":
+        print("  Long-form: SRT upload only (set BURN_SUBS_LONGFORM=1 to burn)")
     else:
         print("  No SRT found — skipping subtitle burn")
 
