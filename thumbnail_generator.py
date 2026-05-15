@@ -15,9 +15,18 @@ THUMB_W, THUMB_H = 1280, 720
 
 # Cross-platform Chinese font detection
 def _find_font() -> str:
+    # 2026-05-15 (C upgrade): prefer Bold/Black weights for thumbnail punch.
+    # Stroke width is already 4 so weight matters less than people think,
+    # but Bold gives a slight visual upgrade for free. Falls back to
+    # Regular/Medium when Bold isn't installed (no breakage).
     candidates = [
-        "/System/Library/Fonts/STHeiti Medium.ttc",           # macOS
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",  # Ubuntu
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Black.ttc",   # Ubuntu (preferred)
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Black.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
+        "/System/Library/Fonts/STHeiti Medium.ttc",                # macOS (only Medium variant)
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",  # Ubuntu fallback
         "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
     ]
@@ -99,6 +108,33 @@ def _add_blood_splatter(img: Image.Image, seed: int) -> Image.Image:
         color = (rng.randint(100, 160), 0, 0)
         draw.ellipse([corner_x - r, corner_y - r, corner_x + r, corner_y + r], fill=color)
     return img
+
+
+def _apply_brand_lut(img: Image.Image) -> Image.Image:
+    """Lock thumbnails to a consistent crime-noir colour grade so the
+    channel front-page looks like a coherent series instead of 15 random
+    Imagen renders.
+
+    Recipe (deterministic, no randomness):
+      1. Desaturate 25%  — kills any stray bright colors
+      2. Contrast +15%   — punch
+      3. Cool shadow tint (dark teal, low opacity) — Hollywood teal/orange
+      4. Warm highlight tint (amber, lower opacity) — same look
+    Applied AFTER Imagen returns, BEFORE vignette + text overlay so the
+    grade affects the AI background but not the title text.
+    """
+    from PIL import ImageEnhance
+    img = ImageEnhance.Color(img).enhance(0.75)
+    img = ImageEnhance.Contrast(img).enhance(1.15)
+    if img.mode != "RGBA":
+        img = img.convert("RGBA")
+    # Cool shadow overlay (dark teal at ~12% alpha)
+    teal = Image.new("RGBA", img.size, (10, 30, 50, 32))
+    img = Image.alpha_composite(img, teal)
+    # Warm highlight overlay (amber at ~5% alpha)
+    amber = Image.new("RGBA", img.size, (50, 25, 0, 14))
+    img = Image.alpha_composite(img, amber)
+    return img.convert("RGB")
 
 
 def _add_vignette(img: Image.Image) -> Image.Image:
@@ -537,8 +573,11 @@ def generate_thumbnail(title: str, output_path: str, fmt: str = "short",
     ai_bg = _generate_ai_background(title, visual_hint, fmt) if fmt == "long" else None
 
     if ai_bg:
-        # AI background: just add vignette + title (skip PIL atmosphere effects)
-        img = _add_vignette(ai_bg)
+        # AI background: brand LUT for series consistency + vignette + title.
+        # LUT applied before vignette so vignette compounds on top of the
+        # graded image; text comes last so titles stay readable.
+        img = _apply_brand_lut(ai_bg)
+        img = _add_vignette(img)
         img = _draw_title(img, title, fmt=fmt, duration_hint=duration_hint)
     else:
         # PIL fallback (also the only path for Shorts when real-photo failed)
