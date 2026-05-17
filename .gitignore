@@ -32,3 +32,6 @@ data/books/pexels_seen_ids.json
 
 # Local Claude Code project state
 .claude/
+
+# Pixel battle rendered output
+pixel_battle/output/
