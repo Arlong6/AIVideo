@@ -66,6 +66,9 @@ def _get_clip_map():
     return _ANIM_STATE_TO_CLIP
 
 
+BAR_LERP_RATE = 0.18  # per-frame fraction toward target; ~15 frames to converge
+
+
 class Renderer:
     def __init__(self):
         if not pygame.get_init():
@@ -73,6 +76,18 @@ class Renderer:
         self.surface = pygame.Surface((WIDTH, HEIGHT))
         self._sprite_cache: dict = {}
         self._arena_bg = _build_arena_bg(WIDTH, HEIGHT)
+        # Per-character displayed bar values for smooth lerp toward actual hp/mp
+        self._displayed_stats: dict[str, dict[str, float]] = {}
+
+    def _smooth_value(self, char_id: str, key: str, target: float,
+                      rate: float = BAR_LERP_RATE) -> float:
+        stats = self._displayed_stats.setdefault(char_id, {})
+        current = stats.get(key, target)
+        new = current + (target - current) * rate
+        if abs(target - new) < 0.5:
+            new = float(target)
+        stats[key] = new
+        return new
 
     def _get_sprites(self, char_id: str):
         if char_id not in self._sprite_cache:
@@ -93,12 +108,16 @@ class Renderer:
 
     def _draw_bars(self, char: Character, x: int, top: int) -> None:
         bw = self._bar_width()
+        # Lerp displayed bar values toward actual values for smooth drain/fill
+        displayed_hp = self._smooth_value(char.id, "hp", float(char.hp))
+        displayed_mp = self._smooth_value(char.id, "mp", float(char.mp))
+
         pygame.draw.rect(self.surface, HP_BAR_BG, (x, top, bw, BAR_HEIGHT))
-        fill = int(bw * (char.hp / 100))
+        fill = int(bw * (displayed_hp / 100))
         pygame.draw.rect(self.surface, HP_BAR_FG, (x, top, fill, BAR_HEIGHT))
         mp_top = top + BAR_HEIGHT + 4
         pygame.draw.rect(self.surface, HP_BAR_BG, (x, mp_top, bw, BAR_HEIGHT - 4))
-        mp_fill = int(bw * (char.mp / char.mp_max))
+        mp_fill = int(bw * (displayed_mp / char.mp_max))
         pygame.draw.rect(self.surface, MP_BAR_FG, (x, mp_top, mp_fill, BAR_HEIGHT - 4))
 
     def _draw_character(self, char: Character, center_x: int, center_y: int) -> None:
