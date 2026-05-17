@@ -69,6 +69,15 @@ def draw_caption(surface, text: str, style: CaptionStyle, frame_in_anim: int,
         img = pygame.transform.smoothscale(img, (new_w, new_h))
         shadow = pygame.transform.smoothscale(shadow, (new_w, new_h))
 
+    # Auto-shrink if text exceeds canvas width
+    max_w = WIDTH - 24  # leave 12px margin each side
+    if img.get_width() > max_w:
+        shrink = max_w / img.get_width()
+        new_w = max_w
+        new_h = max(1, int(img.get_height() * shrink))
+        img = pygame.transform.smoothscale(img, (new_w, new_h))
+        shadow = pygame.transform.smoothscale(shadow, (new_w, new_h))
+
     img.set_alpha(alpha)
     shadow.set_alpha(alpha // 2)
 

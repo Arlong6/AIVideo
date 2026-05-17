@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, List
 
 import math
+import random as _r
 
 import pygame
 
@@ -71,50 +72,191 @@ class CinematicSpec:
 # ---------------------------------------------------------------------------
 
 def _brick_throw_painter(surface, frame: int, attacker: Character, defender: Character) -> None:
-    """0-30: brick walks toward defender (windup→strike); 30-60: brick ultimate_pose, defender
-    lifted (ko_falling); 60-120: defender slammed down with ease; 120-180: defender ko_landed."""
+    """Anime-style ultimate: charge → sky launch → spin-kick → meteor descent → shockwave.
+
+    Frames 0-180 (6s at 30fps):
+      0-25:   Charge with dust whirlwind + earth shake
+      25-55:  Brick launches skyward, defender on ground watching
+      55-80:  Spin-kick at apex — defender is sky-high too
+      80-115: Meteor descent — both spiraling, sky tints red/purple, speed lines
+      115-135: IMPACT — shockwave + massive flash + particles
+      135-180: Aftermath — Brick standing on crater
+    """
+    atk_x_floor = int(WIDTH * 0.25)
+    def_x_floor = int(WIDTH * 0.75)
+    ground_y = HEIGHT - 200  # rough ground line; characters stand here
+
+    # Default fill — overridden per phase
     surface.fill((10, 10, 18))
 
-    if frame < 30:
-        # Brick approaches: use windup for first half, strike for second half
-        progress = frame / 30
-        ax = int(WIDTH * 0.25 + (WIDTH * 0.25) * progress)
-        pose = "attack_windup" if frame < 15 else "attack_strike"
-        _draw_sprite_at(surface, attacker, ax, HEIGHT // 2, pose, facing_right=True)
-        _draw_sprite_at(surface, defender, int(WIDTH * 0.75), HEIGHT // 2, "idle", facing_right=False)
+    if frame < 25:
+        # Phase 1: Charge — dust whirlwind around brick's feet, earth shake
+        _draw_sprite_at(surface, attacker, atk_x_floor, ground_y, "special_charge", facing_right=True)
+        _draw_sprite_at(surface, defender, def_x_floor, ground_y, "idle", facing_right=False)
+        # Dust whirlwind: rotating particles around brick's feet
+        for i in range(8):
+            ang = (frame * 0.4) + (i / 8) * 2 * math.pi
+            radius = 40 + (frame * 1.5) % 30
+            dx = int(math.cos(ang) * radius)
+            dy = int(math.sin(ang) * radius * 0.3)
+            pygame.draw.circle(surface, (200, 180, 140),
+                               (atk_x_floor + dx, ground_y + 70 + dy), 4)
+        # Earth shake lines
+        for i in range(3):
+            shake_y = HEIGHT - 80 - i * 20
+            for x in range(0, WIDTH, 60):
+                pygame.draw.line(surface, (120, 80, 60),
+                                 (x + _r.randint(-4, 4), shake_y),
+                                 (x + 30 + _r.randint(-4, 4), shake_y), 2)
 
-    elif frame < 60:
-        # Brick grabs: attacker in ultimate_pose; defender ko_falling being lifted overhead
-        progress = (frame - 30) / 30
-        ax = WIDTH // 2 - 60
-        dy = int(HEIGHT // 2 - 200 * progress)
-        _draw_sprite_at(surface, attacker, ax, HEIGHT // 2, "ultimate_pose", facing_right=True)
-        _draw_sprite_at(surface, defender, WIDTH // 2 + 60, dy, "ko_falling", facing_right=False)
+    elif frame < 55:
+        # Phase 2: Brick launches skyward
+        progress = (frame - 25) / 30  # 0 → 1
+        # Brick rises off-screen
+        brick_y = int(ground_y - 600 * progress)
+        # Trail behind brick
+        for trail in range(5):
+            trail_y = brick_y + trail * 30
+            trail_alpha = max(0, 200 - trail * 40)
+            trail_surf = pygame.Surface((40, 40), pygame.SRCALPHA)
+            pygame.draw.circle(trail_surf, (255, 220, 100, trail_alpha), (20, 20), 18 - trail * 3)
+            surface.blit(trail_surf, (atk_x_floor - 20, trail_y - 20))
+        _draw_sprite_at(surface, attacker, atk_x_floor, brick_y, "ultimate_pose", facing_right=True)
+        # Defender on ground, looking up (hit_recoil shows surprise)
+        _draw_sprite_at(surface, defender, def_x_floor, ground_y, "hit_recoil", facing_right=False)
 
-    elif frame < 120:
-        # Defender slammed down with eased motion
-        progress = (frame - 60) / 60
-        ease = progress * progress
-        ax = WIDTH // 2 - 60
-        dy = int(HEIGHT // 2 - 200 + (260 * ease))
-        _draw_sprite_at(surface, attacker, ax, HEIGHT // 2, "ultimate_pose", facing_right=True)
-        _draw_sprite_at(surface, defender, WIDTH // 2 + 60, dy, "ko_falling", facing_right=False)
-        # Ghost trail near impact
-        if 90 <= frame < 100:
-            _draw_sprite_at(surface, defender, WIDTH // 2 + 60, dy - 30, "ko_falling",
-                            facing_right=False, alpha=80)
+    elif frame < 80:
+        # Phase 3: Brick at apex meets defender (defender appears sky-high too — kicked up)
+        progress = (frame - 55) / 25
+        # Both characters mid-air, center of screen
+        cy = HEIGHT // 3
+        # Brick is on right side now (spinning around), defender on left
+        # Add rotational position for drama
+        angle = progress * math.pi * 2
+        brick_off_x = int(math.cos(angle) * 60)
+        def_off_x = int(math.cos(angle + math.pi) * 60)
+        # Background flash
+        flash_alpha = int(200 * (1 - progress))
+        flash = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        flash.fill((255, 240, 200, flash_alpha))
+        surface.blit(flash, (0, 0))
+        _draw_sprite_at(surface, attacker, WIDTH // 2 + brick_off_x, cy,
+                        "ultimate_pose", facing_right=True)
+        _draw_sprite_at(surface, defender, WIDTH // 2 + def_off_x, cy + 30,
+                        "ko_falling", facing_right=False)
+        # Speed lines radiating from center
+        for i in range(12):
+            line_ang = (i / 12) * 2 * math.pi + progress * 0.5
+            r1 = 80
+            r2 = 250
+            x1 = WIDTH // 2 + int(math.cos(line_ang) * r1)
+            y1 = cy + int(math.sin(line_ang) * r1)
+            x2 = WIDTH // 2 + int(math.cos(line_ang) * r2)
+            y2 = cy + int(math.sin(line_ang) * r2)
+            pygame.draw.line(surface, (255, 255, 220), (x1, y1), (x2, y2), 2)
+
+    elif frame < 115:
+        # Phase 4: Meteor descent — sky tints red/purple
+        progress = (frame - 80) / 35  # 0 → 1
+        # Background gradient: red→dark purple
+        for y in range(HEIGHT):
+            t = y / HEIGHT
+            r = int(60 + (180 - 60) * (1 - t) * (1 - progress * 0.5))
+            g = int(20 + 30 * (1 - t))
+            b = int(40 + (120 - 40) * t)
+            pygame.draw.line(surface, (r, g, b), (0, y), (WIDTH, y))
+        # Both characters falling — spiral
+        cy_start = HEIGHT // 4
+        cy_end = HEIGHT - 250
+        cy = int(cy_start + (cy_end - cy_start) * progress)
+        spiral_angle = progress * math.pi * 6
+        brick_x = WIDTH // 2 + int(math.cos(spiral_angle) * 40)
+        def_x = WIDTH // 2 + int(math.cos(spiral_angle + math.pi) * 40)
+        # Flame trail behind brick
+        for trail in range(8):
+            trail_cy = cy - trail * 25
+            if trail_cy < 0:
+                continue
+            trail_alpha = max(0, 220 - trail * 28)
+            flame_color = (255, 180 - trail * 15, 60, trail_alpha)
+            trail_surf = pygame.Surface((30, 30), pygame.SRCALPHA)
+            pygame.draw.circle(trail_surf, flame_color, (15, 15), 12 - trail)
+            surface.blit(trail_surf, (brick_x - 15, trail_cy - 15))
+        _draw_sprite_at(surface, attacker, brick_x, cy, "ultimate_pose", facing_right=True)
+        _draw_sprite_at(surface, defender, def_x, cy + 50, "ko_falling", facing_right=False)
+        # Vertical speed lines
+        for i in range(20):
+            x = (i * WIDTH // 20 + frame * 4) % WIDTH
+            pygame.draw.line(surface, (255, 255, 220), (x, 0), (x, HEIGHT), 1)
+
+    elif frame < 135:
+        # Phase 5: IMPACT — shockwave + massive flash
+        progress = (frame - 115) / 20
+        # White flash decaying
+        flash_alpha = int(255 * (1 - progress))
+        surface.fill((255, 250, 220))
+        # Expanding shockwave ring
+        ring_radius = int(80 + 250 * progress)
+        ring_thickness = max(1, int(20 * (1 - progress)))
+        pygame.draw.circle(surface, (255, 200, 100),
+                           (WIDTH // 2, ground_y + 60), ring_radius, ring_thickness)
+        # Inner shockwave
+        if progress > 0.2:
+            inner_r = int(100 * (progress - 0.2))
+            pygame.draw.circle(surface, (255, 240, 180),
+                               (WIDTH // 2, ground_y + 60), inner_r, 4)
+        # Particles flying out from impact point
+        for i in range(40):
+            ang = (i / 40) * 2 * math.pi + progress * 0.3
+            speed = 80 + (i % 7) * 30
+            px = int(WIDTH // 2 + math.cos(ang) * speed * progress)
+            py = int(ground_y + 60 + math.sin(ang) * speed * progress * 0.6)
+            size = max(1, 4 - int(progress * 2))
+            pygame.draw.circle(surface, (255, 180, 80), (px, py), size)
+        # Brick centered atop crater, ultimate pose
+        _draw_sprite_at(surface, attacker, WIDTH // 2, ground_y - 20,
+                        "ultimate_pose", facing_right=True)
+        # Decay overlay flash
+        if flash_alpha > 0:
+            decay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            decay.fill((255, 250, 200, flash_alpha))
+            surface.blit(decay, (0, 0))
 
     else:
-        # Defender ko_landed on ground; dust particles
-        progress = (frame - 120) / 60
-        ax = WIDTH // 2 - 60
-        _draw_sprite_at(surface, attacker, ax, HEIGHT // 2, "ultimate_pose", facing_right=True)
-        _draw_sprite_at(surface, defender, WIDTH // 2 + 60, int(HEIGHT // 2 + 60), "ko_landed",
-                        facing_right=False)
-        for i in range(8):
-            cx = WIDTH // 2 + 60 + (i - 4) * 18
-            cy = HEIGHT // 2 + 60 + int(progress * 30)
-            pygame.draw.circle(surface, (200, 200, 200), (cx, cy), max(1, 6 - int(progress * 6)))
+        # Phase 6: Aftermath — Brick standing on crater, Glass embedded
+        progress = (frame - 135) / 45
+        # Dim red/orange background
+        for y in range(HEIGHT):
+            t = y / HEIGHT
+            r = int(80 - 30 * t - 30 * progress)
+            g = int(30 - 10 * t)
+            b = int(50 + 20 * t)
+            pygame.draw.line(surface, (max(0, r), max(0, g), max(0, b)), (0, y), (WIDTH, y))
+        # Crater on ground — dark ellipse
+        crater_y = HEIGHT - 150
+        crater_w = int(280 - progress * 20)
+        crater_h = 60
+        pygame.draw.ellipse(surface, (40, 25, 30),
+                            (WIDTH // 2 - crater_w // 2, crater_y, crater_w, crater_h))
+        pygame.draw.ellipse(surface, (80, 50, 60),
+                            (WIDTH // 2 - crater_w // 2, crater_y, crater_w, crater_h), 4)
+        # Glass embedded (ko_landed) inside crater
+        _draw_sprite_at(surface, defender,
+                        WIDTH // 2, crater_y + crater_h // 2 + 10,
+                        "ko_landed", facing_right=False)
+        # Brick standing tall above crater
+        _draw_sprite_at(surface, attacker,
+                        WIDTH // 2, crater_y - 100,
+                        "ultimate_pose", facing_right=True)
+        # Slowly rising smoke
+        for i in range(6):
+            smoke_x = WIDTH // 2 + (i - 3) * 40
+            smoke_y = crater_y - int(progress * (60 + i * 10))
+            smoke_alpha = max(0, 180 - int(progress * 200) - i * 10)
+            if smoke_alpha > 0:
+                smoke = pygame.Surface((40, 40), pygame.SRCALPHA)
+                pygame.draw.circle(smoke, (200, 180, 160, smoke_alpha), (20, 20), 18)
+                surface.blit(smoke, (smoke_x - 20, smoke_y - 20))
 
 
 def _draw_block(surface, char: Character, center_x: int, center_y: int, w: int, h: int) -> None:
@@ -313,10 +455,12 @@ CINEMATICS: Dict[str, CinematicSpec] = {
         name="indestructible_throw",
         total_frames=180,
         events=[
-            CinematicEvent(frame=30, type="screen_shake", payload={"intensity": 3}),
-            CinematicEvent(frame=60, type="caption", payload={"text": "INDESTRUCTIBLE"}),
-            CinematicEvent(frame=80, type="screen_shake", payload={"intensity": 8}),
-            CinematicEvent(frame=120, type="caption", payload={"text": "THROW!"}),
+            CinematicEvent(frame=20, type="caption", payload={"text": "AWAKENING"}),
+            CinematicEvent(frame=50, type="screen_shake", payload={"intensity": 4}),
+            CinematicEvent(frame=70, type="caption", payload={"text": "SKY KICK"}),
+            CinematicEvent(frame=110, type="caption", payload={"text": "METEOR"}),
+            CinematicEvent(frame=120, type="screen_shake", payload={"intensity": 16}),
+            CinematicEvent(frame=125, type="caption", payload={"text": "IMPACT!"}),
         ],
         painter=_brick_throw_painter,
     ),

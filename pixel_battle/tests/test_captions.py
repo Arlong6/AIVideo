@@ -31,3 +31,25 @@ def test_caption_fades_out_after_duration():
     draw_caption(surf, "GONE", style=CaptionStyle.HIT, frame_in_anim=100)
     px = surf.get_at((WIDTH // 2, HEIGHT // 2 - 50))
     assert px[:3] == (0, 0, 0)
+
+
+def test_long_caption_clamps_to_canvas_width():
+    surf = pygame.Surface((WIDTH, HEIGHT))
+    surf.fill((0, 0, 0))
+    long_text = "INDESTRUCTIBLE THROW SUPER"  # forced overflow at size 72
+    draw_caption(surf, long_text, style=CaptionStyle.ULTIMATE, frame_in_anim=20)
+    # No pixels should be set outside the canvas — i.e., this just verifies no crash
+    # and that the function returns normally
+    # Better assertion: render onto a larger canvas and check actual width of painted region
+    big = pygame.Surface((1000, HEIGHT))
+    big.fill((0, 0, 0))
+    draw_caption(big, long_text, style=CaptionStyle.ULTIMATE, frame_in_anim=20)
+    # Find horizontal extent of non-black pixels
+    arr = pygame.surfarray.pixels3d(big)
+    nonblack = arr.sum(axis=2) > 0  # (W, H) — note pygame surfarray is (W, H, 3)
+    del arr
+    cols_with_content = nonblack.any(axis=1).nonzero()[0]
+    if len(cols_with_content) > 0:
+        text_width = cols_with_content[-1] - cols_with_content[0]
+        # After auto-clamp, text width should be <= WIDTH (with margin)
+        assert text_width <= WIDTH, f"Text width {text_width} > canvas width {WIDTH}"
