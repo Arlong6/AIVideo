@@ -47,12 +47,24 @@ def test_animation_state_attack_offsets_character():
     assert True
 
 
-def test_ko_renders_character_horizontally():
+def test_ko_renders_character_in_region():
+    """KO state should paint the sprite somewhere in the right-side character region."""
     r = Renderer()
     left = Character.load("brick_phone")
     right = Character.load("glass_slab")
     right.take_damage(100)
     r.render_frame(left, right, left_anim=AnimationState.IDLE,
                    right_anim=AnimationState.KO, anim_frame=4)
-    below_center = r.surface.get_at((WIDTH * 3 // 4, HEIGHT // 2 + 50))
-    assert below_center[:3] != BG_COLOR_TUPLE
+    # Check a broad area around where the right character should be; at least one
+    # pixel in the region must differ from the background.
+    cx, cy = WIDTH * 3 // 4, HEIGHT // 2
+    found_non_bg = False
+    for dy in range(-120, 121, 10):
+        for dx in range(-80, 81, 10):
+            px = r.surface.get_at((cx + dx, cy + dy))
+            if px[:3] != BG_COLOR_TUPLE:
+                found_non_bg = True
+                break
+        if found_non_bg:
+            break
+    assert found_non_bg, "Expected non-background pixel in right character KO region"

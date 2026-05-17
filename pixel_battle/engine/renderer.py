@@ -26,12 +26,35 @@ PAD = 18
 CHAR_W = 110
 CHAR_H = 160
 
+# Map AnimationState to animator AnimClip
+_ANIM_STATE_TO_CLIP = None  # populated lazily to avoid circular imports at module level
+
+
+def _get_clip_map():
+    global _ANIM_STATE_TO_CLIP
+    if _ANIM_STATE_TO_CLIP is None:
+        from pixel_battle.engine.animator import AnimClip
+        _ANIM_STATE_TO_CLIP = {
+            AnimationState.IDLE: AnimClip.IDLE,
+            AnimationState.ATTACK: AnimClip.ATTACK,
+            AnimationState.HIT: AnimClip.HIT,
+            AnimationState.KO: AnimClip.KO,
+        }
+    return _ANIM_STATE_TO_CLIP
+
 
 class Renderer:
     def __init__(self):
         if not pygame.get_init():
             pygame.init()
         self.surface = pygame.Surface((WIDTH, HEIGHT))
+        self._sprite_cache: dict = {}
+
+    def _get_sprites(self, char_id: str):
+        if char_id not in self._sprite_cache:
+            from pixel_battle.engine.animator import CharacterSprites
+            self._sprite_cache[char_id] = CharacterSprites(char_id)
+        return self._sprite_cache[char_id]
 
     def render_static(self, left: Character, right: Character) -> None:
         """Paint a frame with both characters in idle pose + HP/MP bars."""
@@ -55,6 +78,7 @@ class Renderer:
         pygame.draw.rect(self.surface, MP_BAR_FG, (x, mp_top, mp_fill, BAR_HEIGHT - 4))
 
     def _draw_character(self, char: Character, center_x: int, center_y: int) -> None:
+        """Backward-compat rectangle fallback (used by render_static and tests)."""
         x = center_x - CHAR_W // 2
         y = center_y - CHAR_H // 2
         pygame.draw.rect(self.surface, char.color, (x, y, CHAR_W, CHAR_H), border_radius=10)
@@ -72,19 +96,47 @@ class Renderer:
         right_anim: AnimationState,
         anim_frame: int,
     ) -> None:
-        """Paint a frame with per-character animation state."""
+        """Paint a frame with per-character animation state using sprites."""
         self.surface.fill(BG_COLOR)
         self._draw_bars(left, x=PAD, top=PAD)
         self._draw_bars(right, x=WIDTH - PAD - self._bar_width(), top=PAD)
-        self._draw_anim_character(left, center_x=WIDTH // 4, center_y=HEIGHT // 2,
-                                  anim=left_anim, anim_frame=anim_frame, facing_right=True)
-        self._draw_anim_character(right, center_x=WIDTH * 3 // 4, center_y=HEIGHT // 2,
-                                  anim=right_anim, anim_frame=anim_frame, facing_right=False)
+        self._draw_sprite_char(left, WIDTH // 4, HEIGHT // 2, left_anim, anim_frame, facing_right=True)
+        self._draw_sprite_char(right, WIDTH * 3 // 4, HEIGHT // 2, right_anim, anim_frame, facing_right=False)
+
+    def _draw_sprite_char(
+        self,
+        char: Character,
+        center_x: int,
+        center_y: int,
+        anim_state: AnimationState,
+        anim_frame: int,
+        facing_right: bool,
+    ) -> None:
+        from pixel_battle.engine.animator import resolve_pose
+        clip_map = _get_clip_map()
+        clip = clip_map.get(anim_state)
+        if clip is None:
+            # Unknown state — draw a fallback rectangle
+            self._draw_character(char, center_x, center_y)
+            return
+
+        pose_name, _ = resolve_pose(clip, anim_frame)
+        sprites = self._get_sprites(char.id)
+        sprite = sprites.get_pose(pose_name)
+        if not facing_right:
+            sprite = pygame.transform.flip(sprite, True, False)
+        rect = sprite.get_rect(center=(center_x, center_y))
+        self.surface.blit(sprite, rect)
+
+    # ------------------------------------------------------------------ #
+    # Legacy rectangle painter — kept for backward compatibility            #
+    # ------------------------------------------------------------------ #
 
     def _draw_anim_character(
         self, char: Character, center_x: int, center_y: int,
         anim: AnimationState, anim_frame: int, facing_right: bool,
     ) -> None:
+        """Original rectangle-based animated character (kept for compat)."""
         dx, dy = 0, 0
         w, h = CHAR_W, CHAR_H
         if anim is AnimationState.IDLE:
