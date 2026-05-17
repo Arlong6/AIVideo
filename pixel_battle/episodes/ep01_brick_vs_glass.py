@@ -85,6 +85,19 @@ def main():
         for ev in new_events:
             if ev.type in (EventType.HIT, EventType.ULTIMATE_START, EventType.KO):
                 active_captions.append((_caption_text_for_event(ev), _caption_style_for_event(ev), frame_no))
+            # Screen shake
+            if ev.type is EventType.HIT:
+                if ev.extra.get("crit"):
+                    renderer.add_shake(8.0)
+                else:
+                    renderer.add_shake(3.0)
+            elif ev.type is EventType.ULTIMATE_START:
+                renderer.add_shake(12.0)
+            elif ev.type is EventType.KO:
+                renderer.add_shake(10.0)
+            # Character hit flash
+            if ev.type is EventType.HIT:
+                renderer.add_char_flash(ev.target, 1.0)
 
         if battle.state is BattleState.ULTIMATE_PLAYING:
             ult_event = next(

@@ -78,6 +78,10 @@ class Renderer:
         self._arena_bg = _build_arena_bg(WIDTH, HEIGHT)
         # Per-character displayed bar values for smooth lerp toward actual hp/mp
         self._displayed_stats: dict[str, dict[str, float]] = {}
+        # Screen shake budget — decays each frame
+        self._shake_intensity = 0.0
+        # Per-character white flash budget — decays each frame
+        self._char_flash: dict[str, float] = {}
 
     def _smooth_value(self, char_id: str, key: str, target: float,
                       rate: float = BAR_LERP_RATE) -> float:
@@ -95,6 +99,37 @@ class Renderer:
             self._sprite_cache[char_id] = CharacterSprites(char_id)
         return self._sprite_cache[char_id]
 
+    # ------------------------------------------------------------------ #
+    # Screen shake                                                          #
+    # ------------------------------------------------------------------ #
+
+    def add_shake(self, intensity: float) -> None:
+        self._shake_intensity = max(self._shake_intensity, intensity)
+
+    def _apply_shake(self) -> None:
+        if self._shake_intensity < 0.5:
+            self._shake_intensity = 0.0
+            return
+        import random
+        dx = int((random.random() - 0.5) * 2 * self._shake_intensity)
+        dy = int((random.random() - 0.5) * 2 * self._shake_intensity)
+        # Shift content by (dx, dy): copy, fill with bg, re-blit shifted
+        temp = self.surface.copy()
+        self.surface.blit(self._arena_bg, (0, 0))
+        self.surface.blit(temp, (dx, dy))
+        self._shake_intensity *= 0.85  # decay
+
+    # ------------------------------------------------------------------ #
+    # Character hit flash                                                   #
+    # ------------------------------------------------------------------ #
+
+    def add_char_flash(self, char_id: str, intensity: float = 1.0) -> None:
+        self._char_flash[char_id] = max(self._char_flash.get(char_id, 0.0), intensity)
+
+    # ------------------------------------------------------------------ #
+    # Public render methods                                                 #
+    # ------------------------------------------------------------------ #
+
     def render_static(self, left: Character, right: Character) -> None:
         """Paint a frame with both characters in idle pose + HP/MP bars."""
         self.surface.blit(self._arena_bg, (0, 0))
@@ -108,17 +143,53 @@ class Renderer:
 
     def _draw_bars(self, char: Character, x: int, top: int) -> None:
         bw = self._bar_width()
-        # Lerp displayed bar values toward actual values for smooth drain/fill
         displayed_hp = self._smooth_value(char.id, "hp", float(char.hp))
         displayed_mp = self._smooth_value(char.id, "mp", float(char.mp))
+        displayed_alive = self._smooth_value(char.id, "alive",
+                                              0.0 if char.is_ko() else 1.0,
+                                              rate=0.10)
 
-        pygame.draw.rect(self.surface, HP_BAR_BG, (x, top, bw, BAR_HEIGHT))
-        fill = int(bw * (displayed_hp / 100))
-        pygame.draw.rect(self.surface, HP_BAR_FG, (x, top, fill, BAR_HEIGHT))
-        mp_top = top + BAR_HEIGHT + 4
-        pygame.draw.rect(self.surface, HP_BAR_BG, (x, mp_top, bw, BAR_HEIGHT - 4))
+        if displayed_alive < 0.02:
+            return  # fully faded — skip drawing
+
+        # Render bars onto a temporary SRCALPHA surface for unified alpha control
+        bar_h = BAR_HEIGHT + 4 + (BAR_HEIGHT - 4)
+        layer = pygame.Surface((bw, bar_h), pygame.SRCALPHA)
+
+        # HP bar
+        pygame.draw.rect(layer, HP_BAR_BG, (0, 0, bw, BAR_HEIGHT))
+        pygame.draw.rect(layer, HP_BAR_FG,
+                         (0, 0, int(bw * displayed_hp / 100), BAR_HEIGHT))
+
+        # MP bar
+        mp_top = BAR_HEIGHT + 4
+        pygame.draw.rect(layer, HP_BAR_BG, (0, mp_top, bw, BAR_HEIGHT - 4))
         mp_fill = int(bw * (displayed_mp / char.mp_max))
-        pygame.draw.rect(self.surface, MP_BAR_FG, (x, mp_top, mp_fill, BAR_HEIGHT - 4))
+        pygame.draw.rect(layer, MP_BAR_FG, (0, mp_top, mp_fill, BAR_HEIGHT - 4))
+
+        # MP full pulse — glow rim + "ULT!" text
+        if displayed_mp >= char.mp_max - 1 and displayed_alive > 0.5:
+            pulse = (pygame.time.get_ticks() % 600) / 600.0  # 0-1
+            if pulse < 0.5:
+                glow_alpha = int(200 * (pulse * 2))
+            else:
+                glow_alpha = int(200 * (2 - pulse * 2))
+            rim_w = bw + 6
+            rim_h = BAR_HEIGHT - 4 + 6
+            rim = pygame.Surface((rim_w, rim_h), pygame.SRCALPHA)
+            pygame.draw.rect(rim, (100, 200, 255, glow_alpha),
+                             (0, 0, rim_w, rim_h), border_radius=4)
+            layer.blit(rim, (-3, mp_top - 3))
+            # "ULT!" label
+            if not hasattr(self, "_ult_font"):
+                if not pygame.font.get_init():
+                    pygame.font.init()
+                self._ult_font = pygame.font.Font(None, 18)
+            ult_text = self._ult_font.render("ULT!", True, (255, 220, 80))
+            layer.blit(ult_text, (bw - ult_text.get_width() - 2, mp_top - 2))
+
+        layer.set_alpha(int(255 * displayed_alive))
+        self.surface.blit(layer, (x, top))
 
     def _draw_character(self, char: Character, center_x: int, center_y: int) -> None:
         """Backward-compat rectangle fallback (used by render_static and tests)."""
@@ -146,6 +217,8 @@ class Renderer:
         char_y = HORIZON_Y - 120  # feet at horizon, character extends up (~half of new ~320px char height)
         self._draw_sprite_char(left, WIDTH // 4, char_y, left_anim, anim_frame, facing_right=True)
         self._draw_sprite_char(right, WIDTH * 3 // 4, char_y, right_anim, anim_frame, facing_right=False)
+        # Apply screen shake last (after all content is drawn)
+        self._apply_shake()
 
     def _draw_sprite_char(
         self,
@@ -171,6 +244,17 @@ class Renderer:
             sprite = pygame.transform.flip(sprite, True, False)
         rect = sprite.get_rect(center=(center_x, center_y))
         self.surface.blit(sprite, rect)
+
+        # White flash overlay — applied after blitting the sprite
+        flash = self._char_flash.get(char.id, 0.0)
+        if flash > 0.05:
+            white_overlay = sprite.copy()
+            arr = pygame.surfarray.pixels3d(white_overlay)
+            arr[:] = 255  # fill RGB channels with white
+            del arr  # release write lock before further surface operations
+            white_overlay.set_alpha(int(180 * flash))
+            self.surface.blit(white_overlay, rect)
+            self._char_flash[char.id] = flash * 0.75  # decay
 
     # ------------------------------------------------------------------ #
     # Legacy rectangle painter — kept for backward compatibility            #
