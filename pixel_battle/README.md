@@ -13,3 +13,11 @@ python -m pixel_battle.episodes.ep01_brick_vs_glass
 ```
 pytest pixel_battle/tests/
 ```
+
+## Status (2026-05-17)
+
+- ✅ Engine, renderer, cinematics, video pipeline complete
+- ✅ Episode 1 (Brick Phone vs Glass Slab) end-to-end working
+- ⚠️ SFX/BGM are sine-wave placeholders — replace with CC0 assets before manual upload
+- 📋 Manual upload steps: TikTok (primary, manual via app), YT Shorts (mirror via youtube_uploader.py if 9:16 supported)
+- 📊 Tracking: see `data/episodes_log.json` for metrics log
