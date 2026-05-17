@@ -100,6 +100,80 @@ def _draw_result_screen(renderer, winner_char, loser_char, hits, ults, match_sec
             line_rect = line_img.get_rect(center=(WIDTH // 2, HEIGHT - 100 + i * 28))
             surface.blit(line_img, line_rect)
 
+def _draw_pop_text(surface, text: str, pos: tuple, size: int = 32,
+                   color=(255, 255, 255), scale: float = 1.0,
+                   alpha: int = 255, shadow: bool = True) -> None:
+    """Render text with scale + alpha, optionally with a black drop shadow."""
+    if scale <= 0.05 or alpha <= 5:
+        return
+    if not pygame.font.get_init():
+        pygame.font.init()
+    actual_size = max(1, int(size * scale))
+    font = pygame.font.Font(None, actual_size)
+    img = font.render(text, True, color)
+    img.set_alpha(alpha)
+    rect = img.get_rect(center=pos)
+    if shadow:
+        shadow_img = font.render(text, True, (0, 0, 0))
+        shadow_img.set_alpha(alpha // 2)
+        surface.blit(shadow_img, (rect.x + 3, rect.y + 3))
+    surface.blit(img, rect)
+
+
+def _draw_intro_screen(renderer, left_char, right_char, frame: int):
+    """Paint the pre-battle intro: name labels + VS + GAME START."""
+    surface = renderer.surface
+    # Paint the arena + characters idle (so the scene is in place behind text)
+    renderer.render_frame(left_char, right_char,
+                          AnimationState.IDLE, AnimationState.IDLE,
+                          anim_frame=frame % 8)
+
+    if not pygame.font.get_init():
+        pygame.font.init()
+
+    # Phase 1 — name labels (visible 0-150, fade 150-180)
+    name_fade = 1.0
+    if frame >= 150:
+        name_fade = max(0.0, 1.0 - (frame - 150) / 30)
+    name_scale = _result_pop_scale(frame, peak_frame=12) if frame < 30 else 1.0
+    _draw_pop_text(
+        surface, left_char.display_name.upper(),
+        (WIDTH // 4, 80), size=28, color=(180, 240, 255),
+        scale=name_scale, alpha=int(255 * name_fade), shadow=True,
+    )
+    _draw_pop_text(
+        surface, right_char.display_name.upper(),
+        (WIDTH * 3 // 4, 80), size=28, color=(180, 240, 255),
+        scale=name_scale, alpha=int(255 * name_fade), shadow=True,
+    )
+
+    # Phase 2 — VS (appears at frame 30, holds, fades 150-180)
+    if frame >= 30:
+        vs_fade = 1.0
+        if frame >= 150:
+            vs_fade = max(0.0, 1.0 - (frame - 150) / 30)
+        vs_scale = _result_pop_scale(frame - 30, peak_frame=10) if frame < 60 else 1.0
+        _draw_pop_text(
+            surface, "VS",
+            (WIDTH // 2, HEIGHT // 2 - 100),
+            size=120, color=(255, 200, 60),
+            scale=vs_scale, alpha=int(255 * vs_fade), shadow=True,
+        )
+
+    # Phase 3 — GAME START (appears at frame 90, holds, fades 150-180)
+    if frame >= 90:
+        gs_fade = 1.0
+        if frame >= 150:
+            gs_fade = max(0.0, 1.0 - (frame - 150) / 30)
+        gs_scale = _result_pop_scale(frame - 90, peak_frame=12) if frame < 120 else 1.0
+        _draw_pop_text(
+            surface, "GAME START!",
+            (WIDTH // 2, HEIGHT // 2 + 80),
+            size=80, color=(120, 255, 120),
+            scale=gs_scale, alpha=int(255 * gs_fade), shadow=True,
+        )
+
+
 FPS = 60
 TICK_MS = 1000 // FPS  # 16ms ≈ 60fps
 EPISODE_ID = "ep01_brick_vs_glass"
@@ -161,6 +235,14 @@ def main():
     active_captions = []  # list of (text, style, started_frame, pos|None)
 
     frame_no = 0
+
+    # Intro phase — 180 frames (3s at 60fps)
+    INTRO_FRAMES = 180
+    for intro_frame in range(INTRO_FRAMES):
+        _draw_intro_screen(renderer, left, right, intro_frame)
+        recorder.write_frame(renderer.surface)
+        frame_no += 1
+
     while battle.state is not BattleState.KO and battle.elapsed_ms < 60_000:
         # Hit-stop: only when actually fighting (not during cinematics)
         if battle.state is BattleState.ULTIMATE_PLAYING:
@@ -291,7 +373,7 @@ def main():
             str(OUT_DIR / "thumbnail.jpg"),
         ], check=True, capture_output=True)
 
-    total_ms = battle.elapsed_ms + (30 * TICK_MS) + (180 * TICK_MS)
+    total_ms = (INTRO_FRAMES * TICK_MS) + battle.elapsed_ms + (30 * TICK_MS) + (180 * TICK_MS)
     build_audio_track(battle.events, total_duration_ms=total_ms, output_path=str(audio_out))
     mux_audio_video(str(raw_video), str(audio_out), str(final_mp4))
 
