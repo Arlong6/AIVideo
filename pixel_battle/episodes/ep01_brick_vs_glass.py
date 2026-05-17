@@ -20,7 +20,7 @@ FPS = 60
 TICK_MS = 1000 // FPS  # 16ms ≈ 60fps
 EPISODE_ID = "ep01_brick_vs_glass"
 OUT_DIR = Path("/Users/arlong/Projects/AIvideo/pixel_battle/output") / EPISODE_ID
-SEED = 7
+SEED = 1
 
 
 def _animation_for_actor(actor_id: str, char: Character, recent_events) -> AnimationState:
@@ -124,6 +124,21 @@ def main():
         frame_no += 1
 
     recorder.stop()
+
+    # Thumbnail: extract frame at the first ultimate's peak
+    first_ult = next((e for e in battle.events if e.type is EventType.ULTIMATE_START), None)
+    if first_ult:
+        # Peak frame ~80 frames into the cinematic
+        peak_ms = first_ult.t_ms + (80 * 1000 // 30)  # 80 frames at 30fps
+        import subprocess
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-i", str(raw_video),
+            "-ss", f"{peak_ms/1000:.2f}",
+            "-vframes", "1",
+            "-q:v", "2",
+            str(OUT_DIR / "thumbnail.jpg"),
+        ], check=True, capture_output=True)
 
     total_ms = battle.elapsed_ms + (30 * TICK_MS)
     build_audio_track(battle.events, total_duration_ms=total_ms, output_path=str(audio_out))
