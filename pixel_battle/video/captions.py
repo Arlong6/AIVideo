@@ -17,6 +17,9 @@ class CaptionStyle(Enum):
     ULTIMATE = "ultimate"
     KO = "ko"
     INFO = "info"
+    DAMAGE_LIGHT = "damage_light"   # small white floating number (damage ≤ 10)
+    DAMAGE_HEAVY = "damage_heavy"   # bigger red number for damage > 10
+    WINNER = "winner"               # result screen winner banner
 
 
 _STYLES = {
@@ -25,11 +28,15 @@ _STYLES = {
     CaptionStyle.ULTIMATE: {"size": 72, "color": (255, 220, 60), "y": (HEIGHT // 3 + HEIGHT // 2) // 2},
     CaptionStyle.KO: {"size": 96, "color": (255, 30, 30), "y": (HEIGHT // 3 + HEIGHT // 2) // 2},
     CaptionStyle.INFO: {"size": 28, "color": (200, 200, 220), "y": (HEIGHT // 3 + HEIGHT // 2) // 2},
+    CaptionStyle.DAMAGE_LIGHT: {"size": 32, "color": (240, 240, 240), "y": HEIGHT // 3},
+    CaptionStyle.DAMAGE_HEAVY: {"size": 48, "color": (255, 70, 70), "y": HEIGHT // 3},
+    CaptionStyle.WINNER: {"size": 80, "color": (255, 220, 60), "y": HEIGHT // 3},
 }
 
 
 def draw_caption(surface, text: str, style: CaptionStyle, frame_in_anim: int,
-                 lifetime: int = DEFAULT_LIFETIME) -> None:
+                 lifetime: int = DEFAULT_LIFETIME,
+                 pos: tuple | None = None) -> None:
     if frame_in_anim < 0 or frame_in_anim >= lifetime:
         return
 
@@ -65,6 +72,12 @@ def draw_caption(surface, text: str, style: CaptionStyle, frame_in_anim: int,
     img.set_alpha(alpha)
     shadow.set_alpha(alpha // 2)
 
-    rect = img.get_rect(center=(WIDTH // 2, cfg["y"] + y_offset))
+    # Use provided position if given, else fall back to centered default y
+    if pos is not None:
+        center_x, center_y = pos
+    else:
+        center_x, center_y = WIDTH // 2, cfg["y"]
+
+    rect = img.get_rect(center=(center_x, center_y + y_offset))
     surface.blit(shadow, (rect.x + 3, rect.y + 3))
     surface.blit(img, rect)

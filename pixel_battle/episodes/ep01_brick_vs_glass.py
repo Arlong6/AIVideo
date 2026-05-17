@@ -16,6 +16,90 @@ from pixel_battle.video.captions import CaptionStyle, draw_caption
 from pixel_battle.video.compose import build_audio_track, mux_audio_video
 from pixel_battle.video.recorder import FrameRecorder
 
+
+def _result_pop_scale(frame: int, peak_frame: int = 8) -> float:
+    """Scale animation: 0 → 1.3 → 1.0."""
+    if frame < 0:
+        return 0.0
+    if frame < peak_frame:
+        t = frame / peak_frame
+        return 1.3 * (1 - (1 - t) ** 2)
+    elif frame < peak_frame + 6:
+        t = (frame - peak_frame) / 6
+        return 1.3 + (1.0 - 1.3) * (1 - (1 - t) ** 2)
+    return 1.0
+
+
+def _draw_result_screen(renderer, winner_char, loser_char, hits, ults, match_seconds, frame):
+    """Paint the post-KO result screen onto renderer.surface."""
+    surface = renderer.surface
+    # Fade-in background: black with subtle vignette
+    bg_alpha = min(255, int(255 * (frame / 30)))
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, bg_alpha))
+
+    # First fill background from arena
+    surface.blit(renderer._arena_bg, (0, 0))
+    surface.blit(overlay, (0, 0))
+
+    if not pygame.font.get_init():
+        pygame.font.init()
+
+    # "K.O." big text top — scale-pop in first 12 frames
+    ko_scale = _result_pop_scale(frame, peak_frame=8)
+    ko_font_size = int(120 * ko_scale)
+    if ko_font_size > 1:
+        ko_font = pygame.font.Font(None, ko_font_size)
+        ko_img = ko_font.render("K.O.", True, (255, 70, 70))
+        ko_rect = ko_img.get_rect(center=(WIDTH // 2, 140))
+        # Black drop shadow
+        ko_shadow = ko_font.render("K.O.", True, (0, 0, 0))
+        surface.blit(ko_shadow, (ko_rect.x + 5, ko_rect.y + 5))
+        surface.blit(ko_img, ko_rect)
+
+    # Winner sprite at center — animates upward over first 30 frames
+    if frame > 15:
+        sprites = renderer._get_sprites(winner_char.id)
+        winner_sprite = sprites.get_pose("ultimate_pose")
+        # Scale up 1.4x for emphasis
+        ws_w = int(winner_sprite.get_width() * 1.4)
+        ws_h = int(winner_sprite.get_height() * 1.4)
+        big_sprite = pygame.transform.smoothscale(winner_sprite, (ws_w, ws_h))
+        sprite_y_target = HEIGHT // 2 + 20
+        sprite_progress = min(1.0, (frame - 15) / 25)
+        sprite_y = int(HEIGHT + (sprite_y_target - HEIGHT) * sprite_progress)
+        sprite_rect = big_sprite.get_rect(center=(WIDTH // 2, sprite_y))
+        surface.blit(big_sprite, sprite_rect)
+
+    # "WINNER" banner under sprite — appears at frame 40
+    if frame > 40:
+        banner_scale = _result_pop_scale(frame - 40, peak_frame=8)
+        banner_size = max(1, int(60 * banner_scale))
+        banner_font = pygame.font.Font(None, banner_size)
+        banner_img = banner_font.render("WINNER", True, (255, 220, 60))
+        banner_rect = banner_img.get_rect(center=(WIDTH // 2, HEIGHT - 220))
+        shadow = banner_font.render("WINNER", True, (0, 0, 0))
+        surface.blit(shadow, (banner_rect.x + 3, banner_rect.y + 3))
+        surface.blit(banner_img, banner_rect)
+        # Winner display name below banner
+        name_font = pygame.font.Font(None, 36)
+        name_img = name_font.render(winner_char.display_name, True, (240, 240, 240))
+        name_rect = name_img.get_rect(center=(WIDTH // 2, HEIGHT - 170))
+        surface.blit(name_img, name_rect)
+
+    # Stats panel at bottom — appears at frame 70
+    if frame > 70:
+        stats_font = pygame.font.Font(None, 24)
+        stats_lines = [
+            f"TIME      {match_seconds:5.1f}s",
+            f"HITS      {hits}",
+            f"ULTIMATES {ults}",
+        ]
+        for i, line in enumerate(stats_lines):
+            line_img = stats_font.render(line, True, (200, 200, 220))
+            line_rect = line_img.get_rect(center=(WIDTH // 2, HEIGHT - 100 + i * 28))
+            surface.blit(line_img, line_rect)
+
 FPS = 60
 TICK_MS = 1000 // FPS  # 16ms ≈ 60fps
 EPISODE_ID = "ep01_brick_vs_glass"
@@ -74,7 +158,7 @@ def main():
     recorder.start()
 
     cinematic_frame_idx = 0
-    active_captions = []  # list of (text, style, started_frame)
+    active_captions = []  # list of (text, style, started_frame, pos|None)
 
     frame_no = 0
     while battle.state is not BattleState.KO and battle.elapsed_ms < 60_000:
@@ -93,7 +177,20 @@ def main():
 
         for ev in new_events:
             if ev.type in (EventType.HIT, EventType.ULTIMATE_START, EventType.KO):
-                active_captions.append((_caption_text_for_event(ev), _caption_style_for_event(ev), frame_no))
+                if ev.type is EventType.HIT:
+                    victim_x = WIDTH // 4 if ev.target == left.id else WIDTH * 3 // 4
+                    victim_y = HORIZON_Y - 220  # above the character's head
+                    # Damage tier
+                    dmg_style = CaptionStyle.DAMAGE_HEAVY if ev.amount > 10 else CaptionStyle.DAMAGE_LIGHT
+                    active_captions.append((f"-{ev.amount}", dmg_style, frame_no, (victim_x, victim_y)))
+                    # Crit additionally fires the centered "CRITICAL HIT!" big banner
+                    if ev.extra.get("crit"):
+                        active_captions.append(("CRITICAL HIT!", CaptionStyle.CRIT, frame_no, None))
+                else:
+                    # ULTIMATE_START and KO use the system style/text and centered position
+                    style = _caption_style_for_event(ev)
+                    text = _caption_text_for_event(ev)
+                    active_captions.append((text, style, frame_no, None))
             # Screen shake + particles + hit-stop
             if ev.type is EventType.HIT:
                 target_x = WIDTH // 4 if ev.target == left.id else WIDTH * 3 // 4
@@ -136,11 +233,11 @@ def main():
             renderer.render_frame(left, right, la, ra, anim_frame=frame_no % 8)
 
         active_captions = [
-            (txt, sty, start) for (txt, sty, start) in active_captions
+            (txt, sty, start, pos) for (txt, sty, start, pos) in active_captions
             if frame_no - start < 45
         ]
-        for (txt, sty, start) in active_captions:
-            draw_caption(renderer.surface, txt, sty, frame_in_anim=frame_no - start)
+        for (txt, sty, start, pos) in active_captions:
+            draw_caption(renderer.surface, txt, sty, frame_in_anim=frame_no - start, pos=pos)
 
         recorder.write_frame(renderer.surface)
         frame_no += 1
@@ -148,11 +245,34 @@ def main():
     # Hold final 30 frames
     for hold_frame in range(30):
         renderer.render_frame(left, right, AnimationState.IDLE, AnimationState.KO if right.is_ko() else AnimationState.IDLE, anim_frame=hold_frame)
-        active_captions = [(txt, sty, start) for (txt, sty, start) in active_captions if frame_no - start < 45]
-        for (txt, sty, start) in active_captions:
-            draw_caption(renderer.surface, txt, sty, frame_in_anim=frame_no - start)
+        active_captions = [(txt, sty, start, pos) for (txt, sty, start, pos) in active_captions if frame_no - start < 45]
+        for (txt, sty, start, pos) in active_captions:
+            draw_caption(renderer.surface, txt, sty, frame_in_anim=frame_no - start, pos=pos)
         recorder.write_frame(renderer.surface)
         frame_no += 1
+
+    # Result screen — 180 frames (3s at 60fps)
+    if right.is_ko() or left.is_ko():
+        winner_char = left if right.is_ko() else right
+        loser_char = right if right.is_ko() else left
+        hits_landed = sum(1 for e in battle.events
+                          if e.type is EventType.HIT and e.actor == winner_char.id)
+        ults_used = sum(1 for e in battle.events
+                        if e.type is EventType.ULTIMATE_START and e.actor == winner_char.id)
+        match_seconds = battle.elapsed_ms / 1000
+
+        for result_frame in range(180):
+            _draw_result_screen(
+                renderer,
+                winner_char=winner_char,
+                loser_char=loser_char,
+                hits=hits_landed,
+                ults=ults_used,
+                match_seconds=match_seconds,
+                frame=result_frame,
+            )
+            recorder.write_frame(renderer.surface)
+            frame_no += 1
 
     recorder.stop()
 
@@ -171,7 +291,7 @@ def main():
             str(OUT_DIR / "thumbnail.jpg"),
         ], check=True, capture_output=True)
 
-    total_ms = battle.elapsed_ms + (30 * TICK_MS)
+    total_ms = battle.elapsed_ms + (30 * TICK_MS) + (180 * TICK_MS)
     build_audio_track(battle.events, total_duration_ms=total_ms, output_path=str(audio_out))
     mux_audio_video(str(raw_video), str(audio_out), str(final_mp4))
 
