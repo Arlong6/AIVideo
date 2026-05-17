@@ -8,6 +8,36 @@ from typing import Dict, List, Tuple
 
 import pygame
 
+
+def _add_outline(sprite: pygame.Surface, color=(255, 255, 255), thickness: int = 2) -> pygame.Surface:
+    """Paint a solid-color outline by blitting a colored silhouette at offset positions."""
+    w, h = sprite.get_size()
+    out_w = w + thickness * 2
+    out_h = h + thickness * 2
+    result = pygame.Surface((out_w, out_h), pygame.SRCALPHA)
+
+    # Build a silhouette: all non-transparent pixels become `color`
+    silhouette = sprite.copy()
+    pa = pygame.surfarray.pixels_alpha(silhouette)
+    pr = pygame.surfarray.pixels_red(silhouette)
+    pg = pygame.surfarray.pixels_green(silhouette)
+    pb = pygame.surfarray.pixels_blue(silhouette)
+    mask = pa > 30  # threshold to ignore very faint alpha
+    pr[mask] = color[0]
+    pg[mask] = color[1]
+    pb[mask] = color[2]
+    del pr, pg, pb, pa  # release surface locks
+
+    # Blit silhouette at surrounding offsets
+    for dx in range(-thickness, thickness + 1):
+        for dy in range(-thickness, thickness + 1):
+            if dx == 0 and dy == 0:
+                continue
+            result.blit(silhouette, (dx + thickness, dy + thickness))
+    # Original on top
+    result.blit(sprite, (thickness, thickness))
+    return result
+
 SPRITES_DIR = Path(__file__).resolve().parents[1] / "assets" / "sprites"
 
 
@@ -49,7 +79,7 @@ class CharacterSprites:
             scale = target_height / h
             new_w = max(1, int(w * scale))
             scaled = pygame.transform.smoothscale(img, (new_w, target_height))
-            self._frames[pose] = scaled
+            self._frames[pose] = _add_outline(scaled, color=(255, 255, 255), thickness=2)
 
     def get_pose(self, pose_name: str) -> pygame.Surface:
         """Return the surface for ``pose_name``; falls back to idle if unknown."""

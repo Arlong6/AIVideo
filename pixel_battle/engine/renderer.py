@@ -18,6 +18,29 @@ class AnimationState(Enum):
 WIDTH = 480
 HEIGHT = 854
 BG_COLOR = (15, 18, 28)
+HORIZON_Y = int(HEIGHT * 0.62)
+
+
+def _build_arena_bg(width: int, height: int) -> pygame.Surface:
+    """Vertical gradient sky + ground plane. Built once at Renderer init."""
+    bg = pygame.Surface((width, height))
+    # Sky: deep navy at top → warm purple at horizon
+    for y in range(HORIZON_Y):
+        t = y / HORIZON_Y
+        r = int(15 + (95 - 15) * t)
+        g = int(18 + (45 - 18) * t)
+        b = int(40 + (90 - 40) * t)
+        pygame.draw.line(bg, (r, g, b), (0, y), (width, y))
+    # Ground: brown-orange at horizon → darker at bottom
+    for y in range(HORIZON_Y, height):
+        t = (y - HORIZON_Y) / max(1, height - HORIZON_Y)
+        r = int(80 - 30 * t)
+        g = int(50 - 25 * t)
+        b = int(40 - 25 * t)
+        pygame.draw.line(bg, (r, g, b), (0, y), (width, y))
+    # Horizon line accent
+    pygame.draw.line(bg, (180, 100, 60), (0, HORIZON_Y), (width, HORIZON_Y), 2)
+    return bg
 HP_BAR_BG = (60, 60, 60)
 HP_BAR_FG = (200, 50, 50)
 MP_BAR_FG = (60, 130, 230)
@@ -49,6 +72,7 @@ class Renderer:
             pygame.init()
         self.surface = pygame.Surface((WIDTH, HEIGHT))
         self._sprite_cache: dict = {}
+        self._arena_bg = _build_arena_bg(WIDTH, HEIGHT)
 
     def _get_sprites(self, char_id: str):
         if char_id not in self._sprite_cache:
@@ -58,7 +82,7 @@ class Renderer:
 
     def render_static(self, left: Character, right: Character) -> None:
         """Paint a frame with both characters in idle pose + HP/MP bars."""
-        self.surface.fill(BG_COLOR)
+        self.surface.blit(self._arena_bg, (0, 0))
         self._draw_bars(left, x=PAD, top=PAD)
         self._draw_bars(right, x=WIDTH - PAD - self._bar_width(), top=PAD)
         self._draw_character(left, center_x=WIDTH // 4, center_y=HEIGHT // 2)
@@ -97,11 +121,12 @@ class Renderer:
         anim_frame: int,
     ) -> None:
         """Paint a frame with per-character animation state using sprites."""
-        self.surface.fill(BG_COLOR)
+        self.surface.blit(self._arena_bg, (0, 0))
         self._draw_bars(left, x=PAD, top=PAD)
         self._draw_bars(right, x=WIDTH - PAD - self._bar_width(), top=PAD)
-        self._draw_sprite_char(left, WIDTH // 4, HEIGHT // 2, left_anim, anim_frame, facing_right=True)
-        self._draw_sprite_char(right, WIDTH * 3 // 4, HEIGHT // 2, right_anim, anim_frame, facing_right=False)
+        char_y = HORIZON_Y - 60  # feet at horizon, character extends up
+        self._draw_sprite_char(left, WIDTH // 4, char_y, left_anim, anim_frame, facing_right=True)
+        self._draw_sprite_char(right, WIDTH * 3 // 4, char_y, right_anim, anim_frame, facing_right=False)
 
     def _draw_sprite_char(
         self,
