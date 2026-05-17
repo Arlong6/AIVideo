@@ -9,7 +9,7 @@ from pixel_battle.engine.battle import Battle, BattleState, EventType
 from pixel_battle.engine.character import Character
 from pixel_battle.engine.cinematic import CINEMATICS, play_cinematic_frame
 from pixel_battle.engine.renderer import (
-    AnimationState, Renderer, WIDTH, HEIGHT,
+    AnimationState, Renderer, WIDTH, HEIGHT, HORIZON_Y,
 )
 from pixel_battle.engine.rng import BattleRNG
 from pixel_battle.video.captions import CaptionStyle, draw_caption
@@ -78,6 +78,15 @@ def main():
 
     frame_no = 0
     while battle.state is not BattleState.KO and battle.elapsed_ms < 60_000:
+        # Hit-stop: only when actually fighting (not during cinematics)
+        if battle.state is BattleState.ULTIMATE_PLAYING:
+            renderer.hit_stop_frames = 0
+        elif renderer.hit_stop_frames > 0:
+            renderer.hit_stop_frames -= 1
+            recorder.write_frame(renderer.surface)
+            frame_no += 1
+            continue
+
         prev_event_count = len(battle.events)
         battle.tick_ms(TICK_MS)
         new_events = battle.events[prev_event_count:]
@@ -85,19 +94,28 @@ def main():
         for ev in new_events:
             if ev.type in (EventType.HIT, EventType.ULTIMATE_START, EventType.KO):
                 active_captions.append((_caption_text_for_event(ev), _caption_style_for_event(ev), frame_no))
-            # Screen shake
+            # Screen shake + particles + hit-stop
             if ev.type is EventType.HIT:
+                target_x = WIDTH // 4 if ev.target == left.id else WIDTH * 3 // 4
+                target_y = HORIZON_Y - 80  # mid-character
+                renderer.particles.emit_hit_burst(target_x, target_y)
                 if ev.extra.get("crit"):
                     renderer.add_shake(8.0)
+                    renderer.request_hit_stop(3)
                 else:
                     renderer.add_shake(3.0)
+                renderer.add_char_flash(ev.target, 1.0)
             elif ev.type is EventType.ULTIMATE_START:
                 renderer.add_shake(12.0)
+                target_x = WIDTH // 4 if ev.target == left.id else WIDTH * 3 // 4
+                target_y = HORIZON_Y - 80
+                renderer.particles.emit_ultimate_burst(target_x, target_y)
+                renderer.request_hit_stop(5)
             elif ev.type is EventType.KO:
+                target_x = WIDTH // 4 if ev.target == left.id else WIDTH * 3 // 4
+                target_y = HORIZON_Y - 60
+                renderer.particles.emit_ko_burst(target_x, target_y)
                 renderer.add_shake(10.0)
-            # Character hit flash
-            if ev.type is EventType.HIT:
-                renderer.add_char_flash(ev.target, 1.0)
 
         if battle.state is BattleState.ULTIMATE_PLAYING:
             ult_event = next(

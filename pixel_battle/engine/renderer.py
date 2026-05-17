@@ -82,6 +82,11 @@ class Renderer:
         self._shake_intensity = 0.0
         # Per-character white flash budget — decays each frame
         self._char_flash: dict[str, float] = {}
+        # Particle system
+        from pixel_battle.engine.particles import ParticleSystem
+        self.particles = ParticleSystem()
+        # Hit-stop: freeze frame count
+        self.hit_stop_frames = 0
 
     def _smooth_value(self, char_id: str, key: str, target: float,
                       rate: float = BAR_LERP_RATE) -> float:
@@ -125,6 +130,9 @@ class Renderer:
 
     def add_char_flash(self, char_id: str, intensity: float = 1.0) -> None:
         self._char_flash[char_id] = max(self._char_flash.get(char_id, 0.0), intensity)
+
+    def request_hit_stop(self, frames: int) -> None:
+        self.hit_stop_frames = max(self.hit_stop_frames, frames)
 
     # ------------------------------------------------------------------ #
     # Public render methods                                                 #
@@ -217,6 +225,8 @@ class Renderer:
         char_y = HORIZON_Y - 120  # feet at horizon, character extends up (~half of new ~320px char height)
         self._draw_sprite_char(left, WIDTH // 4, char_y, left_anim, anim_frame, facing_right=True)
         self._draw_sprite_char(right, WIDTH * 3 // 4, char_y, right_anim, anim_frame, facing_right=False)
+        self.particles.update()
+        self.particles.render(self.surface)
         # Apply screen shake last (after all content is drawn)
         self._apply_shake()
 

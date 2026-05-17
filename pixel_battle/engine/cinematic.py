@@ -132,57 +132,180 @@ def _draw_block_color(surface, color, center_x: int, center_y: int, w: int, h: i
     pygame.draw.rect(surface, color, (x, y, w, h), border_radius=10)
 
 
+def _draw_lock_icon(surface, cx: int, cy: int, color=(255, 255, 255), size: int = 20) -> None:
+    """Draw a closed padlock icon at (cx, cy)."""
+    # Body (rectangle)
+    body_w = size
+    body_h = int(size * 0.7)
+    body_rect = pygame.Rect(cx - body_w // 2, cy, body_w, body_h)
+    pygame.draw.rect(surface, color, body_rect, border_radius=3)
+    # Keyhole (small dark circle)
+    pygame.draw.circle(surface, (20, 20, 30), (cx, cy + body_h // 2 - 2), max(1, size // 8))
+    # Shackle (U-shape arc above body)
+    shackle_r = body_w // 2 - 2
+    shackle_cx = cx
+    shackle_cy = cy
+    # Draw an arc that goes from bottom-left through top to bottom-right
+    pygame.draw.arc(surface, color,
+                    (shackle_cx - shackle_r, shackle_cy - shackle_r,
+                     shackle_r * 2, shackle_r * 2),
+                    3.14, 2 * 3.14, 3)
+
+
+def _draw_text(surface, text: str, pos, size: int = 16,
+               color=(255, 255, 255), center: bool = False) -> None:
+    """Draw text at pos. Lazy-init font."""
+    if not pygame.font.get_init():
+        pygame.font.init()
+    font = pygame.font.Font(None, size)
+    img = font.render(text, True, color)
+    rect = img.get_rect(center=pos) if center else img.get_rect(topleft=pos)
+    surface.blit(img, rect)
+
+
 def _glass_force_update_painter(surface, frame: int, attacker: Character, defender: Character) -> None:
-    """0-30: glass special_charge glows; 30-50: white flash; 50-130: lock-screen panel over
-    defender (hit_recoil→ko_landed after frame 80); 130-180: glass ultimate_pose, defender frozen."""
+    """Force Update cinematic — Glass Slab's iOS-update ultimate.
+
+    0-25:   charge up
+    25-45:  WiFi waves stream toward defender
+    45-55:  white flash impact
+    55-110: iOS lock screen over defender, progress bar fills
+    110-180: device locked, dim defender frozen
+    """
     surface.fill((10, 10, 18))
 
-    if frame < 30:
-        # Glass charges: special_charge sprite with brightening glow tint overlay
-        _draw_sprite_at(surface, attacker, int(WIDTH * 0.75), HEIGHT // 2,
-                        "special_charge", facing_right=False)
-        _draw_sprite_at(surface, defender, int(WIDTH * 0.25), HEIGHT // 2,
-                        "idle", facing_right=True)
-        # Glow overlay on attacker
-        glow = min(255, 150 + frame * 3)
-        glow_surf = pygame.Surface((CHAR_W, CHAR_H), pygame.SRCALPHA)
-        glow_surf.fill((glow // 4, glow // 2, glow, 60))
-        surface.blit(glow_surf, (int(WIDTH * 0.75) - CHAR_W // 2, HEIGHT // 2 - CHAR_H // 2))
+    atk_x = int(WIDTH * 0.75)
+    def_x = int(WIDTH * 0.25)
+    mid_y = HEIGHT // 2
 
-    elif frame < 50:
-        # White flash fade-in
-        progress = (frame - 30) / 20
-        surface.fill((255, 255, 255))
-        if progress > 0.5:
-            _draw_sprite_at(surface, attacker, int(WIDTH * 0.75), HEIGHT // 2,
-                            "ultimate_pose", facing_right=False)
+    if frame < 25:
+        # Phase 1: Glass charges with brightening aura
+        _draw_sprite_at(surface, attacker, atk_x, mid_y, "special_charge", facing_right=False)
+        _draw_sprite_at(surface, defender, def_x, mid_y, "idle", facing_right=True)
+        # Pulsing aura around glass
+        aura_radius = 80 + int(frame * 2)
+        aura_alpha = 60 + int(frame * 4)
+        aura = pygame.Surface((aura_radius * 2, aura_radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(aura, (60, 180, 255, aura_alpha), (aura_radius, aura_radius), aura_radius)
+        pygame.draw.circle(aura, (200, 240, 255, aura_alpha + 40), (aura_radius, aura_radius),
+                           aura_radius // 2)
+        surface.blit(aura, (atk_x - aura_radius, mid_y - aura_radius),
+                     special_flags=pygame.BLEND_ADD)
 
-    elif frame < 130:
-        # Lock-screen panel: attacker ultimate_pose in background; defender behind UI panel
-        _draw_sprite_at(surface, attacker, int(WIDTH * 0.75), HEIGHT // 2,
-                        "ultimate_pose", facing_right=False)
-        def_pose = "hit_recoil" if frame < 80 else "ko_landed"
-        _draw_sprite_at(surface, defender, int(WIDTH * 0.25), HEIGHT // 2,
-                        def_pose, facing_right=True)
-        # Lock-screen UI panel drawn on top of defender
-        panel_x, panel_y, panel_w, panel_h = 30, HEIGHT // 4, WIDTH - 60, HEIGHT // 2
-        pygame.draw.rect(surface, (15, 15, 25), (panel_x, panel_y, panel_w, panel_h), border_radius=20)
-        pygame.draw.rect(surface, (60, 130, 255), (panel_x, panel_y, panel_w, panel_h), width=3, border_radius=20)
-        for i in range(3):
-            by = panel_y + 60 + i * 50
-            pygame.draw.rect(surface, (200, 200, 220), (panel_x + 40, by, panel_w - 80, 12), border_radius=4)
-        sp_cx, sp_cy = WIDTH // 2, panel_y + panel_h - 80
-        ang = (frame * 12) % 360
-        ex = sp_cx + int(20 * math.cos(math.radians(ang)))
-        ey = sp_cy + int(20 * math.sin(math.radians(ang)))
-        pygame.draw.line(surface, (60, 200, 255), (sp_cx, sp_cy), (ex, ey), 4)
+    elif frame < 45:
+        # Phase 2: Three Wi-Fi waves stream from Glass toward Brick
+        _draw_sprite_at(surface, attacker, atk_x, mid_y, "ultimate_pose", facing_right=False)
+        _draw_sprite_at(surface, defender, def_x, mid_y, "idle", facing_right=True)
+        progress = (frame - 25) / 20  # 0 to 1
+        for wave_i in range(3):
+            wave_offset = (wave_i / 3) + progress  # each wave delayed
+            if wave_offset > 1.0:
+                continue
+            cx = int(atk_x - (atk_x - def_x) * wave_offset)
+            cy = mid_y
+            wave_radius = 30 + int(wave_offset * 80)
+            alpha = max(0, int(255 * (1 - wave_offset)))
+            wave_surf = pygame.Surface((wave_radius * 2 + 4, wave_radius * 2 + 4), pygame.SRCALPHA)
+            # Draw 3 concentric arc-like circles (just rings)
+            for ring in range(3):
+                ring_r = wave_radius - ring * 12
+                if ring_r > 0:
+                    pygame.draw.circle(wave_surf, (60 + ring * 50, 180, 255, alpha // (ring + 1)),
+                                       (wave_radius + 2, wave_radius + 2), ring_r, 3)
+            surface.blit(wave_surf, (cx - wave_radius - 2, cy - wave_radius - 2))
+
+    elif frame < 55:
+        # Phase 3: White flash impact
+        flash_progress = (frame - 45) / 10
+        flash_alpha = int(255 * (1 - flash_progress * 0.7))
+        _draw_sprite_at(surface, attacker, atk_x, mid_y, "ultimate_pose", facing_right=False)
+        _draw_sprite_at(surface, defender, def_x, mid_y, "hit_recoil", facing_right=True)
+        flash = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        flash.fill((255, 255, 255, flash_alpha))
+        surface.blit(flash, (0, 0))
+
+    elif frame < 110:
+        # Phase 4: iOS lock screen overlays brick
+        _draw_sprite_at(surface, attacker, atk_x, mid_y, "ultimate_pose", facing_right=False)
+
+        # Brick is faintly visible (very dim)
+        _draw_sprite_at(surface, defender, def_x, mid_y, "ko_landed", facing_right=True)
+        # Add RGB-glitch tint over defender area
+        glitch = pygame.Surface((CHAR_W + 40, CHAR_H + 40), pygame.SRCALPHA)
+        glitch.fill((0, 255, 80, 40))
+        surface.blit(glitch, (def_x - CHAR_W // 2 - 20, mid_y - CHAR_H // 2 - 20),
+                     special_flags=pygame.BLEND_ADD)
+
+        # iOS lock screen panel
+        panel_w, panel_h = 200, 320
+        panel_x = def_x - panel_w // 2
+        panel_y = mid_y - panel_h // 2
+        # Black rounded panel with thin blue border (iOS style)
+        pygame.draw.rect(surface, (0, 0, 0), (panel_x, panel_y, panel_w, panel_h), border_radius=24)
+        pygame.draw.rect(surface, (60, 140, 255), (panel_x, panel_y, panel_w, panel_h),
+                         width=2, border_radius=24)
+
+        # Header: "iOS 17 UPDATE"
+        _draw_text(surface, "iOS 17 UPDATE", (panel_x + panel_w // 2, panel_y + 30),
+                   size=18, color=(255, 255, 255), center=True)
+
+        # Lock icon (closed padlock)
+        lock_cx = panel_x + panel_w // 2
+        lock_cy = panel_y + 80
+        _draw_lock_icon(surface, lock_cx, lock_cy, color=(100, 200, 255))
+
+        # Progress bar: fills 0→100% over phase
+        prog = (frame - 55) / 55  # 0 to 1
+        bar_w, bar_h = panel_w - 40, 12
+        bar_x = panel_x + 20
+        bar_y = panel_y + 150
+        pygame.draw.rect(surface, (40, 40, 60), (bar_x, bar_y, bar_w, bar_h), border_radius=6)
+        pygame.draw.rect(surface, (80, 200, 100), (bar_x, bar_y, int(bar_w * prog), bar_h),
+                         border_radius=6)
+        # Percentage text
+        _draw_text(surface, f"{int(prog * 100)}%", (panel_x + panel_w // 2, bar_y + 30),
+                   size=20, color=(200, 220, 255), center=True)
+
+        # "INSTALLING SECURITY PATCH" subtext
+        _draw_text(surface, "INSTALLING SECURITY PATCH",
+                   (panel_x + panel_w // 2, bar_y + 60),
+                   size=14, color=(180, 180, 200), center=True)
+
+        # iOS 8-dot spinner
+        sp_cx = panel_x + panel_w // 2
+        sp_cy = panel_y + panel_h - 50
+        active_dot = (frame // 4) % 8
+        for i in range(8):
+            ang = (i / 8) * 2 * math.pi - math.pi / 2
+            dx = int(20 * math.cos(ang))
+            dy = int(20 * math.sin(ang))
+            distance = (i - active_dot) % 8
+            dot_alpha = max(50, 255 - distance * 30)
+            dot = pygame.Surface((10, 10), pygame.SRCALPHA)
+            pygame.draw.circle(dot, (255, 255, 255, dot_alpha), (5, 5), 4)
+            surface.blit(dot, (sp_cx + dx - 5, sp_cy + dy - 5))
 
     else:
-        # Defender frozen (ko_landed); attacker ultimate_pose
-        _draw_sprite_at(surface, attacker, int(WIDTH * 0.75), HEIGHT // 2,
-                        "ultimate_pose", facing_right=False)
-        _draw_sprite_at(surface, defender, int(WIDTH * 0.25), HEIGHT // 2,
-                        "ko_landed", facing_right=True)
+        # Phase 5: Device locked — big red text
+        _draw_sprite_at(surface, attacker, atk_x, mid_y, "ultimate_pose", facing_right=False)
+        _draw_sprite_at(surface, defender, def_x, mid_y, "ko_landed", facing_right=True)
+
+        # Black panel
+        panel_w, panel_h = 220, 200
+        panel_x = def_x - panel_w // 2
+        panel_y = mid_y - panel_h // 2
+        pygame.draw.rect(surface, (0, 0, 0), (panel_x, panel_y, panel_w, panel_h), border_radius=24)
+        pygame.draw.rect(surface, (255, 50, 50), (panel_x, panel_y, panel_w, panel_h),
+                         width=3, border_radius=24)
+
+        # Big lock icon
+        _draw_lock_icon(surface, panel_x + panel_w // 2, panel_y + 60,
+                        color=(255, 80, 80), size=30)
+
+        # "DEVICE LOCKED" red text
+        _draw_text(surface, "DEVICE LOCKED",
+                   (panel_x + panel_w // 2, panel_y + 130),
+                   size=24, color=(255, 80, 80), center=True)
 
 
 CINEMATICS: Dict[str, CinematicSpec] = {
@@ -203,10 +326,11 @@ CINEMATICS["force_update"] = CinematicSpec(
     name="force_update",
     total_frames=180,
     events=[
-        CinematicEvent(frame=20, type="caption", payload={"text": "SYSTEM ALERT"}),
-        CinematicEvent(frame=35, type="flash", payload={"intensity": 255}),
-        CinematicEvent(frame=60, type="caption", payload={"text": "FORCE UPDATE"}),
-        CinematicEvent(frame=130, type="caption", payload={"text": "DEVICE LOCKED"}),
+        CinematicEvent(frame=20, type="caption", payload={"text": "BROADCASTING"}),
+        CinematicEvent(frame=45, type="flash", payload={"intensity": 255}),
+        CinematicEvent(frame=50, type="caption", payload={"text": "FORCE UPDATE"}),
+        CinematicEvent(frame=110, type="caption", payload={"text": "INSTALLING..."}),
+        CinematicEvent(frame=140, type="caption", payload={"text": "DEVICE LOCKED"}),
     ],
     painter=_glass_force_update_painter,
 )

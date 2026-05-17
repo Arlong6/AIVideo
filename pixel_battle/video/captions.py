@@ -42,12 +42,29 @@ def draw_caption(surface, text: str, style: CaptionStyle, frame_in_anim: int,
 
     y_offset = int(-20 * (frame_in_anim / lifetime))
 
+    # Scale-pop animation: 0.3 → 1.3 (overshoot) → 1.0 (settle)
+    if frame_in_anim < 6:
+        t = frame_in_anim / 6
+        scale = 0.3 + (1.3 - 0.3) * (1 - (1 - t) ** 2)  # ease-out
+    elif frame_in_anim < 12:
+        t = (frame_in_anim - 6) / 6
+        scale = 1.3 + (1.0 - 1.3) * (1 - (1 - t) ** 2)
+    else:
+        scale = 1.0
+
     font = pygame.font.Font(None, cfg["size"])
     img = font.render(text, True, cfg["color"])
+    shadow = font.render(text, True, (0, 0, 0))
+
+    if scale != 1.0:
+        new_w = max(1, int(img.get_width() * scale))
+        new_h = max(1, int(img.get_height() * scale))
+        img = pygame.transform.smoothscale(img, (new_w, new_h))
+        shadow = pygame.transform.smoothscale(shadow, (new_w, new_h))
+
     img.set_alpha(alpha)
+    shadow.set_alpha(alpha // 2)
 
     rect = img.get_rect(center=(WIDTH // 2, cfg["y"] + y_offset))
-    shadow = font.render(text, True, (0, 0, 0))
-    shadow.set_alpha(alpha // 2)
     surface.blit(shadow, (rect.x + 3, rect.y + 3))
     surface.blit(img, rect)
