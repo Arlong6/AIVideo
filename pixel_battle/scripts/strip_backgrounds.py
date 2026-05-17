@@ -1,4 +1,14 @@
-"""Strip dark navy/purple background from sprite PNGs using flood-fill from corners.
+"""Strip dark background from sprite PNGs.
+
+Uses ABSOLUTE distance from sampled background color (NOT per-neighbor BFS).
+Per-neighbor BFS walks along smooth gradients into the character body — the
+Imagen-generated sprites have gradients from corner (dark navy ~34,45,65) to
+mid-tones (~76,94,116) that touch the character's body color (~157,170,178),
+which the BFS would chew through with delta < 50 at every step.
+
+Strategy here: sample bg from corners + median-blur a wider border ring, then
+mark any pixel within `threshold` of that bg color as transparent. This keeps
+the character body fully intact regardless of gradient.
 
 Usage:
     python -m pixel_battle.scripts.strip_backgrounds
@@ -11,40 +21,35 @@ from PIL import Image
 SPRITES_DIR = Path(__file__).resolve().parents[1] / "assets" / "sprites"
 
 
-def strip_bg(img: Image.Image, threshold: int = 50) -> Image.Image:
-    """Remove background pixels by flood-filling from all 4 corners.
+def strip_bg(img: Image.Image, threshold: float = 60.0,
+             edge_width: int = 30) -> tuple:
+    """Make background pixels transparent using per-row local bg reference.
 
-    Each corner seeds a BFS; a pixel is considered background if its RGB distance
-    from the *local* seed pixel's color is within `threshold`.  Using the seed
-    pixel's own color (rather than a global median) handles gradients like the
-    glass_slab sprites whose top is blue and bottom is dark navy.
+    Imagen-generated sprites center the character horizontally. The leftmost
+    and rightmost N pixels of each row are reliable bg samples — and being
+    per-row, they correctly track any vertical gradient (e.g., glass_slab's
+    bright-blue top → dark-navy bottom).
+
+    For each row, we average the leftmost `edge_width` and rightmost
+    `edge_width` pixels to estimate that row's bg color. Pixels within
+    `threshold` Euclidean RGB distance of their row's bg become transparent.
     """
     arr = np.array(img.convert("RGBA"))
     h, w = arr.shape[:2]
-    rgb = arr[:, :, :3].astype(float)
+    rgb = arr[:, :, :3].astype(np.float32)
 
-    visited = np.zeros((h, w), dtype=bool)
-    queue: list[tuple[int, int]] = []
+    # Per-row bg: mean of leftmost and rightmost edge_width pixels
+    left_bg = rgb[:, :edge_width, :].mean(axis=1)    # (h, 3)
+    right_bg = rgb[:, -edge_width:, :].mean(axis=1)  # (h, 3)
+    row_bg = (left_bg + right_bg) / 2.0              # (h, 3)
 
-    for r, c in [(0, 0), (0, w - 1), (h - 1, 0), (h - 1, w - 1)]:
-        if not visited[r, c]:
-            visited[r, c] = True
-            queue.append((r, c))
+    diff = rgb - row_bg[:, np.newaxis, :]            # (h, w, 3)
+    dist = np.linalg.norm(diff, axis=2)              # (h, w)
 
-    while queue:
-        r, c = queue.pop()
-        seed_color = rgb[r, c]  # reference each pixel against its immediate neighbor
-        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            nr, nc = r + dr, c + dc
-            if 0 <= nr < h and 0 <= nc < w and not visited[nr, nc]:
-                dist = float(np.linalg.norm(rgb[nr, nc] - seed_color))
-                if dist < threshold:
-                    visited[nr, nc] = True
-                    queue.append((nr, nc))
-
-    # Make all flood-filled pixels transparent
-    arr[visited, 3] = 0
-    return Image.fromarray(arr)
+    mask = dist < threshold
+    arr[mask, 3] = 0
+    avg_bg = row_bg.mean(axis=0)
+    return Image.fromarray(arr), avg_bg, float(mask.mean() * 100)
 
 
 def main() -> None:
@@ -56,19 +61,13 @@ def main() -> None:
     total = 0
     for char_dir in sorted(char_dirs):
         for src_path in sorted(char_dir.glob("*.png")):
-            # Skip already-processed alpha variants
             if src_path.stem.endswith("_alpha"):
                 continue
             img = Image.open(src_path)
-            result = strip_bg(img, threshold=50)
+            result, bg, pct = strip_bg(img, threshold=55.0)
             out_path = src_path.with_name(src_path.stem + "_alpha.png")
             result.save(out_path)
-            # Quick sanity: verify transparency was added
-            arr = np.array(result)
-            transparent_px = int((arr[:, :, 3] == 0).sum())
-            total_px = arr.shape[0] * arr.shape[1]
-            pct = 100.0 * transparent_px / total_px
-            print(f"  {char_dir.name}/{src_path.name} -> {out_path.name}  "
+            print(f"  {char_dir.name}/{src_path.name} -> bg≈{bg.astype(int).tolist()} "
                   f"({pct:.1f}% transparent)")
             total += 1
 
