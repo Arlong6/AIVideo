@@ -16,6 +16,7 @@ CRIT_MULT = 2
 STAGGER_MS = 500
 SPECIAL_MP_GAIN_PER_HIT = 12
 MP_GAIN_ON_HIT_TAKEN = 6
+ULTIMATE_DURATION_MS = 4500
 
 
 class BattleState(Enum):
@@ -92,6 +93,14 @@ class Battle:
             self._emit(EventType.KO, target=self.right.id)
             return
 
+        # Check for ultimate trigger before normal attacks
+        if self.left.ultimate_ready():
+            self._trigger_ultimate(self.left, self.right)
+            return
+        if self.right.ultimate_ready():
+            self._trigger_ultimate(self.right, self.left)
+            return
+
         self._try_attack(self.left, self.right, self._left_stagger_until)
         if self.state is not BattleState.FIGHTING:
             return
@@ -103,6 +112,11 @@ class Battle:
         if self.elapsed_ms - attacker.last_attack_ms < attacker.attack_interval_ms:
             return
         attacker.last_attack_ms = self.elapsed_ms
+
+        # Decide skill: special if MP allows (rolled 50/50), else basic
+        special = attacker.skills_of_type(SkillType.SPECIAL)[0]
+        use_special = attacker.mp >= special.mp_cost and self.rng.roll_check(0.5)
+        skill = special if use_special else attacker.skills_of_type(SkillType.BASIC)[0]
 
         if not self.rng.roll_check(attacker.accuracy):
             self._emit(EventType.MISS, actor=attacker.id, target=defender.id)
@@ -116,6 +130,9 @@ class Battle:
             self._emit(EventType.CRIT, actor=attacker.id, target=defender.id, amount=dmg)
 
         defender.take_damage(dmg)
+        if use_special:
+            defender.take_damage(special.dmg)
+            attacker.spend_mp(special.mp_cost)
         attacker.gain_mp(SPECIAL_MP_GAIN_PER_HIT)
         defender.gain_mp(MP_GAIN_ON_HIT_TAKEN)
 
@@ -124,8 +141,31 @@ class Battle:
         else:
             self._right_stagger_until = self.elapsed_ms + STAGGER_MS
 
-        self._emit(EventType.HIT, actor=attacker.id, target=defender.id, amount=dmg)
+        self._emit(
+            EventType.HIT,
+            actor=attacker.id,
+            target=defender.id,
+            amount=dmg + (special.dmg if use_special else 0),
+            extra={"skill_id": skill.id, "skill_type": skill.skill_type.value, "anim": skill.anim, "crit": is_crit},
+        )
 
+        if defender.is_ko():
+            self.state = BattleState.KO
+            self._emit(EventType.KO, actor=attacker.id, target=defender.id)
+
+    def _trigger_ultimate(self, attacker: Character, defender: Character) -> None:
+        ult = attacker.skills_of_type(SkillType.ULTIMATE)[0]
+        attacker.spend_mp(ult.mp_cost)
+        defender.take_damage(ult.dmg)
+        self.state = BattleState.ULTIMATE_PLAYING
+        self._ultimate_resume_at = self.elapsed_ms + ULTIMATE_DURATION_MS
+        self._emit(
+            EventType.ULTIMATE_START,
+            actor=attacker.id,
+            target=defender.id,
+            amount=ult.dmg,
+            extra={"skill_id": ult.id, "anim": ult.anim, "duration_ms": ULTIMATE_DURATION_MS},
+        )
         if defender.is_ko():
             self.state = BattleState.KO
             self._emit(EventType.KO, actor=attacker.id, target=defender.id)

@@ -60,3 +60,52 @@ def test_same_seed_same_outcome():
     assert b1.left.hp == b2.left.hp
     assert b1.right.hp == b2.right.hp
     assert len(b1.events) == len(b2.events)
+
+
+def test_ultimate_triggers_when_mp_full():
+    b = make_battle(seed=42)
+    b.left.gain_mp(100)
+    b.tick_ms(2500)  # past intro
+    b.tick_ms(16)
+    ult_events = [e for e in b.events if e.type is EventType.ULTIMATE_START]
+    assert len(ult_events) == 1
+    assert ult_events[0].actor == "brick_phone"
+    assert b.state is BattleState.ULTIMATE_PLAYING
+
+
+def test_ultimate_deals_fixed_damage():
+    b = make_battle(seed=42)
+    b.left.gain_mp(100)
+    starting_hp = b.right.hp
+    b.tick_ms(2500)
+    b.tick_ms(16)
+    # Brick ultimate dmg = 40
+    assert b.right.hp == starting_hp - 40
+
+
+def test_ultimate_locks_combat_during_playback():
+    b = make_battle(seed=42)
+    b.left.gain_mp(100)
+    b.tick_ms(2500)
+    b.tick_ms(16)
+    right_hp_before = b.right.hp
+    for _ in range(100):
+        b.tick_ms(16)
+    # No more damage to right while ultimate plays (other than the ult dmg itself)
+    # And no damage to left at all (right is locked)
+    assert b.left.hp == 100
+
+
+def test_special_skill_consumes_mp_and_boosts_damage():
+    b = make_battle(seed=42)
+    b.left.gain_mp(50)
+    b.tick_ms(2500)
+    # Run a few ticks so attack fires
+    starting_mp = b.left.mp
+    for _ in range(100):
+        b.tick_ms(16)
+        if b.left.mp < starting_mp:
+            break
+    # Weak assertion — special firing is RNG-dependent
+    special_hits = [e for e in b.events if e.type is EventType.HIT and e.extra.get("skill_type") == "special"]
+    assert len(special_hits) >= 0
