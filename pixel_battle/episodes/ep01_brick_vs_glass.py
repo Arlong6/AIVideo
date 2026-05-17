@@ -83,7 +83,7 @@ def main():
         new_events = battle.events[prev_event_count:]
 
         for ev in new_events:
-            if ev.type in (EventType.HIT, EventType.CRIT, EventType.ULTIMATE_START, EventType.KO):
+            if ev.type in (EventType.HIT, EventType.ULTIMATE_START, EventType.KO):
                 active_captions.append((_caption_text_for_event(ev), _caption_style_for_event(ev), frame_no))
 
         if battle.state is BattleState.ULTIMATE_PLAYING:

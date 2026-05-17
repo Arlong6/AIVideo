@@ -2,6 +2,8 @@
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List
 
+import math
+
 import pygame
 
 from pixel_battle.engine.character import Character
@@ -106,7 +108,6 @@ def _glass_force_update_painter(surface, frame: int, attacker: Character, defend
             pygame.draw.rect(surface, (200, 200, 220), (panel_x + 40, by, panel_w - 80, 12), border_radius=4)
         sp_cx, sp_cy = WIDTH // 2, panel_y + panel_h - 80
         ang = (frame * 12) % 360
-        import math
         ex = sp_cx + int(20 * math.cos(math.radians(ang)))
         ey = sp_cy + int(20 * math.sin(math.radians(ang)))
         pygame.draw.line(surface, (60, 200, 255), (sp_cx, sp_cy), (ex, ey), 4)

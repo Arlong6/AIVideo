@@ -44,5 +44,7 @@ class FrameRecorder:
         if self._proc is None:
             return
         self._proc.stdin.close()
-        self._proc.wait(timeout=30)
+        rc = self._proc.wait(timeout=30)
         self._proc = None
+        if rc != 0:
+            raise RuntimeError(f"ffmpeg encoding failed (exit code {rc})")
