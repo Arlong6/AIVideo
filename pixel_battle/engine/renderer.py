@@ -124,7 +124,7 @@ class Renderer:
         self.surface.blit(self._arena_bg, (0, 0))
         self._draw_bars(left, x=PAD, top=PAD)
         self._draw_bars(right, x=WIDTH - PAD - self._bar_width(), top=PAD)
-        char_y = HORIZON_Y - 60  # feet at horizon, character extends up
+        char_y = HORIZON_Y - 120  # feet at horizon, character extends up (~half of new ~320px char height)
         self._draw_sprite_char(left, WIDTH // 4, char_y, left_anim, anim_frame, facing_right=True)
         self._draw_sprite_char(right, WIDTH * 3 // 4, char_y, right_anim, anim_frame, facing_right=False)
 

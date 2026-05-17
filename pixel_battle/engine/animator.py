@@ -9,7 +9,17 @@ from typing import Dict, List, Tuple
 import pygame
 
 
-def _add_outline(sprite: pygame.Surface, color=(255, 255, 255), thickness: int = 2) -> pygame.Surface:
+def _binarize_alpha(sprite: pygame.Surface, threshold: int = 128) -> pygame.Surface:
+    """Make alpha purely 0 or 255 — eliminates semi-transparent edge speckle."""
+    result = sprite.copy()
+    pa = pygame.surfarray.pixels_alpha(result)
+    pa[pa >= threshold] = 255
+    pa[pa < threshold] = 0
+    del pa
+    return result
+
+
+def _add_outline(sprite: pygame.Surface, color=(0, 0, 0), thickness: int = 3) -> pygame.Surface:
     """Paint a solid-color outline by blitting a colored silhouette at offset positions."""
     w, h = sprite.get_size()
     out_w = w + thickness * 2
@@ -22,7 +32,7 @@ def _add_outline(sprite: pygame.Surface, color=(255, 255, 255), thickness: int =
     pr = pygame.surfarray.pixels_red(silhouette)
     pg = pygame.surfarray.pixels_green(silhouette)
     pb = pygame.surfarray.pixels_blue(silhouette)
-    mask = pa > 30  # threshold to ignore very faint alpha
+    mask = pa > 128  # conservative threshold — only fully-opaque parts contribute
     pr[mask] = color[0]
     pg[mask] = color[1]
     pb[mask] = color[2]
@@ -64,7 +74,7 @@ CLIP_DEFINITIONS: Dict[AnimClip, List[Tuple[str, int]]] = {
 class CharacterSprites:
     """Loads all *_alpha.png keyframes for a character and serves scaled surfaces."""
 
-    def __init__(self, char_id: str, target_height: int = 220):
+    def __init__(self, char_id: str, target_height: int = 320):
         self._frames: Dict[str, pygame.Surface] = {}
         char_dir = SPRITES_DIR / char_id
         for pose_path in sorted(char_dir.glob("*_alpha.png")):
@@ -79,7 +89,8 @@ class CharacterSprites:
             scale = target_height / h
             new_w = max(1, int(w * scale))
             scaled = pygame.transform.smoothscale(img, (new_w, target_height))
-            self._frames[pose] = _add_outline(scaled, color=(255, 255, 255), thickness=2)
+            scaled = _binarize_alpha(scaled, threshold=128)
+            self._frames[pose] = _add_outline(scaled, color=(0, 0, 0), thickness=3)
 
     def get_pose(self, pose_name: str) -> pygame.Surface:
         """Return the surface for ``pose_name``; falls back to idle if unknown."""
