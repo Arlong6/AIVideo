@@ -32,3 +32,26 @@ def test_cinematic_events_at_correct_frames():
     assert any(60 <= f <= 100 for f in event_frames)
     types = [e.type for e in spec.events]
     assert "caption" in types
+
+
+def test_force_update_cinematic_registered():
+    assert "force_update" in CINEMATICS
+    spec = CINEMATICS["force_update"]
+    assert spec.total_frames == 180
+
+
+def test_force_update_has_flash_event():
+    spec = CINEMATICS["force_update"]
+    types = [e.type for e in spec.events]
+    assert "flash" in types
+
+
+def test_force_update_painter_runs():
+    import pygame
+    from pixel_battle.engine.renderer import Renderer
+    from pixel_battle.engine.character import Character
+    r = Renderer()
+    left = Character.load("brick_phone")
+    right = Character.load("glass_slab")
+    for f in range(180):
+        play_cinematic_frame(r.surface, "force_update", f, attacker=right, defender=left)

@@ -75,6 +75,47 @@ def _draw_block(surface, char: Character, center_x: int, center_y: int, w: int, 
     pygame.draw.rect(surface, char.accent_color, (x + 12, y + 20, sw, sh), border_radius=4)
 
 
+def _draw_block_color(surface, color, center_x: int, center_y: int, w: int, h: int) -> None:
+    x = center_x - w // 2
+    y = center_y - h // 2
+    pygame.draw.rect(surface, color, (x, y, w, h), border_radius=10)
+
+
+def _glass_force_update_painter(surface, frame: int, attacker: Character, defender: Character) -> None:
+    """0-30: glass charges up; 30-50: white flash; 50-130: lock screen overlay; 130-180: defender frozen."""
+    surface.fill((10, 10, 18))
+
+    if frame < 30:
+        glow = min(255, 150 + frame * 3)
+        glow_color = (glow // 2, glow, 255)
+        _draw_block_color(surface, glow_color, int(WIDTH * 0.75), HEIGHT // 2, CHAR_W, CHAR_H)
+        _draw_block(surface, defender, int(WIDTH * 0.25), HEIGHT // 2, CHAR_W, CHAR_H)
+    elif frame < 50:
+        progress = (frame - 30) / 20
+        alpha = int(255 * (1 - progress))
+        surface.fill((255, 255, 255))
+        if progress > 0.5:
+            _draw_block(surface, attacker, int(WIDTH * 0.75), HEIGHT // 2, CHAR_W, CHAR_H)
+    elif frame < 130:
+        _draw_block(surface, attacker, int(WIDTH * 0.75), HEIGHT // 2, CHAR_W, CHAR_H)
+        panel_x, panel_y, panel_w, panel_h = 30, HEIGHT // 4, WIDTH - 60, HEIGHT // 2
+        pygame.draw.rect(surface, (15, 15, 25), (panel_x, panel_y, panel_w, panel_h), border_radius=20)
+        pygame.draw.rect(surface, (60, 130, 255), (panel_x, panel_y, panel_w, panel_h), width=3, border_radius=20)
+        for i in range(3):
+            by = panel_y + 60 + i * 50
+            pygame.draw.rect(surface, (200, 200, 220), (panel_x + 40, by, panel_w - 80, 12), border_radius=4)
+        sp_cx, sp_cy = WIDTH // 2, panel_y + panel_h - 80
+        ang = (frame * 12) % 360
+        import math
+        ex = sp_cx + int(20 * math.cos(math.radians(ang)))
+        ey = sp_cy + int(20 * math.sin(math.radians(ang)))
+        pygame.draw.line(surface, (60, 200, 255), (sp_cx, sp_cy), (ex, ey), 4)
+    else:
+        _draw_block(surface, attacker, int(WIDTH * 0.75), HEIGHT // 2, CHAR_W, CHAR_H)
+        gray_def_color = (90, 90, 100)
+        _draw_block_color(surface, gray_def_color, int(WIDTH * 0.25), HEIGHT // 2, CHAR_W, CHAR_H)
+
+
 CINEMATICS: Dict[str, CinematicSpec] = {
     "indestructible_throw": CinematicSpec(
         name="indestructible_throw",
@@ -88,6 +129,18 @@ CINEMATICS: Dict[str, CinematicSpec] = {
         painter=_brick_throw_painter,
     ),
 }
+
+CINEMATICS["force_update"] = CinematicSpec(
+    name="force_update",
+    total_frames=180,
+    events=[
+        CinematicEvent(frame=20, type="caption", payload={"text": "SYSTEM ALERT"}),
+        CinematicEvent(frame=35, type="flash", payload={"intensity": 255}),
+        CinematicEvent(frame=60, type="caption", payload={"text": "FORCE UPDATE"}),
+        CinematicEvent(frame=130, type="caption", payload={"text": "DEVICE LOCKED"}),
+    ],
+    painter=_glass_force_update_painter,
+)
 
 
 def play_cinematic_frame(surface, name: str, frame: int, attacker: Character, defender: Character) -> None:
