@@ -5,11 +5,11 @@
     "accent_color": [80, 200, 80],
     "attack_interval_ms": 1200,
     "accuracy": 0.80,
-    "damage": [4, 7],
+    "damage": [2, 3],
     "skills": [
       {"id": "headbutt", "type": "basic", "anim": "attack"},
-      {"id": "snake_strike", "type": "special", "mp_cost": 30, "dmg": 15, "anim": "snake_strike"},
-      {"id": "indestructible_throw", "type": "ultimate", "mp_cost": 100, "dmg": 40, "anim": "indestructible_throw"}
+      {"id": "snake_strike", "type": "special", "mp_cost": 30, "dmg": 8, "anim": "snake_strike"},
+      {"id": "indestructible_throw", "type": "ultimate", "mp_cost": 100, "dmg": 25, "anim": "indestructible_throw"}
     ]
   },
   "glass_slab": {
@@ -18,11 +18,11 @@
     "accent_color": [50, 130, 255],
     "attack_interval_ms": 900,
     "accuracy": 0.75,
-    "damage": [3, 6],
+    "damage": [2, 3],
     "skills": [
       {"id": "swipe", "type": "basic", "anim": "attack"},
-      {"id": "ringtone_shock", "type": "special", "mp_cost": 30, "dmg": 14, "anim": "ringtone_shock"},
-      {"id": "force_update", "type": "ultimate", "mp_cost": 100, "dmg": 38, "anim": "force_update"}
+      {"id": "ringtone_shock", "type": "special", "mp_cost": 30, "dmg": 7, "anim": "ringtone_shock"},
+      {"id": "force_update", "type": "ultimate", "mp_cost": 100, "dmg": 22, "anim": "force_update"}
     ]
   }
 }

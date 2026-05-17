@@ -79,8 +79,8 @@ def test_ultimate_deals_fixed_damage():
     starting_hp = b.right.hp
     b.tick_ms(2500)
     b.tick_ms(16)
-    # Brick ultimate dmg = 40
-    assert b.right.hp == starting_hp - 40
+    # Brick ultimate dmg = 25 (tuned for ~30s battle pacing)
+    assert b.right.hp == starting_hp - 25
 
 
 def test_ultimate_locks_combat_during_playback():
