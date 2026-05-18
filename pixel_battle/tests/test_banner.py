@@ -38,3 +38,11 @@ def test_banner_x_position_lerps_phase_1():
         sys.update_and_render(surface)
     assert sys.active is not None
     assert BannerSystem.X_START < sys.active.x < BannerSystem.X_END
+
+
+def test_banner_new_constants():
+    """P3 banner upgrade: bigger font, longer life."""
+    assert BannerSystem.FONT_SIZE == 64
+    assert BannerSystem.LIFETIME_FRAMES == 42
+    assert BannerSystem.SLIDE_IN_FRAMES == 8
+    assert BannerSystem.FADE_OUT_START == 30

@@ -18,13 +18,13 @@ class Banner:
 
 
 class BannerSystem:
-    LIFETIME_FRAMES = 36       # ~0.6s at 60fps
-    SLIDE_IN_FRAMES = 10
-    FADE_OUT_START = 26
+    LIFETIME_FRAMES = 42       # ~0.7s at 60fps
+    SLIDE_IN_FRAMES = 8
+    FADE_OUT_START = 30
     X_START = -200
     X_END = 240                # screen center (480 / 2)
     Y_CENTER = 270
-    FONT_SIZE = 48
+    FONT_SIZE = 64
 
     def __init__(self):
         self.active: Optional[Banner] = None
@@ -69,8 +69,14 @@ class BannerSystem:
         font = self._get_font()
         img = font.render(b.text, True, b.color)
         shadow = font.render(b.text, True, (0, 0, 0))
+        outline = font.render(b.text, True, (255, 255, 255))
         img.set_alpha(alpha)
         shadow.set_alpha(alpha)
+        outline.set_alpha(alpha)
         rect = img.get_rect(center=(int(b.x), self.Y_CENTER))
+        # Drop shadow (offset +3)
         surface.blit(shadow, (rect.x + 3, rect.y + 3))
+        # White outline (4 offset positions, drawn under main text)
+        for dx, dy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
+            surface.blit(outline, (rect.x + dx, rect.y + dy))
         surface.blit(img, rect)
