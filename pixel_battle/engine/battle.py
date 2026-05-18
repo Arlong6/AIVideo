@@ -356,14 +356,17 @@ class Battle:
             char.retreat_until_ms = self.elapsed_ms + RETREAT_DURATION_MS
             return
 
-        if distance > MELEE_RANGE * 0.8:
-            # Close the distance
+        if distance > MELEE_RANGE * 0.95:
+            # Approach — too far to fight
             self._start_walk(char, char.facing)
             # Small jump chance while approaching
             if char.on_ground and self.rng.roll_check(AI_JUMP_APPROACH_PROB):
                 self._start_jump(char)
+        elif distance < MELEE_RANGE * 0.55 and not at_wall:
+            # Too close — back off slightly so attacks/effects are visible
+            self._start_walk(char, -char.facing)
         else:
-            # In range — mixed tactics
+            # Kill zone (0.55–0.95 * MELEE_RANGE) — mixed tactics
             roll = self.rng.uniform()
             if roll < AI_ATTACK_IN_RANGE_PROB:
                 # Try to attack
