@@ -42,3 +42,31 @@ def test_ultimate_skill():
 def test_unknown_skill_type_raises():
     with pytest.raises(ValueError):
         Skill.from_dict({"id": "x", "type": "nonsense", "anim": "a"})
+
+
+def test_cooldown_skill_type():
+    s = Skill.from_dict({
+        "id": "screw_dart", "type": "cooldown", "anim": "screw_dart",
+        "cooldown_ms": 4000, "dmg": 5, "range": "special",
+    })
+    assert s.skill_type is SkillType.COOLDOWN
+    assert s.cooldown_ms == 4000
+    assert s.range == "special"
+    assert s.stagger_ms == 0
+    assert s.mp_cost == 0
+
+
+def test_skill_defaults_for_new_fields():
+    """Existing skill dicts without new fields still load with defaults."""
+    s = Skill.from_dict({"id": "headbutt", "type": "basic", "anim": "attack"})
+    assert s.cooldown_ms == 0
+    assert s.range == "melee"
+    assert s.stagger_ms == 0
+
+
+def test_skill_stagger_ms():
+    s = Skill.from_dict({
+        "id": "shard_scatter", "type": "cooldown", "anim": "shard_scatter",
+        "cooldown_ms": 4000, "dmg": 4, "range": "special", "stagger_ms": 500,
+    })
+    assert s.stagger_ms == 500
