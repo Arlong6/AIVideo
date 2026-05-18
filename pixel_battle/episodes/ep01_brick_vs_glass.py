@@ -17,6 +17,13 @@ from pixel_battle.video.compose import build_audio_track, mux_audio_video
 from pixel_battle.video.recorder import FrameRecorder
 
 
+_HIT_COLOR_BY_SKILL_TYPE = {
+    "basic":    (220, 220, 180),   # white-yellow
+    "cooldown": ( 80, 180, 255),   # cyan
+    "special":  (255, 140,  40),   # orange
+}
+
+
 def _result_pop_scale(frame: int, peak_frame: int = 8) -> float:
     """Scale animation: 0 → 1.3 → 1.0."""
     if frame < 0:
@@ -228,6 +235,7 @@ def main():
     # Battle.__init__ calls reset_physics on both characters
     battle = Battle(left=left, right=right, rng=rng)
     renderer = Renderer()
+    renderer.set_hud(left, right)
 
     raw_video = OUT_DIR / "battle_raw.mp4"
     audio_out = OUT_DIR / "audio.wav"
@@ -282,18 +290,40 @@ def main():
                     style = _caption_style_for_event(ev)
                     text = _caption_text_for_event(ev)
                     active_captions.append((text, style, frame_no, None))
-            # Screen shake + particles + hit-stop
+            # Screen shake + particles + hit-stop + HUD record
             if ev.type is EventType.HIT:
                 # Use world position: mid-character height
                 target_x = int(target_char.pos_x)
                 target_y = int(target_char.pos_y) - 80
-                renderer.particles.emit_hit_burst(target_x, target_y)
+                st = ev.extra.get("skill_type", "basic")
+                color = _HIT_COLOR_BY_SKILL_TYPE.get(st, (220, 220, 180))
+                count = 10 + int(ev.amount)
+                speed = 6.0 + ev.amount * 0.2
+                renderer.particles.emit_hit_burst(target_x, target_y,
+                                                   color=color,
+                                                   count=count, speed=speed)
+                # Per-skill hit-stop
                 if ev.extra.get("crit"):
                     renderer.add_shake(8.0)
+                    renderer.request_hit_stop(4)
+                elif st == "special":
+                    renderer.add_shake(5.0)
                     renderer.request_hit_stop(3)
+                elif st == "cooldown":
+                    renderer.add_shake(4.0)
+                    renderer.request_hit_stop(2)
                 else:
                     renderer.add_shake(3.0)
                 renderer.add_char_flash(ev.target, 1.0)
+                # Record into HUD (popup + DPS)
+                renderer.hud.record_hit(
+                    actor_id=ev.actor,
+                    dmg=ev.amount,
+                    is_crit=bool(ev.extra.get("crit")),
+                    target_x=target_x,
+                    target_y=target_y,
+                    t_ms=battle.elapsed_ms,
+                )
             elif ev.type is EventType.ULTIMATE_START:
                 renderer.add_shake(12.0)
                 target_x = int(target_char.pos_x)
@@ -323,7 +353,8 @@ def main():
             cinematic_frame_idx = 0.0
             la = _animation_for_actor(left)
             ra = _animation_for_actor(right)
-            renderer.render_frame(left, right, la, ra, anim_frame=frame_no % 8)
+            renderer.render_frame(left, right, la, ra, anim_frame=frame_no % 8,
+                                   elapsed_ms=battle.elapsed_ms)
 
         active_captions = [
             (txt, sty, start, pos) for (txt, sty, start, pos) in active_captions
@@ -337,7 +368,7 @@ def main():
 
     # Hold final 30 frames
     for hold_frame in range(30):
-        renderer.render_frame(left, right, _animation_for_actor(left), _animation_for_actor(right), anim_frame=hold_frame)
+        renderer.render_frame(left, right, _animation_for_actor(left), _animation_for_actor(right), anim_frame=hold_frame, elapsed_ms=battle.elapsed_ms)
         active_captions = [(txt, sty, start, pos) for (txt, sty, start, pos) in active_captions if frame_no - start < 45]
         for (txt, sty, start, pos) in active_captions:
             draw_caption(renderer.surface, txt, sty, frame_in_anim=frame_no - start, pos=pos)
