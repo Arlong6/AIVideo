@@ -263,6 +263,7 @@ def main():
 
     cinematic_frame_idx = 0.0
     active_captions = []  # list of (text, style, started_frame, pos|None)
+    event_video_ms = {}  # id(event) -> video_ms (P4 audio sync correction)
 
     frame_no = 0
 
@@ -288,6 +289,8 @@ def main():
         new_events = battle.events[prev_event_count:]
 
         for ev in new_events:
+            # P4 audio sync: record video-frame time of this event
+            event_video_ms[id(ev)] = frame_no * TICK_MS
             # Resolve target character object for position-based effects
             target_char = left if ev.target == left.id else right
 
@@ -312,10 +315,23 @@ def main():
                 actor = left if ev.actor == left.id else right
                 st = ev.extra.get("skill_type", "basic") if ev.extra else "basic"
                 color = _HIT_COLOR_BY_SKILL_TYPE.get(st, (220, 220, 180))
-                renderer.charge_fx.spawn(x=int(actor.pos_x),
-                                          y=int(actor.pos_y),
-                                          color=color)
-                continue  # nothing else for this event type
+                actor_x_int = int(actor.pos_x)
+                actor_y_int = int(actor.pos_y)
+
+                def _release_callback(rx=actor_x_int, ry=actor_y_int - 80,
+                                       c=color):
+                    renderer.impact_fx.spawn_release_flash(rx, ry, c)
+                    renderer.particles.emit_hit_burst(rx, ry, color=c,
+                                                       count=8, speed=8.0)
+                    # Reset zoom when charge finishes
+                    renderer.set_zoom(1.0, (WIDTH // 2, HEIGHT // 2))
+
+                renderer.charge_fx.spawn(x=actor_x_int, y=actor_y_int,
+                                          color=color,
+                                          on_complete=_release_callback)
+                # Zoom in slightly on attacker during windup
+                renderer.set_zoom(1.04, (actor_x_int, actor_y_int - 80))
+                continue
 
             if ev.type is EventType.HIT:
                 target_x = int(target_char.pos_x)
@@ -486,10 +502,17 @@ def main():
 
     total_ms = (INTRO_FRAMES * TICK_MS) + battle.elapsed_ms + (30 * TICK_MS) + (180 * TICK_MS)
     intro_offset_ms = INTRO_FRAMES * TICK_MS
+    # P4: audio sync uses recorded video-time per event when available
+    # (events processed during cinematics / hit-stop have video time > battle time)
+    # Adjust map values by intro_offset_ms so they line up with audio timeline
+    audio_event_video_ms = {
+        ev_id: ms + intro_offset_ms for ev_id, ms in event_video_ms.items()
+    }
     build_audio_track(battle.events,
                       total_duration_ms=total_ms,
                       output_path=str(audio_out),
-                      event_offset_ms=intro_offset_ms)
+                      event_offset_ms=intro_offset_ms,
+                      event_video_ms=audio_event_video_ms)
     mux_audio_video(str(raw_video), str(audio_out), str(final_mp4))
 
     with open(OUT_DIR / "battle_events.json", "w") as f:
