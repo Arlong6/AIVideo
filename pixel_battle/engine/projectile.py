@@ -27,9 +27,21 @@ class Projectile:
     _landed_fired: bool = False
 
 
+@dataclass
+class TrailParticle:
+    x: float
+    y: float
+    color: Tuple[int, int, int]
+    age: int = 0
+    lifetime: int = 8
+
+
 class ProjectileSystem:
+    TRAIL_SPAWN_EVERY_N_FRAMES = 2
+
     def __init__(self):
         self.projectiles: List[Projectile] = []
+        self.trails: List[TrailParticle] = []
 
     def spawn(self,
               x_start: float, y_start: float,
@@ -61,10 +73,28 @@ class ProjectileSystem:
             t = p.age / p.lifetime
             p.x = p.x_start + (p.x_end - p.x_start) * t
             p.y = p.y_start + (p.y_end - p.y_start) * t
+            # Spawn a trail particle at current position every N frames
+            if (p.age - 1) % self.TRAIL_SPAWN_EVERY_N_FRAMES == 0:
+                self.trails.append(TrailParticle(x=p.x, y=p.y, color=p.color))
             survivors.append(p)
         self.projectiles = survivors
 
+        # Age + drop trail particles
+        trail_survivors: List[TrailParticle] = []
+        for t in self.trails:
+            t.age += 1
+            if t.age < t.lifetime:
+                trail_survivors.append(t)
+        self.trails = trail_survivors
+
     def render(self, surface: pygame.Surface) -> None:
+        # Draw trails first (below projectiles)
+        for t in self.trails:
+            alpha = max(0, int(180 * (1.0 - t.age / t.lifetime)))
+            radius = max(1, 4 - t.age // 2)
+            tmp = pygame.Surface((radius * 2 + 2, radius * 2 + 2), pygame.SRCALPHA)
+            pygame.draw.circle(tmp, (*t.color, alpha), (radius + 1, radius + 1), radius)
+            surface.blit(tmp, (int(t.x - radius), int(t.y - radius)))
         for p in self.projectiles:
             if p.shape == "screw":
                 self._draw_screw(surface, p)
