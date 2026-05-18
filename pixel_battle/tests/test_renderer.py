@@ -214,3 +214,34 @@ def test_jump_tilt_signs_with_velocity():
     assert rising * falling < 0
     assert abs(rising) == 8.0
     assert abs(falling) == 8.0
+
+
+def test_renderer_default_zoom_is_one():
+    pygame.init()
+    r = Renderer()
+    assert r._zoom_factor == 1.0
+
+
+def test_set_zoom_updates_factor_and_center():
+    pygame.init()
+    r = Renderer()
+    r.set_zoom(1.04, (200, 400))
+    assert r._zoom_factor == 1.04
+    assert r._zoom_center == (200, 400)
+
+
+def test_render_frame_with_zoom_does_not_crash():
+    pygame.init()
+    left = Character.load("brick_phone")
+    right = Character.load("glass_slab")
+    left.reset_physics(initial_x=120, facing=1)
+    right.reset_physics(initial_x=360, facing=-1)
+    r = Renderer()
+    r.set_hud(left, right)
+    r.set_zoom(1.04, (200, 400))
+    r.render_frame(left, right, AnimationState.IDLE, AnimationState.IDLE,
+                    anim_frame=0, elapsed_ms=1000)
+    # Reset zoom and re-render
+    r.set_zoom(1.0, (240, 427))
+    r.render_frame(left, right, AnimationState.IDLE, AnimationState.IDLE,
+                    anim_frame=0, elapsed_ms=1000)

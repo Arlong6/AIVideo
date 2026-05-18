@@ -197,6 +197,9 @@ class Renderer:
         # Impact FX (expanding rings + screen flash on big hits)
         from pixel_battle.engine.impact_fx import ImpactFXSystem
         self.impact_fx = ImpactFXSystem()
+        # Camera zoom state (P4) — 1.0 = no zoom, > 1 = zoomed in on _zoom_center
+        self._zoom_factor: float = 1.0
+        self._zoom_center: tuple = (WIDTH // 2, HEIGHT // 2)
         # Hit-stop: freeze frame count
         self.hit_stop_frames = 0
         # HUD overlay installed via set_hud() after Renderer is constructed,
@@ -252,6 +255,31 @@ class Renderer:
     def set_hud(self, left: "Character", right: "Character") -> None:
         from pixel_battle.engine.hud import HUDOverlay
         self.hud = HUDOverlay(left, right)
+
+    def set_zoom(self, factor: float, center: tuple) -> None:
+        """Set camera zoom factor and center for the next render_frame call(s).
+        Pass factor=1.0 to reset."""
+        self._zoom_factor = factor
+        self._zoom_center = center
+
+    def _apply_zoom(self) -> None:
+        """Scale the surface around _zoom_center by _zoom_factor.
+        Done in-place: scales up, crops to original dimensions centered on zoom point.
+        """
+        if self._zoom_factor == 1.0:
+            return
+        w, h = self.surface.get_size()
+        zoom = self._zoom_factor
+        cx, cy = self._zoom_center
+        scaled = pygame.transform.smoothscale(self.surface,
+                                               (max(1, int(w * zoom)),
+                                                max(1, int(h * zoom))))
+        crop_x = max(0, min(int(cx * zoom - w / 2),
+                            scaled.get_width() - w))
+        crop_y = max(0, min(int(cy * zoom - h / 2),
+                            scaled.get_height() - h))
+        self.surface.fill((0, 0, 0))
+        self.surface.blit(scaled, (-crop_x, -crop_y))
 
     # ------------------------------------------------------------------ #
     # Public render methods                                                 #
@@ -381,6 +409,8 @@ class Renderer:
             self.hud.render(self.surface, left, right, elapsed_ms)
         # Skill-name banners on top of HUD
         self.banners.update_and_render(self.surface)
+        # Camera zoom (applied before screen shake)
+        self._apply_zoom()
         # Apply screen shake last (after all content is drawn)
         self._apply_shake()
 
