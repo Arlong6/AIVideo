@@ -42,6 +42,7 @@ AI_JUMP_APPROACH_PROB = 0.03      # chance to jump while closing distance
 RETREAT_DURATION_MS = 800           # max consecutive ms in retreat before forced re-evaluate
 WALL_STUCK_PX = 30                  # distance from arena edge that counts as stuck
 DEFENSIVE_RETREAT_HP = 15           # HP below which defensive retreat may trigger
+MIN_CHAR_DISTANCE = 70              # px; min horizontal distance between character centers
 
 
 class BattleState(Enum):
@@ -125,6 +126,9 @@ class Battle:
         self._update_physics(self.left, dt_ms)
         self._update_physics(self.right, dt_ms)
 
+        # Resolve character collision (no overlap)
+        self._resolve_character_collision()
+
         # Update attack phase state machines
         self._update_attack_phase(self.left, self.right, dt_ms)
         if self.state is not BattleState.FIGHTING:
@@ -178,6 +182,21 @@ class Battle:
 
         # Ensure facing is updated relative to opponent
         # (done during _ai_choose_action instead, to avoid import cycle)
+
+    def _resolve_character_collision(self) -> None:
+        """Push both characters apart if they're closer than MIN_CHAR_DISTANCE.
+        Each takes half of the correction so the midpoint is preserved.
+        """
+        dx = abs(self.left.pos_x - self.right.pos_x)
+        if dx >= MIN_CHAR_DISTANCE:
+            return
+        push = (MIN_CHAR_DISTANCE - dx) / 2.0
+        if self.left.pos_x < self.right.pos_x:
+            self.left.pos_x = clamp_x(self.left.pos_x - push)
+            self.right.pos_x = clamp_x(self.right.pos_x + push)
+        else:
+            self.left.pos_x = clamp_x(self.left.pos_x + push)
+            self.right.pos_x = clamp_x(self.right.pos_x - push)
 
     def _update_stagger(self, char: Character, dt_ms: int) -> None:
         if char.action_state == "hit_stagger":
