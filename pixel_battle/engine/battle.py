@@ -24,7 +24,7 @@ CRIT_MULT = 2
 STAGGER_MS = 300
 SPECIAL_MP_GAIN_PER_HIT = 12
 MP_GAIN_ON_HIT_TAKEN = 6
-ULTIMATE_DURATION_MS = 4500
+ULTIMATE_DURATION_MS = 6500  # gives cinematic ~6s + 0.5s buffer
 
 # Attack phase timing (ms)
 ATTACK_WINDUP_MS = 200
@@ -344,10 +344,14 @@ class Battle:
         if char.action_state == "attacking":
             return  # already mid-attack
         specials = char.skills_of_type(SkillType.SPECIAL)
-        use_special = (specials and
-                       char.mp >= specials[0].mp_cost and
-                       self.rng.roll_check(0.5))
-        skill = specials[0] if use_special else char.skills_of_type(SkillType.BASIC)[0]
+        # Filter to specials the character can afford
+        affordable = [s for s in specials if char.mp >= s.mp_cost]
+        use_special = bool(affordable) and self.rng.roll_check(0.5)
+        if use_special:
+            special = affordable[self.rng.randint(0, len(affordable) - 1)]
+        else:
+            special = None
+        skill = special if use_special else char.skills_of_type(SkillType.BASIC)[0]
         char.attack_used_kind = skill
         char.attack_phase = "windup"
         char.attack_phase_t = 0

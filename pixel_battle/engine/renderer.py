@@ -25,24 +25,74 @@ from pixel_battle.engine.physics import GROUND_Y as HORIZON_Y  # noqa: E402
 
 
 def _build_arena_bg(width: int, height: int) -> pygame.Surface:
-    """Vertical gradient sky + ground plane. Built once at Renderer init."""
+    """Procedural arena: gradient sky + stars + sun + mountains + ground + horizon glow."""
+    import random as _r
+    _r.seed(42)  # deterministic background
     bg = pygame.Surface((width, height))
-    # Sky: deep navy at top → warm purple at horizon
+
+    # Sky gradient: deep navy at top → warm purple at horizon
     for y in range(HORIZON_Y):
         t = y / HORIZON_Y
-        r = int(15 + (95 - 15) * t)
-        g = int(18 + (45 - 18) * t)
-        b = int(40 + (90 - 40) * t)
+        r = int(12 + (110 - 12) * t)
+        g = int(15 + (55 - 15) * t)
+        b = int(40 + (110 - 40) * t)
         pygame.draw.line(bg, (r, g, b), (0, y), (width, y))
+
+    # Stars — scattered in upper third of sky
+    for _ in range(60):
+        sx = _r.randint(0, width)
+        sy = _r.randint(0, HORIZON_Y // 2)
+        brightness = _r.randint(180, 255)
+        size = _r.choice([1, 1, 1, 2])
+        pygame.draw.circle(bg, (brightness, brightness, brightness), (sx, sy), size)
+
+    # Sun/moon — large soft disc in upper-right sky
+    sun_cx, sun_cy = int(width * 0.78), int(HORIZON_Y * 0.30)
+    sun_r = 28
+    # Halo glow
+    for radius_off in range(20, 0, -4):
+        glow_alpha = max(0, 60 - radius_off * 2)
+        glow = pygame.Surface((sun_r * 2 + radius_off * 2,) * 2, pygame.SRCALPHA)
+        pygame.draw.circle(glow, (255, 220, 180, glow_alpha),
+                           (sun_r + radius_off, sun_r + radius_off), sun_r + radius_off)
+        bg.blit(glow, (sun_cx - sun_r - radius_off, sun_cy - sun_r - radius_off),
+                special_flags=pygame.BLEND_ADD)
+    pygame.draw.circle(bg, (255, 230, 200), (sun_cx, sun_cy), sun_r)
+    pygame.draw.circle(bg, (255, 245, 230), (sun_cx - 6, sun_cy - 8), sun_r - 14)
+
+    # Distant mountain silhouette — chain of triangles
+    mountain_base = HORIZON_Y - 5
+    mountain_color = (45, 30, 60)
+    peaks = [(0, mountain_base - 20), (60, mountain_base - 60),
+             (120, mountain_base - 30), (180, mountain_base - 80),
+             (240, mountain_base - 40), (300, mountain_base - 70),
+             (370, mountain_base - 30), (430, mountain_base - 55),
+             (width, mountain_base - 20)]
+    polygon = peaks + [(width, mountain_base), (0, mountain_base)]
+    pygame.draw.polygon(bg, mountain_color, polygon)
+
     # Ground: brown-orange at horizon → darker at bottom
     for y in range(HORIZON_Y, height):
         t = (y - HORIZON_Y) / max(1, height - HORIZON_Y)
-        r = int(80 - 30 * t)
-        g = int(50 - 25 * t)
-        b = int(40 - 25 * t)
+        r = int(85 - 35 * t)
+        g = int(52 - 27 * t)
+        b = int(42 - 27 * t)
         pygame.draw.line(bg, (r, g, b), (0, y), (width, y))
-    # Horizon line accent
-    pygame.draw.line(bg, (180, 100, 60), (0, HORIZON_Y), (width, HORIZON_Y), 2)
+
+    # Ground tile-grid texture — faint horizontal + vertical lines
+    grid_color = (50, 30, 30)
+    for y in range(HORIZON_Y + 20, height, 28):
+        pygame.draw.line(bg, grid_color, (0, y), (width, y), 1)
+    for x in range(0, width, 60):
+        for y in range(HORIZON_Y, height, 14):
+            pygame.draw.line(bg, grid_color, (x + (y % 2) * 30, y),
+                             (x + 4 + (y % 2) * 30, y), 1)
+
+    # Horizon glow — thick orange line + faint glow above and below
+    pygame.draw.line(bg, (200, 110, 70), (0, HORIZON_Y), (width, HORIZON_Y), 3)
+    pygame.draw.line(bg, (160, 90, 60), (0, HORIZON_Y - 2), (width, HORIZON_Y - 2), 1)
+    pygame.draw.line(bg, (140, 70, 50), (0, HORIZON_Y + 4), (width, HORIZON_Y + 4), 1)
+
     return bg
 HP_BAR_BG = (60, 60, 60)
 HP_BAR_FG = (200, 50, 50)

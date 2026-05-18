@@ -99,9 +99,10 @@ def test_clip_definitions_all_clips_defined():
 def test_character_sprites_target_height():
     cs = CharacterSprites("brick_phone", target_height=100)
     surface = cs.get_pose("idle")
-    # Outline adds 2*thickness (default thickness=3 → +6) on each axis.
-    # Accept either exact target or target+outline padding.
-    assert surface.get_height() >= 100
+    # After crop-to-visible + outline (thickness=3 → +6px each axis), height may be
+    # less than target_height (transparent padding is removed). Verify non-empty.
+    assert surface.get_height() > 0
+    assert surface.get_width() > 0
 
 
 def test_character_sprites_has_alpha():

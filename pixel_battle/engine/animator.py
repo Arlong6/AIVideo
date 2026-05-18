@@ -9,6 +9,25 @@ from typing import Dict, List, Tuple
 import pygame
 
 
+def _crop_to_visible(sprite: pygame.Surface) -> pygame.Surface:
+    """Crop sprite to bounding box of non-transparent pixels."""
+    import numpy as np
+    arr = pygame.surfarray.array_alpha(sprite)  # shape (W, H)
+    cols_with_pixels = np.any(arr > 0, axis=1)  # (W,)
+    rows_with_pixels = np.any(arr > 0, axis=0)  # (H,)
+    if not cols_with_pixels.any() or not rows_with_pixels.any():
+        return sprite  # all transparent — return as-is
+    left = int(cols_with_pixels.argmax())
+    right = int(len(cols_with_pixels) - 1 - cols_with_pixels[::-1].argmax())
+    top = int(rows_with_pixels.argmax())
+    bottom = int(len(rows_with_pixels) - 1 - rows_with_pixels[::-1].argmax())
+    new_w = right - left + 1
+    new_h = bottom - top + 1
+    cropped = pygame.Surface((new_w, new_h), pygame.SRCALPHA)
+    cropped.blit(sprite, (-left, -top))
+    return cropped
+
+
 def _binarize_alpha(sprite: pygame.Surface, threshold: int = 128) -> pygame.Surface:
     """Make alpha purely 0 or 255 — eliminates semi-transparent edge speckle."""
     result = sprite.copy()
@@ -94,6 +113,7 @@ class CharacterSprites:
             new_w = max(1, int(w * scale))
             scaled = pygame.transform.smoothscale(img, (new_w, target_height))
             scaled = _binarize_alpha(scaled, threshold=128)
+            scaled = _crop_to_visible(scaled)     # feet to bottom of sprite
             self._frames[pose] = _add_outline(scaled, color=(0, 0, 0), thickness=3)
 
     def get_pose(self, pose_name: str) -> pygame.Surface:

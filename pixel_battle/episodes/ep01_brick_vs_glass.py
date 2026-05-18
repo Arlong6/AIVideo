@@ -236,7 +236,7 @@ def main():
     recorder = FrameRecorder(str(raw_video), fps=FPS, width=WIDTH, height=HEIGHT)
     recorder.start()
 
-    cinematic_frame_idx = 0
+    cinematic_frame_idx = 0.0
     active_captions = []  # list of (text, style, started_frame, pos|None)
 
     frame_no = 0
@@ -315,11 +315,12 @@ def main():
                 anim_name = ult_event.extra.get("anim", "indestructible_throw")
                 attacker = left if ult_event.actor == left.id else right
                 defender = right if attacker is left else left
-                play_cinematic_frame(renderer.surface, anim_name, cinematic_frame_idx,
+                play_cinematic_frame(renderer.surface, anim_name,
+                                     int(cinematic_frame_idx),
                                      attacker=attacker, defender=defender)
-                cinematic_frame_idx += 1
+                cinematic_frame_idx += 0.5  # half-speed — ~6s cinematic
         else:
-            cinematic_frame_idx = 0
+            cinematic_frame_idx = 0.0
             la = _animation_for_actor(left)
             ra = _animation_for_actor(right)
             renderer.render_frame(left, right, la, ra, anim_frame=frame_no % 8)

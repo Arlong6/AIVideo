@@ -9,6 +9,7 @@
     "skills": [
       {"id": "headbutt", "type": "basic", "anim": "attack"},
       {"id": "snake_strike", "type": "special", "mp_cost": 30, "dmg": 8, "anim": "snake_strike"},
+      {"id": "ringtone_blast", "type": "special", "mp_cost": 25, "dmg": 6, "anim": "ringtone_blast"},
       {"id": "indestructible_throw", "type": "ultimate", "mp_cost": 100, "dmg": 25, "anim": "indestructible_throw"}
     ]
   },
@@ -22,6 +23,7 @@
     "skills": [
       {"id": "swipe", "type": "basic", "anim": "attack"},
       {"id": "ringtone_shock", "type": "special", "mp_cost": 30, "dmg": 7, "anim": "ringtone_shock"},
+      {"id": "ad_popup_spam", "type": "special", "mp_cost": 25, "dmg": 6, "anim": "ad_popup_spam"},
       {"id": "force_update", "type": "ultimate", "mp_cost": 100, "dmg": 22, "anim": "force_update"}
     ]
   }
