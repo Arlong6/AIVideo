@@ -146,6 +146,12 @@ class Renderer:
         # Particle system
         from pixel_battle.engine.particles import ParticleSystem
         self.particles = ParticleSystem()
+        # Projectile system (flying screws/shards for CD skills)
+        from pixel_battle.engine.projectile import ProjectileSystem
+        self.projectiles = ProjectileSystem()
+        # Banner system (skill-name flash for CD/special/ultimate hits)
+        from pixel_battle.engine.banner import BannerSystem
+        self.banners = BannerSystem()
         # Hit-stop: freeze frame count
         self.hit_stop_frames = 0
         # HUD overlay installed via set_hud() after Renderer is constructed,
@@ -318,9 +324,14 @@ class Renderer:
                                facing_right=(right.facing == 1))
         self.particles.update()
         self.particles.render(self.surface)
+        # Projectiles (rendered above particles, below HUD)
+        self.projectiles.update()
+        self.projectiles.render(self.surface)
         # HUD overlay (skill icons, DPS, damage popups, MP charge ring)
         if self.hud is not None:
             self.hud.render(self.surface, left, right, elapsed_ms)
+        # Skill-name banners on top of HUD
+        self.banners.update_and_render(self.surface)
         # Apply screen shake last (after all content is drawn)
         self._apply_shake()
 

@@ -107,3 +107,30 @@ def test_walk_bob_offset_oscillates():
     # Amplitude bounded
     assert max(offsets) <= 3
     assert min(offsets) >= -3
+
+
+def test_renderer_has_projectiles_and_banners_after_init():
+    pygame.init()
+    r = Renderer()
+    assert r.projectiles is not None
+    assert r.banners is not None
+
+
+def test_render_frame_processes_projectiles_and_banners():
+    """A projectile spawned before render_frame should be aged + rendered."""
+    pygame.init()
+    left = Character.load("brick_phone")
+    right = Character.load("glass_slab")
+    left.reset_physics(initial_x=120, facing=1)
+    right.reset_physics(initial_x=360, facing=-1)
+    r = Renderer()
+    r.set_hud(left, right)
+    r.projectiles.spawn(x_start=120, y_start=400, x_end=360, y_end=400,
+                         shape="screw", color=(80, 180, 255), lifetime=4)
+    r.banners.spawn("TEST", (255, 255, 255))
+    starting_age_p = r.projectiles.projectiles[0].age
+    starting_age_b = r.banners.active.age
+    r.render_frame(left, right, AnimationState.IDLE, AnimationState.IDLE,
+                    anim_frame=0, elapsed_ms=1000)
+    assert r.projectiles.projectiles[0].age > starting_age_p
+    assert r.banners.active.age > starting_age_b
