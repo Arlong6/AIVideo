@@ -9,6 +9,13 @@ import math
 import pygame
 
 
+def _motion_line_alpha(line_index: int, eff_age: int) -> int:
+    """Alpha for the motion line at given index and effect age.
+    Closer lines (lower index) are brighter; alpha decays as effect ages.
+    """
+    return max(0, 200 - line_index * 50 - eff_age * 8)
+
+
 @dataclass
 class ChargeEffect:
     x: float                       # attacker world x
@@ -51,6 +58,17 @@ class ChargeFXSystem:
                     eff.on_complete()
                     eff._completed = True
                 continue
+
+            # Motion lines (drawn before sparkles, "behind" the attacker)
+            for i in range(4):
+                line_alpha = _motion_line_alpha(i, eff.age)
+                if line_alpha <= 0:
+                    continue
+                offset_x = -40 - (i * 8) + eff.age * 2   # pull in toward attacker
+                offset_y = -50 - i * 20
+                line_surface = pygame.Surface((16, 2), pygame.SRCALPHA)
+                line_surface.fill((*eff.color, line_alpha))
+                surface.blit(line_surface, (int(eff.x + offset_x), int(eff.y + offset_y)))
 
             radius = self._current_orbit_radius(eff)
             alpha = int(255 * (eff.age / eff.lifetime))  # brighter as it converges

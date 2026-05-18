@@ -54,3 +54,23 @@ def test_on_complete_fires_once_at_lifetime():
     for _ in range(ChargeEffect.LIFETIME_DEFAULT + 2):
         sys.update_and_render(surface)
     assert fired == [True]
+
+
+def test_motion_lines_render_does_not_crash():
+    """Motion lines drawn during charge — smoke test."""
+    pygame.init()
+    surface = pygame.Surface((480, 854))
+    sys = ChargeFXSystem()
+    sys.spawn(x=200, y=400, color=(80, 180, 255))
+    for _ in range(6):
+        sys.update_and_render(surface)
+    assert len(sys.effects) == 1
+
+
+def test_motion_lines_alpha_decreases_with_index():
+    """Lower indexed motion lines (closer to attacker) have higher alpha than far ones."""
+    from pixel_battle.engine.charge_fx import _motion_line_alpha
+    assert _motion_line_alpha(line_index=0, eff_age=0) > _motion_line_alpha(line_index=3, eff_age=0)
+    for i in range(4):
+        for f in range(15):
+            assert _motion_line_alpha(line_index=i, eff_age=f) >= 0
