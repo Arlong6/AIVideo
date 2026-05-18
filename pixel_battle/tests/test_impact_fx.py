@@ -47,3 +47,14 @@ def test_screen_flash_replaces_with_newer_request():
     assert sys._flash_color == (0, 255, 0)
     assert sys._flash_alpha == 120
     assert sys._flash_frames_remaining == 6
+
+
+def test_spawn_release_flash_creates_short_lived_big_ring():
+    """spawn_release_flash adds a ring with bigger max_radius and shorter lifetime than default."""
+    sys = ImpactFXSystem()
+    sys.spawn_release_flash(x=240, y=400, color=(80, 180, 255))
+    assert len(sys.rings) == 1
+    r = sys.rings[0]
+    assert r.max_radius == 80   # bigger than default 60
+    assert r.lifetime == 3      # shorter than default 8
+    assert r.color == (80, 180, 255)

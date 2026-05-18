@@ -31,6 +31,14 @@ class ImpactFXSystem:
                    color: Tuple[int, int, int]) -> None:
         self.rings.append(ImpactRing(x=x, y=y, color=color))
 
+    def spawn_release_flash(self, x: float, y: float,
+                            color: Tuple[int, int, int]) -> None:
+        """Bigger, shorter ring used at skill release (vs hit landing)."""
+        self.rings.append(ImpactRing(
+            x=x, y=y, color=color,
+            lifetime=3, max_radius=80,
+        ))
+
     def request_screen_flash(self, color: Tuple[int, int, int],
                               alpha: int = 80,
                               frames: int = 4) -> None:
