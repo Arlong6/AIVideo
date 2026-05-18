@@ -109,3 +109,68 @@ def test_special_skill_consumes_mp_and_boosts_damage():
     # Weak assertion — special firing is RNG-dependent
     special_hits = [e for e in b.events if e.type is EventType.HIT and e.extra.get("skill_type") == "special"]
     assert len(special_hits) >= 0
+
+
+def test_attack_misses_when_out_of_range():
+    """Force character into attack while opponent is far — should emit MISS."""
+    from pixel_battle.engine.physics import ARENA_LEFT, ARENA_RIGHT
+    a = Character.load("brick_phone")
+    b = Character.load("glass_slab")
+    a.reset_physics(initial_x=ARENA_LEFT, facing=1)
+    b.reset_physics(initial_x=ARENA_RIGHT, facing=-1)
+    battle = Battle(left=a, right=b, rng=BattleRNG(42))
+    # Bypass intro
+    battle.tick_ms(2500)
+    # Re-place characters at opposite ends so they're out of range
+    a.pos_x = ARENA_LEFT
+    b.pos_x = ARENA_RIGHT
+    # Force attack
+    battle._start_attack(a, b)
+    # Tick through windup -> active
+    for _ in range(50):
+        battle.tick_ms(16)
+    miss_events = [e for e in battle.events if e.type is EventType.MISS]
+    # At least one miss event from the out-of-range attack
+    assert len(miss_events) >= 1
+
+
+def test_walk_action_moves_character():
+    a = Character.load("brick_phone")
+    b = Character.load("glass_slab")
+    a.reset_physics(initial_x=100, facing=1)
+    b.reset_physics(initial_x=400, facing=-1)
+    battle = Battle(left=a, right=b, rng=BattleRNG(99))
+    # Override positions after Battle.__init__ places them
+    a.pos_x = 100
+    b.pos_x = 400
+    battle.tick_ms(2500)
+    start_x = a.pos_x
+    # Let AI run for 1 second
+    for _ in range(60):
+        battle.tick_ms(16)
+    # Brick should have moved toward Glass (right)
+    assert a.pos_x > start_x
+
+
+def test_jump_with_gravity():
+    from pixel_battle.engine.physics import GROUND_Y
+    a = Character.load("brick_phone")
+    b = Character.load("glass_slab")
+    battle = Battle(left=a, right=b, rng=BattleRNG(1))
+    battle.tick_ms(2500)
+    # Move b far away so no KO risk while we test jump physics
+    b.pos_x = 400
+    b.hp = 100
+    battle._start_jump(a)
+    # Should be airborne briefly after 5 frames (80ms)
+    for _ in range(5):
+        battle.tick_ms(16)
+    assert a.on_ground is False or a.pos_y < GROUND_Y
+    # Should land within ~60 frames (1s); check that landing happens at some point
+    landed = False
+    for _ in range(60):
+        battle.tick_ms(16)
+        if a.on_ground and a.pos_y >= GROUND_Y - 1:
+            landed = True
+            break
+    assert landed, f"Character never landed; on_ground={a.on_ground}, pos_y={a.pos_y}"
