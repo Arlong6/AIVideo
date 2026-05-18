@@ -60,6 +60,12 @@ def build_audio_track(events: List[Event], total_duration_ms: int, output_path: 
         if ev.type is EventType.HIT:
             sfx = _load_sfx("crit") if ev.extra.get("crit") else _load_sfx("hit")
             track = track.overlay(sfx, position=pos)
+        elif ev.type is EventType.ATTACK_WINDUP:
+            st = ev.extra.get("skill_type", "") if ev.extra else ""
+            cast_name = f"cast_{st}"  # cast_cooldown / cast_special
+            cast_sfx = _load_sfx_or_none(cast_name)
+            if cast_sfx:
+                track = track.overlay(cast_sfx, position=pos)
         elif ev.type is EventType.CRIT:
             track = track.overlay(_load_sfx("crit"), position=pos)
         elif ev.type is EventType.ULTIMATE_START:
