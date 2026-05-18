@@ -5121,7 +5121,7 @@
         },
         {
           "date": "2026-05-18",
-          "views": 222,
+          "views": 224,
           "likes": 0,
           "comments": 2
         }
@@ -9237,7 +9237,7 @@
         },
         {
           "date": "2026-05-18",
-          "views": 232,
+          "views": 233,
           "likes": 5,
           "comments": 1
         }
@@ -10379,7 +10379,7 @@
         },
         {
           "date": "2026-05-18",
-          "views": 256,
+          "views": 259,
           "likes": 1,
           "comments": 1
         }
@@ -10407,7 +10407,7 @@
         },
         {
           "date": "2026-05-18",
-          "views": 5,
+          "views": 6,
           "likes": 0,
           "comments": 1
         }
@@ -10429,7 +10429,7 @@
         },
         {
           "date": "2026-05-18",
-          "views": 1,
+          "views": 4,
           "likes": 0,
           "comments": 1
         }
@@ -10451,6 +10451,22 @@
         }
       ],
       "series_tag": "default"
+    },
+    {
+      "video_id": "5V3T6KFq-4c",
+      "topic": "日本座間九人殺害事件：震驚全球的「推特殺手」如何誘殺受害者並分屍",
+      "slot": 1,
+      "duration_s": 76,
+      "publish_at": "2026-05-19T10:00:00+08:00",
+      "uploaded_at": "2026-05-18T20:07:53.124384+00:00",
+      "stats": [
+        {
+          "date": "2026-05-18",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
