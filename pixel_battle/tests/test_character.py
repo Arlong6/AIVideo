@@ -10,7 +10,7 @@ def test_load_brick_phone():
     assert c.hp == 100
     assert c.mp == 0
     assert c.mp_max == 100
-    assert len(c.skills) == 4
+    assert len(c.skills) == 5
 
 
 def test_load_glass_slab():
