@@ -27,11 +27,16 @@ def _load_sfx_or_none(name: str):
 
 
 def build_audio_track(events: List[Event], total_duration_ms: int, output_path: str,
-                      event_offset_ms: int = 0) -> None:
+                      event_offset_ms: int = 0,
+                      event_video_ms: dict | None = None) -> None:
     """Render BGM + SFX into a single wav matching total_duration_ms.
 
     event_offset_ms: time offset in audio at which battle starts.
-                     Add to each event's t_ms when overlaying SFX.
+                     Add to each event's t_ms when overlaying SFX (default path).
+    event_video_ms:  optional {id(event): video_ms} map. When provided and
+                     id(event) is in the map, use that value instead of
+                     ev.t_ms + event_offset_ms. Used to correct for hit-stop
+                     accumulation that pushes video behind battle-time.
     """
     track = AudioSegment.silent(duration=total_duration_ms)
 
@@ -44,8 +49,12 @@ def build_audio_track(events: List[Event], total_duration_ms: int, output_path: 
         track = track.overlay(bgm_full)
 
     for ev in events:
-        # Shift event position by intro offset so SFX aligns with video frame
-        pos = ev.t_ms + event_offset_ms
+        # Position: use event_video_ms[id(ev)] if provided (P4 sync correction),
+        # else fall back to ev.t_ms + event_offset_ms
+        if event_video_ms is not None and id(ev) in event_video_ms:
+            pos = event_video_ms[id(ev)]
+        else:
+            pos = ev.t_ms + event_offset_ms
         if pos >= total_duration_ms:
             continue  # off-end, skip
         if ev.type is EventType.HIT:
