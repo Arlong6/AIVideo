@@ -53,6 +53,7 @@ class BattleState(Enum):
 
 class EventType(Enum):
     INTRO = "intro"
+    ATTACK_WINDUP = "attack_windup"
     HIT = "hit"
     MISS = "miss"
     CRIT = "crit"
@@ -401,6 +402,14 @@ class Battle:
         char.attack_phase_t = 0
         char.action_state = "attacking"
         char.vel_x = 0.0  # plant feet during attack
+        # Emit windup event for non-basic skills so the renderer can show charge FX
+        if skill.skill_type in (SkillType.COOLDOWN, SkillType.SPECIAL):
+            self._emit(
+                EventType.ATTACK_WINDUP,
+                actor=char.id,
+                extra={"skill_id": skill.id,
+                       "skill_type": skill.skill_type.value},
+            )
 
     def _choose_attack_skill(self, char: Character) -> Skill:
         """Priority: CD-skill (off-cd, 70%) > affordable special (40%) > basic."""
