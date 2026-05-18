@@ -55,6 +55,8 @@ def test_cd_skill_hit_sets_ready_at():
     a.attack_phase_t = 0
     a.action_state = "attacking"
     a.accuracy = 1.0  # guarantee hit
+    # P5: stun defender so pushback doesn't displace attacker out of range
+    b.windup_stun_until_ms = bat.elapsed_ms + 5000
     # Tick through windup -> active (windup is 200ms)
     for _ in range(20):
         bat.tick_ms(16)
@@ -75,6 +77,8 @@ def test_cd_skill_connects_at_special_range():
     a.attack_phase_t = 0
     a.action_state = "attacking"
     a.accuracy = 1.0
+    # P5: stun defender so pushback doesn't displace attacker out of range
+    b.windup_stun_until_ms = bat.elapsed_ms + 5000
     starting_hp = b.hp
     for _ in range(20):
         bat.tick_ms(16)
@@ -98,6 +102,8 @@ def test_cd_skill_uses_custom_stagger_ms():
     a.attack_phase_t = 0
     a.action_state = "attacking"
     a.accuracy = 1.0
+    # P5: stun defender so pushback doesn't displace attacker out of range
+    b.windup_stun_until_ms = bat.elapsed_ms + 5000
     for _ in range(20):
         bat.tick_ms(16)
         if b.action_state == "hit_stagger":
