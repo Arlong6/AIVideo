@@ -247,3 +247,69 @@ class MPChargeRing:
             pygame.draw.circle(halo, (200, 230, 255, 200), (10, 10), 5)
             pygame.draw.circle(halo, (255, 255, 255, 255), (10, 10), 2)
             surface.blit(halo, (sx - 10, sy - 10))
+
+
+# ---------------------------------------------------------------------------
+# HUDOverlay — composes skill icons / DPS / damage popups / MP charge ring
+# ---------------------------------------------------------------------------
+
+
+class HUDOverlay:
+    """Composes the four HUD sub-layers.
+
+    Layout (renders in this order):
+      1. MP charge ring (around each character if MP full)
+      2. Damage popups (above defender's head)
+      3. Skill icon bars + DPS at screen bottom corners
+    """
+
+    BOTTOM_BAR_Y = 780  # 480x854 surface; bottom 74px reserved for HUD
+    SIDE_PAD = 12
+
+    def __init__(self, left: Character, right: Character):
+        self.left_id = left.id
+        self.right_id = right.id
+        self.icons_left = SkillIconBar(left)
+        self.icons_right = SkillIconBar(right)
+        self.dps_left = DPSCounter()
+        self.dps_right = DPSCounter()
+        self.popups = DamagePopupLayer()
+        self.charge_ring = MPChargeRing()
+
+    def record_hit(self, actor_id: str, dmg: int, is_crit: bool,
+                    target_x: int, target_y: int, t_ms: int) -> None:
+        if actor_id == self.left_id:
+            self.dps_left.record_hit(dmg, t_ms)
+        elif actor_id == self.right_id:
+            self.dps_right.record_hit(dmg, t_ms)
+        self.popups.spawn(target_x, target_y, dmg, is_crit)
+
+    def render(self, surface: pygame.Surface,
+               left: Character, right: Character, t_ms: int) -> None:
+        # 1. MP charge rings around each char's world position
+        self.charge_ring.render(surface, left,
+                                 int(left.pos_x), int(left.pos_y), t_ms)
+        self.charge_ring.render(surface, right,
+                                 int(right.pos_x), int(right.pos_y), t_ms)
+        # 2. Damage popups
+        self.popups.update_and_render(surface)
+        # 3. Bottom bar — icons + DPS
+        self.icons_left.render(surface, x=self.SIDE_PAD,
+                                y=self.BOTTOM_BAR_Y, now_ms=t_ms)
+        self.dps_left.render(
+            surface,
+            x=self.SIDE_PAD,
+            y=self.BOTTOM_BAR_Y + SkillIconBar.ICON_SIZE + 6,
+            now_ms=t_ms,
+        )
+        right_bar_w = self.icons_right.num_slots * SkillIconBar.ICON_SIZE + \
+                      (self.icons_right.num_slots - 1) * SkillIconBar.ICON_GAP
+        right_x = surface.get_width() - self.SIDE_PAD - right_bar_w
+        self.icons_right.render(surface, x=right_x,
+                                 y=self.BOTTOM_BAR_Y, now_ms=t_ms)
+        self.dps_right.render(
+            surface,
+            x=right_x,
+            y=self.BOTTOM_BAR_Y + SkillIconBar.ICON_SIZE + 6,
+            now_ms=t_ms,
+        )

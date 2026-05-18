@@ -118,3 +118,34 @@ def test_mp_charge_ring_renders_when_mp_full():
     # When mp not full, render should no-op (no error)
     c.mp = 50
     ring.render(surface, c, char_x=120, char_y=500, t_ms=2000)
+
+
+from pixel_battle.engine.hud import HUDOverlay
+
+
+def test_hud_overlay_smoke():
+    """HUDOverlay composes all sub-renderers without crashing."""
+    pygame.init()
+    surface = pygame.Surface((480, 854))
+    left = Character.load("brick_phone")
+    left.reset_physics(initial_x=120, facing=1)
+    right = Character.load("glass_slab")
+    right.reset_physics(initial_x=360, facing=-1)
+    hud = HUDOverlay(left, right)
+    hud.record_hit(actor_id="brick_phone", dmg=8, is_crit=False,
+                    target_x=360, target_y=400, t_ms=1500)
+    hud.render(surface, left, right, t_ms=2000)
+    # No assert needed beyond "no exceptions"
+
+
+def test_hud_overlay_routes_record_hit_by_actor():
+    """record_hit appends to the correct character's DPS counter."""
+    left = Character.load("brick_phone")
+    left.reset_physics(initial_x=120, facing=1)
+    right = Character.load("glass_slab")
+    right.reset_physics(initial_x=360, facing=-1)
+    hud = HUDOverlay(left, right)
+    hud.record_hit(actor_id="brick_phone", dmg=10, is_crit=False,
+                    target_x=360, target_y=400, t_ms=1000)
+    assert hud.dps_left.current_dps(now_ms=1100) > 0.0
+    assert hud.dps_right.current_dps(now_ms=1100) == 0.0
