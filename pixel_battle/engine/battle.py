@@ -34,10 +34,10 @@ ATTACK_RECOVER_MS = 250
 JUMP_COOLDOWN_MS = 600
 
 # AI tuning
-AI_ATTACK_IN_RANGE_PROB = 0.45    # chance to attack per tick when in range
-AI_JUMP_IN_RANGE_PROB = 0.15      # chance to jump/dodge per tick when in range
-AI_RETREAT_IN_RANGE_PROB = 0.25   # chance to retreat per tick when in range
-AI_JUMP_APPROACH_PROB = 0.05      # chance to jump while closing distance
+AI_ATTACK_IN_RANGE_PROB = 0.72    # chance to attack per tick when in range
+AI_JUMP_IN_RANGE_PROB = 0.10      # chance to jump/dodge per tick when in range
+AI_RETREAT_IN_RANGE_PROB = 0.05   # rare retreat to break clinch
+AI_JUMP_APPROACH_PROB = 0.03      # chance to jump while closing distance
 
 
 class BattleState(Enum):
@@ -290,8 +290,8 @@ class Battle:
 
         distance = abs(char.pos_x - opp.pos_x)
 
-        # Strategic retreat: MP near full and opponent close → space out to fire ult safely
-        if char.mp >= char.mp_max * 0.7 and distance < MELEE_RANGE * 1.5:
+        # Strategic retreat: MP near full and opponent very close → brief space-out safely
+        if char.mp >= char.mp_max * 0.92 and distance < MELEE_RANGE * 0.9:
             self._start_retreat(char, opp)
             return
 
