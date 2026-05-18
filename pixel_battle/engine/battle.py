@@ -272,6 +272,10 @@ class Battle:
 
         attacker.last_attack_ms = self.elapsed_ms
 
+        # Punch recoil — attacker gets a small backward velocity reading as reaction force
+        recoil_dir = -1 if attacker.pos_x < defender.pos_x else 1
+        attacker.vel_x = recoil_dir * 1.5
+
         self._emit(
             EventType.HIT,
             actor=attacker.id,

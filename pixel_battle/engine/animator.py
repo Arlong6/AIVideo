@@ -86,7 +86,7 @@ CLIP_DEFINITIONS: Dict[AnimClip, List[Tuple[str, int]]] = {
     AnimClip.IDLE: [("idle", 24)],  # static, 0.4s at 60fps — just bobs in render_frame
     AnimClip.WALK: [("idle", 24)],          # reuse idle sprite; motion is shown via position
     AnimClip.JUMP: [("ultimate_pose", 30)], # outstretched pose — looks like a jump pose
-    AnimClip.ATTACK: [("attack_windup", 6), ("attack_strike", 6), ("attack_recover", 6)],
+    AnimClip.ATTACK: [("attack_windup", 8), ("attack_strike", 4), ("attack_recover", 10)],
     AnimClip.HIT: [("hit_recoil", 8), ("idle", 4)],
     AnimClip.KO: [("ko_falling", 10), ("ko_landed", 30)],
     AnimClip.SPECIAL: [("special_charge", 10), ("attack_strike", 6), ("idle", 4)],

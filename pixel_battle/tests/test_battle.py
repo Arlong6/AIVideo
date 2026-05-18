@@ -200,3 +200,30 @@ def test_jump_with_gravity():
             landed = True
             break
     assert landed, f"Character never landed; on_ground={a.on_ground}, pos_y={a.pos_y}"
+
+
+def test_attacker_recoils_after_landing_hit():
+    """After a hit lands, attacker gets a small backward velocity (punch recoil)."""
+    from pixel_battle.engine.physics import SPECIAL_RANGE
+    from pixel_battle.engine.skill import SkillType
+    a = Character.load("brick_phone")
+    b = Character.load("glass_slab")
+    bat = Battle(left=a, right=b, rng=BattleRNG(seed=42))
+    bat.tick_ms(2500)
+    # Position attacker to the LEFT of defender, in range
+    a.pos_x = 200
+    b.pos_x = 250  # melee-range
+    # Force basic attack
+    basic = a.skills_of_type(SkillType.BASIC)[0]
+    a.attack_used_kind = basic
+    a.attack_phase = "windup"
+    a.attack_phase_t = 0
+    a.action_state = "attacking"
+    a.accuracy = 1.0
+    a.vel_x = 0.0
+    for _ in range(20):
+        bat.tick_ms(16)
+        if b.hp < 100:
+            break
+    # After hitting, a should have a negative vel_x (recoil leftward, away from b which is to the right)
+    assert a.vel_x < 0, f"Expected negative recoil vel_x, got {a.vel_x}"

@@ -19,12 +19,12 @@ def test_resolve_pose_idle_returns_idle():
 
 
 def test_resolve_pose_attack_sequence():
-    # ATTACK = windup(6) + strike(6) + recover(6) = 18 frames
+    # ATTACK = windup(8) + strike(4) + recover(10) = 22 frames
     pose, _ = resolve_pose(AnimClip.ATTACK, 0)
     assert pose == "attack_windup"
-    pose, _ = resolve_pose(AnimClip.ATTACK, 5)
+    pose, _ = resolve_pose(AnimClip.ATTACK, 7)
     assert pose == "attack_windup"
-    pose, _ = resolve_pose(AnimClip.ATTACK, 6)
+    pose, _ = resolve_pose(AnimClip.ATTACK, 8)
     assert pose == "attack_strike"
     pose, _ = resolve_pose(AnimClip.ATTACK, 12)
     assert pose == "attack_recover"
@@ -110,3 +110,10 @@ def test_character_sprites_has_alpha():
     surface = cs.get_pose("idle")
     # Surface should have per-pixel alpha (convert_alpha was called)
     assert surface.get_bitsize() == 32
+
+
+def test_attack_clip_timing_rebalanced():
+    """ATTACK clip should be 8/4/10 split (windup/strike/recover), total 22 frames."""
+    from pixel_battle.engine.animator import AnimClip, CLIP_DEFINITIONS
+    spec = CLIP_DEFINITIONS[AnimClip.ATTACK]
+    assert spec == [("attack_windup", 8), ("attack_strike", 4), ("attack_recover", 10)]
