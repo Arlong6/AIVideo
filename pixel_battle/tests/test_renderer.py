@@ -104,9 +104,9 @@ def test_walk_bob_offset_oscillates():
     offsets = [_walk_bob_offset(f) for f in range(60)]
     assert max(offsets) > 0
     assert min(offsets) < 0
-    # Amplitude bounded
-    assert max(offsets) <= 3
-    assert min(offsets) >= -3
+    # Amplitude bounded (P3: ±5)
+    assert max(offsets) <= 5
+    assert min(offsets) >= -5
 
 
 def test_renderer_has_projectiles_and_banners_after_init():
@@ -162,3 +162,55 @@ def test_render_frame_advances_charge_and_impact_fx():
     assert r.charge_fx.effects[0].age > starting_age_c
     assert r.impact_fx.rings[0].age > starting_age_r
     assert r.impact_fx._flash_frames_remaining < starting_flash
+
+
+def test_walk_lean_angle_oscillates():
+    """Walk lean should produce a sinusoidal angle (degrees)."""
+    from pixel_battle.engine.renderer import _walk_lean_angle
+    angles = [_walk_lean_angle(f) for f in range(60)]
+    assert max(angles) > 0
+    assert min(angles) < 0
+    assert max(angles) <= 3.0
+    assert min(angles) >= -3.0
+
+
+def test_walk_bob_amplitude_increased_to_5():
+    """P3 bumps bob from ±3 to ±5."""
+    from pixel_battle.engine.renderer import _walk_bob_offset
+    offsets = [_walk_bob_offset(f) for f in range(60)]
+    assert max(offsets) == 5
+    assert min(offsets) == -5
+
+
+def test_attack_scale_peaks_in_strike_phase():
+    """Attack sprite should scale up during strike phase (frames 8-11), peak at ~1.15."""
+    from pixel_battle.engine.renderer import _attack_scale
+    assert _attack_scale(0) == 1.0
+    assert _attack_scale(7) == 1.0
+    assert _attack_scale(8) > 1.0
+    mid = _attack_scale(10)
+    assert 1.05 < mid <= 1.15
+    assert _attack_scale(12) == 1.0
+
+
+def test_hit_squash_scale_in_early_frames():
+    """Hit recoil squash: first 4 frames have horizontal stretch + vertical squash."""
+    from pixel_battle.engine.renderer import _hit_squash_scale
+    sx, sy = _hit_squash_scale(0)
+    assert sx == 1.05
+    assert sy == 0.85
+    sx, sy = _hit_squash_scale(4)
+    assert sx == 1.0
+    assert sy == 1.0
+
+
+def test_jump_tilt_signs_with_velocity():
+    """Jump tilt: rising (vel_y < 0) tilts one way, falling (vel_y >= 0) the other."""
+    from pixel_battle.engine.renderer import _jump_tilt_angle
+    rising = _jump_tilt_angle(vel_y=-10.0, facing=1)
+    falling = _jump_tilt_angle(vel_y=5.0, facing=1)
+    assert rising != 0
+    assert falling != 0
+    assert rising * falling < 0
+    assert abs(rising) == 8.0
+    assert abs(falling) == 8.0

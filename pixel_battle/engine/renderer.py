@@ -97,9 +97,48 @@ def _build_arena_bg(width: int, height: int) -> pygame.Surface:
 
 
 def _walk_bob_offset(anim_frame: int) -> int:
-    """±3 px sinusoidal y offset for walking sprites — reads as a footstep cycle."""
+    """±5 px sinusoidal y offset for walking sprites — reads as a footstep cycle."""
     import math
-    return int(math.sin(anim_frame * 0.6) * 3)
+    # Use round() so peak/trough lands exactly at ±5 instead of int() truncation
+    return int(round(math.sin(anim_frame * 0.6) * 5))
+
+
+def _walk_lean_angle(anim_frame: int) -> float:
+    """±3° body lean for walking sprites; in phase with bob."""
+    import math
+    return math.sin(anim_frame * 0.6) * 3.0
+
+
+def _attack_scale(anim_frame: int) -> float:
+    """Scale-pop during ATTACK strike phase (frames 8..11): triangle 1.0 → 1.15 → 1.0.
+
+    Triangle wave uses half-frame offset so frame 8 (start of strike) is already
+    above 1.0 — avoids the zero-crossing at the boundary.
+    """
+    strike_start = 8
+    strike_len = 4
+    if not (strike_start <= anim_frame < strike_start + strike_len):
+        return 1.0
+    # Half-frame offset → frame 8: t=0.125, frame 9: 0.375, frame 10: 0.625, frame 11: 0.875
+    t = (anim_frame - strike_start + 0.5) / strike_len
+    tri = 1.0 - abs(t * 2 - 1)  # triangle wave 0 → 1 (at t=0.5) → 0
+    return 1.0 + 0.15 * tri
+
+
+def _hit_squash_scale(anim_frame: int):
+    """Vertical squash + horizontal stretch during the first 4 frames of HIT clip."""
+    if anim_frame < 4:
+        return (1.05, 0.85)
+    return (1.0, 1.0)
+
+
+def _jump_tilt_angle(vel_y: float, facing: int) -> float:
+    """±8° sprite tilt during JUMPING. Rising (-y) and falling (+y) tilt opposite directions.
+    facing flips left/right so the lean reads as "into the motion direction".
+    """
+    if vel_y < 0:
+        return -8.0 * facing  # rising — lean forward into rise
+    return 8.0 * facing       # falling — lean back
 HP_BAR_BG = (60, 60, 60)
 HP_BAR_FG = (200, 50, 50)
 MP_BAR_FG = (60, 130, 230)
@@ -368,11 +407,37 @@ class Renderer:
         sprite = sprites.get_pose(pose_name)
         if not facing_right:
             sprite = pygame.transform.flip(sprite, True, False)
-        # Use midbottom: world_y is the feet position, sprite extends upward.
-        # Apply walk-bob for the walking state.
+        # State-specific transforms (P3 fluidity)
         bob = _walk_bob_offset(anim_frame) if anim_state is AnimationState.WALKING else 0
+
+        if anim_state is AnimationState.WALKING:
+            lean = _walk_lean_angle(anim_frame) * (1 if facing_right else -1)
+            sprite = pygame.transform.rotate(sprite, lean)
+        elif anim_state is AnimationState.ATTACK:
+            scale_f = _attack_scale(anim_frame)
+            if scale_f != 1.0:
+                sw = max(1, int(sprite.get_width() * scale_f))
+                sh = max(1, int(sprite.get_height() * scale_f))
+                sprite = pygame.transform.smoothscale(sprite, (sw, sh))
+        elif anim_state is AnimationState.HIT:
+            sx, sy = _hit_squash_scale(anim_frame)
+            if (sx, sy) != (1.0, 1.0):
+                sw = max(1, int(sprite.get_width() * sx))
+                sh = max(1, int(sprite.get_height() * sy))
+                sprite = pygame.transform.smoothscale(sprite, (sw, sh))
+        elif anim_state is AnimationState.JUMPING:
+            tilt = _jump_tilt_angle(char.vel_y, char.facing)
+            sprite = pygame.transform.rotate(sprite, tilt)
+
         rect = sprite.get_rect(midbottom=(world_x, world_y + bob))
         self.surface.blit(sprite, rect)
+
+        # Walking dust step: spawn a brown dust puff every 12 frames
+        if anim_state is AnimationState.WALKING and anim_frame % 12 == 0:
+            self.particles.emit_hit_burst(
+                x=world_x, y=world_y - 4,
+                color=(160, 130, 100), count=2, speed=2.0,
+            )
 
         # White flash overlay — applied after blitting the sprite
         flash = self._char_flash.get(char.id, 0.0)
