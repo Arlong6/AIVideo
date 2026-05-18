@@ -68,3 +68,30 @@ def test_ko_renders_character_in_region():
         if found_non_bg:
             break
     assert found_non_bg, "Expected non-background pixel in right character KO region"
+
+
+def test_renderer_has_hud_after_init():
+    pygame.init()
+    left = Character.load("brick_phone")
+    right = Character.load("glass_slab")
+    left.reset_physics(initial_x=120, facing=1)
+    right.reset_physics(initial_x=360, facing=-1)
+    r = Renderer()
+    r.set_hud(left, right)
+    assert r.hud is not None
+    assert r.hud.left_id == "brick_phone"
+
+
+def test_render_frame_with_hud_smoke():
+    pygame.init()
+    left = Character.load("brick_phone")
+    right = Character.load("glass_slab")
+    left.reset_physics(initial_x=120, facing=1)
+    right.reset_physics(initial_x=360, facing=-1)
+    r = Renderer()
+    r.set_hud(left, right)
+    # record a hit through the HUD then render — should not crash
+    r.hud.record_hit("brick_phone", dmg=7, is_crit=False,
+                      target_x=360, target_y=400, t_ms=1500)
+    r.render_frame(left, right, AnimationState.IDLE, AnimationState.IDLE,
+                    anim_frame=4, elapsed_ms=2000)

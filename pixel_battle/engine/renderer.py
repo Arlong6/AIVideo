@@ -142,6 +142,9 @@ class Renderer:
         self.particles = ParticleSystem()
         # Hit-stop: freeze frame count
         self.hit_stop_frames = 0
+        # HUD overlay installed via set_hud() after Renderer is constructed,
+        # since HUD needs Character references.
+        self.hud = None
 
     def _smooth_value(self, char_id: str, key: str, target: float,
                       rate: float = BAR_LERP_RATE) -> float:
@@ -188,6 +191,10 @@ class Renderer:
 
     def request_hit_stop(self, frames: int) -> None:
         self.hit_stop_frames = max(self.hit_stop_frames, frames)
+
+    def set_hud(self, left: "Character", right: "Character") -> None:
+        from pixel_battle.engine.hud import HUDOverlay
+        self.hud = HUDOverlay(left, right)
 
     # ------------------------------------------------------------------ #
     # Public render methods                                                 #
@@ -272,6 +279,7 @@ class Renderer:
         left_anim: AnimationState,
         right_anim: AnimationState,
         anim_frame: int,
+        elapsed_ms: int = 0,
     ) -> None:
         """Paint a frame with per-character animation state using sprites.
 
@@ -304,6 +312,9 @@ class Renderer:
                                facing_right=(right.facing == 1))
         self.particles.update()
         self.particles.render(self.surface)
+        # HUD overlay (skill icons, DPS, damage popups, MP charge ring)
+        if self.hud is not None:
+            self.hud.render(self.surface, left, right, elapsed_ms)
         # Apply screen shake last (after all content is drawn)
         self._apply_shake()
 
