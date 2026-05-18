@@ -11,6 +11,8 @@ from pixel_battle.engine.character import Character
 
 class AnimationState(Enum):
     IDLE = "idle"
+    WALKING = "walking"   # NEW — character moving
+    JUMPING = "jumping"   # NEW — character airborne
     ATTACK = "attack"
     HIT = "hit"
     KO = "ko"
@@ -18,7 +20,8 @@ class AnimationState(Enum):
 WIDTH = 480
 HEIGHT = 854
 BG_COLOR = (15, 18, 28)
-HORIZON_Y = int(HEIGHT * 0.62)
+# HORIZON_Y is the ground/feet line — import from physics to keep in sync
+from pixel_battle.engine.physics import GROUND_Y as HORIZON_Y  # noqa: E402
 
 
 def _build_arena_bg(width: int, height: int) -> pygame.Surface:
@@ -59,6 +62,8 @@ def _get_clip_map():
         from pixel_battle.engine.animator import AnimClip
         _ANIM_STATE_TO_CLIP = {
             AnimationState.IDLE: AnimClip.IDLE,
+            AnimationState.WALKING: AnimClip.WALK,
+            AnimationState.JUMPING: AnimClip.JUMP,
             AnimationState.ATTACK: AnimClip.ATTACK,
             AnimationState.HIT: AnimClip.HIT,
             AnimationState.KO: AnimClip.KO,
@@ -218,13 +223,35 @@ class Renderer:
         right_anim: AnimationState,
         anim_frame: int,
     ) -> None:
-        """Paint a frame with per-character animation state using sprites."""
+        """Paint a frame with per-character animation state using sprites.
+
+        Uses character world positions (pos_x, pos_y) if set (physics mode),
+        otherwise falls back to fixed lane positions (legacy mode for intro screen).
+        """
         self.surface.blit(self._arena_bg, (0, 0))
         self._draw_bars(left, x=PAD, top=PAD)
         self._draw_bars(right, x=WIDTH - PAD - self._bar_width(), top=PAD)
-        char_y = HORIZON_Y - 120  # feet at horizon, character extends up (~half of new ~320px char height)
-        self._draw_sprite_char(left, WIDTH // 4, char_y, left_anim, anim_frame, facing_right=True)
-        self._draw_sprite_char(right, WIDTH * 3 // 4, char_y, right_anim, anim_frame, facing_right=False)
+
+        # Use world positions if physics has been initialized (pos_x != 0),
+        # else fall back to fixed center positions for backward compatibility.
+        if left.pos_x != 0.0:
+            left_x = int(left.pos_x)
+            left_y = int(left.pos_y)
+        else:
+            left_x = WIDTH // 4
+            left_y = HORIZON_Y
+
+        if right.pos_x != 0.0:
+            right_x = int(right.pos_x)
+            right_y = int(right.pos_y)
+        else:
+            right_x = WIDTH * 3 // 4
+            right_y = HORIZON_Y
+
+        self._draw_sprite_char(left, left_x, left_y, left_anim, anim_frame,
+                               facing_right=(left.facing == 1))
+        self._draw_sprite_char(right, right_x, right_y, right_anim, anim_frame,
+                               facing_right=(right.facing == 1))
         self.particles.update()
         self.particles.render(self.surface)
         # Apply screen shake last (after all content is drawn)
@@ -233,18 +260,19 @@ class Renderer:
     def _draw_sprite_char(
         self,
         char: Character,
-        center_x: int,
-        center_y: int,
+        world_x: int,
+        world_y: int,
         anim_state: AnimationState,
         anim_frame: int,
         facing_right: bool,
     ) -> None:
+        """Draw character sprite with feet positioned at (world_x, world_y)."""
         from pixel_battle.engine.animator import resolve_pose
         clip_map = _get_clip_map()
         clip = clip_map.get(anim_state)
         if clip is None:
-            # Unknown state — draw a fallback rectangle
-            self._draw_character(char, center_x, center_y)
+            # Unknown state — draw a fallback rectangle (center-based for compat)
+            self._draw_character(char, world_x, world_y - CHAR_H // 2)
             return
 
         pose_name, _ = resolve_pose(clip, anim_frame)
@@ -252,7 +280,8 @@ class Renderer:
         sprite = sprites.get_pose(pose_name)
         if not facing_right:
             sprite = pygame.transform.flip(sprite, True, False)
-        rect = sprite.get_rect(center=(center_x, center_y))
+        # Use midbottom: world_y is the feet position, sprite extends upward
+        rect = sprite.get_rect(midbottom=(world_x, world_y))
         self.surface.blit(sprite, rect)
 
         # White flash overlay — applied after blitting the sprite

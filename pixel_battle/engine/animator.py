@@ -53,6 +53,8 @@ SPRITES_DIR = Path(__file__).resolve().parents[1] / "assets" / "sprites"
 
 class AnimClip(Enum):
     IDLE = "idle"
+    WALK = "walk"      # reuses idle sprite
+    JUMP = "jump"      # reuses ultimate_pose (outstretched pose)
     ATTACK = "attack"
     HIT = "hit"
     KO = "ko"
@@ -63,6 +65,8 @@ class AnimClip(Enum):
 # Each clip is a list of (keyframe_name, hold_frames) defining the sequence.
 CLIP_DEFINITIONS: Dict[AnimClip, List[Tuple[str, int]]] = {
     AnimClip.IDLE: [("idle", 24)],  # static, 0.4s at 60fps — just bobs in render_frame
+    AnimClip.WALK: [("idle", 24)],          # reuse idle sprite; motion is shown via position
+    AnimClip.JUMP: [("ultimate_pose", 30)], # outstretched pose — looks like a jump pose
     AnimClip.ATTACK: [("attack_windup", 6), ("attack_strike", 6), ("attack_recover", 6)],
     AnimClip.HIT: [("hit_recoil", 8), ("idle", 4)],
     AnimClip.KO: [("ko_falling", 10), ("ko_landed", 30)],
@@ -74,7 +78,7 @@ CLIP_DEFINITIONS: Dict[AnimClip, List[Tuple[str, int]]] = {
 class CharacterSprites:
     """Loads all *_alpha.png keyframes for a character and serves scaled surfaces."""
 
-    def __init__(self, char_id: str, target_height: int = 320):
+    def __init__(self, char_id: str, target_height: int = 180):
         self._frames: Dict[str, pygame.Surface] = {}
         char_dir = SPRITES_DIR / char_id
         for pose_path in sorted(char_dir.glob("*_alpha.png")):
