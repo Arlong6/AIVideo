@@ -42,6 +42,7 @@ class Character:
     attack_used_kind: object = None
     skill_cd_ready_at: Dict[str, int] = field(default_factory=dict)
     retreat_until_ms: int = 0
+    windup_stun_until_ms: int = 0
 
     @classmethod
     def load(cls, char_id: str) -> "Character":
@@ -77,6 +78,7 @@ class Character:
         self.last_attack_ms = -10000
         self.skill_cd_ready_at = {}
         self.retreat_until_ms = 0
+        self.windup_stun_until_ms = 0
         self.hp = HP_MAX
         self.mp = 0
 
