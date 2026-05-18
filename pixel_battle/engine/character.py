@@ -29,6 +29,17 @@ class Character:
     mp: int = 0
     mp_max: int = MP_MAX
     last_attack_ms: int = -10000
+    # Physics fields — safe defaults so existing tests don't break before reset_physics is called
+    pos_x: float = 0.0
+    pos_y: float = 0.0
+    vel_x: float = 0.0
+    vel_y: float = 0.0
+    on_ground: bool = True
+    facing: int = 1
+    action_state: str = "idle"
+    attack_phase: str = "none"
+    attack_phase_t: int = 0
+    attack_used_kind: object = None
 
     @classmethod
     def load(cls, char_id: str) -> "Character":
@@ -47,6 +58,23 @@ class Character:
             damage_range=tuple(d["damage"]),
             skills=[Skill.from_dict(s) for s in d["skills"]],
         )
+
+    def reset_physics(self, initial_x: float, facing: int) -> None:
+        """Reset to battle-start state. Called by Battle on init."""
+        from pixel_battle.engine.physics import GROUND_Y
+        self.pos_x = initial_x
+        self.pos_y = GROUND_Y
+        self.vel_x = 0.0
+        self.vel_y = 0.0
+        self.on_ground = True
+        self.facing = facing   # 1 = facing right, -1 = facing left
+        self.action_state = "idle"
+        self.attack_phase = "none"
+        self.attack_phase_t = 0
+        self.attack_used_kind = None
+        self.last_attack_ms = -10000
+        self.hp = HP_MAX
+        self.mp = 0
 
     def skills_of_type(self, t: SkillType) -> List[Skill]:
         return [s for s in self.skills if s.skill_type is t]
