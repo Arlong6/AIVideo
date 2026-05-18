@@ -152,6 +152,12 @@ class Renderer:
         # Banner system (skill-name flash for CD/special/ultimate hits)
         from pixel_battle.engine.banner import BannerSystem
         self.banners = BannerSystem()
+        # Charge-up FX (sparkles converging on attacker before CD/special)
+        from pixel_battle.engine.charge_fx import ChargeFXSystem
+        self.charge_fx = ChargeFXSystem()
+        # Impact FX (expanding rings + screen flash on big hits)
+        from pixel_battle.engine.impact_fx import ImpactFXSystem
+        self.impact_fx = ImpactFXSystem()
         # Hit-stop: freeze frame count
         self.hit_stop_frames = 0
         # HUD overlay installed via set_hud() after Renderer is constructed,
@@ -322,11 +328,15 @@ class Renderer:
                                facing_right=(left.facing == 1))
         self._draw_sprite_char(right, right_x, right_y, right_anim, anim_frame,
                                facing_right=(right.facing == 1))
+        # Charge-up FX (drawn between sprites and particles — feels "around" attacker)
+        self.charge_fx.update_and_render(self.surface)
         self.particles.update()
         self.particles.render(self.surface)
         # Projectiles (rendered above particles, below HUD)
         self.projectiles.update()
         self.projectiles.render(self.surface)
+        # Impact rings (above projectiles)
+        self.impact_fx.update_and_render(self.surface)
         # HUD overlay (skill icons, DPS, damage popups, MP charge ring)
         if self.hud is not None:
             self.hud.render(self.surface, left, right, elapsed_ms)

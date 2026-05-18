@@ -134,3 +134,31 @@ def test_render_frame_processes_projectiles_and_banners():
                     anim_frame=0, elapsed_ms=1000)
     assert r.projectiles.projectiles[0].age > starting_age_p
     assert r.banners.active.age > starting_age_b
+
+
+def test_renderer_has_charge_fx_and_impact_fx_after_init():
+    pygame.init()
+    r = Renderer()
+    assert r.charge_fx is not None
+    assert r.impact_fx is not None
+
+
+def test_render_frame_advances_charge_and_impact_fx():
+    pygame.init()
+    left = Character.load("brick_phone")
+    right = Character.load("glass_slab")
+    left.reset_physics(initial_x=120, facing=1)
+    right.reset_physics(initial_x=360, facing=-1)
+    r = Renderer()
+    r.set_hud(left, right)
+    r.charge_fx.spawn(x=120, y=400, color=(80, 180, 255))
+    r.impact_fx.spawn_ring(x=360, y=400, color=(80, 180, 255))
+    r.impact_fx.request_screen_flash(color=(80, 180, 255), alpha=80, frames=4)
+    starting_age_c = r.charge_fx.effects[0].age
+    starting_age_r = r.impact_fx.rings[0].age
+    starting_flash = r.impact_fx._flash_frames_remaining
+    r.render_frame(left, right, AnimationState.IDLE, AnimationState.IDLE,
+                    anim_frame=0, elapsed_ms=1000)
+    assert r.charge_fx.effects[0].age > starting_age_c
+    assert r.impact_fx.rings[0].age > starting_age_r
+    assert r.impact_fx._flash_frames_remaining < starting_flash
