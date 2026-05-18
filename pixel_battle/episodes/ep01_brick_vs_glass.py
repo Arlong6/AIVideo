@@ -308,6 +308,15 @@ def main():
                     text = _caption_text_for_event(ev)
                     active_captions.append((text, style, frame_no, None))
             # Screen shake + particles + hit-stop + HUD record + (CD-skill: projectile)
+            if ev.type is EventType.ATTACK_WINDUP:
+                actor = left if ev.actor == left.id else right
+                st = ev.extra.get("skill_type", "basic") if ev.extra else "basic"
+                color = _HIT_COLOR_BY_SKILL_TYPE.get(st, (220, 220, 180))
+                renderer.charge_fx.spawn(x=int(actor.pos_x),
+                                          y=int(actor.pos_y),
+                                          color=color)
+                continue  # nothing else for this event type
+
             if ev.type is EventType.HIT:
                 target_x = int(target_char.pos_x)
                 target_y = int(target_char.pos_y) - 80
@@ -322,7 +331,7 @@ def main():
 
                 if st == "cooldown":
                     # Deferred particle burst until projectile lands.
-                    count = int((10 + int(ev.amount)) * 1.8)
+                    count = int((10 + int(ev.amount)) * 2.5)
                     speed = (6.0 + ev.amount * 0.2) * 1.3
                     shape = "screw" if skill_id == "screw_dart" else "shard"
 
@@ -331,8 +340,10 @@ def main():
                         renderer.particles.emit_hit_burst(tx, ty,
                                                            color=c,
                                                            count=ct, speed=sp)
+                        renderer.impact_fx.spawn_ring(tx, ty, color=c)
+                        renderer.impact_fx.request_screen_flash(c, alpha=80, frames=4)
                         renderer.add_shake(4.0)
-                        renderer.request_hit_stop(2)
+                        renderer.request_hit_stop(3)
                         renderer.add_char_flash(tgt, 1.0)
 
                     renderer.projectiles.spawn(
@@ -351,9 +362,13 @@ def main():
                     if is_crit:
                         renderer.add_shake(8.0)
                         renderer.request_hit_stop(4)
+                        renderer.impact_fx.spawn_ring(target_x, target_y, color=color)
+                        renderer.impact_fx.request_screen_flash(color, alpha=100, frames=4)
                     elif st == "special":
                         renderer.add_shake(5.0)
                         renderer.request_hit_stop(3)
+                        renderer.impact_fx.spawn_ring(target_x, target_y, color=color)
+                        renderer.impact_fx.request_screen_flash(color, alpha=80, frames=4)
                     else:
                         renderer.add_shake(3.0)
                     renderer.add_char_flash(ev.target, 1.0)
