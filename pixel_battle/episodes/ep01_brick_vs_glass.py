@@ -23,6 +23,23 @@ _HIT_COLOR_BY_SKILL_TYPE = {
     "special":  (255, 140,  40),   # orange
 }
 
+_BANNER_COLOR_BY_SKILL_TYPE = {
+    "cooldown": ( 80, 180, 255),
+    "special":  (255, 140,  40),
+    "ultimate": (255, 220,  80),
+}
+
+_SKILL_BANNER_NAME = {
+    "screw_dart":           "SCREW DART!",
+    "shard_scatter":        "SHARD SCATTER!",
+    "snake_strike":         "SNAKE STRIKE!",
+    "ringtone_blast":       "RINGTONE BLAST!",
+    "ringtone_shock":       "RINGTONE SHOCK!",
+    "ad_popup_spam":        "AD POPUP SPAM!",
+    "indestructible_throw": "INDESTRUCTIBLE THROW!",
+    "force_update":         "FORCE UPDATE!",
+}
+
 
 def _result_pop_scale(frame: int, peak_frame: int = 8) -> float:
     """Scale animation: 0 → 1.3 → 1.0."""
@@ -290,36 +307,68 @@ def main():
                     style = _caption_style_for_event(ev)
                     text = _caption_text_for_event(ev)
                     active_captions.append((text, style, frame_no, None))
-            # Screen shake + particles + hit-stop + HUD record
+            # Screen shake + particles + hit-stop + HUD record + (CD-skill: projectile)
             if ev.type is EventType.HIT:
-                # Use world position: mid-character height
                 target_x = int(target_char.pos_x)
                 target_y = int(target_char.pos_y) - 80
+                actor_char = left if ev.actor == left.id else right
+                attacker_x = int(actor_char.pos_x)
+                attacker_y = int(actor_char.pos_y) - 80
+
                 st = ev.extra.get("skill_type", "basic")
+                skill_id = ev.extra.get("skill_id", "")
+                is_crit = bool(ev.extra.get("crit"))
                 color = _HIT_COLOR_BY_SKILL_TYPE.get(st, (220, 220, 180))
-                count = 10 + int(ev.amount)
-                speed = 6.0 + ev.amount * 0.2
-                renderer.particles.emit_hit_burst(target_x, target_y,
-                                                   color=color,
-                                                   count=count, speed=speed)
-                # Per-skill hit-stop
-                if ev.extra.get("crit"):
-                    renderer.add_shake(8.0)
-                    renderer.request_hit_stop(4)
-                elif st == "special":
-                    renderer.add_shake(5.0)
-                    renderer.request_hit_stop(3)
-                elif st == "cooldown":
-                    renderer.add_shake(4.0)
-                    renderer.request_hit_stop(2)
+
+                if st == "cooldown":
+                    # Deferred particle burst until projectile lands.
+                    count = int((10 + int(ev.amount)) * 1.8)
+                    speed = (6.0 + ev.amount * 0.2) * 1.3
+                    shape = "screw" if skill_id == "screw_dart" else "shard"
+
+                    def _land_callback(tx=target_x, ty=target_y, c=color,
+                                        ct=count, sp=speed, tgt=ev.target):
+                        renderer.particles.emit_hit_burst(tx, ty,
+                                                           color=c,
+                                                           count=ct, speed=sp)
+                        renderer.add_shake(4.0)
+                        renderer.request_hit_stop(2)
+                        renderer.add_char_flash(tgt, 1.0)
+
+                    renderer.projectiles.spawn(
+                        x_start=attacker_x, y_start=attacker_y,
+                        x_end=target_x,    y_end=target_y,
+                        shape=shape, color=color, lifetime=8,
+                        on_land=_land_callback,
+                    )
                 else:
-                    renderer.add_shake(3.0)
-                renderer.add_char_flash(ev.target, 1.0)
-                # Record into HUD (popup + DPS)
+                    # Basic / special: immediate particle burst
+                    count = 10 + int(ev.amount)
+                    speed = 6.0 + ev.amount * 0.2
+                    renderer.particles.emit_hit_burst(target_x, target_y,
+                                                       color=color,
+                                                       count=count, speed=speed)
+                    if is_crit:
+                        renderer.add_shake(8.0)
+                        renderer.request_hit_stop(4)
+                    elif st == "special":
+                        renderer.add_shake(5.0)
+                        renderer.request_hit_stop(3)
+                    else:
+                        renderer.add_shake(3.0)
+                    renderer.add_char_flash(ev.target, 1.0)
+
+                # Skill-name banner for non-basic hits
+                banner_color = _BANNER_COLOR_BY_SKILL_TYPE.get(st)
+                banner_text = _SKILL_BANNER_NAME.get(skill_id)
+                if banner_color and banner_text:
+                    renderer.banners.spawn(banner_text, banner_color)
+
+                # Record into HUD (popup + DPS) — fires immediately on HIT regardless
                 renderer.hud.record_hit(
                     actor_id=ev.actor,
                     dmg=ev.amount,
-                    is_crit=bool(ev.extra.get("crit")),
+                    is_crit=is_crit,
                     target_x=target_x,
                     target_y=target_y,
                     t_ms=battle.elapsed_ms,
@@ -330,6 +379,11 @@ def main():
                 target_y = int(target_char.pos_y) - 80
                 renderer.particles.emit_ultimate_burst(target_x, target_y)
                 renderer.request_hit_stop(5)
+                # Skill-name banner for the ultimate
+                ult_skill_id = ev.extra.get("skill_id") or ev.extra.get("anim", "")
+                banner_text = _SKILL_BANNER_NAME.get(ult_skill_id)
+                if banner_text:
+                    renderer.banners.spawn(banner_text, (255, 220, 80))
             elif ev.type is EventType.KO:
                 target_x = int(target_char.pos_x)
                 target_y = int(target_char.pos_y) - 60
