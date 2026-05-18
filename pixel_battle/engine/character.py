@@ -6,7 +6,7 @@ with mutable runtime state (hp, mp, current state).
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 from pixel_battle.engine.skill import Skill, SkillType
 
@@ -40,7 +40,7 @@ class Character:
     attack_phase: str = "none"
     attack_phase_t: int = 0
     attack_used_kind: object = None
-    skill_cd_ready_at: dict = field(default_factory=dict)
+    skill_cd_ready_at: Dict[str, int] = field(default_factory=dict)
 
     @classmethod
     def load(cls, char_id: str) -> "Character":
@@ -96,5 +96,5 @@ class Character:
     def ultimate_ready(self) -> bool:
         return self.mp >= self.mp_max
 
-    def skill_off_cooldown(self, skill, now_ms: int) -> bool:
+    def skill_off_cooldown(self, skill: Skill, now_ms: int) -> bool:
         return self.skill_cd_ready_at.get(skill.id, 0) <= now_ms
