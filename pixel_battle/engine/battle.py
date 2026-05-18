@@ -432,6 +432,9 @@ class Battle:
                 extra={"skill_id": skill.id,
                        "skill_type": skill.skill_type.value},
             )
+            # Cast pushback — creates visible space for the skill animation
+            char.vel_x = -3.5 * char.facing       # attacker hops back
+            opp.vel_x += 2.0 * char.facing        # defender drifts away
 
     def _choose_attack_skill(self, char: Character) -> Skill:
         """Priority: CD-skill (off-cd, 70%) > affordable special (40%) > basic."""
