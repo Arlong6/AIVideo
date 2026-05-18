@@ -17,8 +17,13 @@ def _load_sfx(name: str) -> AudioSegment:
     return AudioSegment.from_file(path)
 
 
-def build_audio_track(events: List[Event], total_duration_ms: int, output_path: str) -> None:
-    """Render BGM + SFX into a single wav matching total_duration_ms."""
+def build_audio_track(events: List[Event], total_duration_ms: int, output_path: str,
+                      event_offset_ms: int = 0) -> None:
+    """Render BGM + SFX into a single wav matching total_duration_ms.
+
+    event_offset_ms: time offset in audio at which battle starts.
+                     Add to each event's t_ms when overlaying SFX.
+    """
     track = AudioSegment.silent(duration=total_duration_ms)
 
     bgm_path = BGM_DIR / "battle_loop.mp3"
@@ -30,15 +35,23 @@ def build_audio_track(events: List[Event], total_duration_ms: int, output_path: 
         track = track.overlay(bgm_full)
 
     for ev in events:
+        # Shift event position by intro offset so SFX aligns with video frame
+        pos = ev.t_ms + event_offset_ms
+        if pos >= total_duration_ms:
+            continue  # off-end, skip
         if ev.type is EventType.HIT:
             sfx = _load_sfx("crit") if ev.extra.get("crit") else _load_sfx("hit")
-            track = track.overlay(sfx, position=ev.t_ms)
+            track = track.overlay(sfx, position=pos)
         elif ev.type is EventType.CRIT:
-            track = track.overlay(_load_sfx("crit"), position=ev.t_ms)
+            track = track.overlay(_load_sfx("crit"), position=pos)
         elif ev.type is EventType.ULTIMATE_START:
-            track = track.overlay(_load_sfx("ultimate"), position=ev.t_ms)
+            # Charge build-up 600ms before impact + impact
+            charge_pos = max(0, pos - 600)
+            if (CHARGE_PATH := SFX_DIR / "charge.wav").exists():
+                track = track.overlay(_load_sfx("charge"), position=charge_pos)
+            track = track.overlay(_load_sfx("ultimate"), position=pos)
         elif ev.type is EventType.KO:
-            track = track.overlay(_load_sfx("ko"), position=ev.t_ms)
+            track = track.overlay(_load_sfx("ko"), position=pos)
 
     track.export(output_path, format="wav")
 

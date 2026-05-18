@@ -385,7 +385,11 @@ def main():
         ], check=True, capture_output=True)
 
     total_ms = (INTRO_FRAMES * TICK_MS) + battle.elapsed_ms + (30 * TICK_MS) + (180 * TICK_MS)
-    build_audio_track(battle.events, total_duration_ms=total_ms, output_path=str(audio_out))
+    intro_offset_ms = INTRO_FRAMES * TICK_MS
+    build_audio_track(battle.events,
+                      total_duration_ms=total_ms,
+                      output_path=str(audio_out),
+                      event_offset_ms=intro_offset_ms)
     mux_audio_video(str(raw_video), str(audio_out), str(final_mp4))
 
     with open(OUT_DIR / "battle_events.json", "w") as f:

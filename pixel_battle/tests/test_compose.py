@@ -24,6 +24,30 @@ def test_build_audio_track_creates_file(tmp_path):
     assert 9.5 < dur < 10.5
 
 
+def test_event_offset_shifts_sfx_position(tmp_path):
+    """Verify event_offset_ms shifts SFX in the audio timeline."""
+    import wave
+    import numpy as np
+    events = [Event(type=EventType.HIT, t_ms=1000)]
+    out = tmp_path / "shifted.wav"
+    build_audio_track(events, total_duration_ms=5000, output_path=str(out),
+                      event_offset_ms=2000)
+    # The SFX should be at position 1000+2000=3000ms, not 1000ms
+    # Read audio: check that mid-audio region (around 3s) has more energy than early region (1s)
+    with wave.open(str(out), "rb") as w:
+        n_frames = w.getnframes()
+        sr = w.getframerate()
+        raw = w.readframes(n_frames)
+    samples = np.frombuffer(raw, dtype=np.int16)
+    # Convert sample positions: 1000ms = sr samples, 3000ms = 3*sr samples
+    region_1s = samples[int(sr * 0.9): int(sr * 1.2)]
+    region_3s = samples[int(sr * 2.9): int(sr * 3.2)]
+    e1 = float(np.abs(region_1s).mean())
+    e3 = float(np.abs(region_3s).mean())
+    # Region 3s should have notably more SFX energy than region 1s
+    assert e3 > e1 * 1.5, f"SFX not at 3s region: e1={e1:.0f} e3={e3:.0f}"
+
+
 def test_mux_combines_video_and_audio(tmp_path):
     video = tmp_path / "v.mp4"
     subprocess.run(

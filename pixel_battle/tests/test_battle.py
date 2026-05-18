@@ -152,6 +152,32 @@ def test_walk_action_moves_character():
     assert a.pos_x > start_x
 
 
+def test_ai_retreats_when_mp_high_and_close():
+    """_start_retreat is called when MP >= 70% and opponent is within melee range."""
+    from pixel_battle.engine.physics import MELEE_RANGE
+    a = Character.load("brick_phone")
+    b = Character.load("glass_slab")
+    # Place characters close together so distance < MELEE_RANGE * 1.5
+    a.reset_physics(initial_x=200, facing=1)
+    b.reset_physics(initial_x=200 + int(MELEE_RANGE * 0.5), facing=-1)
+    battle = Battle(left=a, right=b, rng=BattleRNG(42))
+    # Give A enough MP to trigger strategic retreat (>= 70% of mp_max)
+    # but NOT enough to trigger ultimate (which would drain MP immediately)
+    a.mp = int(a.mp_max * 0.75)
+    # Place characters at the test positions (Battle.__init__ overwrites them)
+    a.pos_x = 200
+    b.pos_x = 200 + int(MELEE_RANGE * 0.5)
+    # Directly call _ai_choose_action — bypasses ultimate check (which fires in tick_ms)
+    battle.state = BattleState.FIGHTING
+    battle.elapsed_ms = 5000  # past intro
+    start_x = a.pos_x
+    battle._ai_choose_action(a, b, 16)
+    # Retreat should have set vel_x away from opp and action_state to walking
+    # a is LEFT of b, so retreat direction = -1 (leftward), vel_x < 0
+    assert a.action_state == "walking", f"Expected walking, got {a.action_state}"
+    assert a.vel_x < 0, f"Expected negative vel_x (retreat left), got {a.vel_x}"
+
+
 def test_jump_with_gravity():
     from pixel_battle.engine.physics import GROUND_Y
     a = Character.load("brick_phone")

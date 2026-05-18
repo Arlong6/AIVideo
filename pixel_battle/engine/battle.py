@@ -34,8 +34,9 @@ ATTACK_RECOVER_MS = 250
 JUMP_COOLDOWN_MS = 600
 
 # AI tuning
-AI_ATTACK_IN_RANGE_PROB = 0.60    # chance to attack per tick when in range
-AI_JUMP_IN_RANGE_PROB = 0.20      # chance to jump/dodge per tick when in range
+AI_ATTACK_IN_RANGE_PROB = 0.45    # chance to attack per tick when in range
+AI_JUMP_IN_RANGE_PROB = 0.15      # chance to jump/dodge per tick when in range
+AI_RETREAT_IN_RANGE_PROB = 0.25   # chance to retreat per tick when in range
 AI_JUMP_APPROACH_PROB = 0.05      # chance to jump while closing distance
 
 
@@ -277,7 +278,7 @@ class Battle:
     # ------------------------------------------------------------------ #
 
     def _ai_choose_action(self, char: Character, opp: Character, dt_ms: int) -> None:
-        """Simple AI: pursue → attack → react. Only acts when free."""
+        """Simple AI: pursue → attack → react → retreat. Only acts when free."""
         if char.action_state in ("attacking", "hit_stagger", "ko"):
             return
 
@@ -289,11 +290,14 @@ class Battle:
 
         distance = abs(char.pos_x - opp.pos_x)
 
-        # Defensive retreat when very low HP and opponent has high MP
+        # Strategic retreat: MP near full and opponent close → space out to fire ult safely
+        if char.mp >= char.mp_max * 0.7 and distance < MELEE_RANGE * 1.5:
+            self._start_retreat(char, opp)
+            return
+
+        # Defensive retreat: low HP and opponent building ult
         if char.hp < 30 and opp.mp >= opp.mp_max * 0.7:
-            # Walk away
-            away_dir = -1 if char.facing == 1 else 1
-            self._start_walk(char, away_dir)
+            self._start_retreat(char, opp)
             return
 
         if distance > MELEE_RANGE * 0.8:
@@ -303,7 +307,7 @@ class Battle:
             if char.on_ground and self.rng.roll_check(AI_JUMP_APPROACH_PROB):
                 self._start_jump(char)
         else:
-            # In range — choose action
+            # In range — mixed tactics
             roll = self.rng.uniform()
             if roll < AI_ATTACK_IN_RANGE_PROB:
                 # Try to attack
@@ -318,6 +322,9 @@ class Battle:
                 # Jump/dodge
                 if char.on_ground:
                     self._start_jump(char)
+            elif roll < AI_ATTACK_IN_RANGE_PROB + AI_JUMP_IN_RANGE_PROB + AI_RETREAT_IN_RANGE_PROB:
+                # Retreat — create distance
+                self._start_retreat(char, opp)
             else:
                 # Brief idle — stop walking
                 char.vel_x = 0.0
@@ -338,6 +345,14 @@ class Battle:
         char.vel_y = JUMP_VELOCITY
         char.on_ground = False
         char.action_state = "jumping"
+
+    def _start_retreat(self, char: Character, opp: Character) -> None:
+        """Walk AWAY from opponent for ~400ms or until at arena edge."""
+        # Direction away from opponent: if char is right of opp, retreat right (+1); else left (-1)
+        direction = 1 if char.pos_x > opp.pos_x else -1
+        char.vel_x = WALK_SPEED * direction
+        char.action_state = "walking"
+        char.facing = -direction  # face opponent while backpedaling
 
     def _start_attack(self, char: Character, opp: Character) -> None:
         """Begin windup phase. Decide basic vs special skill."""
