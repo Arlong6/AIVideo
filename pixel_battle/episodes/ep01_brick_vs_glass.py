@@ -181,14 +181,18 @@ OUT_DIR = Path("/Users/arlong/Projects/AIvideo/pixel_battle/output") / EPISODE_I
 SEED = 1
 
 
-def _animation_for_actor(actor_id: str, char: Character, recent_events) -> AnimationState:
+def _animation_for_actor(char: Character) -> AnimationState:
+    """Map character action_state to AnimationState. Source of truth is char.action_state."""
     if char.is_ko():
         return AnimationState.KO
-    for ev in reversed(recent_events):
-        if ev.type is EventType.HIT and ev.target == actor_id:
-            return AnimationState.HIT
-        if ev.type is EventType.HIT and ev.actor == actor_id:
-            return AnimationState.ATTACK
+    if char.action_state == "hit_stagger":
+        return AnimationState.HIT
+    if char.action_state == "attacking":
+        return AnimationState.ATTACK
+    if char.action_state == "jumping":
+        return AnimationState.JUMPING
+    if char.action_state == "walking":
+        return AnimationState.WALKING
     return AnimationState.IDLE
 
 
@@ -221,6 +225,7 @@ def main():
     left = Character.load("brick_phone")
     right = Character.load("glass_slab")
     rng = BattleRNG(SEED)
+    # Battle.__init__ calls reset_physics on both characters
     battle = Battle(left=left, right=right, rng=rng)
     renderer = Renderer()
 
@@ -258,10 +263,14 @@ def main():
         new_events = battle.events[prev_event_count:]
 
         for ev in new_events:
+            # Resolve target character object for position-based effects
+            target_char = left if ev.target == left.id else right
+
             if ev.type in (EventType.HIT, EventType.ULTIMATE_START, EventType.KO):
                 if ev.type is EventType.HIT:
-                    victim_x = WIDTH // 4 if ev.target == left.id else WIDTH * 3 // 4
-                    victim_y = HORIZON_Y - 220  # above the character's head
+                    # Use world position: above character's head
+                    victim_x = int(target_char.pos_x)
+                    victim_y = int(target_char.pos_y) - 200
                     # Damage tier
                     dmg_style = CaptionStyle.DAMAGE_HEAVY if ev.amount > 10 else CaptionStyle.DAMAGE_LIGHT
                     active_captions.append((f"-{ev.amount}", dmg_style, frame_no, (victim_x, victim_y)))
@@ -275,8 +284,9 @@ def main():
                     active_captions.append((text, style, frame_no, None))
             # Screen shake + particles + hit-stop
             if ev.type is EventType.HIT:
-                target_x = WIDTH // 4 if ev.target == left.id else WIDTH * 3 // 4
-                target_y = HORIZON_Y - 80  # mid-character
+                # Use world position: mid-character height
+                target_x = int(target_char.pos_x)
+                target_y = int(target_char.pos_y) - 80
                 renderer.particles.emit_hit_burst(target_x, target_y)
                 if ev.extra.get("crit"):
                     renderer.add_shake(8.0)
@@ -286,13 +296,13 @@ def main():
                 renderer.add_char_flash(ev.target, 1.0)
             elif ev.type is EventType.ULTIMATE_START:
                 renderer.add_shake(12.0)
-                target_x = WIDTH // 4 if ev.target == left.id else WIDTH * 3 // 4
-                target_y = HORIZON_Y - 80
+                target_x = int(target_char.pos_x)
+                target_y = int(target_char.pos_y) - 80
                 renderer.particles.emit_ultimate_burst(target_x, target_y)
                 renderer.request_hit_stop(5)
             elif ev.type is EventType.KO:
-                target_x = WIDTH // 4 if ev.target == left.id else WIDTH * 3 // 4
-                target_y = HORIZON_Y - 60
+                target_x = int(target_char.pos_x)
+                target_y = int(target_char.pos_y) - 60
                 renderer.particles.emit_ko_burst(target_x, target_y)
                 renderer.add_shake(10.0)
 
@@ -310,8 +320,8 @@ def main():
                 cinematic_frame_idx += 1
         else:
             cinematic_frame_idx = 0
-            la = _animation_for_actor(left.id, left, battle.events[-6:])
-            ra = _animation_for_actor(right.id, right, battle.events[-6:])
+            la = _animation_for_actor(left)
+            ra = _animation_for_actor(right)
             renderer.render_frame(left, right, la, ra, anim_frame=frame_no % 8)
 
         active_captions = [
@@ -326,7 +336,7 @@ def main():
 
     # Hold final 30 frames
     for hold_frame in range(30):
-        renderer.render_frame(left, right, AnimationState.IDLE, AnimationState.KO if right.is_ko() else AnimationState.IDLE, anim_frame=hold_frame)
+        renderer.render_frame(left, right, _animation_for_actor(left), _animation_for_actor(right), anim_frame=hold_frame)
         active_captions = [(txt, sty, start, pos) for (txt, sty, start, pos) in active_captions if frame_no - start < 45]
         for (txt, sty, start, pos) in active_captions:
             draw_caption(renderer.surface, txt, sty, frame_in_anim=frame_no - start, pos=pos)
