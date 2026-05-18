@@ -76,3 +76,45 @@ def test_dps_counter_multiple_hits_in_window():
     # At t=4_500, all three within 3s window. Sum=20, dps=20/3 ≈ 6.67
     dps = c.current_dps(now_ms=4_500)
     assert abs(dps - (20.0 / 3.0)) < 0.01
+
+
+from pixel_battle.engine.character import Character
+from pixel_battle.engine.hud import SkillIconBar, MPChargeRing
+
+
+def test_skill_icon_bar_renders_without_error():
+    pygame.init()
+    pygame.font.init()
+    surface = pygame.Surface((480, 854))
+    c = Character.load("brick_phone")
+    c.reset_physics(initial_x=120, facing=1)
+    bar = SkillIconBar(c)
+    bar.render(surface, x=10, y=750, now_ms=1000)
+    # Smoke test: doesn't crash; bar has 2 slots (basic + cd)
+    assert bar.num_slots == 2
+
+
+def test_skill_icon_bar_cd_arc_progresses():
+    """When skill is on cooldown, fill_ratio should be between 0 and 1."""
+    c = Character.load("brick_phone")
+    c.reset_physics(initial_x=120, facing=1)
+    c.skill_cd_ready_at["screw_dart"] = 5000
+    bar = SkillIconBar(c)
+    # At now_ms=3000, 2000ms remain of 4000 cd, so fill = 2/4 = 0.5
+    assert abs(bar._cd_fill_ratio("screw_dart", now_ms=3000) - 0.5) < 0.02
+    # At now_ms=5000, no CD remaining
+    assert bar._cd_fill_ratio("screw_dart", now_ms=5000) == 0.0
+
+
+def test_mp_charge_ring_renders_when_mp_full():
+    pygame.init()
+    surface = pygame.Surface((480, 854))
+    c = Character.load("brick_phone")
+    c.reset_physics(initial_x=120, facing=1)
+    c.mp = c.mp_max
+    ring = MPChargeRing()
+    # Smoke test
+    ring.render(surface, c, char_x=120, char_y=500, t_ms=2000)
+    # When mp not full, render should no-op (no error)
+    c.mp = 50
+    ring.render(surface, c, char_x=120, char_y=500, t_ms=2000)

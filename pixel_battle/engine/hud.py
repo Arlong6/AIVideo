@@ -129,3 +129,121 @@ class DPSCounter:
         shadow = font.render(text, True, (0, 0, 0))
         surface.blit(shadow, (x + 1, y + 1))
         surface.blit(img, (x, y))
+
+
+# ---------------------------------------------------------------------------
+# Skill icon bar — shows basic + CD skill icons with CD arc countdown
+# ---------------------------------------------------------------------------
+
+
+_ICON_COLOR_BY_TYPE = {
+    SkillType.BASIC:    (220, 220, 180),
+    SkillType.COOLDOWN: ( 80, 180, 255),
+    SkillType.SPECIAL:  (255, 140,  40),
+    SkillType.ULTIMATE: (255,  80, 200),
+}
+
+_ICON_GLYPH_BY_TYPE = {
+    SkillType.BASIC:    "B",
+    SkillType.COOLDOWN: "C",
+    SkillType.SPECIAL:  "S",
+    SkillType.ULTIMATE: "U",
+}
+
+
+class SkillIconBar:
+    """Renders icons for character's basic + CD skills (the two non-MP slots).
+    Specials live in the MP bar, ultimate has its own indicator.
+    """
+    ICON_SIZE = 28
+    ICON_GAP = 6
+
+    def __init__(self, character: Character):
+        self.character = character
+        # Display the basic + first cooldown skill (if any)
+        self._slots = []
+        basics = character.skills_of_type(SkillType.BASIC)
+        cooldowns = character.skills_of_type(SkillType.COOLDOWN)
+        if basics:
+            self._slots.append(basics[0])
+        if cooldowns:
+            self._slots.append(cooldowns[0])
+        self._font: pygame.font.Font | None = None
+
+    @property
+    def num_slots(self) -> int:
+        return len(self._slots)
+
+    def _get_font(self):
+        if not pygame.font.get_init():
+            pygame.font.init()
+        if self._font is None:
+            self._font = pygame.font.Font(None, 22)
+        return self._font
+
+    def _cd_fill_ratio(self, skill_id: str, now_ms: int) -> float:
+        """0.0 = ready (no CD), 1.0 = just used (full CD remaining)."""
+        ready_at = self.character.skill_cd_ready_at.get(skill_id, 0)
+        skill = next((s for s in self._slots if s.id == skill_id), None)
+        if skill is None or skill.cooldown_ms <= 0:
+            return 0.0
+        remaining = max(0, ready_at - now_ms)
+        return min(1.0, remaining / skill.cooldown_ms)
+
+    def render(self, surface: pygame.Surface, x: int, y: int, now_ms: int) -> None:
+        font = self._get_font()
+        for i, skill in enumerate(self._slots):
+            icon_x = x + i * (self.ICON_SIZE + self.ICON_GAP)
+            color = _ICON_COLOR_BY_TYPE.get(skill.skill_type, (200, 200, 200))
+            # Background tile
+            pygame.draw.rect(surface, (40, 40, 50),
+                             (icon_x, y, self.ICON_SIZE, self.ICON_SIZE),
+                             border_radius=4)
+            pygame.draw.rect(surface, color,
+                             (icon_x, y, self.ICON_SIZE, self.ICON_SIZE),
+                             width=2, border_radius=4)
+            glyph = _ICON_GLYPH_BY_TYPE.get(skill.skill_type, "?")
+            img = font.render(glyph, True, color)
+            rect = img.get_rect(center=(icon_x + self.ICON_SIZE // 2,
+                                         y + self.ICON_SIZE // 2))
+            surface.blit(img, rect)
+            # CD arc overlay (darken portion still on CD)
+            fill = self._cd_fill_ratio(skill.id, now_ms)
+            if fill > 0.02:
+                overlay = pygame.Surface((self.ICON_SIZE, self.ICON_SIZE),
+                                          pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, int(180 * fill)))
+                surface.blit(overlay, (icon_x, y))
+                # Small countdown numerals (seconds)
+                ready_at = self.character.skill_cd_ready_at.get(skill.id, 0)
+                rem_s = max(0, (ready_at - now_ms) / 1000.0)
+                cd_text = font.render(f"{rem_s:.1f}", True, (255, 255, 255))
+                cd_rect = cd_text.get_rect(center=(icon_x + self.ICON_SIZE // 2,
+                                                    y + self.ICON_SIZE // 2))
+                surface.blit(cd_text, cd_rect)
+
+
+# ---------------------------------------------------------------------------
+# MP charge ring — 3 orbiting sparkles around character when MP == max
+# ---------------------------------------------------------------------------
+
+
+class MPChargeRing:
+    NUM_SPARKLES = 3
+    ORBIT_RADIUS_PX = 80
+    ORBIT_PERIOD_MS = 1000   # one rotation per second
+
+    def render(self, surface: pygame.Surface, char: Character,
+               char_x: int, char_y: int, t_ms: int) -> None:
+        if char.mp < char.mp_max:
+            return
+        for i in range(self.NUM_SPARKLES):
+            phase = (t_ms / self.ORBIT_PERIOD_MS + i / self.NUM_SPARKLES) * 2 * math.pi
+            sx = int(char_x + math.cos(phase) * self.ORBIT_RADIUS_PX)
+            sy = int(char_y - 70 + math.sin(phase) * self.ORBIT_RADIUS_PX * 0.5)
+            # Sparkle: small bright circle with halo
+            halo = pygame.Surface((20, 20), pygame.SRCALPHA)
+            pygame.draw.circle(halo, (120, 200, 255, 90), (10, 10), 9)
+            pygame.draw.circle(halo, (200, 230, 255, 200), (10, 10), 5)
+            pygame.draw.circle(halo, (255, 255, 255, 255), (10, 10), 2)
+            surface.blit(halo, (sx - 10, sy - 10))
