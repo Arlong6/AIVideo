@@ -320,6 +320,9 @@ class Battle:
         """Simple AI: pursue → attack → react → retreat. Only acts when free."""
         if char.action_state in ("attacking", "hit_stagger", "ko"):
             return
+        # P5: windup stun — defender is briefly frozen while attacker casts
+        if self.elapsed_ms < char.windup_stun_until_ms:
+            return
 
         # Retreat-timer expiry: if a previous retreat has run its course, clear and re-evaluate.
         # When we clear here, do NOT re-trigger a new retreat in the same tick — force the AI
