@@ -39,6 +39,10 @@ AI_JUMP_IN_RANGE_PROB = 0.10      # chance to jump/dodge per tick when in range
 AI_RETREAT_IN_RANGE_PROB = 0.05   # rare retreat to break clinch
 AI_JUMP_APPROACH_PROB = 0.03      # chance to jump while closing distance
 
+RETREAT_DURATION_MS = 800           # max consecutive ms in retreat before forced re-evaluate
+WALL_STUCK_PX = 30                  # distance from arena edge that counts as stuck
+DEFENSIVE_RETREAT_HP = 15           # HP below which defensive retreat may trigger
+
 
 class BattleState(Enum):
     STARTING = "starting"
@@ -293,6 +297,14 @@ class Battle:
         if char.action_state in ("attacking", "hit_stagger", "ko"):
             return
 
+        # Retreat-timer expiry: if a previous retreat has run its course, clear and re-evaluate.
+        # When we clear here, do NOT re-trigger a new retreat in the same tick — force the AI
+        # to pursue/attack/idle so both sides can't lock each other against walls.
+        retreat_just_cleared = False
+        if char.retreat_until_ms > 0 and self.elapsed_ms >= char.retreat_until_ms:
+            char.retreat_until_ms = 0
+            retreat_just_cleared = True
+
         # Update facing toward opponent
         if opp.pos_x > char.pos_x:
             char.facing = 1
@@ -300,15 +312,24 @@ class Battle:
             char.facing = -1
 
         distance = abs(char.pos_x - opp.pos_x)
+        at_wall = (char.pos_x - ARENA_LEFT < WALL_STUCK_PX or
+                   ARENA_RIGHT - char.pos_x < WALL_STUCK_PX)
+        can_retreat = (not at_wall
+                       and char.retreat_until_ms == 0
+                       and not retreat_just_cleared)
 
         # Strategic retreat: MP near full and opponent very close → brief space-out safely
-        if char.mp >= char.mp_max * 0.92 and distance < MELEE_RANGE * 0.9:
+        if (char.mp >= char.mp_max * 0.92 and distance < MELEE_RANGE * 0.9
+                and can_retreat):
             self._start_retreat(char, opp)
+            char.retreat_until_ms = self.elapsed_ms + RETREAT_DURATION_MS
             return
 
         # Defensive retreat: low HP and opponent building ult
-        if char.hp < 30 and opp.mp >= opp.mp_max * 0.7:
+        if (char.hp < DEFENSIVE_RETREAT_HP and opp.mp >= opp.mp_max * 0.7
+                and can_retreat):
             self._start_retreat(char, opp)
+            char.retreat_until_ms = self.elapsed_ms + RETREAT_DURATION_MS
             return
 
         if distance > MELEE_RANGE * 0.8:
@@ -322,20 +343,21 @@ class Battle:
             roll = self.rng.uniform()
             if roll < AI_ATTACK_IN_RANGE_PROB:
                 # Try to attack
-                if char.action_state not in ("attacking",):
-                    can_attack = (self.elapsed_ms - char.last_attack_ms) >= char.attack_interval_ms
-                    if can_attack:
-                        self._start_attack(char, opp)
-                    else:
-                        # Cooldown still running — keep walking to stay close
-                        self._start_walk(char, char.facing)
+                can_attack = (self.elapsed_ms - char.last_attack_ms) >= char.attack_interval_ms
+                if can_attack:
+                    self._start_attack(char, opp)
+                else:
+                    # Cooldown still running — keep walking to stay close
+                    self._start_walk(char, char.facing)
             elif roll < AI_ATTACK_IN_RANGE_PROB + AI_JUMP_IN_RANGE_PROB:
                 # Jump/dodge
                 if char.on_ground:
                     self._start_jump(char)
-            elif roll < AI_ATTACK_IN_RANGE_PROB + AI_JUMP_IN_RANGE_PROB + AI_RETREAT_IN_RANGE_PROB:
+            elif (roll < AI_ATTACK_IN_RANGE_PROB + AI_JUMP_IN_RANGE_PROB + AI_RETREAT_IN_RANGE_PROB
+                  and can_retreat):
                 # Retreat — create distance
                 self._start_retreat(char, opp)
+                char.retreat_until_ms = self.elapsed_ms + RETREAT_DURATION_MS
             else:
                 # Brief idle — stop walking
                 char.vel_x = 0.0
