@@ -218,7 +218,13 @@ class Battle:
             skill = attacker.skills_of_type(SkillType.BASIC)[0]
 
         distance = abs(attacker.pos_x - defender.pos_x)
-        range_limit = SPECIAL_RANGE if skill.skill_type is SkillType.SPECIAL else MELEE_RANGE
+        # Range: skill.range field if set, else type-based fallback
+        if skill.range == "special":
+            range_limit = SPECIAL_RANGE
+        elif skill.skill_type is SkillType.SPECIAL:
+            range_limit = SPECIAL_RANGE
+        else:
+            range_limit = MELEE_RANGE
 
         if distance > range_limit:
             self._emit(EventType.MISS, actor=attacker.id, target=defender.id,
@@ -237,17 +243,22 @@ class Battle:
             self._emit(EventType.CRIT, actor=attacker.id, target=defender.id, amount=dmg)
 
         use_special = skill.skill_type is SkillType.SPECIAL
+        use_cooldown = skill.skill_type is SkillType.COOLDOWN
         if use_special:
             dmg += skill.dmg
             attacker.spend_mp(skill.mp_cost)
+        elif use_cooldown:
+            dmg += skill.dmg  # CD skills also use static dmg as a boost
+            attacker.skill_cd_ready_at[skill.id] = self.elapsed_ms + skill.cooldown_ms
 
         attacker.gain_mp(SPECIAL_MP_GAIN_PER_HIT)
         defender.take_damage(dmg)
         defender.gain_mp(MP_GAIN_ON_HIT_TAKEN)
 
-        # Apply stagger + knockback to defender
+        # Apply stagger + knockback to defender (skill may override default)
+        stagger_ms = skill.stagger_ms if skill.stagger_ms > 0 else STAGGER_MS
         defender.action_state = "hit_stagger"
-        defender._stagger_remaining_ms = STAGGER_MS
+        defender._stagger_remaining_ms = stagger_ms
         knockback_dir = 1 if attacker.pos_x < defender.pos_x else -1
         defender.vel_x = knockback_dir * 4.0
         # Cancel defender's attack if mid-swing
