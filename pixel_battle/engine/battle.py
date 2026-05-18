@@ -366,23 +366,34 @@ class Battle:
         char.facing = -direction  # face opponent while backpedaling
 
     def _start_attack(self, char: Character, opp: Character) -> None:
-        """Begin windup phase. Decide basic vs special skill."""
+        """Begin windup phase. Decide skill: CD-skill > special > basic."""
         if char.action_state == "attacking":
             return  # already mid-attack
-        specials = char.skills_of_type(SkillType.SPECIAL)
-        # Filter to specials the character can afford
-        affordable = [s for s in specials if char.mp >= s.mp_cost]
-        use_special = bool(affordable) and self.rng.roll_check(0.5)
-        if use_special:
-            special = affordable[self.rng.randint(0, len(affordable) - 1)]
-        else:
-            special = None
-        skill = special if use_special else char.skills_of_type(SkillType.BASIC)[0]
+        skill = self._choose_attack_skill(char)
         char.attack_used_kind = skill
         char.attack_phase = "windup"
         char.attack_phase_t = 0
         char.action_state = "attacking"
         char.vel_x = 0.0  # plant feet during attack
+
+    def _choose_attack_skill(self, char: Character) -> Skill:
+        """Priority: CD-skill (off-cd, 70%) > affordable special (40%) > basic."""
+        # 1. CD skill if any off-cooldown
+        cd_skills = char.skills_of_type(SkillType.COOLDOWN)
+        for skill in cd_skills:
+            if char.skill_off_cooldown(skill, self.elapsed_ms):
+                if self.rng.roll_check(0.70):
+                    return skill
+                break  # rolled against — fall through, don't try other CD skills
+
+        # 2. Affordable special
+        specials = char.skills_of_type(SkillType.SPECIAL)
+        affordable = [s for s in specials if char.mp >= s.mp_cost]
+        if affordable and self.rng.roll_check(0.40):
+            return affordable[self.rng.randint(0, len(affordable) - 1)]
+
+        # 3. Basic
+        return char.skills_of_type(SkillType.BASIC)[0]
 
     # ------------------------------------------------------------------ #
     # Ultimate                                                              #
