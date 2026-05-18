@@ -84,3 +84,48 @@ class DamagePopupLayer:
             surface.blit(text_img, (int(p.x - sw / 2), int(p.y - sh / 2)))
             survivors.append(p)
         self.popups = survivors
+
+
+# ---------------------------------------------------------------------------
+# DPS counter — rolling 3-second window of damage dealt
+# ---------------------------------------------------------------------------
+
+
+class DPSCounter:
+    WINDOW_MS = 3000
+
+    def __init__(self):
+        # entries: list of (t_ms, dmg)
+        self._entries: List[Tuple[int, int]] = []
+        self._font: pygame.font.Font | None = None
+
+    def _get_font(self) -> pygame.font.Font:
+        if not pygame.font.get_init():
+            pygame.font.init()
+        if self._font is None:
+            self._font = pygame.font.Font(None, 18)
+        return self._font
+
+    def record_hit(self, dmg: int, t_ms: int) -> None:
+        self._entries.append((t_ms, dmg))
+        self._prune(t_ms)
+
+    def _prune(self, now_ms: int) -> None:
+        cutoff = now_ms - self.WINDOW_MS
+        self._entries = [(t, d) for (t, d) in self._entries if t > cutoff]
+
+    def current_dps(self, now_ms: int) -> float:
+        self._prune(now_ms)
+        if not self._entries:
+            return 0.0
+        total = sum(d for _, d in self._entries)
+        return total / (self.WINDOW_MS / 1000.0)
+
+    def render(self, surface: pygame.Surface, x: int, y: int, now_ms: int) -> None:
+        font = self._get_font()
+        dps = self.current_dps(now_ms)
+        text = f"DPS {dps:4.1f}"
+        img = font.render(text, True, (255, 230, 150))
+        shadow = font.render(text, True, (0, 0, 0))
+        surface.blit(shadow, (x + 1, y + 1))
+        surface.blit(img, (x, y))

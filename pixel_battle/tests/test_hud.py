@@ -41,3 +41,38 @@ def test_popup_drifts_upward_over_lifetime():
     for _ in range(DamagePopupLayer.LIFETIME_FRAMES // 2):
         layer.update_and_render(surface)
     assert layer.popups[0].y < starting_y, "popup should drift upward (y decreases)"
+
+
+from pixel_battle.engine.hud import DPSCounter
+
+
+def test_dps_counter_empty_is_zero():
+    c = DPSCounter()
+    assert c.current_dps(now_ms=10_000) == 0.0
+
+
+def test_dps_counter_single_hit():
+    c = DPSCounter()
+    c.record_hit(10, t_ms=5_000)
+    # Window is 3s. Total dmg = 10, dps = 10/3 ≈ 3.33
+    assert abs(c.current_dps(now_ms=5_100) - (10.0 / 3.0)) < 0.01
+
+
+def test_dps_counter_drops_old_entries():
+    c = DPSCounter()
+    c.record_hit(10, t_ms=0)
+    c.record_hit(20, t_ms=4_000)  # 4s later
+    # At t=5_000, the first hit (t=0) is 5s old, outside 3s window
+    dps = c.current_dps(now_ms=5_000)
+    # Only the 20-dmg hit counts → 20/3 ≈ 6.67
+    assert abs(dps - (20.0 / 3.0)) < 0.01
+
+
+def test_dps_counter_multiple_hits_in_window():
+    c = DPSCounter()
+    c.record_hit(5, t_ms=2_000)
+    c.record_hit(7, t_ms=3_000)
+    c.record_hit(8, t_ms=4_000)
+    # At t=4_500, all three within 3s window. Sum=20, dps=20/3 ≈ 6.67
+    dps = c.current_dps(now_ms=4_500)
+    assert abs(dps - (20.0 / 3.0)) < 0.01
