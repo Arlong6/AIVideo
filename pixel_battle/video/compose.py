@@ -13,7 +13,16 @@ BGM_DIR = ASSETS / "bgm"
 
 
 def _load_sfx(name: str) -> AudioSegment:
+    """Load SFX by name; raises if missing (use _load_sfx_or_none for soft lookup)."""
     path = SFX_DIR / f"{name}.wav"
+    return AudioSegment.from_file(path)
+
+
+def _load_sfx_or_none(name: str):
+    """Soft SFX lookup — returns None if file is absent."""
+    path = SFX_DIR / f"{name}.wav"
+    if not path.exists():
+        return None
     return AudioSegment.from_file(path)
 
 
@@ -47,9 +56,14 @@ def build_audio_track(events: List[Event], total_duration_ms: int, output_path: 
         elif ev.type is EventType.ULTIMATE_START:
             # Charge build-up 600ms before impact + impact
             charge_pos = max(0, pos - 600)
-            if (CHARGE_PATH := SFX_DIR / "charge.wav").exists():
-                track = track.overlay(_load_sfx("charge"), position=charge_pos)
-            track = track.overlay(_load_sfx("ultimate"), position=pos)
+            charge_sfx = _load_sfx_or_none("charge")
+            if charge_sfx:
+                track = track.overlay(charge_sfx, position=charge_pos)
+            # Try skill-specific ult SFX first, fall back to generic ultimate.wav
+            skill_id = ev.extra.get("skill_id", "") if ev.extra else ""
+            ult_sfx = _load_sfx_or_none(skill_id) or _load_sfx_or_none("ultimate")
+            if ult_sfx:
+                track = track.overlay(ult_sfx, position=pos)
         elif ev.type is EventType.KO:
             track = track.overlay(_load_sfx("ko"), position=pos)
 
