@@ -95,3 +95,15 @@ def test_render_frame_with_hud_smoke():
                       target_x=360, target_y=400, t_ms=1500)
     r.render_frame(left, right, AnimationState.IDLE, AnimationState.IDLE,
                     anim_frame=4, elapsed_ms=2000)
+
+
+def test_walk_bob_offset_oscillates():
+    """Walking animation should produce a non-zero y-offset that oscillates."""
+    from pixel_battle.engine.renderer import _walk_bob_offset
+    # Across enough frames, offset must take at least one positive AND one negative value
+    offsets = [_walk_bob_offset(f) for f in range(60)]
+    assert max(offsets) > 0
+    assert min(offsets) < 0
+    # Amplitude bounded
+    assert max(offsets) <= 3
+    assert min(offsets) >= -3

@@ -94,6 +94,12 @@ def _build_arena_bg(width: int, height: int) -> pygame.Surface:
     pygame.draw.line(bg, (140, 70, 50), (0, HORIZON_Y + 4), (width, HORIZON_Y + 4), 1)
 
     return bg
+
+
+def _walk_bob_offset(anim_frame: int) -> int:
+    """±3 px sinusoidal y offset for walking sprites — reads as a footstep cycle."""
+    import math
+    return int(math.sin(anim_frame * 0.6) * 3)
 HP_BAR_BG = (60, 60, 60)
 HP_BAR_FG = (200, 50, 50)
 MP_BAR_FG = (60, 130, 230)
@@ -341,8 +347,10 @@ class Renderer:
         sprite = sprites.get_pose(pose_name)
         if not facing_right:
             sprite = pygame.transform.flip(sprite, True, False)
-        # Use midbottom: world_y is the feet position, sprite extends upward
-        rect = sprite.get_rect(midbottom=(world_x, world_y))
+        # Use midbottom: world_y is the feet position, sprite extends upward.
+        # Apply walk-bob for the walking state.
+        bob = _walk_bob_offset(anim_frame) if anim_state is AnimationState.WALKING else 0
+        rect = sprite.get_rect(midbottom=(world_x, world_y + bob))
         self.surface.blit(sprite, rect)
 
         # White flash overlay — applied after blitting the sprite
