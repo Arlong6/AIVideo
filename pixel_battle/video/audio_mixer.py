@@ -9,6 +9,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
+import numpy as np
+from pedalboard import Pedalboard
+
 
 class SlotLimiter:
     """Tracks active sound windows on a bus.
@@ -32,3 +35,36 @@ class SlotLimiter:
             return False
         self.windows.append((t_ms, t_ms + duration_ms))
         return True
+
+
+@dataclass
+class Bus:
+    """One audio bus with a pedalboard chain and a list of placements.
+
+    Each placement is (samples, start_t_ms). render() sums all placements
+    into a single numpy array of `total_ms` length, then runs the chain.
+    """
+    name: str
+    sample_rate: int
+    chain: Pedalboard
+    placements: List[Tuple[np.ndarray, int]] = field(default_factory=list)
+    limiter: SlotLimiter | None = None
+
+    def add(self, samples: np.ndarray, t_ms: int) -> bool:
+        """Place a sample at t_ms. Returns False if limiter rejects."""
+        dur_ms = int(len(samples) * 1000 / self.sample_rate)
+        if self.limiter and not self.limiter.can_add(t_ms, dur_ms):
+            return False
+        self.placements.append((samples.astype(np.float32, copy=False), t_ms))
+        return True
+
+    def render(self, total_ms: int) -> np.ndarray:
+        n = int(total_ms * self.sample_rate / 1000)
+        track = np.zeros(n, dtype=np.float32)
+        for samp, t_ms in self.placements:
+            start = int(t_ms * self.sample_rate / 1000)
+            if start >= n:
+                continue
+            end = min(start + len(samp), n)
+            track[start:end] += samp[: end - start]
+        return self.chain(track, self.sample_rate)
