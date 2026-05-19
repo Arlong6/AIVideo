@@ -5,7 +5,6 @@ from typing import List
 
 import numpy as np
 import soundfile as sf
-from pydub import AudioSegment
 
 from pixel_battle.engine.battle import Event, EventType
 
@@ -14,23 +13,8 @@ SFX_DIR = ASSETS / "sfx"
 BGM_DIR = ASSETS / "bgm"
 
 
-def _load_sfx(name: str) -> AudioSegment:
-    """Load SFX by name; raises if missing (use _load_sfx_or_none for soft lookup)."""
-    path = SFX_DIR / f"{name}.wav"
-    return AudioSegment.from_file(path)
-
-
-def _load_sfx_or_none(name: str):
-    """Soft SFX lookup — returns None if file is absent."""
-    path = SFX_DIR / f"{name}.wav"
-    if not path.exists():
-        return None
-    return AudioSegment.from_file(path)
-
-
 # ---------------------------------------------------------------------------
-# NumPy-based helpers (used by the rewritten build_audio_track in T6)
-# The old pydub helpers above are kept until T6 replaces build_audio_track.
+# NumPy-based helpers used by build_audio_track
 # ---------------------------------------------------------------------------
 
 def _load_wav(path: Path, target_sr: int) -> np.ndarray:
@@ -73,60 +57,59 @@ def _load_sfx_samples_or_none(name: str, sample_rate: int):
 def build_audio_track(events: List[Event], total_duration_ms: int, output_path: str,
                       event_offset_ms: int = 0,
                       event_video_ms: dict | None = None) -> None:
-    """Render BGM + SFX into a single wav matching total_duration_ms.
+    """Render BGM + SFX into a single wav via the AudioMixer bus pipeline.
 
-    event_offset_ms: time offset in audio at which battle starts.
-                     Add to each event's t_ms when overlaying SFX (default path).
-    event_video_ms:  optional {id(event): video_ms} map. When provided and
-                     id(event) is in the map, use that value instead of
-                     ev.t_ms + event_offset_ms. Used to correct for hit-stop
-                     accumulation that pushes video behind battle-time.
+    Signature preserved for backward compat with episode runner. Internally
+    routes events to bgm/cast/hit/ult buses; cast bus enforces 2-slot
+    overlap limit; final ffmpeg pass sidechain-ducks BGM and applies
+    loudnorm I=-14 (TikTok target).
     """
-    track = AudioSegment.silent(duration=total_duration_ms)
+    from pixel_battle.video.audio_mixer import AudioMixer
 
+    mixer = AudioMixer(sample_rate=48000)
+
+    # BGM bus
     bgm_path = BGM_DIR / "battle_loop.mp3"
     if bgm_path.exists():
-        bgm = AudioSegment.from_file(bgm_path) - 18
-        loops_needed = (total_duration_ms // len(bgm)) + 1
-        bgm_full = bgm * loops_needed
-        bgm_full = bgm_full[:total_duration_ms]
-        track = track.overlay(bgm_full)
+        bgm_samples = _load_wav(bgm_path, mixer.sr)
+        bgm_looped = _loop_to_length(bgm_samples, total_duration_ms, mixer.sr)
+        mixer.bgm_bus.add(bgm_looped, t_ms=0)
 
     for ev in events:
-        # Position: use event_video_ms[id(ev)] if provided (P4 sync correction),
-        # else fall back to ev.t_ms + event_offset_ms
+        # Same positioning rule as before
         if event_video_ms is not None and id(ev) in event_video_ms:
             pos = event_video_ms[id(ev)]
         else:
             pos = ev.t_ms + event_offset_ms
         if pos >= total_duration_ms:
-            continue  # off-end, skip
+            continue
+
         if ev.type is EventType.HIT:
-            sfx = _load_sfx("crit") if ev.extra.get("crit") else _load_sfx("hit")
-            track = track.overlay(sfx, position=pos)
+            samp = _load_sfx_samples(
+                "crit" if ev.extra.get("crit") else "hit", mixer.sr,
+            )
+            mixer.hit_bus.add(samp, pos)
         elif ev.type is EventType.ATTACK_WINDUP:
             st = ev.extra.get("skill_type", "") if ev.extra else ""
-            cast_name = f"cast_{st}"  # cast_cooldown / cast_special
-            cast_sfx = _load_sfx_or_none(cast_name)
-            if cast_sfx:
-                track = track.overlay(cast_sfx, position=pos)
+            samp = _load_sfx_samples_or_none(f"cast_{st}", mixer.sr)
+            if samp is not None:
+                mixer.cast_bus.add(samp, pos)
         elif ev.type is EventType.CRIT:
-            track = track.overlay(_load_sfx("crit"), position=pos)
+            mixer.hit_bus.add(_load_sfx_samples("crit", mixer.sr), pos)
         elif ev.type is EventType.ULTIMATE_START:
-            # Charge build-up 600ms before impact + impact
             charge_pos = max(0, pos - 600)
-            charge_sfx = _load_sfx_or_none("charge")
-            if charge_sfx:
-                track = track.overlay(charge_sfx, position=charge_pos)
-            # Try skill-specific ult SFX first, fall back to generic ultimate.wav
+            charge = _load_sfx_samples_or_none("charge", mixer.sr)
+            if charge is not None:
+                mixer.ult_bus.add(charge, charge_pos)
             skill_id = ev.extra.get("skill_id", "") if ev.extra else ""
-            ult_sfx = _load_sfx_or_none(skill_id) or _load_sfx_or_none("ultimate")
-            if ult_sfx:
-                track = track.overlay(ult_sfx, position=pos)
+            ult = (_load_sfx_samples_or_none(skill_id, mixer.sr)
+                   or _load_sfx_samples_or_none("ultimate", mixer.sr))
+            if ult is not None:
+                mixer.ult_bus.add(ult, pos)
         elif ev.type is EventType.KO:
-            track = track.overlay(_load_sfx("ko"), position=pos)
+            mixer.hit_bus.add(_load_sfx_samples("ko", mixer.sr), pos)
 
-    track.export(output_path, format="wav")
+    mixer.export(total_duration_ms, output_path)
 
 
 def mux_audio_video(video_path: str, audio_path: str, output_path: str) -> None:
