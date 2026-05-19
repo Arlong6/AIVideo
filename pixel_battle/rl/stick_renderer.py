@@ -1,7 +1,7 @@
 """Procedural stick figure draw — replaces sprite blits in RL pipeline.
 
 Pose driven by Character.action_state, attack_phase, vel_x, on_ground.
-Alan Becker-style polish: filled head, eyebrows, hands, feet, smear trails,
+Alan Becker-style polish: filled head, hands, feet, smear trails,
 impact burst + landing dust helpers.
 """
 from __future__ import annotations
@@ -21,7 +21,6 @@ LEG_LENGTH = 28
 LINE_WIDTH = 3
 HAND_RADIUS = 3           # new
 FOOT_LENGTH = 8           # new
-EYEBROW_LENGTH = 8        # new
 SMEAR_VEL_THRESHOLD = 3.0 # new
 
 # Phase durations in ms (used for pose interpolation)
@@ -164,50 +163,9 @@ def draw_stick_figure(surf: pygame.Surface, char: Character,
     shoulder_y = hip_y - TORSO_LENGTH
     head_center_y = shoulder_y - HEAD_RADIUS - 2
 
-    # ── Head: filled circle + outline ring ───────────────────────────────────
+    # ── Head: filled circle + outline ring (no face) ─────────────────────────
     pygame.draw.circle(surf, color, (cx, head_center_y), HEAD_RADIUS)          # filled
     pygame.draw.circle(surf, (0, 0, 0), (cx, head_center_y), HEAD_RADIUS, 2)  # outline
-
-    # ── Eyes ─────────────────────────────────────────────────────────────────
-    eye_offset = 4 if char.facing >= 0 else -4
-    pygame.draw.circle(surf, (0, 0, 0), (cx + eye_offset - 3, head_center_y - 2), 2)
-    pygame.draw.circle(surf, (0, 0, 0), (cx + eye_offset + 3, head_center_y - 2), 2)
-
-    # ── Eyebrows ─────────────────────────────────────────────────────────────
-    brow_y = head_center_y - 6
-    is_angry = (char.action_state == "attacking" or
-                char.attack_phase in ("windup", "strike"))
-    is_dazed = (char.action_state == "hit_stagger")
-    brow_color = (20, 20, 20)
-
-    if is_angry:
-        # Angry V-shape: tilted inward (\\ /)
-        lbx = cx + eye_offset - 3
-        rbx = cx + eye_offset + 3
-        pygame.draw.line(surf, brow_color,
-                         (lbx - EYEBROW_LENGTH // 2, brow_y + 3),
-                         (lbx + EYEBROW_LENGTH // 2, brow_y - 3), 2)
-        pygame.draw.line(surf, brow_color,
-                         (rbx - EYEBROW_LENGTH // 2, brow_y - 3),
-                         (rbx + EYEBROW_LENGTH // 2, brow_y + 3), 2)
-    elif is_dazed:
-        # Dazed: straight horizontal lines
-        lbx = cx + eye_offset - 3
-        rbx = cx + eye_offset + 3
-        pygame.draw.line(surf, brow_color,
-                         (lbx - EYEBROW_LENGTH // 2, brow_y),
-                         (lbx + EYEBROW_LENGTH // 2, brow_y), 2)
-        pygame.draw.line(surf, brow_color,
-                         (rbx - EYEBROW_LENGTH // 2, brow_y),
-                         (rbx + EYEBROW_LENGTH // 2, brow_y), 2)
-    else:
-        # Relaxed: short flat lines slightly above eyes
-        pygame.draw.line(surf, brow_color,
-                         (cx + eye_offset - 3 - EYEBROW_LENGTH // 2, brow_y),
-                         (cx + eye_offset - 3 + EYEBROW_LENGTH // 2, brow_y), 2)
-        pygame.draw.line(surf, brow_color,
-                         (cx + eye_offset + 3 - EYEBROW_LENGTH // 2, brow_y),
-                         (cx + eye_offset + 3 + EYEBROW_LENGTH // 2, brow_y), 2)
 
     # ── Torso ─────────────────────────────────────────────────────────────────
     pygame.draw.line(surf, color, (cx, shoulder_y), (cx, hip_y), LINE_WIDTH)
