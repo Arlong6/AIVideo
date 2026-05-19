@@ -102,8 +102,10 @@ def build_audio_track(events: List[Event], total_duration_ms: int, output_path: 
             if charge is not None:
                 mixer.ult_bus.add(charge, charge_pos)
             skill_id = ev.extra.get("skill_id", "") if ev.extra else ""
-            ult = (_load_sfx_samples_or_none(skill_id, mixer.sr)
-                   or _load_sfx_samples_or_none("ultimate", mixer.sr))
+            # numpy arrays don't support `a or b` truthiness; explicit None check
+            ult = _load_sfx_samples_or_none(skill_id, mixer.sr)
+            if ult is None:
+                ult = _load_sfx_samples_or_none("ultimate", mixer.sr)
             if ult is not None:
                 mixer.ult_bus.add(ult, pos)
         elif ev.type is EventType.KO:
