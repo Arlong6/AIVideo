@@ -91,7 +91,7 @@ class Battle:
     # Public API                                                            #
     # ------------------------------------------------------------------ #
 
-    def tick_ms(self, dt_ms: int) -> None:
+    def tick_ms(self, dt_ms: int, skip_ai: bool = False) -> None:
         self.elapsed_ms += dt_ms
 
         if self.state is BattleState.STARTING:
@@ -140,6 +140,9 @@ class Battle:
         # Update hit-stagger timers
         self._update_stagger(self.left, dt_ms)
         self._update_stagger(self.right, dt_ms)
+
+        if skip_ai:
+            return
 
         # Ultimate check — before AI so it fires immediately when ready
         if self.left.ultimate_ready() and self.left.action_state not in ("attacking", "hit_stagger", "ko"):
