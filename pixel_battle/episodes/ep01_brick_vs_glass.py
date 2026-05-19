@@ -199,7 +199,8 @@ def _draw_intro_screen(renderer, left_char, right_char, frame: int):
 
 
 FPS = 60
-TICK_MS = 1000 // FPS  # 16ms ≈ 60fps
+TICK_MS = 1000 // FPS    # 16ms — used for battle physics (integer step)
+FRAME_MS = 1000.0 / FPS  # 16.6667 — used for real-time audio alignment (P5)
 EPISODE_ID = "ep01_brick_vs_glass"
 OUT_DIR = Path("/Users/arlong/Projects/AIvideo/pixel_battle/output") / EPISODE_ID
 SEED = 1
@@ -290,7 +291,8 @@ def main():
 
         for ev in new_events:
             # P4 audio sync: record video-frame time of this event
-            event_video_ms[id(ev)] = frame_no * TICK_MS
+            # P5 audio fix: use real-time FRAME_MS so audio aligns with video playback
+            event_video_ms[id(ev)] = int(frame_no * FRAME_MS)
             # Resolve target character object for position-based effects
             target_char = left if ev.target == left.id else right
 
@@ -503,8 +505,13 @@ def main():
             str(OUT_DIR / "thumbnail.jpg"),
         ], check=True, capture_output=True)
 
-    total_ms = (INTRO_FRAMES * TICK_MS) + battle.elapsed_ms + (30 * TICK_MS) + (180 * TICK_MS)
-    intro_offset_ms = INTRO_FRAMES * TICK_MS
+    # P5 audio fix: use real-time FRAME_MS (1000/60) for audio length so it
+    # matches the video's wall-clock duration. Battle's elapsed_ms is physics
+    # time — convert to frames first, then multiply by FRAME_MS.
+    battle_frames = battle.elapsed_ms // TICK_MS
+    total_frames = INTRO_FRAMES + battle_frames + 30 + 180
+    total_ms = int(total_frames * FRAME_MS)
+    intro_offset_ms = int(INTRO_FRAMES * FRAME_MS)
     # P4: audio sync uses recorded video-time per event when available
     # (events processed during cinematics / hit-stop have video time > battle time)
     # Adjust map values by intro_offset_ms so they line up with audio timeline
