@@ -64,9 +64,9 @@ POSES = {
                      "leaning slightly backward, fists pulled back near the body, weight shifted onto back foot, "
                      "eyes narrowed and focused. " + PRESERVE,
 
-    "attack_strike": "Modify the image to show the same character in an attack strike pose: "
-                     "leaning aggressively forward, one fist thrust forward in a punch, "
-                     "the other arm pulled back for balance, weight on front foot. " + PRESERVE,
+    "attack_strike": "Modify the image to show the same character mid-action with one arm "
+                     "extended forward in a dynamic motion, the other arm pulled back for "
+                     "counter-balance, leaning forward with weight on front foot, action pose. " + PRESERVE,
 
     "attack_recover": "Modify the image to show the same character in attack recovery pose: "
                       "returning to neutral, arms dropping back to sides, slight forward lean. " + PRESERVE,
@@ -87,13 +87,13 @@ POSES = {
                       "arms out wide, energy aura visible around the body, glowing eyes, "
                       "feet planted in a power stance, fierce expression. " + PRESERVE,
 
-    "ultimate_pose": "Modify the image to show the same character in a dramatic ultimate-skill ready pose: "
-                     "low fighting stance, one fist raised high, intense glowing eyes, "
-                     "bold silhouette, like a fighting game super move portrait. " + PRESERVE,
+    "ultimate_pose": "Modify the image to show the same character in a dramatic ready stance: "
+                     "low stance with knees bent, one arm raised high overhead, intense glowing eyes, "
+                     "bold silhouette, hero pose with strong silhouette. " + PRESERVE,
 
-    "jump_up": "Modify the image to show the same character beginning a jump: "
-               "knees bent into a coiled crouch, arms swinging downward in preparation, "
-               "weight loaded on both feet, eyes upward. " + PRESERVE,
+    "jump_up": "Modify the image to show the same character starting to leap upward: "
+               "knees bent low in a deep crouch, arms positioned at the sides, "
+               "balanced on both feet, looking upward, ready to spring. " + PRESERVE,
 
     "jump_apex": "Modify the image to show the same character at the peak of a jump in mid-air: "
                  "both feet tucked up toward the chest, arms slightly raised, "
