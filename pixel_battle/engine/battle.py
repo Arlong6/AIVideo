@@ -443,6 +443,52 @@ class Battle:
             opp.vel_x += 5.0 * char.facing        # defender drifts away (P5: 2.5x)
             opp.windup_stun_until_ms = self.elapsed_ms + 200  # P5: 200ms freeze
 
+    def _start_attack_with_kind(self, char: Character, opp: Character,
+                                  kind: str) -> None:
+        """RL-friendly attack initiator: skip the random selection in
+        _choose_attack_skill and pick by category instead.
+
+        kind: "basic" | "cooldown"
+          - basic: always picks the first BASIC skill (always available)
+          - cooldown: picks first off-cooldown COOLDOWN skill; no-op if none
+        Unknown kinds are a no-op.
+        """
+        if char.action_state in ("attacking", "hit_stagger", "ko"):
+            return
+        if self.elapsed_ms < char.last_attack_ms + char.attack_interval_ms:
+            return  # respect attack interval gate
+
+        if kind == "basic":
+            skill = char.skills_of_type(SkillType.BASIC)[0]
+        elif kind == "cooldown":
+            cd_skills = char.skills_of_type(SkillType.COOLDOWN)
+            available = [s for s in cd_skills
+                          if char.skill_off_cooldown(s, self.elapsed_ms)]
+            if not available:
+                return  # no CD skill ready — no-op
+            skill = available[0]
+        else:
+            return
+
+        # Mirror _start_attack body but with explicit skill choice
+        char.attack_used_kind = skill
+        char.attack_phase = "windup"
+        char.attack_phase_t = 0
+        char.action_state = "attacking"
+        char.vel_x = 0.0
+
+        if skill.skill_type in (SkillType.COOLDOWN, SkillType.SPECIAL):
+            self._emit(
+                EventType.ATTACK_WINDUP,
+                actor=char.id,
+                extra={"skill_id": skill.id,
+                       "skill_type": skill.skill_type.value},
+            )
+            # P5 cast pushback + defender freeze
+            char.vel_x = -7.0 * char.facing
+            opp.vel_x += 5.0 * char.facing
+            opp.windup_stun_until_ms = self.elapsed_ms + 200
+
     def _choose_attack_skill(self, char: Character) -> Skill:
         """Priority: CD-skill (off-cd, 70%) > affordable special (40%) > basic."""
         # 1. CD skill if any off-cooldown
