@@ -3,6 +3,8 @@ import subprocess
 from pathlib import Path
 from typing import List
 
+import numpy as np
+import soundfile as sf
 from pydub import AudioSegment
 
 from pixel_battle.engine.battle import Event, EventType
@@ -24,6 +26,48 @@ def _load_sfx_or_none(name: str):
     if not path.exists():
         return None
     return AudioSegment.from_file(path)
+
+
+# ---------------------------------------------------------------------------
+# NumPy-based helpers (used by the rewritten build_audio_track in T6)
+# The old pydub helpers above are kept until T6 replaces build_audio_track.
+# ---------------------------------------------------------------------------
+
+def _load_wav(path: Path, target_sr: int) -> np.ndarray:
+    """Load a wav/mp3 as mono float32 at target_sr. Resamples if needed."""
+    data, sr = sf.read(str(path), always_2d=False)
+    if data.ndim > 1:
+        data = data.mean(axis=1)
+    data = data.astype(np.float32, copy=False)
+    if sr != target_sr:
+        # Simple linear resample — fine for ducking/loop content
+        n_out = int(len(data) * target_sr / sr)
+        idx = np.linspace(0, len(data) - 1, n_out)
+        data = np.interp(idx, np.arange(len(data)), data).astype(np.float32)
+    return data
+
+
+def _loop_to_length(samples: np.ndarray, total_ms: int, sample_rate: int) -> np.ndarray:
+    """Repeat-tile then truncate to exactly total_ms worth of samples."""
+    n_target = int(total_ms * sample_rate / 1000)
+    if len(samples) == 0:
+        return np.zeros(n_target, dtype=np.float32)
+    reps = (n_target // len(samples)) + 1
+    return np.tile(samples, reps)[:n_target].astype(np.float32, copy=False)
+
+
+def _load_sfx_samples(name: str, sample_rate: int) -> np.ndarray:
+    """Hard load — raises if missing (mirrors old _load_sfx)."""
+    path = SFX_DIR / f"{name}.wav"
+    return _load_wav(path, sample_rate)
+
+
+def _load_sfx_samples_or_none(name: str, sample_rate: int):
+    """Soft load — returns None if missing (mirrors old _load_sfx_or_none)."""
+    path = SFX_DIR / f"{name}.wav"
+    if not path.exists():
+        return None
+    return _load_wav(path, sample_rate)
 
 
 def build_audio_track(events: List[Event], total_duration_ms: int, output_path: str,
