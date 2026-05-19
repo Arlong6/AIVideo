@@ -6,10 +6,14 @@ Replaces the flat pydub overlay in compose.py with:
   - AudioMixer: BGM / cast / hit / ult buses + final ffmpeg sidechain mix
 """
 from __future__ import annotations
+import subprocess
+import tempfile
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import List, Tuple
 
 import numpy as np
+import soundfile as sf
 from pedalboard import Gain, HighpassFilter, LowShelfFilter, Limiter, Pedalboard
 
 
@@ -112,4 +116,36 @@ class AudioMixer:
         )
 
     def export(self, total_duration_ms: int, output_path: str) -> None:
-        raise NotImplementedError("export filled in by Task 4")
+        """Render each bus → 4 temp wavs → ffmpeg sidechain mix → output.
+
+        ffmpeg graph:
+          1. [hit][ult]amix=2          → [trig]    (sidechain trigger)
+          2. [bgm][trig]sidechaincompress → [bgm_ducked]
+          3. [bgm_ducked][cast][hit][ult]amix=4 → [mixed]
+          4. [mixed]loudnorm=I=-14:TP=-1.5 → [out]
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = {}
+            for bus in (self.bgm_bus, self.cast_bus, self.hit_bus, self.ult_bus):
+                samples = bus.render(total_duration_ms)
+                p = Path(tmpdir) / f"{bus.name}.wav"
+                sf.write(str(p), samples, self.sr)
+                paths[bus.name] = str(p)
+
+            cmd = [
+                "ffmpeg", "-y", "-loglevel", "error",
+                "-i", paths["bgm"],
+                "-i", paths["cast"],
+                "-i", paths["hit"],
+                "-i", paths["ult"],
+                "-filter_complex",
+                "[2:a][3:a]amix=inputs=2:duration=longest:normalize=0[trig];"
+                "[0:a][trig]sidechaincompress="
+                "threshold=0.1:ratio=4:attack=5:release=200[bgm_ducked];"
+                "[bgm_ducked][1:a][2:a][3:a]amix=inputs=4:"
+                "duration=longest:normalize=0[mixed];"
+                "[mixed]loudnorm=I=-14:LRA=11:TP=-1.5[out]",
+                "-map", "[out]",
+                output_path,
+            ]
+            subprocess.run(cmd, check=True, capture_output=True)
