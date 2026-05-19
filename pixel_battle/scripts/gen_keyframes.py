@@ -12,12 +12,15 @@ Plus the existing base (brick_phone_1.png / glass_slab_2.png) serves as IDLE.
 Output: pixel_battle/assets/sprites/{char_id}/{pose}.png
 Cost: ~$0.80-1.20 total (16 i2i calls)
 """
+import base64
+import io
 import os
 import sys
+import urllib.request
 from pathlib import Path
 
+import fal_client
 from dotenv import load_dotenv
-from google import genai
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -48,7 +51,7 @@ BASES = {
     "glass_slab": SRC / "glass_slab_2.png",
 }
 
-GEMINI_IMG_MODEL = "gemini-2.5-flash-image"
+KONTEXT_MODEL = "fal-ai/flux-pro/kontext"
 
 PRESERVE = (
     "Preserve the EXACT character design, colors, proportions, face design, and pixel art style. "
@@ -102,18 +105,44 @@ POSES = {
 }
 
 
-def gen_pose(client, base_image: Image.Image, instruction: str, out_path: Path) -> bool:
+def _image_to_data_uri(img: Image.Image) -> str:
+    """Encode PIL Image as base64 PNG data URI for fal.ai input."""
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
+
+
+def _http_get_bytes(url: str) -> bytes:
+    with urllib.request.urlopen(url, timeout=60) as r:
+        return r.read()
+
+
+def gen_pose_flux(base_image: Image.Image, instruction: str,
+                   out_path: Path) -> bool:
+    """Generate one pose via fal.ai FLUX Kontext + pixel-art finalization.
+
+    Returns True on success (out_path written), False on any API/decode failure.
+    """
+    img_uri = _image_to_data_uri(base_image)
     try:
-        r = client.models.generate_content(
-            model=GEMINI_IMG_MODEL,
-            contents=[base_image, instruction],
+        result = fal_client.subscribe(
+            KONTEXT_MODEL,
+            arguments={
+                "image_url": img_uri,
+                "prompt": instruction,
+                "guidance_scale": 3.5,
+                "num_inference_steps": 28,
+                "aspect_ratio": "1:1",
+                "output_format": "png",
+            },
+            with_logs=False,
         )
-        for cand in r.candidates:
-            for part in cand.content.parts:
-                if hasattr(part, "inline_data") and part.inline_data and part.inline_data.data:
-                    out_path.write_bytes(part.inline_data.data)
-                    return True
-        return False
+        img_url = result["images"][0]["url"]
+        img_bytes = _http_get_bytes(img_url)
+        raw = Image.open(io.BytesIO(img_bytes))
+        finalized = pixel_art_finalize(raw, palette_colors=16, target_px=512)
+        finalized.save(out_path)
+        return True
     except Exception as e:
         print(f"    error: {str(e)[:200]}")
         return False
