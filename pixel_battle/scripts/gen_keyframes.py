@@ -87,6 +87,18 @@ POSES = {
     "ultimate_pose": "Modify the image to show the same character in a dramatic ultimate-skill ready pose: "
                      "low fighting stance, one fist raised high, intense glowing eyes, "
                      "bold silhouette, like a fighting game super move portrait. " + PRESERVE,
+
+    "jump_up": "Modify the image to show the same character beginning a jump: "
+               "knees bent into a coiled crouch, arms swinging downward in preparation, "
+               "weight loaded on both feet, eyes upward. " + PRESERVE,
+
+    "jump_apex": "Modify the image to show the same character at the peak of a jump in mid-air: "
+                 "both feet tucked up toward the chest, arms slightly raised, "
+                 "body compact and vertical, expression focused. " + PRESERVE,
+
+    "jump_land": "Modify the image to show the same character landing from a jump: "
+                 "knees bent in deep cushion, one arm out for balance, "
+                 "body lowered close to the ground, dust particle hint at feet. " + PRESERVE,
 }
 
 
