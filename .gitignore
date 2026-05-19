@@ -35,3 +35,5 @@ data/books/pexels_seen_ids.json
 
 # Pixel battle rendered output
 pixel_battle/output/
+
+*.bak
