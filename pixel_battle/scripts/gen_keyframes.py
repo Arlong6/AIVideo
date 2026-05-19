@@ -149,11 +149,11 @@ def gen_pose_flux(base_image: Image.Image, instruction: str,
 
 
 def main():
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("FAL_KEY")
     if not api_key:
-        print("ERROR: GEMINI_API_KEY not set")
+        print("ERROR: FAL_KEY not set — get one at https://fal.ai/dashboard/keys")
         sys.exit(1)
-    client = genai.Client(api_key=api_key)
+    # fal_client reads FAL_KEY from env automatically; no explicit client init
 
     total_ok = 0
     total_fail = 0
@@ -176,7 +176,7 @@ def main():
         for pose_name, instr in POSES.items():
             out_path = out_dir / f"{pose_name}.png"
             print(f"  generating {pose_name}...", end=" ", flush=True)
-            if gen_pose(client, base_img, instr, out_path):
+            if gen_pose_flux(base_img, instr, out_path):
                 size_kb = out_path.stat().st_size // 1024
                 print(f"ok ({size_kb} KB)")
                 total_ok += 1
@@ -188,7 +188,7 @@ def main():
     print(f"  OK:   {total_ok}")
     print(f"  FAIL: {total_fail}")
     print(f"  Output: {OUT_BASE}")
-    print(f"  Approx cost: ~${total_ok * 0.04:.2f}")
+    print(f"  Approx cost: ~${total_ok * 0.05:.2f}")
 
 
 if __name__ == "__main__":
