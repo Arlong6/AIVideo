@@ -49,12 +49,23 @@ def test_screen_flash_replaces_with_newer_request():
     assert sys._flash_frames_remaining == 6
 
 
-def test_spawn_release_flash_creates_short_lived_big_ring():
-    """spawn_release_flash adds a ring with bigger max_radius and shorter lifetime than default."""
+def test_spawn_release_flash_creates_big_ring():
+    """spawn_release_flash adds a ring with bigger max_radius and longer lifetime (P5)."""
     sys = ImpactFXSystem()
     sys.spawn_release_flash(x=240, y=400, color=(80, 180, 255))
     assert len(sys.rings) == 1
     r = sys.rings[0]
-    assert r.max_radius == 80   # bigger than default 60
-    assert r.lifetime == 3      # shorter than default 8
+    assert r.max_radius == 120  # P5: was 80, bumped for visibility
+    assert r.lifetime == 6      # P5: was 3, bumped for visibility
     assert r.color == (80, 180, 255)
+
+
+def test_release_flash_is_longer_and_bigger_than_default_ring():
+    """P5: release flash bumped to lifetime=6, max_radius=120 for visibility."""
+    from pixel_battle.engine.impact_fx import ImpactFXSystem
+    fx = ImpactFXSystem()
+    fx.spawn_release_flash(100.0, 100.0, (80, 180, 255))
+    assert len(fx.rings) == 1
+    ring = fx.rings[0]
+    assert ring.lifetime == 6, f"expected lifetime=6, got {ring.lifetime}"
+    assert ring.max_radius == 120, f"expected max_radius=120, got {ring.max_radius}"
