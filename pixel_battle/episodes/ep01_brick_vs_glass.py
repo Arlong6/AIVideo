@@ -321,8 +321,11 @@ def main():
                 def _release_callback(rx=actor_x_int, ry=actor_y_int - 80,
                                        c=color):
                     renderer.impact_fx.spawn_release_flash(rx, ry, c)
+                    # P5: add screen flash on release for visibility
+                    renderer.impact_fx.request_screen_flash(c, alpha=120, frames=4)
+                    # P5: bigger burst (was count=8, speed=8.0)
                     renderer.particles.emit_hit_burst(rx, ry, color=c,
-                                                       count=8, speed=8.0)
+                                                       count=16, speed=10.0)
                     # Reset zoom when charge finishes
                     renderer.set_zoom(1.0, (WIDTH // 2, HEIGHT // 2))
 
