@@ -136,3 +136,37 @@ class PixelBattleEnv(gym.Env):
             self.battle._start_attack_with_kind(me, opp, "cooldown")
         elif action == 6 and me.ultimate_ready():
             self.battle._trigger_ultimate(me, opp)
+
+
+class SinglePerspectiveEnv(gym.Env):
+    """Wrap PixelBattleEnv so step(left_action) controls only 'left'.
+
+    Right is controlled by `opponent_policy` (a callable taking obs -> int).
+    Use a fresh random policy for the first training rollouts, then swap to
+    the current PPO model itself for symmetric self-play.
+    """
+
+    metadata = {"render_modes": []}
+
+    def __init__(self, seed: int = 42, opponent_policy=None):
+        super().__init__()
+        self._inner = PixelBattleEnv(seed=seed)
+        self.observation_space = self._inner.observation_space
+        self.action_space = self._inner.action_space
+        self._opponent_policy = opponent_policy or (lambda obs: 0)
+
+    def set_opponent_policy(self, policy):
+        """policy(obs: np.ndarray) -> int (discrete action)."""
+        self._opponent_policy = policy
+
+    def reset(self, seed=None, options=None):
+        (obs_left, obs_right), info = self._inner.reset(seed=seed)
+        self._last_right_obs = obs_right
+        return obs_left, info
+
+    def step(self, left_action):
+        right_action = int(self._opponent_policy(self._last_right_obs))
+        (obs_left, obs_right), rewards, terminated, truncated, info = \
+            self._inner.step((int(left_action), right_action))
+        self._last_right_obs = obs_right
+        return obs_left, float(rewards[0]), terminated, truncated, info
