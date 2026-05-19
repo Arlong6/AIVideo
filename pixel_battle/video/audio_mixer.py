@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 
 import numpy as np
-from pedalboard import Pedalboard
+from pedalboard import Gain, HighpassFilter, LowShelfFilter, Limiter, Pedalboard
 
 
 class SlotLimiter:
@@ -68,3 +68,48 @@ class Bus:
             end = min(start + len(samp), n)
             track[start:end] += samp[: end - start]
         return self.chain(track, self.sample_rate)
+
+
+class AudioMixer:
+    """Owns 4 buses (BGM/cast/hit/ult) + a final ffmpeg sidechain export.
+
+    Default chains tuned for pixel-battle:
+      - BGM:  -12dB gain   (sits under everything; sidechain target)
+      - cast: hi-pass 200Hz + -8dB + limiter + 2-slot SlotLimiter
+      - hit:  low-shelf +3dB @ 120Hz + 0dB + limiter (cuts through)
+      - ult:  0dB + limiter
+    """
+
+    def __init__(self, sample_rate: int = 48000):
+        self.sr = sample_rate
+        self.bgm_bus = Bus(
+            name="bgm", sample_rate=sample_rate,
+            chain=Pedalboard([Gain(gain_db=-12.0)]),
+        )
+        self.cast_bus = Bus(
+            name="cast", sample_rate=sample_rate,
+            chain=Pedalboard([
+                HighpassFilter(cutoff_frequency_hz=200.0),
+                Gain(gain_db=-8.0),
+                Limiter(threshold_db=-2.0, release_ms=80.0),
+            ]),
+            limiter=SlotLimiter(max_concurrent=2),
+        )
+        self.hit_bus = Bus(
+            name="hit", sample_rate=sample_rate,
+            chain=Pedalboard([
+                LowShelfFilter(cutoff_frequency_hz=120.0, gain_db=3.0),
+                Gain(gain_db=0.0),
+                Limiter(threshold_db=-1.0, release_ms=50.0),
+            ]),
+        )
+        self.ult_bus = Bus(
+            name="ult", sample_rate=sample_rate,
+            chain=Pedalboard([
+                Gain(gain_db=0.0),
+                Limiter(threshold_db=-1.0, release_ms=100.0),
+            ]),
+        )
+
+    def export(self, total_duration_ms: int, output_path: str) -> None:
+        raise NotImplementedError("export filled in by Task 4")
