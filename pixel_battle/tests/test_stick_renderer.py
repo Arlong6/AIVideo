@@ -88,3 +88,48 @@ def test_left_and_right_chars_are_distinct_colors(surf):
     blue_pixels = ((arr[:, :, 2] > 150) & (arr[:, :, 0] < 100)).sum()
     assert red_pixels > 50, "left character should have visible red pixels"
     assert blue_pixels > 50, "right character should have visible blue pixels"
+
+
+# ── New tests: smear, impact burst, landing dust ──────────────────────────────
+
+def test_smear_drawn_when_velocity_high(surf):
+    """When |vel_x| > threshold, additional ghost pixels appear behind char."""
+    c = Character.load("brick_phone")
+    c.reset_physics(initial_x=300.0, facing=1)
+    c.pos_y = 600.0
+    c.vel_x = 5.0  # moving fast
+    draw_stick_figure(surf, c, RED)
+    # Pixels should exist BEHIND character (smaller x for facing=1, vel>0 means moving right
+    # → trail is to the left)
+    arr = pygame.surfarray.array3d(surf)
+    trail_region = arr[260:285, 540:610]  # box BEHIND main body
+    assert (trail_region.sum(axis=-1) > 0).any(), "expected smear trail behind moving char"
+
+
+def test_no_smear_when_stationary(surf):
+    c = Character.load("brick_phone")
+    c.reset_physics(initial_x=300.0, facing=1)
+    c.pos_y = 600.0
+    c.vel_x = 0.0
+    draw_stick_figure(surf, c, RED)
+    arr = pygame.surfarray.array3d(surf)
+    # Nothing should be drawn far from character body
+    trail_region = arr[260:285, 540:610]
+    assert not (trail_region.sum(axis=-1) > 0).any(), "no smear expected at rest"
+
+
+def test_spawn_impact_burst_draws_radial_lines(surf):
+    from pixel_battle.rl.stick_renderer import spawn_impact_burst
+    spawn_impact_burst(surf, 240, 400, (255, 200, 0), size=20)
+    arr = pygame.surfarray.array3d(surf)
+    # Check that pixels were drawn around the center
+    region = arr[220:260, 380:420]
+    assert (region.sum(axis=-1) > 0).any(), "burst should draw some pixels"
+
+
+def test_spawn_landing_dust_draws_at_ground(surf):
+    from pixel_battle.rl.stick_renderer import spawn_landing_dust
+    spawn_landing_dust(surf, 200, 700, (180, 180, 180))
+    arr = pygame.surfarray.array3d(surf)
+    region = arr[170:230, 680:710]
+    assert (region.sum(axis=-1) > 0).any(), "dust should produce visible pixels at ground level"
