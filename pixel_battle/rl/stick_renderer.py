@@ -28,6 +28,19 @@ _WINDUP_DUR = 128
 _STRIKE_DUR = 64
 _RECOVER_DUR = 160
 
+# Per-attack-anim phase durations (ms). Falls back to _DEFAULT_DUR.
+_PHASE_DURS = {
+    "jab":      {"windup": 90,  "strike": 50,  "recover": 120},
+    "cooldown": {"windup": 160, "strike": 80,  "recover": 200},
+    "special":  {"windup": 220, "strike": 120, "recover": 240},
+    "kick":     {"windup": 120, "strike": 70,  "recover": 180},
+}
+_DEFAULT_DUR = {"windup": _WINDUP_DUR, "strike": _STRIKE_DUR, "recover": _RECOVER_DUR}
+
+
+def _phase_dur(hint: str, phase: str) -> int:
+    return _PHASE_DURS.get(hint, _DEFAULT_DUR).get(phase, _DEFAULT_DUR[phase])
+
 
 # ── Per-character visual style ────────────────────────────────────────────────
 # Keys match Character.id; falls back to defaults.
@@ -100,39 +113,98 @@ def _lerp2(a: Tuple[float, float], b: Tuple[float, float], t: float) -> Tuple[in
 # ── Pose helpers ──────────────────────────────────────────────────────────────
 
 def _arm_offsets(char: Character, arm_length: int) -> Tuple[Tuple[int, int], Tuple[int, int]]:
-    """Return ((left_arm_dx, dy), (right_arm_dx, dy)) with smooth interpolation."""
+    """Return ((left_arm_dx, dy), (right_arm_dx, dy)) with smooth interpolation.
+
+    Pose dispatches by char.attack_anim_hint:
+      - "jab"      → fast straight punch with FRONT arm only
+      - "kick"     → arms relaxed (leg does the work, see _leg_offsets)
+      - "cooldown" → throw — back arm relaxed, front arm whips up & forward
+      - "special"  → both arms sweep overhead in a wide arc
+      - default    → standard pull-and-thrust
+    """
     facing = char.facing  # +1 right, -1 left
     phase = char.attack_phase
     phase_t = getattr(char, "attack_phase_t", 0)  # elapsed ms in current phase
+    hint = getattr(char, "attack_anim_hint", "jab")
 
     # Default arm poses (derived from arm_length so brick/glass scale correctly)
     default_l = (-arm_length // 2, 10)
     default_r = (arm_length // 2, 10)
-    # Facing-adjusted target poses
-    # "pulled back" = arms go to the back of body
-    pulled = ((-facing * arm_length, 6), (-facing * arm_length, 6))
-    # "thrust forward" = front arm fully forward, back arm half-back
-    thrust_l = (facing * arm_length, -4)
-    thrust_r = (-facing * (arm_length // 2), 8)
 
+    # ── KICK: arms stay relaxed (slight forward lean by facing) ───────────────
+    if hint == "kick" and phase in ("windup", "strike", "recover"):
+        balance_l = (-facing * (arm_length // 3), 12)
+        balance_r = (facing * (arm_length // 3), 12)
+        return balance_l, balance_r
+
+    # ── COOLDOWN (throw): back arm relaxed; front arm whips up & forward ──────
+    if hint == "cooldown":
+        if phase == "windup":
+            t = _ease_in_cubic(phase_t / _phase_dur(hint, "windup"))
+            # Front arm pulls up and back (overhead cocked)
+            front_start = (facing * (arm_length // 3), 8)
+            front_end = (-facing * (arm_length // 2), -arm_length // 2)
+            front = _lerp2(front_start, front_end, t)
+            back = (-facing * (arm_length // 2), 8)
+            return (front, back) if facing < 0 else (back, front)
+        if phase == "strike":
+            t = _ease_out_cubic(phase_t / _phase_dur(hint, "strike"))
+            front_start = (-facing * (arm_length // 2), -arm_length // 2)
+            front_end = (facing * arm_length, -arm_length // 3)
+            front = _lerp2(front_start, front_end, t)
+            back = (-facing * (arm_length // 3), 6)
+            return (front, back) if facing < 0 else (back, front)
+        if phase == "recover":
+            t = _ease_in_out_cubic(phase_t / _phase_dur(hint, "recover"))
+            front_start = (facing * arm_length, -arm_length // 3)
+            front_end = (facing * (arm_length // 2), 10)
+            front = _lerp2(front_start, front_end, t)
+            back = default_r if facing < 0 else default_l
+            return (front, back) if facing < 0 else (back, front)
+
+    # ── SPECIAL: both arms sweep big arc — overhead in windup, slam in strike ─
+    if hint == "special":
+        if phase == "windup":
+            t = _ease_in_cubic(phase_t / _phase_dur(hint, "windup"))
+            up_l = _lerp2(default_l, (-arm_length // 2, -arm_length), t)
+            up_r = _lerp2(default_r, (arm_length // 2, -arm_length), t)
+            return up_l, up_r
+        if phase == "strike":
+            t = _ease_out_cubic(phase_t / _phase_dur(hint, "strike"))
+            slam_l = _lerp2((-arm_length // 2, -arm_length),
+                            (facing * arm_length, 6), t)
+            slam_r = _lerp2((arm_length // 2, -arm_length),
+                            (facing * (arm_length - 4), 12), t)
+            return slam_l, slam_r
+        if phase == "recover":
+            t = _ease_in_out_cubic(phase_t / _phase_dur(hint, "recover"))
+            slam_l = (facing * arm_length, 6)
+            slam_r = (facing * (arm_length - 4), 12)
+            return _lerp2(slam_l, default_l, t), _lerp2(slam_r, default_r, t)
+
+    # ── JAB (default BASIC) — fast straight punch with FRONT arm only ─────────
     if phase == "windup":
-        t = _ease_in_cubic(phase_t / _WINDUP_DUR)
-        l = _lerp2(default_l, pulled[0], t)
-        r = _lerp2(default_r, pulled[1], t)
-        return l, r
-
+        t = _ease_in_cubic(phase_t / _phase_dur("jab", "windup"))
+        # Front arm pulls slightly back; back arm stays
+        front_start = (facing * (arm_length // 2), 10)
+        front_end = (-facing * (arm_length // 3), 6)
+        front = _lerp2(front_start, front_end, t)
+        back = (-facing * (arm_length // 2), 10)
+        return (front, back) if facing < 0 else (back, front)
     if phase == "strike":
-        t = _ease_out_cubic(phase_t / _STRIKE_DUR)
-        l = _lerp2(pulled[0], thrust_l, t)
-        r = _lerp2(pulled[1], thrust_r, t)
-        return l, r
-
+        t = _ease_out_cubic(phase_t / _phase_dur("jab", "strike"))
+        front_start = (-facing * (arm_length // 3), 6)
+        front_end = (facing * arm_length, -2)
+        front = _lerp2(front_start, front_end, t)
+        back = (-facing * (arm_length // 2), 10)
+        return (front, back) if facing < 0 else (back, front)
     if phase == "recover":
-        t = _ease_in_out_cubic(phase_t / _RECOVER_DUR)
-        # from thrust back toward default
-        l = _lerp2(thrust_l, default_l, t)
-        r = _lerp2(thrust_r, default_r, t)
-        return l, r
+        t = _ease_in_out_cubic(phase_t / _phase_dur("jab", "recover"))
+        front_start = (facing * arm_length, -2)
+        front_end = (facing * (arm_length // 2), 10)
+        front = _lerp2(front_start, front_end, t)
+        back = (-facing * (arm_length // 2), 10)
+        return (front, back) if facing < 0 else (back, front)
 
     if char.action_state == "hit_stagger":
         # Arms flailing up
@@ -143,9 +215,44 @@ def _arm_offsets(char: Character, arm_length: int) -> Tuple[Tuple[int, int], Tup
 
 
 def _leg_offsets(char: Character, leg_length: int) -> Tuple[Tuple[int, int], Tuple[int, int]]:
-    """Return ((left_leg_dx, dy), (right_leg_dx, dy))."""
+    """Return ((left_leg_dx, dy), (right_leg_dx, dy)).
+
+    Adds a front-leg kick chamber/extend when attack_anim_hint == "kick" and
+    the character is actively attacking on the ground.
+    """
     if not char.on_ground:
         return (-8, leg_length // 2), (8, leg_length // 2)
+
+    hint = getattr(char, "attack_anim_hint", "jab")
+    if hint == "kick" and char.action_state == "attacking":
+        facing = char.facing
+        phase = char.attack_phase
+        phase_t = getattr(char, "attack_phase_t", 0)
+        # Front leg lifts and extends forward
+        if phase == "windup":
+            t = _ease_in_cubic(phase_t / _phase_dur("kick", "windup"))
+            # Front leg rises into chamber position
+            front_start = (facing * 6, leg_length)
+            front_end = (facing * (leg_length // 3), leg_length // 2)
+            back_static = (-facing * 6, leg_length)
+            front = _lerp2(front_start, front_end, t)
+            return (front, back_static) if facing < 0 else (back_static, front)
+        if phase == "strike":
+            t = _ease_out_cubic(phase_t / _phase_dur("kick", "strike"))
+            front_start = (facing * (leg_length // 3), leg_length // 2)
+            front_end = (facing * leg_length, leg_length // 3)
+            back_static = (-facing * 6, leg_length)
+            front = _lerp2(front_start, front_end, t)
+            return (front, back_static) if facing < 0 else (back_static, front)
+        if phase == "recover":
+            t = _ease_in_out_cubic(phase_t / _phase_dur("kick", "recover"))
+            front_start = (facing * leg_length, leg_length // 3)
+            front_end = (facing * 6, leg_length)
+            back_static = (-facing * 6, leg_length)
+            front = _lerp2(front_start, front_end, t)
+            return (front, back_static) if facing < 0 else (back_static, front)
+
+    # Walking / standing fallthrough
     if abs(char.vel_x) > 0.5:
         return (-leg_length // 2, leg_length), (leg_length // 2, leg_length)
     return (-6, leg_length), (6, leg_length)
@@ -296,3 +403,54 @@ def spawn_landing_dust(surf: pygame.Surface, x: int, ground_y: int,
         h = max(1, base_h - i)
         rect = pygame.Rect(x + offset_x - w, ground_y + offset_y - h, w * 2, h * 2)
         pygame.draw.ellipse(surf, color, rect, 1)
+
+
+# ── Projectile layer (cooldown / ranged attacks) ──────────────────────────────
+
+class ProjectileLayer:
+    """Renders short-lived projectile particles for ranged attacks.
+
+    Each projectile travels from start_xy to end_xy over duration_ms, rendered
+    as a filled circle with a 3-segment fading tail. Stage 3 (play.py) spawns
+    these on cooldown skill strike events.
+    """
+
+    def __init__(self):
+        # Each item: (start_x, start_y, end_x, end_y, t0_ms, duration_ms, color)
+        self._items = []
+
+    def spawn(self, start, end, color, current_ms, duration_ms=350):
+        """Add a new projectile traveling start→end over duration_ms."""
+        self._items.append((
+            int(start[0]), int(start[1]),
+            int(end[0]), int(end[1]),
+            int(current_ms), int(duration_ms),
+            tuple(color),
+        ))
+
+    def draw(self, surf, current_ms):
+        """Render every live projectile and cull expired ones.
+
+        Each projectile is drawn as a 4px filled circle (with a 1px black
+        outline) plus three fading tail dots trailing behind.
+        """
+        live = []
+        for item in self._items:
+            sx, sy, ex, ey, t0, dur, color = item
+            t = (current_ms - t0) / dur
+            if t >= 1.0:
+                continue
+            live.append(item)
+            cx = sx + (ex - sx) * t
+            cy = sy + (ey - sy) * t
+            # Tail — 3 trailing segments at t-0.05, t-0.10, t-0.15
+            for offset, alpha in ((0.05, 200), (0.10, 130), (0.15, 70)):
+                tt = max(0.0, t - offset)
+                tx = sx + (ex - sx) * tt
+                ty = sy + (ey - sy) * tt
+                tail_surf = pygame.Surface((10, 10), pygame.SRCALPHA)
+                pygame.draw.circle(tail_surf, (*color, alpha), (5, 5), 3)
+                surf.blit(tail_surf, (int(tx) - 5, int(ty) - 5))
+            pygame.draw.circle(surf, color, (int(cx), int(cy)), 4)
+            pygame.draw.circle(surf, (0, 0, 0), (int(cx), int(cy)), 4, 1)
+        self._items = live
