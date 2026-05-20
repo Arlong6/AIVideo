@@ -26,6 +26,7 @@ from pixel_battle.video.compose import (  # noqa: E402
     _load_wav, _loop_to_length, _load_sfx_samples_or_none,
     mux_audio_video, BGM_DIR,
 )
+from pixel_battle.engine.physics import GROUND_Y  # noqa: E402
 
 
 WIDTH, HEIGHT = 480, 854
@@ -34,7 +35,9 @@ FRAME_MS = 1000.0 / FPS
 RED = (220, 60, 60)
 BLUE = (60, 130, 220)
 BG = (18, 22, 40)
-GROUND_Y = 720
+# GROUND_Y is imported from the physics engine — the renderer MUST use the
+# same feet-landing line the simulation uses, or the camera and floor will
+# be offset from where the fighters actually stand.
 
 # Camera — zoom + horizontal follow so fighters fill the vertical frame
 # instead of sitting tiny in the bottom strip. The world is drawn at native
