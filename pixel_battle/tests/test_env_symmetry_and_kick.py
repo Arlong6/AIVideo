@@ -61,8 +61,8 @@ def test_out_of_range_attack_gets_reward_penalty():
     env2.left.last_attack_ms = -10_000
     env2.right.last_attack_ms = -10_000
     (_obs2), rewards2, _, _, _ = env2.step((0, 0))  # both idle
-    # left's reward in attack case should be lower by ~0.1 (the OOR pen)
-    assert rewards[0] < rewards2[0] - 0.05  # 0.05 buffer for noise
+    # left's reward in attack case should be lower by RANGE_PENALTY (0.05)
+    assert rewards[0] < rewards2[0] - 0.03  # buffer below the 0.05 penalty
 
 
 def test_in_range_attack_no_penalty():

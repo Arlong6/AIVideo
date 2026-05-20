@@ -22,7 +22,18 @@ INTRO_END_MS = 2500
 
 # Reward shaping
 ATTACK_ACTIONS = {4, 5, 7, 8}
-RANGE_PENALTY = 0.1
+RANGE_PENALTY = 0.05          # per-step penalty for an out-of-range attack
+DMG_DEALT_W = 1.5            # weight on damage dealt to opponent
+DMG_TAKEN_W = 1.0            # weight on damage received
+STEP_PENALTY = 0.01          # mild per-step time pressure
+APPROACH_WEIGHT = 2.0        # potential-based gap-closing shaping
+KO_WIN_BONUS = 60.0          # terminal reward for landing the KO
+KO_LOSS_PENALTY = 50.0       # terminal penalty for being KO'd
+# Note: a winning KO (~+60 minus a few steps of penalty) must beat a 60s
+# timeout (~ -37 from STEP_PENALTY) so the policy fights to finish instead
+# of farming a per-step proximity bonus — which is why there is no flat
+# "engagement" bonus here; APPROACH_WEIGHT shaping telescopes and cannot
+# be farmed by hugging.
 
 
 class PixelBattleEnv(gym.Env):
@@ -64,6 +75,7 @@ class PixelBattleEnv(gym.Env):
                 break
         self._prev_left_hp = self.left.hp
         self._prev_right_hp = self.right.hp
+        self._prev_dist = abs(self.left.pos_x - self.right.pos_x)
         return self._obs_pair(), {}
 
     def step(self, actions: Tuple[int, int]):
@@ -77,12 +89,15 @@ class PixelBattleEnv(gym.Env):
         self._prev_left_hp = self.left.hp
         self._prev_right_hp = self.right.hp
 
-        # Per-frame engagement reward (small)
-        dist = abs(self.left.pos_x - self.right.pos_x)
-        engage = 0.05 if dist < 200 else 0.0
+        # Potential-based approach shaping — rewards closing the gap. It
+        # telescopes (sum over an episode = APPROACH_WEIGHT*(start-end)/480),
+        # so it cannot be farmed by hugging (stationary => 0) or oscillating.
+        cur_dist = abs(self.left.pos_x - self.right.pos_x)
+        approach = APPROACH_WEIGHT * (self._prev_dist - cur_dist) / 480.0
+        self._prev_dist = cur_dist
 
         # Penalize attacks issued out of range (anti-arm-waving)
-        out_of_range = dist > MELEE_RANGE * 1.2
+        out_of_range = cur_dist > MELEE_RANGE * 1.2
         oor_pen_left = (-RANGE_PENALTY
                         if (int(left_action) in ATTACK_ACTIONS and out_of_range)
                         else 0.0)
@@ -90,19 +105,21 @@ class PixelBattleEnv(gym.Env):
                          if (int(right_action) in ATTACK_ACTIONS and out_of_range)
                          else 0.0)
 
-        reward_left = dmg_to_right * 1.0 - dmg_to_left * 1.0 - 0.01 + engage + oor_pen_left
-        reward_right = dmg_to_left * 1.0 - dmg_to_right * 1.0 - 0.01 + engage + oor_pen_right
+        reward_left = (dmg_to_right * DMG_DEALT_W - dmg_to_left * DMG_TAKEN_W
+                       - STEP_PENALTY + approach + oor_pen_left)
+        reward_right = (dmg_to_left * DMG_DEALT_W - dmg_to_right * DMG_TAKEN_W
+                        - STEP_PENALTY + approach + oor_pen_right)
 
         terminated = self.battle.state == BattleState.KO
         truncated = (self.battle.elapsed_ms - INTRO_END_MS) >= EPISODE_TIMEOUT_MS
 
         if terminated:
             if self.right.is_ko() and not self.left.is_ko():
-                reward_left += 50.0
-                reward_right -= 50.0
+                reward_left += KO_WIN_BONUS
+                reward_right -= KO_LOSS_PENALTY
             elif self.left.is_ko() and not self.right.is_ko():
-                reward_left -= 50.0
-                reward_right += 50.0
+                reward_left -= KO_LOSS_PENALTY
+                reward_right += KO_WIN_BONUS
 
         return (self._obs_pair(),
                 (float(reward_left), float(reward_right)),
