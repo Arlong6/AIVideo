@@ -6,6 +6,7 @@ screen shake, projectiles and skill banners.
 """
 from __future__ import annotations
 import argparse
+import math
 import os
 from pathlib import Path
 
@@ -143,6 +144,56 @@ def _draw_shockwave(surf: pygame.Surface, x: int, y: int,
     pygame.draw.circle(ring, (*color, alpha),
                        (radius + pad, radius + pad), radius, w)
     surf.blit(ring, (x - radius - pad, y - radius - pad))
+
+
+def _draw_beam(surf: pygame.Surface, sx: int, sy: int, ex: int, ey: int,
+                color: tuple, age: int, life: int) -> None:
+    """A thick bright beam from (sx,sy) to (ex,ey) with a white-hot core."""
+    t = age / max(1, life)
+    if t >= 1.0:
+        return
+    w = int(30 * (1.0 - t) + 4)
+    pygame.draw.line(surf, color, (sx, sy), (ex, ey), w)
+    pygame.draw.line(surf, (255, 255, 255), (sx, sy), (ex, ey), max(2, w // 3))
+
+
+def _draw_spin(surf: pygame.Surface, cx: int, cy: int, color: tuple,
+                age: int, life: int) -> None:
+    """Whirling blades around the caster — Garen's Judgment, etc."""
+    t = age / max(1, life)
+    if t >= 1.0:
+        return
+    radius = int(46 + 28 * t)
+    n = 6
+    for i in range(n):
+        ang = age * 0.55 + i * (2 * math.pi / n)
+        ix = cx + math.cos(ang) * radius * 0.35
+        iy = cy + math.sin(ang) * radius * 0.35
+        ox = cx + math.cos(ang) * radius
+        oy = cy + math.sin(ang) * radius
+        pygame.draw.line(surf, color, (int(ix), int(iy)), (int(ox), int(oy)), 5)
+    ring = pygame.Surface((radius * 2 + 8, radius * 2 + 8), pygame.SRCALPHA)
+    pygame.draw.circle(ring, (*color, int(95 * (1.0 - t))),
+                       (radius + 4, radius + 4), radius, 3)
+    surf.blit(ring, (cx - radius - 4, cy - radius - 4))
+
+
+def _draw_aura(surf: pygame.Surface, cx: int, cy: int, color: tuple,
+                age: int, life: int) -> None:
+    """A pulsing buff aura on the caster — concentric expanding rings."""
+    t = age / max(1, life)
+    if t >= 1.0:
+        return
+    for k in range(3):
+        rt = (t * 1.4 + k * 0.33) % 1.0
+        radius = int(18 + 64 * rt)
+        alpha = int(170 * (1.0 - rt) * (1.0 - t))
+        if alpha <= 0:
+            continue
+        ring = pygame.Surface((radius * 2 + 8, radius * 2 + 8), pygame.SRCALPHA)
+        pygame.draw.circle(ring, (*color, alpha),
+                           (radius + 4, radius + 4), radius, 4)
+        surf.blit(ring, (cx - radius - 4, cy - radius - 4))
 
 
 # ── HUD ───────────────────────────────────────────────────────────────────────
@@ -362,6 +413,10 @@ def _render_fight(recorder: FrameRecorder, model, env,
     active_bursts: list = []          # [x, y, color, base_size, age]
     BURST_LIFE = 6
     active_shockwaves: list = []       # [x, y, color, age, life, max_radius]
+    active_beams: list = []           # [sx, sy, ex, ey, color, age]
+    active_spins: list = []           # [cx, cy, color, age]
+    active_auras: list = []           # [cx, cy, color, age]
+    BEAM_LIFE, SPIN_LIFE, AURA_LIFE = 10, 16, 18
     prev_on_ground_left = env.left.on_ground
     prev_on_ground_right = env.right.on_ground
     cam_x = (env.left.pos_x + env.right.pos_x) / 2.0
@@ -414,18 +469,37 @@ def _render_fight(recorder: FrameRecorder, model, env,
                 else:
                     right_flash_frames = max(right_flash_frames, 5)
             elif et == "attack_windup":
-                kind = (ev.extra or {}).get("skill_type")
+                vfx = (ev.extra or {}).get("vfx", "melee")
                 actor_obj = env.left if ev.actor == env.left.id else env.right
                 target_obj = env.right if actor_obj is env.left else env.left
-                if kind == "cooldown":
-                    color = lcol if actor_obj is env.left else rcol
-                    projectiles.spawn(
-                        start=(int(actor_obj.pos_x), int(actor_obj.pos_y) - 130),
-                        end=(int(target_obj.pos_x), int(target_obj.pos_y) - 90),
-                        color=color,
-                        current_ms=int(frame * FRAME_MS),
-                        duration_ms=280,
-                    )
+                a_color = lcol if actor_obj is env.left else rcol
+                ax, ay = int(actor_obj.pos_x), int(actor_obj.pos_y)
+                tx, ty = int(target_obj.pos_x), int(target_obj.pos_y)
+                now_ms = int(frame * FRAME_MS)
+                if vfx == "bolt":
+                    projectiles.spawn(start=(ax, ay - 130), end=(tx, ty - 90),
+                                       color=a_color, current_ms=now_ms,
+                                       duration_ms=280)
+                elif vfx == "multishot":
+                    for off in (-44, -22, 0, 22, 44):
+                        projectiles.spawn(start=(ax, ay - 110),
+                                           end=(tx, ty - 90 + off),
+                                           color=a_color, current_ms=now_ms,
+                                           duration_ms=300)
+                elif vfx == "beam":
+                    bx = tx + (tx - ax) // 3
+                    active_beams.append([ax, ay - 95, bx, ty - 95, a_color, 0])
+                    screen_shake_frames_left = max(screen_shake_frames_left, 6)
+                    screen_shake_mag = max(screen_shake_mag, 5)
+                elif vfx == "spin":
+                    active_spins.append([ax, ay - 90, a_color, 0])
+                elif vfx == "aura":
+                    active_auras.append([ax, ay - 90, a_color, 0])
+                elif vfx == "dash":
+                    active_bursts.append([ax, ay - 90, a_color, 40, 0])
+                elif vfx == "slam":
+                    active_shockwaves.append([tx, ty - 90, a_color, 0, 16, 300])
+                kind = (ev.extra or {}).get("skill_type")
                 if kind in ("cooldown", "special"):
                     skill_id = (ev.extra or {}).get("skill_id", "?")
                     banner_text = str(skill_id).upper().replace("_", " ") + "!"
@@ -460,6 +534,21 @@ def _render_fight(recorder: FrameRecorder, model, env,
                     left_flash_frames = max(left_flash_frames, 7)
                 else:
                     right_flash_frames = max(right_flash_frames, 7)
+                ult_vfx = (ev.extra or {}).get("vfx", "slam")
+                u_ax, u_ay = int(actor_obj.pos_x), int(actor_obj.pos_y)
+                u_tx, u_ty = int(defender.pos_x), int(defender.pos_y)
+                if ult_vfx == "beam":
+                    bx = u_tx + (u_tx - u_ax) // 2
+                    active_beams.append([u_ax, u_ay - 95, bx, u_ty - 95,
+                                         (255, 255, 255), 0])
+                    active_beams.append([u_ax, u_ay - 95, bx, u_ty - 95,
+                                         burst_color, 0])
+                elif ult_vfx == "bolt":
+                    projectiles.spawn(start=(u_ax, u_ay - 130),
+                                       end=(u_tx, u_ty - 90),
+                                       color=burst_color,
+                                       current_ms=int(frame * FRAME_MS),
+                                       duration_ms=240)
 
         # Landing dust — ground-touch edge detection
         pending_dust: list = []
@@ -505,6 +594,30 @@ def _render_fight(recorder: FrameRecorder, model, env,
             if sw[3] < slife:
                 live_sw.append(sw)
         active_shockwaves = live_sw
+
+        live_beams = []
+        for bm in active_beams:
+            _draw_beam(world, bm[0], bm[1], bm[2], bm[3], bm[4], bm[5], BEAM_LIFE)
+            bm[5] += 1
+            if bm[5] < BEAM_LIFE:
+                live_beams.append(bm)
+        active_beams = live_beams
+
+        live_spins = []
+        for sp in active_spins:
+            _draw_spin(world, sp[0], sp[1], sp[2], sp[3], SPIN_LIFE)
+            sp[3] += 1
+            if sp[3] < SPIN_LIFE:
+                live_spins.append(sp)
+        active_spins = live_spins
+
+        live_auras = []
+        for au in active_auras:
+            _draw_aura(world, au[0], au[1], au[2], au[3], AURA_LIFE)
+            au[3] += 1
+            if au[3] < AURA_LIFE:
+                live_auras.append(au)
+        active_auras = live_auras
 
         for (dx, dy) in pending_dust:
             spawn_landing_dust(world, dx, dy, (180, 180, 200), intensity=1.7)
