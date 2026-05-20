@@ -1,21 +1,24 @@
-"""PPO training for PixelBattleEnv against a mixed-style scripted opponent.
+"""PPO training for PixelBattleEnv against a stationary 'turtle' opponent.
 
 Defaults to 1M total timesteps with a checkpoint every 100K.
 
-Curriculum design (learned the hard way over several retrains):
-  - Training vs a *random* opponent collapses to a passive policy: random
-    rarely KOs you, so stalling to the 60s timeout is safe.
-  - Training vs an *always-aggressive* opponent teaches counter-punching
-    only — the opponent always closes the gap, so the agent never learns
-    to initiate. Two such policies just wait each other out.
-  - True *self-play* (opponent = live model) collapses back to a passive
-    draw equilibrium: both copies turn passive together.
+Curriculum design (learned the hard way over many retrains):
+  - vs a *random* opponent the policy collapses to passive stalling:
+    random rarely KOs you, so timing out is safe.
+  - vs an *always-rushing* opponent it learns counter-punching only — the
+    opponent always closes, so the agent never learns to initiate.
+  - true *self-play* collapses to a passive draw: both copies go passive.
+  - even a *minority* of rushing episodes poisons it: the agent learns to
+    back away from an approaching opponent, and in mirror play both copies
+    then retreat from each other to the walls.
 
-The fix: a scripted opponent that randomizes its style per episode
-(`rush` / `turtle` / `mixed`). To beat a turtle the agent must initiate
-the approach; to beat a rusher it must defend and counter. A policy that
-beats all three styles is a complete fighter, and two copies of it
-produce real, decisive fights in the renderer. No self-play phase.
+The fix: train ONLY against a stationary turtle. A turtle gives the agent
+zero reward — no approach shaping payoff, no damage, no KO — unless it
+walks the whole way in and attacks. Retreating or stalling guarantees a
+-75 timeout. So the single learnable policy is "approach, then attack",
+keyed on distance. Two copies of that policy approach each other and
+trade to a KO. The opponent never moves, so the agent also never learns
+the harmful "retreat from a mover" reflex.
 
 Usage:
     python -m pixel_battle.rl.train --total_timesteps 1000000
@@ -38,48 +41,18 @@ DEFAULT_CKPT_DIR = ROOT / "data" / "rl_checkpoints"
 _ATTACKS = (4, 7, 5, 8)
 
 
-class ScriptedOpponent:
-    """A stateful scripted opponent that re-rolls its style each episode.
+def scripted_turtle(obs) -> int:
+    """A stationary opponent: hold ground, attack only at point-blank.
 
-    obs[12] is the normalized horizontal gap to the opponent
-    ((opp.pos_x - me.pos_x) / 480). Actions are relative (2 = forward
-    toward opponent, 1 = back) so this works on either side.
-
-    Styles (turtle-heavy on purpose — see module docstring):
-      - turtle (75%): hold ground completely, attack only at point-blank.
-                The agent gets *nothing* — no engage, no damage, no KO —
-                unless it walks over and attacks, so every turtle episode
-                drills the approach-and-initiate skill.
-      - rush   (25%): close the gap and attack — keeps some defensive /
-                counter-attack pressure so the agent isn't clueless when
-                an opponent comes at it.
-
-    An earlier 3-way split (rush/turtle/mixed, 1/3 each) failed: the agent
-    could ignore turtle episodes, eat the timeout, and still average a
-    decent reward — so it never learned to initiate, and mirror play
-    timed out 0/15.
+    obs[12] is the normalized horizontal gap ((opp.pos_x - me.pos_x)/480).
+    Actions are relative (2 = forward, 1 = back) so this works on either
+    side. The turtle never walks, so the agent has to do all the closing —
+    every episode drills "approach then attack" and nothing else.
     """
-
-    def __init__(self):
-        self._style = "turtle"
-        self._prev_dist = 0.0
-
-    def __call__(self, obs) -> int:
-        dist = abs(float(obs[12])) * 480.0
-        # New-episode detection: the gap jumps back to ~spawn distance.
-        if dist > 320.0 and self._prev_dist <= 320.0:
-            self._style = "rush" if random.random() < 0.25 else "turtle"
-        self._prev_dist = dist
-
-        if self._style == "rush":
-            if dist > 90.0:
-                return 2
-            return random.choice(_ATTACKS)
-
-        # turtle — hold ground, attack only when the agent is point-blank
-        if dist < 85.0:
-            return random.choice(_ATTACKS)
-        return 0
+    dist = abs(float(obs[12])) * 480.0
+    if dist < 85.0:
+        return random.choice(_ATTACKS)
+    return 0
 
 
 def main(total_timesteps: int = 1_000_000,
@@ -90,7 +63,7 @@ def main(total_timesteps: int = 1_000_000,
 
     raw_env = SinglePerspectiveEnv(
         seed=seed,
-        opponent_policy=ScriptedOpponent(),
+        opponent_policy=scripted_turtle,
     )
 
     model = PPO("MlpPolicy", raw_env, verbose=1,
