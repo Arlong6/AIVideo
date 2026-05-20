@@ -53,7 +53,7 @@ def main(total_timesteps: int = 1_000_000,
     # Initial opponent: random
     raw_env = SinglePerspectiveEnv(
         seed=seed,
-        opponent_policy=lambda obs: random.randint(0, 7),
+        opponent_policy=lambda obs: random.randint(0, 8),
     )
 
     model = PPO("MlpPolicy", raw_env, verbose=1,

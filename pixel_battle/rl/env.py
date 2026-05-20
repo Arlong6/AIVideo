@@ -12,12 +12,17 @@ from gymnasium import spaces
 
 from pixel_battle.engine.battle import Battle, BattleState
 from pixel_battle.engine.character import Character
+from pixel_battle.engine.physics import MELEE_RANGE
 from pixel_battle.engine.rng import BattleRNG
 
 
 TICK_MS = 16
 EPISODE_TIMEOUT_MS = 60_000
 INTRO_END_MS = 2500
+
+# Reward shaping
+ATTACK_ACTIONS = {4, 5, 7, 8}
+RANGE_PENALTY = 0.1
 
 
 class PixelBattleEnv(gym.Env):
@@ -28,8 +33,9 @@ class PixelBattleEnv(gym.Env):
         opp_x, opp_y, opp_vx, opp_vy, opp_hp, opp_mp,
         dx, dy, on_ground, attack_phase_t, time_remaining]
 
-    Action (Discrete 8):
-       0=idle, 1=left, 2=right, 3=jump, 4=basic, 5=cd, 6=ultimate, 7=special
+    Action (Discrete 9):
+       0=idle, 1=back (away from opp), 2=forward (toward opp), 3=jump,
+       4=basic, 5=cd, 6=ultimate, 7=special, 8=kick
     """
 
     metadata = {"render_modes": []}
@@ -39,7 +45,7 @@ class PixelBattleEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-1.0, high=1.0, shape=(17,), dtype=np.float32,
         )
-        self.action_space = spaces.Discrete(8)
+        self.action_space = spaces.Discrete(9)
         self._init_seed = seed
         self.reset(seed=seed)
 
@@ -75,8 +81,17 @@ class PixelBattleEnv(gym.Env):
         dist = abs(self.left.pos_x - self.right.pos_x)
         engage = 0.05 if dist < 200 else 0.0
 
-        reward_left = dmg_to_right * 1.0 - dmg_to_left * 1.0 - 0.01 + engage
-        reward_right = dmg_to_left * 1.0 - dmg_to_right * 1.0 - 0.01 + engage
+        # Penalize attacks issued out of range (anti-arm-waving)
+        out_of_range = dist > MELEE_RANGE * 1.2
+        oor_pen_left = (-RANGE_PENALTY
+                        if (int(left_action) in ATTACK_ACTIONS and out_of_range)
+                        else 0.0)
+        oor_pen_right = (-RANGE_PENALTY
+                         if (int(right_action) in ATTACK_ACTIONS and out_of_range)
+                         else 0.0)
+
+        reward_left = dmg_to_right * 1.0 - dmg_to_left * 1.0 - 0.01 + engage + oor_pen_left
+        reward_right = dmg_to_left * 1.0 - dmg_to_right * 1.0 - 0.01 + engage + oor_pen_right
 
         terminated = self.battle.state == BattleState.KO
         truncated = (self.battle.elapsed_ms - INTRO_END_MS) >= EPISODE_TIMEOUT_MS
@@ -121,12 +136,14 @@ class PixelBattleEnv(gym.Env):
     def _apply_action(self, me: Character, opp: Character, action: int):
         if me.action_state in ("attacking", "hit_stagger", "ko"):
             return
-        if action == 1:                          # left
-            me.vel_x = -3.0
-            me.facing = -1 if opp.pos_x > me.pos_x else me.facing
-        elif action == 2:                        # right
-            me.vel_x = 3.0
-            me.facing = 1 if opp.pos_x > me.pos_x else me.facing
+        # Direction toward opponent (+1 if opp to my right, -1 if to my left)
+        fwd = 1 if opp.pos_x > me.pos_x else -1
+        if action == 1:                          # back (away from opp)
+            me.vel_x = -3.0 * fwd
+            me.facing = fwd                       # still face opp while backpedaling
+        elif action == 2:                        # forward (toward opp)
+            me.vel_x = 3.0 * fwd
+            me.facing = fwd
         elif action == 3 and me.on_ground:       # jump
             me.vel_y = -8.0
             me.on_ground = False
@@ -138,6 +155,8 @@ class PixelBattleEnv(gym.Env):
             self.battle._trigger_ultimate(me, opp)
         elif action == 7:                        # special skill
             self.battle._start_attack_with_kind(me, opp, "special")
+        elif action == 8:                        # kick
+            self.battle._start_attack_with_kind(me, opp, "kick")
 
 
 class SinglePerspectiveEnv(gym.Env):

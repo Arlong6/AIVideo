@@ -39,10 +39,13 @@ def test_env_movement_actions_apply_velocity():
     # Step past intro so we're in FIGHTING
     for _ in range(200):
         env.step((0, 0))
-    # Action 2 = right, 1 = left
-    env.step((2, 1))
-    assert env.left.vel_x > 0, f"left should move right, vel_x={env.left.vel_x}"
-    assert env.right.vel_x < 0, f"right should move left, vel_x={env.right.vel_x}"
+    # Action 2 = forward (toward opp), 1 = back (away from opp).
+    # Both characters get action 2 → both should move toward each other.
+    env.step((2, 2))
+    # Left's opp (right) is to its right → forward = +x
+    assert env.left.vel_x > 0, f"left should move toward opp, vel_x={env.left.vel_x}"
+    # Right's opp (left) is to its left → forward = -x
+    assert env.right.vel_x < 0, f"right should move toward opp, vel_x={env.right.vel_x}"
 
 
 def test_env_basic_attack_action_triggers_attacking():
@@ -71,9 +74,9 @@ def test_env_terminates_on_ko():
     assert rewards[0] > 10
 
 
-def test_env_action_space_is_discrete_eight():
+def test_env_action_space_is_discrete_nine():
     env = PixelBattleEnv(seed=42)
-    assert env.action_space.n == 8
+    assert env.action_space.n == 9
 
 
 def test_env_observation_space_is_17_dim_box():
@@ -87,7 +90,7 @@ from pixel_battle.rl.env import SinglePerspectiveEnv
 def test_single_perspective_env_steps_with_random_opponent():
     import random
     env = SinglePerspectiveEnv(seed=42,
-                                opponent_policy=lambda obs: random.randint(0, 7))
+                                opponent_policy=lambda obs: random.randint(0, 8))
     obs, info = env.reset()
     assert obs.shape == (17,)
     obs, r, term, trunc, info = env.step(0)

@@ -40,6 +40,7 @@ class Character:
     attack_phase: str = "none"
     attack_phase_t: int = 0
     attack_used_kind: object = None
+    attack_anim_hint: str = "jab"
     skill_cd_ready_at: Dict[str, int] = field(default_factory=dict)
     retreat_until_ms: int = 0
     windup_stun_until_ms: int = 0
@@ -75,6 +76,7 @@ class Character:
         self.attack_phase = "none"
         self.attack_phase_t = 0
         self.attack_used_kind = None
+        self.attack_anim_hint = "jab"
         self.last_attack_ms = -10000
         self.skill_cd_ready_at = {}
         self.retreat_until_ms = 0

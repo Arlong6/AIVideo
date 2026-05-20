@@ -1,10 +1,10 @@
-"""Tests for Discrete(8) action space + SPECIAL attack initiator."""
+"""Tests for Discrete(9) action space + SPECIAL attack initiator."""
 from pixel_battle.rl.env import PixelBattleEnv
 
 
-def test_action_space_is_8():
+def test_action_space_is_9():
     env = PixelBattleEnv(seed=1)
-    assert env.action_space.n == 8
+    assert env.action_space.n == 9
 
 
 def test_special_action_starts_attack_when_affordable():

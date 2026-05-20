@@ -426,6 +426,15 @@ class Battle:
             return  # already mid-attack
         skill = self._choose_attack_skill(char)
         char.attack_used_kind = skill
+        # Set anim hint from skill_type for renderer
+        if skill.skill_type is SkillType.BASIC:
+            char.attack_anim_hint = "jab"
+        elif skill.skill_type is SkillType.COOLDOWN:
+            char.attack_anim_hint = "cooldown"
+        elif skill.skill_type is SkillType.SPECIAL:
+            char.attack_anim_hint = "special"
+        else:
+            char.attack_anim_hint = "jab"
         char.attack_phase = "windup"
         char.attack_phase_t = 0
         char.action_state = "attacking"
@@ -448,11 +457,13 @@ class Battle:
         """RL-friendly attack initiator: skip the random selection in
         _choose_attack_skill and pick by category instead.
 
-        kind: "basic" | "cooldown" | "special"
+        kind: "basic" | "cooldown" | "special" | "kick"
           - basic: always picks the first BASIC skill (always available)
           - cooldown: picks first off-cooldown COOLDOWN skill; no-op if none
           - special: picks first affordable SPECIAL skill (mp >= mp_cost);
             no-op if none affordable. MP deduction happens on hit.
+          - kick: reuses the BASIC skill stats but tags attack_anim_hint
+            so the renderer can switch to a leg-based pose.
         Unknown kinds are a no-op.
         """
         if char.action_state in ("attacking", "hit_stagger", "ko"):
@@ -462,6 +473,7 @@ class Battle:
 
         if kind == "basic":
             skill = char.skills_of_type(SkillType.BASIC)[0]
+            char.attack_anim_hint = "jab"
         elif kind == "cooldown":
             cd_skills = char.skills_of_type(SkillType.COOLDOWN)
             available = [s for s in cd_skills
@@ -469,12 +481,19 @@ class Battle:
             if not available:
                 return  # no CD skill ready — no-op
             skill = available[0]
+            char.attack_anim_hint = "cooldown"
         elif kind == "special":
             specials = char.skills_of_type(SkillType.SPECIAL)
             affordable = [s for s in specials if char.mp >= s.mp_cost]
             if not affordable:
                 return
             skill = affordable[0]
+            char.attack_anim_hint = "special"
+        elif kind == "kick":
+            # Kick reuses the BASIC skill stats but the renderer should show
+            # a leg-based animation. We tag the character via attack_anim_hint.
+            skill = char.skills_of_type(SkillType.BASIC)[0]
+            char.attack_anim_hint = "kick"
         else:
             return
 
