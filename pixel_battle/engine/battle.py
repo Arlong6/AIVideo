@@ -448,9 +448,11 @@ class Battle:
         """RL-friendly attack initiator: skip the random selection in
         _choose_attack_skill and pick by category instead.
 
-        kind: "basic" | "cooldown"
+        kind: "basic" | "cooldown" | "special"
           - basic: always picks the first BASIC skill (always available)
           - cooldown: picks first off-cooldown COOLDOWN skill; no-op if none
+          - special: picks first affordable SPECIAL skill (mp >= mp_cost);
+            no-op if none affordable. MP deduction happens on hit.
         Unknown kinds are a no-op.
         """
         if char.action_state in ("attacking", "hit_stagger", "ko"):
@@ -467,6 +469,12 @@ class Battle:
             if not available:
                 return  # no CD skill ready — no-op
             skill = available[0]
+        elif kind == "special":
+            specials = char.skills_of_type(SkillType.SPECIAL)
+            affordable = [s for s in specials if char.mp >= s.mp_cost]
+            if not affordable:
+                return
+            skill = affordable[0]
         else:
             return
 

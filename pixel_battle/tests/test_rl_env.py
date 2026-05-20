@@ -71,9 +71,9 @@ def test_env_terminates_on_ko():
     assert rewards[0] > 10
 
 
-def test_env_action_space_is_discrete_seven():
+def test_env_action_space_is_discrete_eight():
     env = PixelBattleEnv(seed=42)
-    assert env.action_space.n == 7
+    assert env.action_space.n == 8
 
 
 def test_env_observation_space_is_17_dim_box():
@@ -87,7 +87,7 @@ from pixel_battle.rl.env import SinglePerspectiveEnv
 def test_single_perspective_env_steps_with_random_opponent():
     import random
     env = SinglePerspectiveEnv(seed=42,
-                                opponent_policy=lambda obs: random.randint(0, 6))
+                                opponent_policy=lambda obs: random.randint(0, 7))
     obs, info = env.reset()
     assert obs.shape == (17,)
     obs, r, term, trunc, info = env.step(0)

@@ -28,8 +28,8 @@ class PixelBattleEnv(gym.Env):
         opp_x, opp_y, opp_vx, opp_vy, opp_hp, opp_mp,
         dx, dy, on_ground, attack_phase_t, time_remaining]
 
-    Action (Discrete 7):
-       0=idle, 1=left, 2=right, 3=jump, 4=basic, 5=cd, 6=ultimate
+    Action (Discrete 8):
+       0=idle, 1=left, 2=right, 3=jump, 4=basic, 5=cd, 6=ultimate, 7=special
     """
 
     metadata = {"render_modes": []}
@@ -39,7 +39,7 @@ class PixelBattleEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-1.0, high=1.0, shape=(17,), dtype=np.float32,
         )
-        self.action_space = spaces.Discrete(7)
+        self.action_space = spaces.Discrete(8)
         self._init_seed = seed
         self.reset(seed=seed)
 
@@ -136,6 +136,8 @@ class PixelBattleEnv(gym.Env):
             self.battle._start_attack_with_kind(me, opp, "cooldown")
         elif action == 6 and me.ultimate_ready():
             self.battle._trigger_ultimate(me, opp)
+        elif action == 7:                        # special skill
+            self.battle._start_attack_with_kind(me, opp, "special")
 
 
 class SinglePerspectiveEnv(gym.Env):
