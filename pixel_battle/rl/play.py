@@ -1,8 +1,8 @@
-"""Load a trained PPO checkpoint, render a self-play fight as mp4.
+"""Render a trained PPO fight as a complete mp4 episode.
 
-Stage 3: visual richness — textured floor, back-wall lines, character shadows,
-HP/MP HUD, impact bursts, landing dust, screen shake, projectile particles
-for cooldown attacks, and skill / ultimate banners.
+A full episode = VS intro -> fight -> K.O. / winner card, stitched into one
+video. The fight stage has the camera, HUD, impact bursts, hit-flash,
+screen shake, projectiles and skill banners.
 """
 from __future__ import annotations
 import argparse
@@ -14,6 +14,7 @@ import pygame  # noqa: E402
 from stable_baselines3 import PPO  # noqa: E402
 
 from pixel_battle.rl.env import PixelBattleEnv  # noqa: E402
+from pixel_battle.engine.character import Character  # noqa: E402
 from pixel_battle.rl.stick_renderer import (  # noqa: E402
     draw_stick_figure,
     ProjectileLayer,
@@ -32,8 +33,6 @@ from pixel_battle.engine.physics import GROUND_Y  # noqa: E402
 WIDTH, HEIGHT = 480, 854
 FPS = 60
 FRAME_MS = 1000.0 / FPS
-RED = (220, 60, 60)
-BLUE = (60, 130, 220)
 HIT_FLASH = (255, 255, 255)   # color a fighter flashes to when struck
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
@@ -49,9 +48,28 @@ CAM_VIEW_H = int(HEIGHT / CAM_ZOOM)           # 502 — vertical world span show
 CAM_VIEW_Y = GROUND_Y - int(CAM_VIEW_H * 0.82)  # frame the floor ~82% down
 CAM_FOLLOW = 0.12                              # lerp factor for x tracking
 
+INTRO_FRAMES = 144      # 2.4s VS intro
+RESULT_FRAMES = 246     # ~4.1s K.O. + winner card
+
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CKPT = ROOT / "data" / "rl_checkpoints" / "ppo_final.zip"
 OUT_DIR = ROOT / "pixel_battle" / "output" / "rl_play"
+
+
+# ── small math helpers ────────────────────────────────────────────────────────
+
+def _lerp(a: float, b: float, t: float) -> float:
+    return a + (b - a) * t
+
+
+def _ease_out(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return 1.0 - (1.0 - t) ** 3
+
+
+def _char_color(char) -> tuple:
+    """The render color for a character (its JSON `color`, as a tuple)."""
+    return tuple(char.color)
 
 
 # ── HUD font cache ────────────────────────────────────────────────────────────
@@ -59,11 +77,7 @@ _HUD_FONT_CACHE: dict = {}
 
 
 def _get_hud_font(size: int = 14) -> pygame.font.Font:
-    """Lazily create/cache a bold arial font of the given size.
-
-    Defensive about pygame.font init — calling _get_hud_font before pygame.init()
-    still works (we call pygame.font.init() ourselves).
-    """
+    """Lazily create/cache a bold arial font of the given size."""
     if not pygame.font.get_init():
         pygame.font.init()
     f = _HUD_FONT_CACHE.get(size)
@@ -76,16 +90,11 @@ def _get_hud_font(size: int = 14) -> pygame.font.Font:
 # ── Background / arena helpers ────────────────────────────────────────────────
 
 def _draw_back_wall(surf: pygame.Surface) -> None:
-    """Fill the area above the floor: vertical gradient + diagonal accent lines.
-
-    Spans the full above-floor height so it stays visible under any camera crop.
-    """
-    # Vertical gradient — slightly lighter toward the floor
+    """Fill the area above the floor: vertical gradient + diagonal accent lines."""
     for i in range(0, GROUND_Y, 6):
         t = i / GROUND_Y
         c = (int(18 + 12 * t), int(22 + 14 * t), int(40 + 20 * t))
         pygame.draw.rect(surf, c, (0, i, WIDTH, 6))
-    # Diagonal accent lines suggesting a stage backdrop
     wall_color = (46, 56, 88)
     for x in range(-240, WIDTH + 240, 120):
         pygame.draw.line(surf, wall_color, (x, 0), (x + 260, GROUND_Y), 2)
@@ -95,7 +104,6 @@ def _draw_floor(surf: pygame.Surface) -> None:
     """Thicker ground band + horizontal hatch lines for parallax feel."""
     pygame.draw.rect(surf, (28, 34, 56), (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))
     pygame.draw.line(surf, (90, 110, 170), (0, GROUND_Y), (WIDTH, GROUND_Y), 3)
-    # Hatch — two staggered rows of short segments
     for x in range(0, WIDTH, 40):
         pygame.draw.line(surf, (50, 60, 95), (x, GROUND_Y + 8),
                           (x + 20, GROUND_Y + 8), 1)
@@ -118,13 +126,33 @@ def _draw_shadow(surf: pygame.Surface, char) -> None:
     surf.blit(shadow, (int(char.pos_x) - w, ground - h))
 
 
+def _draw_shockwave(surf: pygame.Surface, x: int, y: int,
+                     color: tuple, age: int, life: int, max_radius: int) -> None:
+    """An expanding, fading ring — the screen-filling punch of a big hit."""
+    t = age / max(1, life)
+    if t >= 1.0:
+        return
+    radius = int(24 + (max_radius - 24) * _ease_out(t))
+    alpha = int(210 * (1.0 - t))
+    if alpha <= 0 or radius < 2:
+        return
+    w = max(2, int(12 * (1.0 - t)))
+    pad = w + 4
+    ring = pygame.Surface((radius * 2 + pad * 2, radius * 2 + pad * 2),
+                          pygame.SRCALPHA)
+    pygame.draw.circle(ring, (*color, alpha),
+                       (radius + pad, radius + pad), radius, w)
+    surf.blit(ring, (x - radius - pad, y - radius - pad))
+
+
 # ── HUD ───────────────────────────────────────────────────────────────────────
 
 def _draw_hud(surf: pygame.Surface, env) -> None:
-    """Two-corner HUD — name, HP, MP."""
-    _draw_player_hud(surf, env.left, RED, x=12, name="BRICK")
-    _draw_player_hud(surf, env.right, BLUE, x=WIDTH - 12 - 200, name="GLASS",
-                      right_align=True)
+    """Two-corner HUD — champion name, HP, MP, in each fighter's own color."""
+    _draw_player_hud(surf, env.left, _char_color(env.left), x=12,
+                      name=env.left.display_name.upper())
+    _draw_player_hud(surf, env.right, _char_color(env.right), x=WIDTH - 12 - 200,
+                      name=env.right.display_name.upper(), right_align=True)
 
 
 def _draw_player_hud(surf: pygame.Surface, char, color, x: int, name: str,
@@ -132,25 +160,20 @@ def _draw_player_hud(surf: pygame.Surface, char, color, x: int, name: str,
     bar_w = 200
     bar_h = 14
     y = 16
-    # Name label
     font = _get_hud_font(14)
     name_surf = font.render(name, True, (240, 240, 255))
     if right_align:
         surf.blit(name_surf, (x + bar_w - name_surf.get_width(), y - 16))
     else:
         surf.blit(name_surf, (x, y - 16))
-    # HP background
     pygame.draw.rect(surf, (40, 40, 50), (x, y, bar_w, bar_h))
-    # HP fill
     hp_frac = max(0.0, char.hp / max(1, getattr(char, "hp_max", 100)))
     fill_w = int(bar_w * hp_frac)
     if right_align:
         pygame.draw.rect(surf, color, (x + bar_w - fill_w, y, fill_w, bar_h))
     else:
         pygame.draw.rect(surf, color, (x, y, fill_w, bar_h))
-    # HP outline
     pygame.draw.rect(surf, (210, 210, 230), (x, y, bar_w, bar_h), 1)
-    # MP bar (slimmer, below HP)
     mp_y = y + bar_h + 4
     pygame.draw.rect(surf, (30, 30, 40), (x, mp_y, bar_w, 6))
     mp_frac = max(0.0, char.mp / max(1, getattr(char, "mp_max", 100)))
@@ -164,7 +187,7 @@ def _draw_player_hud(surf: pygame.Surface, char, color, x: int, name: str,
 
 
 def _draw_banner(surf: pygame.Surface, text: str) -> None:
-    """Centered banner near top — used for skill names and ULTIMATE!."""
+    """Centered banner near top — skill names and ULTIMATE!."""
     font = _get_hud_font(22)
     text_surf = font.render(text, True, (255, 240, 120))
     rect = text_surf.get_rect(center=(WIDTH // 2, 70))
@@ -174,10 +197,10 @@ def _draw_banner(surf: pygame.Surface, text: str) -> None:
     surf.blit(text_surf, rect)
 
 
-# ── Audio routing (unchanged from before) ─────────────────────────────────────
+# ── Audio routing ─────────────────────────────────────────────────────────────
 
 def _route_audio_for_events(events, event_video_ms, mixer):
-    """Use the existing audio routing convention from compose.py."""
+    """Route battle events to SFX buses using compose.py's convention."""
     for ev in events:
         pos = event_video_ms.get(id(ev))
         if pos is None:
@@ -208,67 +231,141 @@ def _route_audio_for_events(events, event_video_ms, mixer):
             mixer.ult_bus.add(samp, pos)
 
 
-# ── Main match driver ────────────────────────────────────────────────────────
+# ── Intro / result screens ────────────────────────────────────────────────────
 
-def run_one_match(model, seed: int, out_dir: Path,
-                   max_seconds: float = 60.0,
-                   match_name: str = "final") -> dict:
-    """Run a single self-play match. Returns:
-        {"finished_by_ko": bool,
-         "duration_s": float,
-         "winner": "left"|"right"|None,
-         "mp4_path": Path,
-         "raw_path": Path,
-         "audio_path": Path}
-    The mp4 is written to out_dir/{match_name}.mp4. Caller decides whether
-    to keep or discard based on finished_by_ko.
-    Assumes pygame is already initialized (caller's responsibility).
+def _draw_vs_intro(surf: pygame.Surface, left_char, right_char,
+                    frame: int, total: int) -> None:
+    """One frame of the VS intro — both champions slide in, big VS, names."""
+    surf.fill(BG)
+    _draw_back_wall(surf)
+    _draw_floor(surf)
+
+    t = frame / max(1, total)
+    slide = _ease_out(min(1.0, t / 0.45))     # slide-in completes at 45%
+    lx_final, rx_final = 150, 330
+
+    left_char.pos_y = GROUND_Y
+    left_char.facing = 1
+    left_char.pos_x = int(_lerp(-90, lx_final, slide))
+    right_char.pos_y = GROUND_Y
+    right_char.facing = -1
+    right_char.pos_x = int(_lerp(WIDTH + 90, rx_final, slide))
+
+    _draw_shadow(surf, left_char)
+    _draw_shadow(surf, right_char)
+    draw_stick_figure(surf, left_char, _char_color(left_char))
+    draw_stick_figure(surf, right_char, _char_color(right_char))
+
+    # Champion names (appear once slid in)
+    if slide > 0.6:
+        font_name = _get_hud_font(24)
+        ln = font_name.render(left_char.display_name.upper(), True,
+                              _char_color(left_char))
+        rn = font_name.render(right_char.display_name.upper(), True,
+                              _char_color(right_char))
+        surf.blit(ln, (lx_final - ln.get_width() // 2, 300))
+        surf.blit(rn, (rx_final - rn.get_width() // 2, 300))
+
+    # "VS" pops in after 40%
+    vs_t = _ease_out(min(1.0, max(0.0, (t - 0.4) / 0.3)))
+    if vs_t > 0:
+        vs_size = int(50 + 46 * vs_t)
+        font_vs = _get_hud_font(vs_size)
+        vs = font_vs.render("VS", True, (255, 230, 120))
+        plate = pygame.Surface((vs.get_width() + 28, vs.get_height() + 14),
+                               pygame.SRCALPHA)
+        plate.fill((0, 0, 0, 170))
+        cx, cy = WIDTH // 2, 250
+        surf.blit(plate, (cx - plate.get_width() // 2,
+                          cy - plate.get_height() // 2))
+        surf.blit(vs, (cx - vs.get_width() // 2, cy - vs.get_height() // 2))
+
+
+def _draw_ko_result(surf: pygame.Surface, winner_char,
+                     frame: int, total: int) -> None:
+    """One frame of the K.O. / winner card."""
+    surf.fill(BG)
+    _draw_back_wall(surf)
+    _draw_floor(surf)
+
+    t = frame / max(1, total)
+
+    # Winner stands center, idle
+    winner_char.pos_x = WIDTH // 2
+    winner_char.pos_y = GROUND_Y
+    winner_char.facing = 1
+    winner_char.action_state = "idle"
+    winner_char.attack_phase = "none"
+    winner_char.attack_anim_hint = "jab"
+    winner_char.on_ground = True
+    winner_char.vel_x = 0.0
+    _draw_shadow(surf, winner_char)
+    draw_stick_figure(surf, winner_char, _char_color(winner_char))
+
+    if t < 0.26:
+        # Phase 1 — huge "K.O." slamming in + white flash
+        ko_t = _ease_out(t / 0.26)
+        ko_size = int(70 + 78 * ko_t)
+        font_ko = _get_hud_font(ko_size)
+        ko = font_ko.render("K.O.", True, (255, 80, 70))
+        surf.blit(ko, (WIDTH // 2 - ko.get_width() // 2,
+                       200 - ko.get_height() // 2))
+        if t < 0.09:
+            fl = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            fl.fill((255, 255, 255, int(190 * (1 - t / 0.09))))
+            surf.blit(fl, (0, 0))
+    else:
+        # Phase 2 — winner card
+        font_w = _get_hud_font(22)
+        wl = font_w.render("WINNER", True, (255, 230, 120))
+        surf.blit(wl, (WIDTH // 2 - wl.get_width() // 2, 150))
+        font_n = _get_hud_font(46)
+        nm = font_n.render(winner_char.display_name.upper(), True,
+                           _char_color(winner_char))
+        plate = pygame.Surface((nm.get_width() + 32, nm.get_height() + 16),
+                               pygame.SRCALPHA)
+        plate.fill((0, 0, 0, 170))
+        surf.blit(plate, (WIDTH // 2 - plate.get_width() // 2, 188))
+        surf.blit(nm, (WIDTH // 2 - nm.get_width() // 2, 196))
+
+
+# ── Fight renderer ────────────────────────────────────────────────────────────
+
+def _render_fight(recorder: FrameRecorder, model, env,
+                   max_seconds: float, end_hold_frames: int = 0) -> dict:
+    """Run the fight, writing frames to `recorder`. Returns:
+        {n_frames, events, event_video_ms, winner, terminated}
+    `event_video_ms` maps event id -> ms relative to the FIRST fight frame.
+    `winner` is 'left'/'right' (KO, or higher HP on timeout) or None on a draw.
     """
-    # Defensive font init (pygame.init() also does it, but be explicit)
-    if not pygame.font.get_init():
-        pygame.font.init()
+    import random
 
-    out_dir.mkdir(parents=True, exist_ok=True)
-    raw_video = out_dir / f"{match_name}_raw.mp4"
-    audio_out = out_dir / f"{match_name}_audio.wav"
-    final_mp4 = out_dir / f"{match_name}.mp4"
-
-    env = PixelBattleEnv(seed=seed)
     (obs_left, obs_right), _ = env.reset()
+    lcol = _char_color(env.left)
+    rcol = _char_color(env.right)
 
-    recorder = FrameRecorder(str(raw_video), fps=FPS,
-                              width=WIDTH, height=HEIGHT)
-    recorder.start()
-    mixer = AudioMixer(sample_rate=48000)
-
-    surf = pygame.Surface((WIDTH, HEIGHT))      # final composited frame
-    world = pygame.Surface((WIDTH, HEIGHT))     # pre-camera world layer
+    surf = pygame.Surface((WIDTH, HEIGHT))
+    world = pygame.Surface((WIDTH, HEIGHT))
     total_frames = int(max_seconds * FPS)
     event_video_ms: dict = {}
     terminated = False
     frame = 0
 
-    # Cross-frame visual state
     projectiles = ProjectileLayer()
     screen_shake_frames_left = 0
     screen_shake_mag = 0
     banner_text = None
     banner_until_frame = -1
     flash_frames_left = 0
-    left_flash_frames = 0       # white hit-flash on the left fighter
-    right_flash_frames = 0      # white hit-flash on the right fighter
-    # Active impact bursts — each [x, y, color, base_size, age]. A burst
-    # lives BURST_LIFE frames and expands, so a hit reads as an explosion
-    # instead of a single-frame blink.
-    active_bursts: list = []
+    left_flash_frames = 0
+    right_flash_frames = 0
+    active_bursts: list = []          # [x, y, color, base_size, age]
     BURST_LIFE = 6
+    active_shockwaves: list = []       # [x, y, color, age, life, max_radius]
     prev_on_ground_left = env.left.on_ground
     prev_on_ground_right = env.right.on_ground
-    # Camera x starts centered on the fighters' midpoint
     cam_x = (env.left.pos_x + env.right.pos_x) / 2.0
-
-    # Lazy import (only here so module-level import surface stays clean)
-    import random
+    n_written = 0
 
     for frame in range(total_frames):
         left_act, _ = model.predict(obs_left, deterministic=False)
@@ -279,7 +376,6 @@ def run_one_match(model, seed: int, out_dir: Path,
             (int(left_act), int(right_act))
         )
 
-        # ── Per-frame visual state from new events ──────────────────────────
         for ev in env.battle.events[prev_ev_n:]:
             event_video_ms[id(ev)] = int(frame * FRAME_MS)
             et = ev.type.value
@@ -288,7 +384,7 @@ def run_one_match(model, seed: int, out_dir: Path,
                 attacker = env.left if ev.actor == env.left.id else env.right
                 is_crit = bool((ev.extra or {}).get("crit", False))
                 burst_size = 78 if is_crit else 52
-                burst_color = RED if attacker is env.left else BLUE
+                burst_color = lcol if attacker is env.left else rcol
                 active_bursts.append([
                     int(defender.pos_x), int(defender.pos_y) - 90,
                     burst_color, burst_size, 0,
@@ -302,10 +398,14 @@ def run_one_match(model, seed: int, out_dir: Path,
             elif et == "crit":
                 defender = env.right if ev.target == env.right.id else env.left
                 attacker = env.left if ev.actor == env.left.id else env.right
-                burst_color = RED if attacker is env.left else BLUE
+                burst_color = lcol if attacker is env.left else rcol
                 active_bursts.append([
                     int(defender.pos_x), int(defender.pos_y) - 90,
                     burst_color, 88, 0,
+                ])
+                active_shockwaves.append([
+                    int(defender.pos_x), int(defender.pos_y) - 90,
+                    burst_color, 0, 14, 230,
                 ])
                 screen_shake_frames_left = max(screen_shake_frames_left, 10)
                 screen_shake_mag = max(screen_shake_mag, 8)
@@ -318,12 +418,10 @@ def run_one_match(model, seed: int, out_dir: Path,
                 actor_obj = env.left if ev.actor == env.left.id else env.right
                 target_obj = env.right if actor_obj is env.left else env.left
                 if kind == "cooldown":
-                    shoulder_y = int(actor_obj.pos_y) - 130
-                    target_y = int(target_obj.pos_y) - 90
-                    color = RED if actor_obj is env.left else BLUE
+                    color = lcol if actor_obj is env.left else rcol
                     projectiles.spawn(
-                        start=(int(actor_obj.pos_x), shoulder_y),
-                        end=(int(target_obj.pos_x), target_y),
+                        start=(int(actor_obj.pos_x), int(actor_obj.pos_y) - 130),
+                        end=(int(target_obj.pos_x), int(target_obj.pos_y) - 90),
                         color=color,
                         current_ms=int(frame * FRAME_MS),
                         duration_ms=280,
@@ -331,16 +429,14 @@ def run_one_match(model, seed: int, out_dir: Path,
                 if kind in ("cooldown", "special"):
                     skill_id = (ev.extra or {}).get("skill_id", "?")
                     banner_text = str(skill_id).upper().replace("_", " ") + "!"
-                    banner_until_frame = frame + 36  # ~600ms at 60fps
+                    banner_until_frame = frame + 36
             elif et == "ultimate_start":
                 banner_text = "ULTIMATE!"
-                banner_until_frame = frame + 78   # ~1300ms
-                flash_frames_left = 10            # ~165ms white screen flash
-                # Big radial burst on the victim + heavy shake — this is the
-                # ultimate's whole spectacle now that it no longer freezes.
+                banner_until_frame = frame + 78
+                flash_frames_left = 10
                 defender = env.right if ev.target == env.right.id else env.left
                 actor_obj = env.left if ev.actor == env.left.id else env.right
-                burst_color = RED if actor_obj is env.left else BLUE
+                burst_color = lcol if actor_obj is env.left else rcol
                 active_bursts.append([
                     int(defender.pos_x), int(defender.pos_y) - 90,
                     burst_color, 120, 0,
@@ -349,6 +445,15 @@ def run_one_match(model, seed: int, out_dir: Path,
                     int(defender.pos_x), int(defender.pos_y) - 90,
                     (255, 240, 120), 80, 0,
                 ])
+                # Two screen-filling shockwave rings — the ultimate's "炸裂"
+                active_shockwaves.append([
+                    int(defender.pos_x), int(defender.pos_y) - 90,
+                    (255, 240, 150), 0, 20, 460,
+                ])
+                active_shockwaves.append([
+                    int(defender.pos_x), int(defender.pos_y) - 90,
+                    burst_color, 0, 24, 520,
+                ])
                 screen_shake_frames_left = max(screen_shake_frames_left, 16)
                 screen_shake_mag = max(screen_shake_mag, 11)
                 if defender is env.left:
@@ -356,7 +461,7 @@ def run_one_match(model, seed: int, out_dir: Path,
                 else:
                     right_flash_frames = max(right_flash_frames, 7)
 
-        # ── Landing dust: ground-touch edge detection ───────────────────────
+        # Landing dust — ground-touch edge detection
         pending_dust: list = []
         if env.left.on_ground and not prev_on_ground_left:
             pending_dust.append((int(env.left.pos_x), int(env.left.pos_y)))
@@ -365,17 +470,15 @@ def run_one_match(model, seed: int, out_dir: Path,
         prev_on_ground_left = env.left.on_ground
         prev_on_ground_right = env.right.on_ground
 
-        # ── Draw world layer (camera-transformed) ───────────────────────────
+        # World layer
         world.fill(BG)
         _draw_back_wall(world)
         _draw_floor(world)
-
         _draw_shadow(world, env.left)
         _draw_shadow(world, env.right)
 
-        # Hit-flash: a struck fighter renders white for a few frames.
-        left_color = HIT_FLASH if left_flash_frames > 0 else RED
-        right_color = HIT_FLASH if right_flash_frames > 0 else BLUE
+        left_color = HIT_FLASH if left_flash_frames > 0 else lcol
+        right_color = HIT_FLASH if right_flash_frames > 0 else rcol
         left_flash_frames = max(0, left_flash_frames - 1)
         right_flash_frames = max(0, right_flash_frames - 1)
         draw_stick_figure(world, env.left, left_color)
@@ -383,7 +486,6 @@ def run_one_match(model, seed: int, out_dir: Path,
 
         projectiles.draw(world, int(frame * FRAME_MS))
 
-        # Impact bursts — expand over their lifetime, then cull.
         still_live = []
         for b in active_bursts:
             bx, by, bcolor, bsize, age = b
@@ -394,10 +496,20 @@ def run_one_match(model, seed: int, out_dir: Path,
                 still_live.append(b)
         active_bursts = still_live
 
+        # Expanding shockwave rings (crit / ultimate)
+        live_sw = []
+        for sw in active_shockwaves:
+            sx, sy, scolor, sage, slife, smax = sw
+            _draw_shockwave(world, sx, sy, scolor, sage, slife, smax)
+            sw[3] = sage + 1
+            if sw[3] < slife:
+                live_sw.append(sw)
+        active_shockwaves = live_sw
+
         for (dx, dy) in pending_dust:
             spawn_landing_dust(world, dx, dy, (180, 180, 200), intensity=1.7)
 
-        # ── Camera: follow fighters' midpoint, crop + upscale into surf ──────
+        # Camera — follow midpoint, crop + upscale
         mid_x = (env.left.pos_x + env.right.pos_x) / 2.0
         cam_x += (mid_x - cam_x) * CAM_FOLLOW
         view_x = int(cam_x - CAM_VIEW_W / 2)
@@ -406,7 +518,7 @@ def run_one_match(model, seed: int, out_dir: Path,
         sub = world.subsurface((view_x, view_y, CAM_VIEW_W, CAM_VIEW_H))
         pygame.transform.scale(sub, (WIDTH, HEIGHT), surf)
 
-        # ── Screen-space overlays (drawn after camera, unscaled) ────────────
+        # Screen-space overlays
         if flash_frames_left > 0:
             flash = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
             flash.fill((255, 255, 255, 100))
@@ -420,7 +532,7 @@ def run_one_match(model, seed: int, out_dir: Path,
         elif banner_text is not None and frame > banner_until_frame:
             banner_text = None
 
-        # ── Screen shake: copy into a jittered buffer ───────────────────────
+        # Screen shake
         if screen_shake_frames_left > 0:
             mag = max(2, screen_shake_mag)
             ox = random.randint(-mag, mag)
@@ -434,41 +546,155 @@ def run_one_match(model, seed: int, out_dir: Path,
                 screen_shake_mag = 0
         else:
             recorder.write_frame(surf)
+        n_written += 1
 
         if terminated:
-            for _ in range(120):  # 2s hold on the last drawn frame
+            # KO drama — freeze the final frame and build a whiteout that
+            # hands off into the result card's own flash.
+            for k in range(16):
+                ko_frame = surf.copy()
+                wa = int(215 * (k / 16) ** 1.4)
+                wl = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+                wl.fill((255, 255, 255, wa))
+                ko_frame.blit(wl, (0, 0))
+                recorder.write_frame(ko_frame)
+                n_written += 1
+            for _ in range(end_hold_frames):
                 recorder.write_frame(surf)
+                n_written += 1
             break
 
-    recorder.stop()
-    actual_frames = (frame + 1 + 120) if terminated else total_frames
-    total_duration_ms = int(actual_frames * FRAME_MS)
+    # Winner — by KO, or higher HP on a timeout
+    if env.right.is_ko() and not env.left.is_ko():
+        winner = "left"
+    elif env.left.is_ko() and not env.right.is_ko():
+        winner = "right"
+    elif env.left.hp > env.right.hp:
+        winner = "left"
+    elif env.right.hp > env.left.hp:
+        winner = "right"
+    else:
+        winner = None
 
+    return {
+        "n_frames": n_written,
+        "events": list(env.battle.events),
+        "event_video_ms": event_video_ms,
+        "winner": winner,
+        "terminated": bool(terminated),
+    }
+
+
+# ── Drivers ───────────────────────────────────────────────────────────────────
+
+def run_one_match(model, seed: int, out_dir: Path,
+                   max_seconds: float = 60.0,
+                   match_name: str = "final") -> dict:
+    """Render a single fight (no intro/result) to out_dir/{match_name}.mp4."""
+    if not pygame.font.get_init():
+        pygame.font.init()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    raw_video = out_dir / f"{match_name}_raw.mp4"
+    audio_out = out_dir / f"{match_name}_audio.wav"
+    final_mp4 = out_dir / f"{match_name}.mp4"
+
+    env = PixelBattleEnv(seed=seed)
+    recorder = FrameRecorder(str(raw_video), fps=FPS, width=WIDTH, height=HEIGHT)
+    recorder.start()
+    mixer = AudioMixer(sample_rate=48000)
+
+    fight = _render_fight(recorder, model, env, max_seconds, end_hold_frames=120)
+    recorder.stop()
+
+    total_duration_ms = int(fight["n_frames"] * FRAME_MS)
     bgm_path = BGM_DIR / "battle_loop.mp3"
     if bgm_path.exists():
         bgm = _load_wav(bgm_path, mixer.sr)
         looped = _loop_to_length(bgm, total_duration_ms, mixer.sr)
         mixer.bgm_bus.add(looped, t_ms=0)
-    _route_audio_for_events(env.battle.events, event_video_ms, mixer)
+    _route_audio_for_events(fight["events"], fight["event_video_ms"], mixer)
 
     mixer.export(total_duration_ms, str(audio_out))
     mux_audio_video(str(raw_video), str(audio_out), str(final_mp4))
 
-    # Determine winner
-    if terminated:
-        if env.right.is_ko() and not env.left.is_ko():
-            winner = "left"
-        elif env.left.is_ko() and not env.right.is_ko():
-            winner = "right"
-        else:
-            winner = None
-    else:
-        winner = None
+    return {
+        "finished_by_ko": fight["terminated"],
+        "duration_s": total_duration_ms / 1000.0,
+        "winner": fight["winner"],
+        "mp4_path": final_mp4,
+        "raw_path": raw_video,
+        "audio_path": audio_out,
+    }
+
+
+def run_full_episode(model, out_dir: Path, left_id: str, right_id: str,
+                      seed: int = 2000, max_seconds: float = 60.0,
+                      episode_name: str = "episode") -> dict:
+    """Render a complete episode: VS intro -> fight -> K.O./winner card.
+
+    Output: out_dir/{episode_name}.mp4 — a single stitched video.
+    """
+    if not pygame.font.get_init():
+        pygame.font.init()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    raw_video = out_dir / f"{episode_name}_raw.mp4"
+    audio_out = out_dir / f"{episode_name}_audio.wav"
+    final_mp4 = out_dir / f"{episode_name}.mp4"
+
+    env = PixelBattleEnv(seed=seed, left_id=left_id, right_id=right_id)
+
+    recorder = FrameRecorder(str(raw_video), fps=FPS, width=WIDTH, height=HEIGHT)
+    recorder.start()
+    mixer = AudioMixer(sample_rate=48000)
+    surf = pygame.Surface((WIDTH, HEIGHT))
+
+    # ── INTRO ────────────────────────────────────────────────────────────────
+    intro_left = Character.load(left_id)
+    intro_right = Character.load(right_id)
+    for f in range(INTRO_FRAMES):
+        _draw_vs_intro(surf, intro_left, intro_right, f, INTRO_FRAMES)
+        recorder.write_frame(surf)
+
+    # ── FIGHT ────────────────────────────────────────────────────────────────
+    fight = _render_fight(recorder, model, env, max_seconds, end_hold_frames=0)
+
+    # ── RESULT ───────────────────────────────────────────────────────────────
+    winner_side = fight["winner"]
+    winner_id = right_id if winner_side == "right" else left_id
+    winner_char = Character.load(winner_id)
+    for f in range(RESULT_FRAMES):
+        _draw_ko_result(surf, winner_char, f, RESULT_FRAMES)
+        recorder.write_frame(surf)
+
+    recorder.stop()
+
+    total_frames = INTRO_FRAMES + fight["n_frames"] + RESULT_FRAMES
+    total_duration_ms = int(total_frames * FRAME_MS)
+
+    # ── AUDIO ────────────────────────────────────────────────────────────────
+    bgm_path = BGM_DIR / "battle_loop.mp3"
+    if bgm_path.exists():
+        bgm = _load_wav(bgm_path, mixer.sr)
+        looped = _loop_to_length(bgm, total_duration_ms, mixer.sr)
+        mixer.bgm_bus.add(looped, t_ms=0)
+    # Shift fight events past the intro
+    intro_offset_ms = int(INTRO_FRAMES * FRAME_MS)
+    shifted = {k: v + intro_offset_ms for k, v in fight["event_video_ms"].items()}
+    _route_audio_for_events(fight["events"], shifted, mixer)
+    # A KO stinger at the result-card boundary
+    ko_at = int((INTRO_FRAMES + fight["n_frames"]) * FRAME_MS)
+    ko_samp = _load_sfx_samples_or_none("ko", mixer.sr)
+    if ko_samp is not None:
+        mixer.hit_bus.add(ko_samp, ko_at)
+
+    mixer.export(total_duration_ms, str(audio_out))
+    mux_audio_video(str(raw_video), str(audio_out), str(final_mp4))
 
     return {
-        "finished_by_ko": bool(terminated),
+        "winner": winner_side,
+        "winner_id": winner_id,
+        "finished_by_ko": fight["terminated"],
         "duration_s": total_duration_ms / 1000.0,
-        "winner": winner,
         "mp4_path": final_mp4,
         "raw_path": raw_video,
         "audio_path": audio_out,
@@ -476,21 +702,25 @@ def run_one_match(model, seed: int, out_dir: Path,
 
 
 def main(checkpoint: Path = DEFAULT_CKPT, max_seconds: float = 60.0,
-          seed: int = 1234):
+          seed: int = 2000, left: str = "garen", right: str = "lux") -> None:
     pygame.init()
     pygame.display.set_mode((1, 1))
     model = PPO.load(str(checkpoint))
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    result = run_one_match(model, seed=seed, out_dir=OUT_DIR,
-                            max_seconds=max_seconds, match_name="final")
-    print(f"RL play: {result['mp4_path']} ({result['duration_s']:.1f}s)")
+    result = run_full_episode(model, OUT_DIR, left_id=left, right_id=right,
+                               seed=seed, max_seconds=max_seconds,
+                               episode_name="episode")
+    print(f"Episode: {result['mp4_path']} ({result['duration_s']:.1f}s) "
+          f"winner={result['winner_id']}")
 
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--checkpoint", type=Path, default=DEFAULT_CKPT)
     p.add_argument("--max_seconds", type=float, default=60.0)
-    p.add_argument("--seed", type=int, default=1234)
+    p.add_argument("--seed", type=int, default=2000)
+    p.add_argument("--left", type=str, default="garen")
+    p.add_argument("--right", type=str, default="lux")
     args = p.parse_args()
-    main(checkpoint=args.checkpoint,
-          max_seconds=args.max_seconds, seed=args.seed)
+    main(checkpoint=args.checkpoint, max_seconds=args.max_seconds,
+          seed=args.seed, left=args.left, right=args.right)

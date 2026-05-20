@@ -90,7 +90,8 @@ def test_draw_back_wall_and_floor():
 
 def test_player_hud_right_align_drains_correctly():
     """Right-side HUD should drain HP from the LEFT (depleted-left appearance)."""
-    from pixel_battle.rl.play import _draw_player_hud, WIDTH, HEIGHT, BLUE
+    from pixel_battle.rl.play import _draw_player_hud, WIDTH, HEIGHT
+    BLUE = (60, 130, 220)
     c = Character.load("glass_slab")
     c.hp = 30
     c.mp = 0
