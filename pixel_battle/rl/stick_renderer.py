@@ -28,12 +28,46 @@ _WINDUP_DUR = 128
 _STRIKE_DUR = 64
 _RECOVER_DUR = 160
 
-# Arm pose keyframes: (dx, dy) relative to shoulder
-_ARM_DEFAULT_L = (-ARM_LENGTH // 2, 10)
-_ARM_DEFAULT_R = (ARM_LENGTH // 2, 10)
-_ARM_PULLED_L = (-ARM_LENGTH, 6)   # both pulled to "back" during windup
-_ARM_PULLED_R = (-ARM_LENGTH, 6)
-# For strike we use facing-dependent values; the "front thrust" is computed inline.
+
+# ── Per-character visual style ────────────────────────────────────────────────
+# Keys match Character.id; falls back to defaults.
+_STYLES = {
+    "brick_phone": {
+        "head_shape": "square",
+        "head_size": 18,
+        "torso_length": 40,
+        "arm_length": 22,
+        "leg_length": 26,
+        "line_width": 4,
+        "hand_radius": 4,
+        "foot_length": 10,
+    },
+    "glass_slab": {
+        "head_shape": "triangle",
+        "head_size": 17,
+        "torso_length": 50,
+        "arm_length": 24,
+        "leg_length": 32,
+        "line_width": 2,
+        "hand_radius": 2,
+        "foot_length": 7,
+    },
+}
+
+_DEFAULT_STYLE = {
+    "head_shape": "circle",
+    "head_size": HEAD_RADIUS,
+    "torso_length": TORSO_LENGTH,
+    "arm_length": ARM_LENGTH,
+    "leg_length": LEG_LENGTH,
+    "line_width": LINE_WIDTH,
+    "hand_radius": HAND_RADIUS,
+    "foot_length": FOOT_LENGTH,
+}
+
+
+def get_style(char_id: str) -> dict:
+    return _STYLES.get(char_id, _DEFAULT_STYLE)
 
 
 # ── Easing functions ──────────────────────────────────────────────────────────
@@ -65,23 +99,26 @@ def _lerp2(a: Tuple[float, float], b: Tuple[float, float], t: float) -> Tuple[in
 
 # ── Pose helpers ──────────────────────────────────────────────────────────────
 
-def _arm_offsets(char: Character) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+def _arm_offsets(char: Character, arm_length: int) -> Tuple[Tuple[int, int], Tuple[int, int]]:
     """Return ((left_arm_dx, dy), (right_arm_dx, dy)) with smooth interpolation."""
     facing = char.facing  # +1 right, -1 left
     phase = char.attack_phase
     phase_t = getattr(char, "attack_phase_t", 0)  # elapsed ms in current phase
 
+    # Default arm poses (derived from arm_length so brick/glass scale correctly)
+    default_l = (-arm_length // 2, 10)
+    default_r = (arm_length // 2, 10)
     # Facing-adjusted target poses
     # "pulled back" = arms go to the back of body
-    pulled = ((-facing * ARM_LENGTH, 6), (-facing * ARM_LENGTH, 6))
+    pulled = ((-facing * arm_length, 6), (-facing * arm_length, 6))
     # "thrust forward" = front arm fully forward, back arm half-back
-    thrust_l = (facing * ARM_LENGTH, -4)
-    thrust_r = (-facing * (ARM_LENGTH // 2), 8)
+    thrust_l = (facing * arm_length, -4)
+    thrust_r = (-facing * (arm_length // 2), 8)
 
     if phase == "windup":
         t = _ease_in_cubic(phase_t / _WINDUP_DUR)
-        l = _lerp2(_ARM_DEFAULT_L, pulled[0], t)
-        r = _lerp2(_ARM_DEFAULT_R, pulled[1], t)
+        l = _lerp2(default_l, pulled[0], t)
+        r = _lerp2(default_r, pulled[1], t)
         return l, r
 
     if phase == "strike":
@@ -93,31 +130,31 @@ def _arm_offsets(char: Character) -> Tuple[Tuple[int, int], Tuple[int, int]]:
     if phase == "recover":
         t = _ease_in_out_cubic(phase_t / _RECOVER_DUR)
         # from thrust back toward default
-        l = _lerp2(thrust_l, _ARM_DEFAULT_L, t)
-        r = _lerp2(thrust_r, _ARM_DEFAULT_R, t)
+        l = _lerp2(thrust_l, default_l, t)
+        r = _lerp2(thrust_r, default_r, t)
         return l, r
 
     if char.action_state == "hit_stagger":
         # Arms flailing up
-        return (-ARM_LENGTH // 2, -ARM_LENGTH // 2), (ARM_LENGTH // 2, -ARM_LENGTH // 2)
+        return (-arm_length // 2, -arm_length // 2), (arm_length // 2, -arm_length // 2)
 
     # Default: hanging out slightly to each side
-    return _ARM_DEFAULT_L, _ARM_DEFAULT_R
+    return default_l, default_r
 
 
-def _leg_offsets(char: Character) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+def _leg_offsets(char: Character, leg_length: int) -> Tuple[Tuple[int, int], Tuple[int, int]]:
     """Return ((left_leg_dx, dy), (right_leg_dx, dy))."""
     if not char.on_ground:
-        return (-8, LEG_LENGTH // 2), (8, LEG_LENGTH // 2)
+        return (-8, leg_length // 2), (8, leg_length // 2)
     if abs(char.vel_x) > 0.5:
-        return (-LEG_LENGTH // 2, LEG_LENGTH), (LEG_LENGTH // 2, LEG_LENGTH)
-    return (-6, LEG_LENGTH), (6, LEG_LENGTH)
+        return (-leg_length // 2, leg_length), (leg_length // 2, leg_length)
+    return (-6, leg_length), (6, leg_length)
 
 
 # ── Ghost (smear) drawing ─────────────────────────────────────────────────────
 
 def _draw_ghost(surf: pygame.Surface, char: Character, color: Tuple[int, int, int],
-                offset_x: int, alpha: int) -> None:
+                offset_x: int, alpha: int, style: dict) -> None:
     """Draw a faded ghost torso+arms at (pos_x + offset_x) onto a SRCALPHA temp surface
     and blit it onto surf."""
     w, h = surf.get_size()
@@ -127,15 +164,15 @@ def _draw_ghost(surf: pygame.Surface, char: Character, color: Tuple[int, int, in
     cx = int(char.pos_x) + offset_x
     cy = int(char.pos_y)
 
-    hip_y = cy - LEG_LENGTH
-    shoulder_y = hip_y - TORSO_LENGTH
+    hip_y = cy - style["leg_length"]
+    shoulder_y = hip_y - style["torso_length"]
 
     # Torso only
-    pygame.draw.line(ghost, gc, (cx, shoulder_y), (cx, hip_y), LINE_WIDTH)
+    pygame.draw.line(ghost, gc, (cx, shoulder_y), (cx, hip_y), style["line_width"])
     # Arms
-    (lax, lay), (rax, ray) = _arm_offsets(char)
-    pygame.draw.line(ghost, gc, (cx, shoulder_y), (cx + lax, shoulder_y + lay), LINE_WIDTH)
-    pygame.draw.line(ghost, gc, (cx, shoulder_y), (cx + rax, shoulder_y + ray), LINE_WIDTH)
+    (lax, lay), (rax, ray) = _arm_offsets(char, style["arm_length"])
+    pygame.draw.line(ghost, gc, (cx, shoulder_y), (cx + lax, shoulder_y + lay), style["line_width"])
+    pygame.draw.line(ghost, gc, (cx, shoulder_y), (cx + rax, shoulder_y + ray), style["line_width"])
 
     surf.blit(ghost, (0, 0))
 
@@ -149,42 +186,66 @@ def draw_stick_figure(surf: pygame.Surface, char: Character,
     Body anchor is char.pos_x, char.pos_y (feet position).
     Stick extends upward: hips → torso → shoulders → head.
     """
+    style = get_style(char.id)
+    head_size = style["head_size"]
+    torso_length = style["torso_length"]
+    arm_length = style["arm_length"]
+    leg_length = style["leg_length"]
+    line_width = style["line_width"]
+    hand_radius = style["hand_radius"]
+    foot_length = style["foot_length"]
+    head_shape = style["head_shape"]
+
     # ── Motion smears ────────────────────────────────────────────────────────
     if abs(char.vel_x) > SMEAR_VEL_THRESHOLD:
         trail1_x = -int(char.vel_x * 4)
         trail2_x = -int(char.vel_x * 8)
-        _draw_ghost(surf, char, color, trail2_x, 64)   # 25% alpha (64/255)
-        _draw_ghost(surf, char, color, trail1_x, 128)  # 50% alpha (128/255)
+        _draw_ghost(surf, char, color, trail2_x, 64, style)   # 25% alpha (64/255)
+        _draw_ghost(surf, char, color, trail1_x, 128, style)  # 50% alpha (128/255)
 
     cx = int(char.pos_x)
     cy = int(char.pos_y)
 
-    hip_y = cy - LEG_LENGTH
-    shoulder_y = hip_y - TORSO_LENGTH
-    head_center_y = shoulder_y - HEAD_RADIUS - 2
+    hip_y = cy - leg_length
+    shoulder_y = hip_y - torso_length
+    head_center_y = shoulder_y - head_size - 2
 
-    # ── Head: filled circle + outline ring (no face) ─────────────────────────
-    pygame.draw.circle(surf, color, (cx, head_center_y), HEAD_RADIUS)          # filled
-    pygame.draw.circle(surf, (0, 0, 0), (cx, head_center_y), HEAD_RADIUS, 2)  # outline
+    # ── Head: shape switch (circle / square / triangle) ──────────────────────
+    if head_shape == "square":
+        rect = pygame.Rect(cx - head_size, head_center_y - head_size,
+                           head_size * 2, head_size * 2)
+        pygame.draw.rect(surf, color, rect)
+        pygame.draw.rect(surf, (0, 0, 0), rect, 2)
+    elif head_shape == "triangle":
+        pts = [
+            (cx, head_center_y + head_size),               # bottom apex
+            (cx - head_size, head_center_y - head_size),   # top-left
+            (cx + head_size, head_center_y - head_size),   # top-right
+        ]
+        pygame.draw.polygon(surf, color, pts)
+        pygame.draw.polygon(surf, (0, 0, 0), pts, 2)
+    else:
+        pygame.draw.circle(surf, color, (cx, head_center_y), head_size)          # filled
+        pygame.draw.circle(surf, (0, 0, 0), (cx, head_center_y), head_size, 2)  # outline
 
     # ── Torso ─────────────────────────────────────────────────────────────────
-    pygame.draw.line(surf, color, (cx, shoulder_y), (cx, hip_y), LINE_WIDTH)
+    pygame.draw.line(surf, color, (cx, shoulder_y), (cx, hip_y), line_width)
 
     # ── Arms + hands ─────────────────────────────────────────────────────────
-    (lax, lay), (rax, ray) = _arm_offsets(char)
+    (lax, lay), (rax, ray) = _arm_offsets(char, arm_length)
     left_hand = (cx + lax, shoulder_y + lay)
     right_hand = (cx + rax, shoulder_y + ray)
-    pygame.draw.line(surf, color, (cx, shoulder_y), left_hand, LINE_WIDTH)
-    pygame.draw.line(surf, color, (cx, shoulder_y), right_hand, LINE_WIDTH)
-    pygame.draw.circle(surf, color, left_hand, HAND_RADIUS)
-    pygame.draw.circle(surf, color, right_hand, HAND_RADIUS)
+    pygame.draw.line(surf, color, (cx, shoulder_y), left_hand, line_width)
+    pygame.draw.line(surf, color, (cx, shoulder_y), right_hand, line_width)
+    pygame.draw.circle(surf, color, left_hand, hand_radius)
+    pygame.draw.circle(surf, color, right_hand, hand_radius)
 
     # ── Legs + feet ──────────────────────────────────────────────────────────
-    (llx, lly), (rlx, rly) = _leg_offsets(char)
+    (llx, lly), (rlx, rly) = _leg_offsets(char, leg_length)
     left_foot = (cx + llx, hip_y + lly)
     right_foot = (cx + rlx, hip_y + rly)
-    pygame.draw.line(surf, color, (cx, hip_y), left_foot, LINE_WIDTH)
-    pygame.draw.line(surf, color, (cx, hip_y), right_foot, LINE_WIDTH)
+    pygame.draw.line(surf, color, (cx, hip_y), left_foot, line_width)
+    pygame.draw.line(surf, color, (cx, hip_y), right_foot, line_width)
 
     # Foot flicks: short horizontal perpendicular segment at foot tip
     # Compute direction of leg to find perpendicular
@@ -195,12 +256,12 @@ def draw_stick_figure(surf: pygame.Surface, char: Character,
         # Perpendicular to leg direction
         perp_x = -leg_dy / leg_len
         perp_y = leg_dx / leg_len
-        half = FOOT_LENGTH // 2
+        half = foot_length // 2
         fx0 = int(foot[0] + perp_x * half)
         fy0 = int(foot[1] + perp_y * half)
         fx1 = int(foot[0] - perp_x * half)
         fy1 = int(foot[1] - perp_y * half)
-        pygame.draw.line(surf, color, (fx0, fy0), (fx1, fy1), LINE_WIDTH)
+        pygame.draw.line(surf, color, (fx0, fy0), (fx1, fy1), line_width)
 
 
 # ── VFX helpers (exported) ────────────────────────────────────────────────────
