@@ -36,6 +36,15 @@ BLUE = (60, 130, 220)
 BG = (18, 22, 40)
 GROUND_Y = 720
 
+# Camera — zoom + horizontal follow so fighters fill the vertical frame
+# instead of sitting tiny in the bottom strip. The world is drawn at native
+# size, then a sub-region is cropped + upscaled to the output resolution.
+CAM_ZOOM = 1.7
+CAM_VIEW_W = int(WIDTH / CAM_ZOOM)            # 282 — horizontal world span shown
+CAM_VIEW_H = int(HEIGHT / CAM_ZOOM)           # 502 — vertical world span shown
+CAM_VIEW_Y = GROUND_Y - int(CAM_VIEW_H * 0.82)  # frame the floor ~82% down
+CAM_FOLLOW = 0.12                              # lerp factor for x tracking
+
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CKPT = ROOT / "data" / "rl_checkpoints" / "ppo_final.zip"
 OUT_DIR = ROOT / "pixel_battle" / "output" / "rl_play"
@@ -63,10 +72,19 @@ def _get_hud_font(size: int = 14) -> pygame.font.Font:
 # ── Background / arena helpers ────────────────────────────────────────────────
 
 def _draw_back_wall(surf: pygame.Surface) -> None:
-    """Draw decorative diagonal lines in the upper background to suggest a stage."""
-    wall_color = (40, 50, 80)
-    for x in range(-100, WIDTH + 100, 100):
-        pygame.draw.line(surf, wall_color, (x, 0), (x + 80, 200), 1)
+    """Fill the area above the floor: vertical gradient + diagonal accent lines.
+
+    Spans the full above-floor height so it stays visible under any camera crop.
+    """
+    # Vertical gradient — slightly lighter toward the floor
+    for i in range(0, GROUND_Y, 6):
+        t = i / GROUND_Y
+        c = (int(18 + 12 * t), int(22 + 14 * t), int(40 + 20 * t))
+        pygame.draw.rect(surf, c, (0, i, WIDTH, 6))
+    # Diagonal accent lines suggesting a stage backdrop
+    wall_color = (46, 56, 88)
+    for x in range(-240, WIDTH + 240, 120):
+        pygame.draw.line(surf, wall_color, (x, 0), (x + 260, GROUND_Y), 2)
 
 
 def _draw_floor(surf: pygame.Surface) -> None:
@@ -87,8 +105,8 @@ def _draw_shadow(surf: pygame.Surface, char) -> None:
     ground = GROUND_Y
     air_height = max(0, ground - int(char.pos_y))
     scale = max(0.35, 1.0 - air_height / 250.0)
-    w = int(36 * scale)
-    h = int(6 * scale)
+    w = int(54 * scale)
+    h = int(9 * scale)
     if w < 6 or h < 2:
         return
     shadow = pygame.Surface((w * 2, h * 2), pygame.SRCALPHA)
@@ -219,7 +237,8 @@ def run_one_match(model, seed: int, out_dir: Path,
     recorder.start()
     mixer = AudioMixer(sample_rate=48000)
 
-    surf = pygame.Surface((WIDTH, HEIGHT))
+    surf = pygame.Surface((WIDTH, HEIGHT))      # final composited frame
+    world = pygame.Surface((WIDTH, HEIGHT))     # pre-camera world layer
     total_frames = int(max_seconds * FPS)
     event_video_ms: dict = {}
     terminated = False
@@ -233,6 +252,8 @@ def run_one_match(model, seed: int, out_dir: Path,
     flash_frames_left = 0
     prev_on_ground_left = env.left.on_ground
     prev_on_ground_right = env.right.on_ground
+    # Camera x starts centered on the fighters' midpoint
+    cam_x = (env.left.pos_x + env.right.pos_x) / 2.0
 
     # Lazy import (only here so module-level import surface stays clean)
     import random
@@ -255,11 +276,11 @@ def run_one_match(model, seed: int, out_dir: Path,
                 defender = env.right if ev.target == env.right.id else env.left
                 attacker = env.left if ev.actor == env.left.id else env.right
                 is_crit = bool((ev.extra or {}).get("crit", False))
-                burst_size = 28 if is_crit else 20
+                burst_size = 48 if is_crit else 34
                 burst_color = RED if attacker is env.left else BLUE
                 pending_bursts.append((
                     int(defender.pos_x),
-                    int(defender.pos_y) - 40,
+                    int(defender.pos_y) - 90,
                     burst_color,
                     burst_size,
                 ))
@@ -270,9 +291,9 @@ def run_one_match(model, seed: int, out_dir: Path,
                 burst_color = RED if attacker is env.left else BLUE
                 pending_bursts.append((
                     int(defender.pos_x),
-                    int(defender.pos_y) - 40,
+                    int(defender.pos_y) - 90,
                     burst_color,
-                    32,
+                    54,
                 ))
                 screen_shake_frames_left = max(screen_shake_frames_left, 7)
             elif et == "attack_windup":
@@ -280,8 +301,8 @@ def run_one_match(model, seed: int, out_dir: Path,
                 actor_obj = env.left if ev.actor == env.left.id else env.right
                 target_obj = env.right if actor_obj is env.left else env.left
                 if kind == "cooldown":
-                    shoulder_y = int(actor_obj.pos_y) - 60
-                    target_y = int(target_obj.pos_y) - 30
+                    shoulder_y = int(actor_obj.pos_y) - 130
+                    target_y = int(target_obj.pos_y) - 90
                     color = RED if actor_obj is env.left else BLUE
                     projectiles.spawn(
                         start=(int(actor_obj.pos_x), shoulder_y),
@@ -308,25 +329,35 @@ def run_one_match(model, seed: int, out_dir: Path,
         prev_on_ground_left = env.left.on_ground
         prev_on_ground_right = env.right.on_ground
 
-        # ── Draw frame ──────────────────────────────────────────────────────
-        surf.fill(BG)
-        _draw_back_wall(surf)
-        _draw_floor(surf)
+        # ── Draw world layer (camera-transformed) ───────────────────────────
+        world.fill(BG)
+        _draw_back_wall(world)
+        _draw_floor(world)
 
-        _draw_shadow(surf, env.left)
-        _draw_shadow(surf, env.right)
+        _draw_shadow(world, env.left)
+        _draw_shadow(world, env.right)
 
-        draw_stick_figure(surf, env.left, RED)
-        draw_stick_figure(surf, env.right, BLUE)
+        draw_stick_figure(world, env.left, RED)
+        draw_stick_figure(world, env.right, BLUE)
 
-        projectiles.draw(surf, int(frame * FRAME_MS))
+        projectiles.draw(world, int(frame * FRAME_MS))
 
         for (bx, by, bcolor, bsize) in pending_bursts:
-            spawn_impact_burst(surf, bx, by, bcolor, bsize)
+            spawn_impact_burst(world, bx, by, bcolor, bsize)
 
         for (dx, dy) in pending_dust:
-            spawn_landing_dust(surf, dx, dy, (180, 180, 200), intensity=1.0)
+            spawn_landing_dust(world, dx, dy, (180, 180, 200), intensity=1.7)
 
+        # ── Camera: follow fighters' midpoint, crop + upscale into surf ──────
+        mid_x = (env.left.pos_x + env.right.pos_x) / 2.0
+        cam_x += (mid_x - cam_x) * CAM_FOLLOW
+        view_x = int(cam_x - CAM_VIEW_W / 2)
+        view_x = max(0, min(WIDTH - CAM_VIEW_W, view_x))
+        view_y = max(0, min(HEIGHT - CAM_VIEW_H, CAM_VIEW_Y))
+        sub = world.subsurface((view_x, view_y, CAM_VIEW_W, CAM_VIEW_H))
+        pygame.transform.scale(sub, (WIDTH, HEIGHT), surf)
+
+        # ── Screen-space overlays (drawn after camera, unscaled) ────────────
         if flash_frames_left > 0:
             flash = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
             flash.fill((255, 255, 255, 100))

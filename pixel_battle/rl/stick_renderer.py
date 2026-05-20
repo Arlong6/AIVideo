@@ -44,26 +44,28 @@ def _phase_dur(hint: str, phase: str) -> int:
 
 # ── Per-character visual style ────────────────────────────────────────────────
 # Keys match Character.id; falls back to defaults.
+# Sized ~2x larger than the engine's nominal proportions so the fighters fill
+# the vertical frame after the play.py camera crop instead of sitting tiny.
 _STYLES = {
     "brick_phone": {
         "head_shape": "square",
-        "head_size": 18,
-        "torso_length": 40,
-        "arm_length": 22,
-        "leg_length": 26,
-        "line_width": 4,
-        "hand_radius": 4,
-        "foot_length": 10,
+        "head_size": 26,
+        "torso_length": 88,
+        "arm_length": 46,
+        "leg_length": 60,
+        "line_width": 8,
+        "hand_radius": 7,
+        "foot_length": 22,
     },
     "glass_slab": {
         "head_shape": "triangle",
-        "head_size": 17,
-        "torso_length": 50,
-        "arm_length": 24,
-        "leg_length": 32,
-        "line_width": 2,
-        "hand_radius": 2,
-        "foot_length": 7,
+        "head_size": 30,
+        "torso_length": 104,
+        "arm_length": 48,
+        "leg_length": 66,
+        "line_width": 5,
+        "hand_radius": 4,
+        "foot_length": 14,
     },
 }
 

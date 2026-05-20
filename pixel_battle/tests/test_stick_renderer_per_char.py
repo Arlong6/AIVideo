@@ -21,13 +21,15 @@ def _pg():
 def test_brick_style_is_square_chunky():
     s = get_style("brick_phone")
     assert s["head_shape"] == "square"
-    assert s["line_width"] >= 4
+    # Brick is the chunkier fighter — strictly thicker strokes than glass.
+    assert s["line_width"] > get_style("glass_slab")["line_width"]
 
 
 def test_glass_style_is_triangle_thin():
     s = get_style("glass_slab")
     assert s["head_shape"] == "triangle"
-    assert s["line_width"] <= 2
+    # Glass is taller and thinner — longer torso than the chunky brick.
+    assert s["torso_length"] > get_style("brick_phone")["torso_length"]
 
 
 def test_unknown_char_falls_back_to_default():

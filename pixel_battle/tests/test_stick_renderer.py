@@ -100,9 +100,9 @@ def test_smear_drawn_when_velocity_high(surf):
     c.vel_x = 5.0  # moving fast
     draw_stick_figure(surf, c, RED)
     # Pixels should exist BEHIND character (smaller x for facing=1, vel>0 means moving right
-    # → trail is to the left)
+    # → trail is to the left). Region sits left of the stationary body silhouette.
     arr = pygame.surfarray.array3d(surf)
-    trail_region = arr[260:285, 540:610]  # box BEHIND main body
+    trail_region = arr[230:256, 466:548]  # box BEHIND main body
     assert (trail_region.sum(axis=-1) > 0).any(), "expected smear trail behind moving char"
 
 
@@ -114,7 +114,7 @@ def test_no_smear_when_stationary(surf):
     draw_stick_figure(surf, c, RED)
     arr = pygame.surfarray.array3d(surf)
     # Nothing should be drawn far from character body
-    trail_region = arr[260:285, 540:610]
+    trail_region = arr[230:256, 466:548]
     assert not (trail_region.sum(axis=-1) > 0).any(), "no smear expected at rest"
 
 
