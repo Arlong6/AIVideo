@@ -1,11 +1,11 @@
 """PPO self-play training for PixelBattleEnv.
 
-Defaults to 500K total timesteps with a checkpoint every 100K. Starts
+Defaults to 1M total timesteps with a checkpoint every 100K. Starts
 opponent_policy as random; after the first 50K steps, swaps opponent to
 the live model itself (in-place self-play).
 
 Usage:
-    python -m pixel_battle.rl.train --total_timesteps 500000
+    python -m pixel_battle.rl.train --total_timesteps 1000000
 """
 from __future__ import annotations
 import argparse
@@ -44,7 +44,7 @@ class SelfPlaySwapCallback(BaseCallback):
         return True
 
 
-def main(total_timesteps: int = 500_000,
+def main(total_timesteps: int = 1_000_000,
           ckpt_dir: Path = DEFAULT_CKPT_DIR,
           seed: int = 42):
     ckpt_dir = Path(ckpt_dir)
@@ -75,7 +75,7 @@ def main(total_timesteps: int = 500_000,
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--total_timesteps", type=int, default=500_000)
+    p.add_argument("--total_timesteps", type=int, default=1_000_000)
     p.add_argument("--ckpt_dir", type=Path, default=DEFAULT_CKPT_DIR)
     p.add_argument("--seed", type=int, default=42)
     args = p.parse_args()
