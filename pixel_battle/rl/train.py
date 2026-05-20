@@ -59,7 +59,7 @@ def main(total_timesteps: int = 1_000_000,
     model = PPO("MlpPolicy", raw_env, verbose=1,
                  n_steps=2048, batch_size=256,
                  gae_lambda=0.95, gamma=0.99,
-                 learning_rate=3e-4, clip_range=0.2, ent_coef=0.01,
+                 learning_rate=3e-4, clip_range=0.2, ent_coef=0.015,
                  seed=seed)
 
     ckpt_cb = CheckpointCallback(save_freq=100_000,

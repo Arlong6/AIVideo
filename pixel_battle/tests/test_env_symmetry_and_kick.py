@@ -3,7 +3,7 @@ import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 import pytest
 
-from pixel_battle.rl.env import PixelBattleEnv
+from pixel_battle.rl.env import PixelBattleEnv, STEP_PENALTY
 
 
 def test_action_space_is_9():
@@ -45,36 +45,23 @@ def test_kick_action_starts_attack_with_basic_skill():
     assert env.left.attack_anim_hint == "kick"
 
 
-def test_out_of_range_attack_gets_reward_penalty():
+def test_reset_applies_reduced_start_hp():
+    from pixel_battle.rl.env import START_HP
     env = PixelBattleEnv(seed=1)
-    # Move chars far apart
-    env.left.pos_x = 50
-    env.right.pos_x = 430
-    env.left.last_attack_ms = -10_000
-    env.right.last_attack_ms = -10_000
-    (_obs), rewards, _, _, _ = env.step((4, 0))  # left attacks (basic) — out of range
-    # left's reward should include the OOR penalty
-    # We can't isolate exactly, but we can compare against a non-attack baseline
-    env2 = PixelBattleEnv(seed=1)
-    env2.left.pos_x = 50
-    env2.right.pos_x = 430
-    env2.left.last_attack_ms = -10_000
-    env2.right.last_attack_ms = -10_000
-    (_obs2), rewards2, _, _, _ = env2.step((0, 0))  # both idle
-    # left's reward in attack case should be lower by RANGE_PENALTY (0.05)
-    assert rewards[0] < rewards2[0] - 0.03  # buffer below the 0.05 penalty
+    assert env.left.hp == START_HP
+    assert env.right.hp == START_HP
+    assert env.left.hp_max == START_HP
 
 
-def test_in_range_attack_no_penalty():
+def test_closing_distance_gives_positive_shaping():
+    """Approach shaping rewards reducing the gap between fighters."""
     env = PixelBattleEnv(seed=1)
-    env.left.pos_x = 200
-    env.right.pos_x = 240  # well within melee range (which is ~50px)
-    env.left.last_attack_ms = -10_000
-    (_obs), rewards, _, _, _ = env.step((4, 0))
-    env2 = PixelBattleEnv(seed=1)
-    env2.left.pos_x = 200
-    env2.right.pos_x = 240
-    env2.left.last_attack_ms = -10_000
-    (_obs2), rewards2, _, _, _ = env2.step((0, 0))
-    # left attacked in range → no OOR penalty (might even gain reward if hit)
-    assert rewards[0] >= rewards2[0] - 0.01
+    # Place far apart, then both step 'forward' (toward each other)
+    env.left.pos_x = 100
+    env.right.pos_x = 400
+    env._prev_dist = abs(env.left.pos_x - env.right.pos_x)
+    (_obs), rewards, _, _, _ = env.step((2, 2))  # both move toward
+    # Distance shrank → both rewards include positive approach shaping.
+    # No damage exchanged this early, so reward is dominated by approach - step.
+    assert rewards[0] > -STEP_PENALTY
+    assert rewards[1] > -STEP_PENALTY

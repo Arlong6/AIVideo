@@ -12,7 +12,6 @@ from gymnasium import spaces
 
 from pixel_battle.engine.battle import Battle, BattleState
 from pixel_battle.engine.character import Character
-from pixel_battle.engine.physics import MELEE_RANGE
 from pixel_battle.engine.rng import BattleRNG
 
 
@@ -20,20 +19,32 @@ TICK_MS = 16
 EPISODE_TIMEOUT_MS = 60_000
 INTRO_END_MS = 2500
 
+# Combat tuning (RL-scoped — the engine keeps HP_MAX=100). Lower starting HP
+# guarantees a fight reaches KO well within the 60s timeout even when the
+# self-play policy is imperfect, and gives punchier Shorts-length matches.
+START_HP = 60
+
 # Reward shaping
-ATTACK_ACTIONS = {4, 5, 7, 8}
-RANGE_PENALTY = 0.05          # per-step penalty for an out-of-range attack
 DMG_DEALT_W = 1.5            # weight on damage dealt to opponent
 DMG_TAKEN_W = 1.0            # weight on damage received
-STEP_PENALTY = 0.01          # mild per-step time pressure
+STEP_PENALTY = 0.02          # per-step time pressure
 APPROACH_WEIGHT = 2.0        # potential-based gap-closing shaping
+ENGAGE_BONUS = 0.015         # per-step reward for being at fighting distance
+ENGAGE_RADIUS = 120          # px; how close counts as "engaged"
 KO_WIN_BONUS = 60.0          # terminal reward for landing the KO
 KO_LOSS_PENALTY = 50.0       # terminal penalty for being KO'd
-# Note: a winning KO (~+60 minus a few steps of penalty) must beat a 60s
-# timeout (~ -37 from STEP_PENALTY) so the policy fights to finish instead
-# of farming a per-step proximity bonus — which is why there is no flat
-# "engagement" bonus here; APPROACH_WEIGHT shaping telescopes and cannot
-# be farmed by hugging.
+# Reward design notes:
+# - APPROACH_WEIGHT shaping (potential-based, telescopes) pulls the fighters
+#   together from the spawn distance; ENGAGE_BONUS then keeps them in the
+#   fight zone so the policy actually trades blows instead of orbiting.
+# - ENGAGE_BONUS is deliberately small: max ~+56 over a 60s timeout, which
+#   STEP_PENALTY (~-75 over the same span) outweighs — so stalling nets
+#   negative and a KO win (+60) is strictly the better play. The earlier
+#   +0.05 engage bonus was farmable (timeout > KO) and produced a passive
+#   hugging policy.
+# - No out-of-range attack penalty: it suppressed aggression into a passive
+#   draw equilibrium. A whiffed attack already burns an attack-interval of
+#   cooldown, which under STEP_PENALTY is implicit pressure enough.
 
 
 class PixelBattleEnv(gym.Env):
@@ -68,6 +79,12 @@ class PixelBattleEnv(gym.Env):
         self.left = Character.load("brick_phone")
         self.right = Character.load("glass_slab")
         self.battle = Battle(left=self.left, right=self.right, rng=self._rng)
+        # RL-scoped HP reduction — see START_HP note above. Applied *after*
+        # Battle() because Battle.__init__ -> reset_physics() resets hp to
+        # the engine's HP_MAX; we override it here.
+        for c in (self.left, self.right):
+            c.hp = START_HP
+            c.hp_max = START_HP
         # Tick through intro so both characters are in FIGHTING state
         while self.battle.state == BattleState.STARTING:
             self.battle.tick_ms(TICK_MS, skip_ai=True)
@@ -96,19 +113,13 @@ class PixelBattleEnv(gym.Env):
         approach = APPROACH_WEIGHT * (self._prev_dist - cur_dist) / 480.0
         self._prev_dist = cur_dist
 
-        # Penalize attacks issued out of range (anti-arm-waving)
-        out_of_range = cur_dist > MELEE_RANGE * 1.2
-        oor_pen_left = (-RANGE_PENALTY
-                        if (int(left_action) in ATTACK_ACTIONS and out_of_range)
-                        else 0.0)
-        oor_pen_right = (-RANGE_PENALTY
-                         if (int(right_action) in ATTACK_ACTIONS and out_of_range)
-                         else 0.0)
+        # Small dense bonus for staying at fighting distance (see notes above).
+        engage = ENGAGE_BONUS if cur_dist < ENGAGE_RADIUS else 0.0
 
         reward_left = (dmg_to_right * DMG_DEALT_W - dmg_to_left * DMG_TAKEN_W
-                       - STEP_PENALTY + approach + oor_pen_left)
+                       - STEP_PENALTY + approach + engage)
         reward_right = (dmg_to_left * DMG_DEALT_W - dmg_to_right * DMG_TAKEN_W
-                        - STEP_PENALTY + approach + oor_pen_right)
+                        - STEP_PENALTY + approach + engage)
 
         terminated = self.battle.state == BattleState.KO
         truncated = (self.battle.elapsed_ms - INTRO_END_MS) >= EPISODE_TIMEOUT_MS
@@ -126,15 +137,17 @@ class PixelBattleEnv(gym.Env):
                 terminated, truncated, {})
 
     def _obs_for(self, me: Character, opp: Character) -> np.ndarray:
+        me_hp_max = getattr(me, "hp_max", 100) or 100
+        opp_hp_max = getattr(opp, "hp_max", 100) or 100
         return np.array([
             me.pos_x / 480 - 1.0, me.pos_y / 854 - 1.0,
             float(np.clip(me.vel_x / 10, -1, 1)),
             float(np.clip(me.vel_y / 20, -1, 1)),
-            me.hp / 100.0, me.mp / 100.0,
+            me.hp / me_hp_max, me.mp / 100.0,
             opp.pos_x / 480 - 1.0, opp.pos_y / 854 - 1.0,
             float(np.clip(opp.vel_x / 10, -1, 1)),
             float(np.clip(opp.vel_y / 20, -1, 1)),
-            opp.hp / 100.0, opp.mp / 100.0,
+            opp.hp / opp_hp_max, opp.mp / 100.0,
             float(np.clip((opp.pos_x - me.pos_x) / 480, -1, 1)),
             float(np.clip((opp.pos_y - me.pos_y) / 854, -1, 1)),
             float(me.on_ground),
