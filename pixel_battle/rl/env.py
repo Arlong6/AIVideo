@@ -20,8 +20,8 @@ EPISODE_TIMEOUT_MS = 60_000
 INTRO_END_MS = 2500
 
 # Combat tuning (RL-scoped — the engine keeps HP_MAX=100). Lower starting HP
-# makes fights reach KO fast: brutal, dense, Shorts-length (~25-35s) matches.
-START_HP = 40
+# makes fights reach KO fast: brutal, dense, Shorts-length (~20-30s) matches.
+START_HP = 30
 
 # Reward shaping
 DMG_DEALT_W = 1.5            # weight on damage dealt to opponent

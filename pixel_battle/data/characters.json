@@ -7,11 +7,11 @@
     "accuracy": 0.80,
     "damage": [2, 3],
     "skills": [
-      {"id": "headbutt", "type": "basic", "anim": "attack"},
-      {"id": "screw_dart", "type": "cooldown", "cooldown_ms": 4000, "dmg": 5, "range": "special", "anim": "screw_dart"},
-      {"id": "snake_strike", "type": "special", "mp_cost": 30, "dmg": 8, "anim": "snake_strike"},
-      {"id": "ringtone_blast", "type": "special", "mp_cost": 25, "dmg": 6, "anim": "ringtone_blast"},
-      {"id": "indestructible_throw", "type": "ultimate", "mp_cost": 100, "dmg": 25, "anim": "indestructible_throw"}
+      {"id": "headbutt", "type": "basic", "anim": "attack", "vfx": "melee"},
+      {"id": "screw_dart", "type": "cooldown", "cooldown_ms": 4000, "dmg": 5, "range": "special", "anim": "screw_dart", "vfx": "bolt"},
+      {"id": "snake_strike", "type": "special", "mp_cost": 30, "dmg": 8, "anim": "snake_strike", "vfx": "bolt"},
+      {"id": "ringtone_blast", "type": "special", "mp_cost": 25, "dmg": 6, "anim": "ringtone_blast", "vfx": "aura"},
+      {"id": "indestructible_throw", "type": "ultimate", "mp_cost": 100, "dmg": 25, "anim": "indestructible_throw", "vfx": "slam"}
     ]
   },
   "glass_slab": {
@@ -22,11 +22,11 @@
     "accuracy": 0.75,
     "damage": [2, 3],
     "skills": [
-      {"id": "swipe", "type": "basic", "anim": "attack"},
-      {"id": "shard_scatter", "type": "cooldown", "cooldown_ms": 4000, "dmg": 4, "range": "special", "stagger_ms": 500, "anim": "shard_scatter"},
-      {"id": "ringtone_shock", "type": "special", "mp_cost": 30, "dmg": 7, "anim": "ringtone_shock"},
-      {"id": "ad_popup_spam", "type": "special", "mp_cost": 25, "dmg": 6, "anim": "ad_popup_spam"},
-      {"id": "force_update", "type": "ultimate", "mp_cost": 100, "dmg": 22, "anim": "force_update"}
+      {"id": "swipe", "type": "basic", "anim": "attack", "vfx": "melee"},
+      {"id": "shard_scatter", "type": "cooldown", "cooldown_ms": 4000, "dmg": 4, "range": "special", "stagger_ms": 500, "anim": "shard_scatter", "vfx": "multishot"},
+      {"id": "ringtone_shock", "type": "special", "mp_cost": 30, "dmg": 7, "anim": "ringtone_shock", "vfx": "aura"},
+      {"id": "ad_popup_spam", "type": "special", "mp_cost": 25, "dmg": 6, "anim": "ad_popup_spam", "vfx": "multishot"},
+      {"id": "force_update", "type": "ultimate", "mp_cost": 100, "dmg": 22, "anim": "force_update", "vfx": "beam"}
     ]
   },
   "garen": {
@@ -37,11 +37,11 @@
     "accuracy": 0.85,
     "damage": [3, 4],
     "skills": [
-      {"id": "strike", "type": "basic", "anim": "attack"},
-      {"id": "decisive_strike", "type": "cooldown", "cooldown_ms": 3500, "dmg": 6, "range": "melee", "anim": "decisive_strike"},
-      {"id": "judgment", "type": "special", "mp_cost": 28, "dmg": 9, "anim": "judgment"},
-      {"id": "courage", "type": "special", "mp_cost": 22, "dmg": 5, "anim": "courage"},
-      {"id": "demacian_justice", "type": "ultimate", "mp_cost": 100, "dmg": 30, "anim": "demacian_justice"}
+      {"id": "strike", "type": "basic", "anim": "attack", "vfx": "melee"},
+      {"id": "decisive_strike", "type": "cooldown", "cooldown_ms": 3500, "dmg": 6, "range": "melee", "anim": "decisive_strike", "vfx": "dash"},
+      {"id": "judgment", "type": "special", "mp_cost": 28, "dmg": 9, "anim": "judgment", "vfx": "spin"},
+      {"id": "courage", "type": "special", "mp_cost": 22, "dmg": 5, "anim": "courage", "vfx": "aura"},
+      {"id": "demacian_justice", "type": "ultimate", "mp_cost": 100, "dmg": 30, "anim": "demacian_justice", "vfx": "slam"}
     ]
   },
   "lux": {
@@ -52,11 +52,11 @@
     "accuracy": 0.80,
     "damage": [2, 3],
     "skills": [
-      {"id": "light_strike", "type": "basic", "anim": "attack"},
-      {"id": "light_binding", "type": "cooldown", "cooldown_ms": 4000, "dmg": 5, "range": "special", "stagger_ms": 500, "anim": "light_binding"},
-      {"id": "lucent_singularity", "type": "special", "mp_cost": 26, "dmg": 8, "anim": "lucent_singularity"},
-      {"id": "prismatic_barrier", "type": "special", "mp_cost": 20, "dmg": 4, "anim": "prismatic_barrier"},
-      {"id": "final_spark", "type": "ultimate", "mp_cost": 100, "dmg": 32, "anim": "final_spark"}
+      {"id": "light_strike", "type": "basic", "anim": "attack", "vfx": "melee"},
+      {"id": "light_binding", "type": "cooldown", "cooldown_ms": 4000, "dmg": 5, "range": "special", "stagger_ms": 500, "anim": "light_binding", "vfx": "bolt"},
+      {"id": "lucent_singularity", "type": "special", "mp_cost": 26, "dmg": 8, "anim": "lucent_singularity", "vfx": "bolt"},
+      {"id": "prismatic_barrier", "type": "special", "mp_cost": 20, "dmg": 4, "anim": "prismatic_barrier", "vfx": "aura"},
+      {"id": "final_spark", "type": "ultimate", "mp_cost": 100, "dmg": 32, "anim": "final_spark", "vfx": "beam"}
     ]
   },
   "yasuo": {
@@ -67,11 +67,11 @@
     "accuracy": 0.78,
     "damage": [2, 4],
     "skills": [
-      {"id": "slash", "type": "basic", "anim": "attack"},
-      {"id": "steel_tempest", "type": "cooldown", "cooldown_ms": 3000, "dmg": 5, "range": "special", "anim": "steel_tempest"},
-      {"id": "sweeping_blade", "type": "special", "mp_cost": 18, "dmg": 6, "anim": "sweeping_blade"},
-      {"id": "gathering_storm", "type": "special", "mp_cost": 24, "dmg": 8, "anim": "gathering_storm"},
-      {"id": "last_breath", "type": "ultimate", "mp_cost": 100, "dmg": 30, "anim": "last_breath"}
+      {"id": "slash", "type": "basic", "anim": "attack", "vfx": "melee"},
+      {"id": "steel_tempest", "type": "cooldown", "cooldown_ms": 3000, "dmg": 5, "range": "special", "anim": "steel_tempest", "vfx": "bolt"},
+      {"id": "sweeping_blade", "type": "special", "mp_cost": 18, "dmg": 6, "anim": "sweeping_blade", "vfx": "dash"},
+      {"id": "gathering_storm", "type": "special", "mp_cost": 24, "dmg": 8, "anim": "gathering_storm", "vfx": "aura"},
+      {"id": "last_breath", "type": "ultimate", "mp_cost": 100, "dmg": 30, "anim": "last_breath", "vfx": "slam"}
     ]
   },
   "ashe": {
@@ -82,11 +82,11 @@
     "accuracy": 0.82,
     "damage": [2, 3],
     "skills": [
-      {"id": "frost_shot", "type": "basic", "anim": "attack"},
-      {"id": "volley", "type": "cooldown", "cooldown_ms": 3500, "dmg": 6, "range": "special", "anim": "volley"},
-      {"id": "ranger_focus", "type": "special", "mp_cost": 22, "dmg": 7, "anim": "ranger_focus"},
-      {"id": "hawkshot", "type": "special", "mp_cost": 18, "dmg": 4, "anim": "hawkshot"},
-      {"id": "enchanted_crystal_arrow", "type": "ultimate", "mp_cost": 100, "dmg": 32, "anim": "enchanted_crystal_arrow"}
+      {"id": "frost_shot", "type": "basic", "anim": "attack", "vfx": "melee"},
+      {"id": "volley", "type": "cooldown", "cooldown_ms": 3500, "dmg": 6, "range": "special", "anim": "volley", "vfx": "multishot"},
+      {"id": "ranger_focus", "type": "special", "mp_cost": 22, "dmg": 7, "anim": "ranger_focus", "vfx": "aura"},
+      {"id": "hawkshot", "type": "special", "mp_cost": 18, "dmg": 4, "range": "special", "anim": "hawkshot", "vfx": "bolt"},
+      {"id": "enchanted_crystal_arrow", "type": "ultimate", "mp_cost": 100, "dmg": 32, "anim": "enchanted_crystal_arrow", "vfx": "bolt"}
     ]
   }
 }

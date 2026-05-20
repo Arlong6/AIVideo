@@ -20,6 +20,8 @@ class Skill:
     cooldown_ms: int = 0
     range: str = "melee"        # "melee" | "special"
     stagger_ms: int = 0          # 0 = use engine default STAGGER_MS
+    vfx: str = "melee"           # visual archetype the renderer draws:
+                                 # melee/bolt/multishot/aura/dash/spin/slam/beam
 
     @classmethod
     def from_dict(cls, d: dict) -> "Skill":
@@ -36,4 +38,5 @@ class Skill:
             cooldown_ms=d.get("cooldown_ms", 0),
             range=d.get("range", "melee"),
             stagger_ms=d.get("stagger_ms", 0),
+            vfx=d.get("vfx", "melee"),
         )

@@ -48,8 +48,8 @@ CAM_VIEW_H = int(HEIGHT / CAM_ZOOM)           # 502 — vertical world span show
 CAM_VIEW_Y = GROUND_Y - int(CAM_VIEW_H * 0.82)  # frame the floor ~82% down
 CAM_FOLLOW = 0.12                              # lerp factor for x tracking
 
-INTRO_FRAMES = 144      # 2.4s VS intro
-RESULT_FRAMES = 246     # ~4.1s K.O. + winner card
+INTRO_FRAMES = 108      # 1.8s VS intro
+RESULT_FRAMES = 180     # 3.0s K.O. + winner card
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CKPT = ROOT / "data" / "rl_checkpoints" / "ppo_final.zip"
