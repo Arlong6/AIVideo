@@ -63,17 +63,25 @@ def _route_audio_for_events(events, event_video_ms, mixer):
             mixer.ult_bus.add(samp, pos)
 
 
-def main(checkpoint: Path = DEFAULT_CKPT, max_seconds: float = 60.0,
-          seed: int = 1234):
-    pygame.init()
-    pygame.display.set_mode((1, 1))
+def run_one_match(model, seed: int, out_dir: Path,
+                   max_seconds: float = 60.0,
+                   match_name: str = "final") -> dict:
+    """Run a single self-play match. Returns:
+        {"finished_by_ko": bool,
+         "duration_s": float,
+         "winner": "left"|"right"|None,
+         "mp4_path": Path,
+         "raw_path": Path,
+         "audio_path": Path}
+    The mp4 is written to out_dir/{match_name}.mp4. Caller decides whether
+    to keep or discard based on finished_by_ko.
+    Assumes pygame is already initialized (caller's responsibility).
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    raw_video = out_dir / f"{match_name}_raw.mp4"
+    audio_out = out_dir / f"{match_name}_audio.wav"
+    final_mp4 = out_dir / f"{match_name}.mp4"
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    raw_video = OUT_DIR / "raw.mp4"
-    audio_out = OUT_DIR / "audio.wav"
-    final_mp4 = OUT_DIR / "final.mp4"
-
-    model = PPO.load(str(checkpoint))
     env = PixelBattleEnv(seed=seed)
     (obs_left, obs_right), _ = env.reset()
 
@@ -124,7 +132,37 @@ def main(checkpoint: Path = DEFAULT_CKPT, max_seconds: float = 60.0,
 
     mixer.export(total_duration_ms, str(audio_out))
     mux_audio_video(str(raw_video), str(audio_out), str(final_mp4))
-    print(f"✅ RL play: {final_mp4} ({total_duration_ms / 1000:.1f}s)")
+
+    # Determine winner
+    if terminated:
+        if env.right.is_ko() and not env.left.is_ko():
+            winner = "left"
+        elif env.left.is_ko() and not env.right.is_ko():
+            winner = "right"
+        else:
+            winner = None
+    else:
+        winner = None
+
+    return {
+        "finished_by_ko": bool(terminated),
+        "duration_s": total_duration_ms / 1000.0,
+        "winner": winner,
+        "mp4_path": final_mp4,
+        "raw_path": raw_video,
+        "audio_path": audio_out,
+    }
+
+
+def main(checkpoint: Path = DEFAULT_CKPT, max_seconds: float = 60.0,
+          seed: int = 1234):
+    pygame.init()
+    pygame.display.set_mode((1, 1))
+    model = PPO.load(str(checkpoint))
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    result = run_one_match(model, seed=seed, out_dir=OUT_DIR,
+                            max_seconds=max_seconds, match_name="final")
+    print(f"✅ RL play: {result['mp4_path']} ({result['duration_s']:.1f}s)")
 
 
 if __name__ == "__main__":
