@@ -40,9 +40,21 @@ def test_action_back_moves_away_from_opp_from_right_side():
 def test_kick_action_starts_attack_with_basic_skill():
     env = PixelBattleEnv(seed=1)
     env.left.last_attack_ms = -10_000
+    # Place opponent within ATTACK_GATE_RANGE so the kick isn't gated out
+    env.right.pos_x = env.left.pos_x + 80
     env._apply_action(env.left, env.right, 8)  # kick
     assert env.left.action_state == "attacking"
     assert env.left.attack_anim_hint == "kick"
+
+
+def test_attack_gated_out_when_out_of_range():
+    """An attack issued from beyond ATTACK_GATE_RANGE is a no-op."""
+    env = PixelBattleEnv(seed=1)
+    env.left.last_attack_ms = -10_000
+    env.left.mp = env.left.mp_max
+    env.right.pos_x = env.left.pos_x + 300  # far out of range
+    env._apply_action(env.left, env.right, 4)  # basic attack
+    assert env.left.action_state != "attacking"  # gated out -> no-op
 
 
 def test_reset_applies_reduced_start_hp():
