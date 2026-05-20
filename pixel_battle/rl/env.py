@@ -64,13 +64,19 @@ class PixelBattleEnv(gym.Env):
 
     metadata = {"render_modes": []}
 
-    def __init__(self, seed: int = 42):
+    def __init__(self, seed: int = 42,
+                 left_id: str = "brick_phone", right_id: str = "glass_slab"):
         super().__init__()
         self.observation_space = spaces.Box(
             low=-1.0, high=1.0, shape=(17,), dtype=np.float32,
         )
         self.action_space = spaces.Discrete(9)
         self._init_seed = seed
+        # Which characters fight. The trained policy is character-agnostic
+        # (it keys on distance + obs and picks skill *categories*), so any
+        # matchup works without retraining; training itself uses the default.
+        self.left_id = left_id
+        self.right_id = right_id
         self.reset(seed=seed)
 
     def reset(self, seed=None, options=None):
@@ -78,8 +84,8 @@ class PixelBattleEnv(gym.Env):
         if seed is None:
             seed = self._init_seed
         self._rng = BattleRNG(seed)
-        self.left = Character.load("brick_phone")
-        self.right = Character.load("glass_slab")
+        self.left = Character.load(self.left_id)
+        self.right = Character.load(self.right_id)
         self.battle = Battle(left=self.left, right=self.right, rng=self._rng)
         # RL-scoped HP reduction — see START_HP note above. Applied *after*
         # Battle() because Battle.__init__ -> reset_physics() resets hp to
@@ -209,9 +215,10 @@ class SinglePerspectiveEnv(gym.Env):
 
     metadata = {"render_modes": []}
 
-    def __init__(self, seed: int = 42, opponent_policy=None):
+    def __init__(self, seed: int = 42, opponent_policy=None,
+                 left_id: str = "brick_phone", right_id: str = "glass_slab"):
         super().__init__()
-        self._inner = PixelBattleEnv(seed=seed)
+        self._inner = PixelBattleEnv(seed=seed, left_id=left_id, right_id=right_id)
         self.observation_space = self._inner.observation_space
         self.action_space = self._inner.action_space
         self._opponent_policy = opponent_policy or (lambda obs: 0)
