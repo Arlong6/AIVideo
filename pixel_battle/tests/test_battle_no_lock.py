@@ -16,6 +16,10 @@ def _longest_event_gap_excluding_cinematics(events, total_ms):
     ends = [e for e in events if e.type is EventType.ULTIMATE_END]
     for s, e in zip(starts, ends):
         cinematic_intervals.append((s.t_ms, e.t_ms))
+    # A trailing ultimate can start near the window end and never emit its
+    # ULTIMATE_END before the 60s cutoff — treat it as cinematic to the end.
+    if len(starts) > len(ends):
+        cinematic_intervals.append((starts[len(ends)].t_ms, total_ms))
 
     def in_cinematic(t):
         return any(start <= t <= end for start, end in cinematic_intervals)

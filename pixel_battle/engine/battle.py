@@ -33,6 +33,13 @@ ATTACK_RECOVER_MS = 250
 
 JUMP_COOLDOWN_MS = 600
 
+# Skill-driven movement — gives fights footwork and back-and-forth instead
+# of a static clinch. "dash" vfx skills lunge the caster forward; every hit
+# knocks the defender back by an amount that scales with the damage dealt.
+DASH_LUNGE_SPEED = 18.0
+KNOCKBACK_BASE = 4.0
+KNOCKBACK_DMG_SCALE = 0.45
+
 # AI tuning
 AI_ATTACK_IN_RANGE_PROB = 0.72    # chance to attack per tick when in range
 AI_JUMP_IN_RANGE_PROB = 0.10      # chance to jump/dodge per tick when in range
@@ -287,7 +294,9 @@ class Battle:
         defender.action_state = "hit_stagger"
         defender._stagger_remaining_ms = stagger_ms
         knockback_dir = 1 if attacker.pos_x < defender.pos_x else -1
-        defender.vel_x = knockback_dir * 4.0
+        # Knockback scales with damage — a heavy skill flings the defender
+        # away, forcing a re-approach (the fight's back-and-forth).
+        defender.vel_x = knockback_dir * (KNOCKBACK_BASE + dmg * KNOCKBACK_DMG_SCALE)
         # Cancel defender's attack if mid-swing
         if defender.attack_phase != "none":
             defender.attack_phase = "none"
@@ -445,12 +454,10 @@ class Battle:
                 EventType.ATTACK_WINDUP,
                 actor=char.id,
                 extra={"skill_id": skill.id,
-                       "skill_type": skill.skill_type.value},
+                       "skill_type": skill.skill_type.value,
+                       "vfx": skill.vfx},
             )
-            # P5: Stronger cast pushback + freeze defender so the skill is visible
-            char.vel_x = -7.0 * char.facing       # attacker hops back (P5: 2x)
-            opp.vel_x += 5.0 * char.facing        # defender drifts away (P5: 2.5x)
-            opp.windup_stun_until_ms = self.elapsed_ms + 200  # P5: 200ms freeze
+            self._apply_cast_movement(char, opp, skill)
 
     def _start_attack_with_kind(self, char: Character, opp: Character,
                                   kind: str) -> None:
@@ -509,12 +516,26 @@ class Battle:
                 EventType.ATTACK_WINDUP,
                 actor=char.id,
                 extra={"skill_id": skill.id,
-                       "skill_type": skill.skill_type.value},
+                       "skill_type": skill.skill_type.value,
+                       "vfx": skill.vfx},
             )
-            # P5 cast pushback + defender freeze
-            char.vel_x = -7.0 * char.facing
-            opp.vel_x += 5.0 * char.facing
-            opp.windup_stun_until_ms = self.elapsed_ms + 200
+            self._apply_cast_movement(char, opp, skill)
+
+    def _apply_cast_movement(self, char: Character, opp: Character,
+                             skill: Skill) -> None:
+        """Movement applied when a COOLDOWN/SPECIAL skill is cast.
+
+        A "dash" vfx skill lunges the caster toward the opponent; any other
+        skill does the classic cast hop-back that spaces the fighters out.
+        Either way the defender is briefly frozen so the skill reads.
+        """
+        if skill.vfx == "dash":
+            char.facing = 1 if opp.pos_x > char.pos_x else -1
+            char.vel_x = DASH_LUNGE_SPEED * char.facing
+        else:
+            char.vel_x = -7.0 * char.facing       # attacker hops back
+            opp.vel_x += 5.0 * char.facing        # defender drifts away
+        opp.windup_stun_until_ms = self.elapsed_ms + 200
 
     def _choose_attack_skill(self, char: Character) -> Skill:
         """Priority: CD-skill (off-cd, 70%) > affordable special (40%) > basic."""
@@ -544,6 +565,9 @@ class Battle:
         ult = attacker.skills_of_type(SkillType.ULTIMATE)[0]
         attacker.spend_mp(ult.mp_cost)
         defender.take_damage(ult.dmg)
+        # Heavy ultimate knockback — flings the victim across the arena.
+        kb_dir = 1 if attacker.pos_x < defender.pos_x else -1
+        defender.vel_x = kb_dir * (8.0 + ult.dmg * 0.5)
         # Cancel any ongoing attack
         attacker.action_state = "idle"
         attacker.attack_phase = "none"
@@ -561,7 +585,8 @@ class Battle:
             actor=attacker.id,
             target=defender.id,
             amount=ult.dmg,
-            extra={"skill_id": ult.id, "anim": ult.anim, "duration_ms": duration_ms},
+            extra={"skill_id": ult.id, "anim": ult.anim,
+                   "duration_ms": duration_ms, "vfx": ult.vfx},
         )
         if defender.is_ko():
             self._end_ko(victim=defender, actor=attacker)
