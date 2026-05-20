@@ -539,21 +539,29 @@ class Battle:
     # Ultimate                                                              #
     # ------------------------------------------------------------------ #
 
-    def _trigger_ultimate(self, attacker: Character, defender: Character) -> None:
+    def _trigger_ultimate(self, attacker: Character, defender: Character,
+                          cinematic_pause: bool = True) -> None:
         ult = attacker.skills_of_type(SkillType.ULTIMATE)[0]
         attacker.spend_mp(ult.mp_cost)
         defender.take_damage(ult.dmg)
         # Cancel any ongoing attack
         attacker.action_state = "idle"
         attacker.attack_phase = "none"
-        self.state = BattleState.ULTIMATE_PLAYING
-        self._ultimate_resume_at = self.elapsed_ms + ULTIMATE_DURATION_MS
+        # cinematic_pause=True freezes the battle for ULTIMATE_DURATION_MS so a
+        # scripted episode can play a cutscene. The RL renderer passes False:
+        # there is no cutscene, so the pause is just a multi-second dead freeze
+        # in the video. With it off the ultimate is an instant heavy hit and
+        # the fight continues.
+        if cinematic_pause:
+            self.state = BattleState.ULTIMATE_PLAYING
+            self._ultimate_resume_at = self.elapsed_ms + ULTIMATE_DURATION_MS
+        duration_ms = ULTIMATE_DURATION_MS if cinematic_pause else 0
         self._emit(
             EventType.ULTIMATE_START,
             actor=attacker.id,
             target=defender.id,
             amount=ult.dmg,
-            extra={"skill_id": ult.id, "anim": ult.anim, "duration_ms": ULTIMATE_DURATION_MS},
+            extra={"skill_id": ult.id, "anim": ult.anim, "duration_ms": duration_ms},
         )
         if defender.is_ko():
             self._end_ko(victim=defender, actor=attacker)

@@ -20,9 +20,8 @@ EPISODE_TIMEOUT_MS = 60_000
 INTRO_END_MS = 2500
 
 # Combat tuning (RL-scoped — the engine keeps HP_MAX=100). Lower starting HP
-# guarantees a fight reaches KO well within the 60s timeout even when the
-# self-play policy is imperfect, and gives punchier Shorts-length matches.
-START_HP = 60
+# makes fights reach KO fast: brutal, dense, Shorts-length (~25-35s) matches.
+START_HP = 40
 
 # Reward shaping
 DMG_DEALT_W = 1.5            # weight on damage dealt to opponent
@@ -192,7 +191,8 @@ class PixelBattleEnv(gym.Env):
         elif action == 5 and in_attack_range:    # cd skill
             self.battle._start_attack_with_kind(me, opp, "cooldown")
         elif action == 6 and me.ultimate_ready():
-            self.battle._trigger_ultimate(me, opp)
+            # cinematic_pause=False — no multi-second freeze in the RL render
+            self.battle._trigger_ultimate(me, opp, cinematic_pause=False)
         elif action == 7 and in_attack_range:    # special skill
             self.battle._start_attack_with_kind(me, opp, "special")
         elif action == 8 and in_attack_range:    # kick
