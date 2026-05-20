@@ -1,7 +1,7 @@
 {
   "brick_phone": {
     "display_name": "Brick Phone",
-    "color": [70, 70, 70],
+    "color": [225, 95, 80],
     "accent_color": [80, 200, 80],
     "attack_interval_ms": 1200,
     "accuracy": 0.80,
@@ -27,6 +27,66 @@
       {"id": "ringtone_shock", "type": "special", "mp_cost": 30, "dmg": 7, "anim": "ringtone_shock"},
       {"id": "ad_popup_spam", "type": "special", "mp_cost": 25, "dmg": 6, "anim": "ad_popup_spam"},
       {"id": "force_update", "type": "ultimate", "mp_cost": 100, "dmg": 22, "anim": "force_update"}
+    ]
+  },
+  "garen": {
+    "display_name": "Garen",
+    "color": [90, 205, 115],
+    "accent_color": [235, 235, 245],
+    "attack_interval_ms": 1100,
+    "accuracy": 0.85,
+    "damage": [3, 4],
+    "skills": [
+      {"id": "strike", "type": "basic", "anim": "attack"},
+      {"id": "decisive_strike", "type": "cooldown", "cooldown_ms": 3500, "dmg": 6, "range": "melee", "anim": "decisive_strike"},
+      {"id": "judgment", "type": "special", "mp_cost": 28, "dmg": 9, "anim": "judgment"},
+      {"id": "courage", "type": "special", "mp_cost": 22, "dmg": 5, "anim": "courage"},
+      {"id": "demacian_justice", "type": "ultimate", "mp_cost": 100, "dmg": 30, "anim": "demacian_justice"}
+    ]
+  },
+  "lux": {
+    "display_name": "Lux",
+    "color": [255, 215, 90],
+    "accent_color": [255, 255, 205],
+    "attack_interval_ms": 950,
+    "accuracy": 0.80,
+    "damage": [2, 3],
+    "skills": [
+      {"id": "light_strike", "type": "basic", "anim": "attack"},
+      {"id": "light_binding", "type": "cooldown", "cooldown_ms": 4000, "dmg": 5, "range": "special", "stagger_ms": 500, "anim": "light_binding"},
+      {"id": "lucent_singularity", "type": "special", "mp_cost": 26, "dmg": 8, "anim": "lucent_singularity"},
+      {"id": "prismatic_barrier", "type": "special", "mp_cost": 20, "dmg": 4, "anim": "prismatic_barrier"},
+      {"id": "final_spark", "type": "ultimate", "mp_cost": 100, "dmg": 32, "anim": "final_spark"}
+    ]
+  },
+  "yasuo": {
+    "display_name": "Yasuo",
+    "color": [95, 170, 245],
+    "accent_color": [240, 245, 255],
+    "attack_interval_ms": 850,
+    "accuracy": 0.78,
+    "damage": [2, 4],
+    "skills": [
+      {"id": "slash", "type": "basic", "anim": "attack"},
+      {"id": "steel_tempest", "type": "cooldown", "cooldown_ms": 3000, "dmg": 5, "range": "special", "anim": "steel_tempest"},
+      {"id": "sweeping_blade", "type": "special", "mp_cost": 18, "dmg": 6, "anim": "sweeping_blade"},
+      {"id": "gathering_storm", "type": "special", "mp_cost": 24, "dmg": 8, "anim": "gathering_storm"},
+      {"id": "last_breath", "type": "ultimate", "mp_cost": 100, "dmg": 30, "anim": "last_breath"}
+    ]
+  },
+  "ashe": {
+    "display_name": "Ashe",
+    "color": [150, 228, 248],
+    "accent_color": [255, 255, 255],
+    "attack_interval_ms": 1000,
+    "accuracy": 0.82,
+    "damage": [2, 3],
+    "skills": [
+      {"id": "frost_shot", "type": "basic", "anim": "attack"},
+      {"id": "volley", "type": "cooldown", "cooldown_ms": 3500, "dmg": 6, "range": "special", "anim": "volley"},
+      {"id": "ranger_focus", "type": "special", "mp_cost": 22, "dmg": 7, "anim": "ranger_focus"},
+      {"id": "hawkshot", "type": "special", "mp_cost": 18, "dmg": 4, "anim": "hawkshot"},
+      {"id": "enchanted_crystal_arrow", "type": "ultimate", "mp_cost": 100, "dmg": 32, "anim": "enchanted_crystal_arrow"}
     ]
   }
 }

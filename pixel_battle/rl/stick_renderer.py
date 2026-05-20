@@ -67,6 +67,46 @@ _STYLES = {
         "hand_radius": 4,
         "foot_length": 14,
     },
+    "garen": {
+        "head_shape": "square",
+        "head_size": 28,
+        "torso_length": 86,
+        "arm_length": 48,
+        "leg_length": 58,
+        "line_width": 9,
+        "hand_radius": 8,
+        "foot_length": 22,
+    },
+    "lux": {
+        "head_shape": "diamond",
+        "head_size": 30,
+        "torso_length": 108,
+        "arm_length": 46,
+        "leg_length": 68,
+        "line_width": 5,
+        "hand_radius": 4,
+        "foot_length": 13,
+    },
+    "yasuo": {
+        "head_shape": "circle",
+        "head_size": 27,
+        "torso_length": 94,
+        "arm_length": 50,
+        "leg_length": 62,
+        "line_width": 6,
+        "hand_radius": 5,
+        "foot_length": 15,
+    },
+    "ashe": {
+        "head_shape": "triangle",
+        "head_size": 27,
+        "torso_length": 96,
+        "arm_length": 52,
+        "leg_length": 62,
+        "line_width": 5,
+        "hand_radius": 4,
+        "foot_length": 13,
+    },
 }
 
 _DEFAULT_STYLE = {
@@ -330,6 +370,15 @@ def draw_stick_figure(surf: pygame.Surface, char: Character,
             (cx, head_center_y + head_size),               # bottom apex
             (cx - head_size, head_center_y - head_size),   # top-left
             (cx + head_size, head_center_y - head_size),   # top-right
+        ]
+        pygame.draw.polygon(surf, color, pts)
+        pygame.draw.polygon(surf, (0, 0, 0), pts, 2)
+    elif head_shape == "diamond":
+        pts = [
+            (cx, head_center_y - head_size),   # top
+            (cx + head_size, head_center_y),   # right
+            (cx, head_center_y + head_size),   # bottom
+            (cx - head_size, head_center_y),   # left
         ]
         pygame.draw.polygon(surf, color, pts)
         pygame.draw.polygon(surf, (0, 0, 0), pts, 2)
