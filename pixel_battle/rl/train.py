@@ -45,25 +45,30 @@ class ScriptedOpponent:
     ((opp.pos_x - me.pos_x) / 480). Actions are relative (2 = forward
     toward opponent, 1 = back) so this works on either side.
 
-    Styles:
-      - rush:   always close the gap, then attack — trains the agent's
-                defense and counter-attacking.
-      - turtle: hold ground, only attack when the agent comes very close —
-                forces the agent to initiate the approach to score a KO.
-      - mixed:  approaches about half the time; general-purpose.
+    Styles (turtle-heavy on purpose — see module docstring):
+      - turtle (75%): hold ground completely, attack only at point-blank.
+                The agent gets *nothing* — no engage, no damage, no KO —
+                unless it walks over and attacks, so every turtle episode
+                drills the approach-and-initiate skill.
+      - rush   (25%): close the gap and attack — keeps some defensive /
+                counter-attack pressure so the agent isn't clueless when
+                an opponent comes at it.
+
+    An earlier 3-way split (rush/turtle/mixed, 1/3 each) failed: the agent
+    could ignore turtle episodes, eat the timeout, and still average a
+    decent reward — so it never learned to initiate, and mirror play
+    timed out 0/15.
     """
 
-    _STYLES = ("rush", "turtle", "mixed")
-
     def __init__(self):
-        self._style = "mixed"
+        self._style = "turtle"
         self._prev_dist = 0.0
 
     def __call__(self, obs) -> int:
         dist = abs(float(obs[12])) * 480.0
         # New-episode detection: the gap jumps back to ~spawn distance.
         if dist > 320.0 and self._prev_dist <= 320.0:
-            self._style = random.choice(self._STYLES)
+            self._style = "rush" if random.random() < 0.25 else "turtle"
         self._prev_dist = dist
 
         if self._style == "rush":
@@ -71,17 +76,10 @@ class ScriptedOpponent:
                 return 2
             return random.choice(_ATTACKS)
 
-        if self._style == "turtle":
-            if dist < 80.0:
-                return random.choice(_ATTACKS)
-            if dist < 115.0:
-                return 0          # let the agent come in
-            return random.choice((0, 0, 1))  # hold ground, sometimes edge back
-
-        # mixed
-        if dist > 100.0:
-            return 2 if random.random() < 0.55 else 0
-        return random.choice(_ATTACKS + (2, 1))
+        # turtle — hold ground, attack only when the agent is point-blank
+        if dist < 85.0:
+            return random.choice(_ATTACKS)
+        return 0
 
 
 def main(total_timesteps: int = 1_000_000,
