@@ -6885,7 +6885,7 @@
         },
         {
           "date": "2026-05-20",
-          "views": 22,
+          "views": 23,
           "likes": 0,
           "comments": 0
         }
@@ -7181,7 +7181,7 @@
         },
         {
           "date": "2026-05-20",
-          "views": 2,
+          "views": 3,
           "likes": 0,
           "comments": 0
         }
@@ -9279,7 +9279,7 @@
         },
         {
           "date": "2026-05-20",
-          "views": 59,
+          "views": 60,
           "likes": 1,
           "comments": 1
         }
@@ -11291,7 +11291,7 @@
         },
         {
           "date": "2026-05-20",
-          "views": 260,
+          "views": 261,
           "likes": 1,
           "comments": 1
         }
@@ -11365,7 +11365,7 @@
         },
         {
           "date": "2026-05-20",
-          "views": 19,
+          "views": 20,
           "likes": 0,
           "comments": 1
         }
@@ -11444,7 +11444,7 @@
         },
         {
           "date": "2026-05-20",
-          "views": 4,
+          "views": 3,
           "likes": 0,
           "comments": 1
         }
@@ -11466,6 +11466,22 @@
         }
       ],
       "series_tag": "political"
+    },
+    {
+      "video_id": "FogV-XQ0ILE",
+      "topic": "林宅血案：台灣民主化前最敏感的滅門慘案，政治陰影下的懸案至今未破",
+      "slot": 1,
+      "duration_s": 82,
+      "publish_at": "2026-05-21T10:00:00+08:00",
+      "uploaded_at": "2026-05-20T20:37:50.790817+00:00",
+      "stats": [
+        {
+          "date": "2026-05-20",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
