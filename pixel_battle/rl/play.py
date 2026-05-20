@@ -34,6 +34,7 @@ FPS = 60
 FRAME_MS = 1000.0 / FPS
 RED = (220, 60, 60)
 BLUE = (60, 130, 220)
+HIT_FLASH = (255, 255, 255)   # color a fighter flashes to when struck
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
 # same feet-landing line the simulation uses, or the camera and floor will
@@ -250,9 +251,17 @@ def run_one_match(model, seed: int, out_dir: Path,
     # Cross-frame visual state
     projectiles = ProjectileLayer()
     screen_shake_frames_left = 0
+    screen_shake_mag = 0
     banner_text = None
     banner_until_frame = -1
     flash_frames_left = 0
+    left_flash_frames = 0       # white hit-flash on the left fighter
+    right_flash_frames = 0      # white hit-flash on the right fighter
+    # Active impact bursts — each [x, y, color, base_size, age]. A burst
+    # lives BURST_LIFE frames and expands, so a hit reads as an explosion
+    # instead of a single-frame blink.
+    active_bursts: list = []
+    BURST_LIFE = 6
     prev_on_ground_left = env.left.on_ground
     prev_on_ground_right = env.right.on_ground
     # Camera x starts centered on the fighters' midpoint
@@ -271,7 +280,6 @@ def run_one_match(model, seed: int, out_dir: Path,
         )
 
         # ── Per-frame visual state from new events ──────────────────────────
-        pending_bursts: list = []
         for ev in env.battle.events[prev_ev_n:]:
             event_video_ms[id(ev)] = int(frame * FRAME_MS)
             et = ev.type.value
@@ -279,26 +287,32 @@ def run_one_match(model, seed: int, out_dir: Path,
                 defender = env.right if ev.target == env.right.id else env.left
                 attacker = env.left if ev.actor == env.left.id else env.right
                 is_crit = bool((ev.extra or {}).get("crit", False))
-                burst_size = 48 if is_crit else 34
+                burst_size = 78 if is_crit else 52
                 burst_color = RED if attacker is env.left else BLUE
-                pending_bursts.append((
-                    int(defender.pos_x),
-                    int(defender.pos_y) - 90,
-                    burst_color,
-                    burst_size,
-                ))
-                screen_shake_frames_left = max(screen_shake_frames_left, 5)
+                active_bursts.append([
+                    int(defender.pos_x), int(defender.pos_y) - 90,
+                    burst_color, burst_size, 0,
+                ])
+                screen_shake_frames_left = max(screen_shake_frames_left, 8)
+                screen_shake_mag = max(screen_shake_mag, 7 if is_crit else 4)
+                if defender is env.left:
+                    left_flash_frames = max(left_flash_frames, 4)
+                else:
+                    right_flash_frames = max(right_flash_frames, 4)
             elif et == "crit":
                 defender = env.right if ev.target == env.right.id else env.left
                 attacker = env.left if ev.actor == env.left.id else env.right
                 burst_color = RED if attacker is env.left else BLUE
-                pending_bursts.append((
-                    int(defender.pos_x),
-                    int(defender.pos_y) - 90,
-                    burst_color,
-                    54,
-                ))
-                screen_shake_frames_left = max(screen_shake_frames_left, 7)
+                active_bursts.append([
+                    int(defender.pos_x), int(defender.pos_y) - 90,
+                    burst_color, 88, 0,
+                ])
+                screen_shake_frames_left = max(screen_shake_frames_left, 10)
+                screen_shake_mag = max(screen_shake_mag, 8)
+                if defender is env.left:
+                    left_flash_frames = max(left_flash_frames, 5)
+                else:
+                    right_flash_frames = max(right_flash_frames, 5)
             elif et == "attack_windup":
                 kind = (ev.extra or {}).get("skill_type")
                 actor_obj = env.left if ev.actor == env.left.id else env.right
@@ -320,8 +334,27 @@ def run_one_match(model, seed: int, out_dir: Path,
                     banner_until_frame = frame + 36  # ~600ms at 60fps
             elif et == "ultimate_start":
                 banner_text = "ULTIMATE!"
-                banner_until_frame = frame + 90  # ~1500ms
-                flash_frames_left = 9              # ~150ms
+                banner_until_frame = frame + 78   # ~1300ms
+                flash_frames_left = 10            # ~165ms white screen flash
+                # Big radial burst on the victim + heavy shake — this is the
+                # ultimate's whole spectacle now that it no longer freezes.
+                defender = env.right if ev.target == env.right.id else env.left
+                actor_obj = env.left if ev.actor == env.left.id else env.right
+                burst_color = RED if actor_obj is env.left else BLUE
+                active_bursts.append([
+                    int(defender.pos_x), int(defender.pos_y) - 90,
+                    burst_color, 120, 0,
+                ])
+                active_bursts.append([
+                    int(defender.pos_x), int(defender.pos_y) - 90,
+                    (255, 240, 120), 80, 0,
+                ])
+                screen_shake_frames_left = max(screen_shake_frames_left, 16)
+                screen_shake_mag = max(screen_shake_mag, 11)
+                if defender is env.left:
+                    left_flash_frames = max(left_flash_frames, 7)
+                else:
+                    right_flash_frames = max(right_flash_frames, 7)
 
         # ── Landing dust: ground-touch edge detection ───────────────────────
         pending_dust: list = []
@@ -340,13 +373,26 @@ def run_one_match(model, seed: int, out_dir: Path,
         _draw_shadow(world, env.left)
         _draw_shadow(world, env.right)
 
-        draw_stick_figure(world, env.left, RED)
-        draw_stick_figure(world, env.right, BLUE)
+        # Hit-flash: a struck fighter renders white for a few frames.
+        left_color = HIT_FLASH if left_flash_frames > 0 else RED
+        right_color = HIT_FLASH if right_flash_frames > 0 else BLUE
+        left_flash_frames = max(0, left_flash_frames - 1)
+        right_flash_frames = max(0, right_flash_frames - 1)
+        draw_stick_figure(world, env.left, left_color)
+        draw_stick_figure(world, env.right, right_color)
 
         projectiles.draw(world, int(frame * FRAME_MS))
 
-        for (bx, by, bcolor, bsize) in pending_bursts:
-            spawn_impact_burst(world, bx, by, bcolor, bsize)
+        # Impact bursts — expand over their lifetime, then cull.
+        still_live = []
+        for b in active_bursts:
+            bx, by, bcolor, bsize, age = b
+            grow = 1.0 + 0.55 * (age / BURST_LIFE)
+            spawn_impact_burst(world, bx, by, bcolor, int(bsize * grow))
+            b[4] = age + 1
+            if b[4] < BURST_LIFE:
+                still_live.append(b)
+        active_bursts = still_live
 
         for (dx, dy) in pending_dust:
             spawn_landing_dust(world, dx, dy, (180, 180, 200), intensity=1.7)
@@ -376,13 +422,16 @@ def run_one_match(model, seed: int, out_dir: Path,
 
         # ── Screen shake: copy into a jittered buffer ───────────────────────
         if screen_shake_frames_left > 0:
-            ox = random.randint(-2, 2)
-            oy = random.randint(-2, 2)
+            mag = max(2, screen_shake_mag)
+            ox = random.randint(-mag, mag)
+            oy = random.randint(-mag, mag)
             shaken = pygame.Surface((WIDTH, HEIGHT))
             shaken.fill(BG)
             shaken.blit(surf, (ox, oy))
             recorder.write_frame(shaken)
             screen_shake_frames_left -= 1
+            if screen_shake_frames_left == 0:
+                screen_shake_mag = 0
         else:
             recorder.write_frame(surf)
 

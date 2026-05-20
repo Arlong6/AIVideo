@@ -21,7 +21,7 @@ LEG_LENGTH = 28
 LINE_WIDTH = 3
 HAND_RADIUS = 3           # new
 FOOT_LENGTH = 8           # new
-SMEAR_VEL_THRESHOLD = 3.0 # new
+SMEAR_VEL_THRESHOLD = 2.5 # motion-smear ghosts kick in at walk speed (3.0)
 
 # Phase durations in ms (used for pose interpolation)
 _WINDUP_DUR = 128
@@ -377,16 +377,27 @@ def draw_stick_figure(surf: pygame.Surface, char: Character,
 
 def spawn_impact_burst(surf: pygame.Surface, x: int, y: int,
                         color: Tuple[int, int, int], size: int = 20) -> None:
-    """Draw a radial starburst at (x, y) with 8 line segments extending `size` px.
+    """Draw a radial starburst at (x, y) — rays + a bright hot core.
 
-    Used by episodes on HIT events.
+    Ray count and stroke width scale with `size` so big hits (crits,
+    ultimates) read as genuinely heavier than light jabs.
     """
-    num_rays = 8
+    num_rays = 8 if size < 60 else 12
+    ray_w = max(2, size // 16)
+    # Long rays + shorter offset rays for a denser star
     for i in range(num_rays):
         angle = (2 * math.pi * i) / num_rays
         ex = int(x + math.cos(angle) * size)
         ey = int(y + math.sin(angle) * size)
-        pygame.draw.line(surf, color, (x, y), (ex, ey), 2)
+        pygame.draw.line(surf, color, (x, y), (ex, ey), ray_w)
+    for i in range(num_rays):
+        angle = (2 * math.pi * i) / num_rays + math.pi / num_rays
+        ex = int(x + math.cos(angle) * size * 0.55)
+        ey = int(y + math.sin(angle) * size * 0.55)
+        pygame.draw.line(surf, color, (x, y), (ex, ey), max(1, ray_w - 1))
+    # Hot core — colored disc + white-hot center
+    pygame.draw.circle(surf, color, (x, y), max(4, size // 4))
+    pygame.draw.circle(surf, (255, 255, 255), (x, y), max(2, size // 8))
 
 
 def spawn_landing_dust(surf: pygame.Surface, x: int, ground_y: int,
@@ -445,14 +456,18 @@ class ProjectileLayer:
             live.append(item)
             cx = sx + (ex - sx) * t
             cy = sy + (ey - sy) * t
-            # Tail — 3 trailing segments at t-0.05, t-0.10, t-0.15
-            for offset, alpha in ((0.05, 200), (0.10, 130), (0.15, 70)):
+            # Tail — 4 trailing segments, fatter and longer for visibility
+            for offset, alpha, rad in ((0.06, 210, 8), (0.12, 150, 6),
+                                       (0.18, 95, 5), (0.24, 50, 4)):
                 tt = max(0.0, t - offset)
                 tx = sx + (ex - sx) * tt
                 ty = sy + (ey - sy) * tt
-                tail_surf = pygame.Surface((10, 10), pygame.SRCALPHA)
-                pygame.draw.circle(tail_surf, (*color, alpha), (5, 5), 3)
-                surf.blit(tail_surf, (int(tx) - 5, int(ty) - 5))
-            pygame.draw.circle(surf, color, (int(cx), int(cy)), 4)
-            pygame.draw.circle(surf, (0, 0, 0), (int(cx), int(cy)), 4, 1)
+                d = rad * 2 + 2
+                tail_surf = pygame.Surface((d, d), pygame.SRCALPHA)
+                pygame.draw.circle(tail_surf, (*color, alpha), (d // 2, d // 2), rad)
+                surf.blit(tail_surf, (int(tx) - d // 2, int(ty) - d // 2))
+            # Bright core: white-hot center + colored body + dark outline
+            pygame.draw.circle(surf, color, (int(cx), int(cy)), 9)
+            pygame.draw.circle(surf, (255, 255, 255), (int(cx), int(cy)), 4)
+            pygame.draw.circle(surf, (0, 0, 0), (int(cx), int(cy)), 9, 1)
         self._items = live
