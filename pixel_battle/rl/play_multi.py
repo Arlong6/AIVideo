@@ -19,6 +19,16 @@ from pixel_battle.rl.play import (  # noqa: E402
 
 OUT_DIR = ROOT / "pixel_battle" / "output" / "rl_play_multi"
 
+# Drop KO matches below this hits-per-second floor — they read as
+# low-action (fighters circling/retreating). Tuned in Task 11.
+MIN_ACTION_RATE = 0.8
+
+
+def _should_keep(result: dict) -> bool:
+    """Keep a match only if it ended in KO and was action-dense."""
+    return (result.get("finished_by_ko", False)
+            and result.get("action_score", 0.0) >= MIN_ACTION_RATE)
+
 
 def main(checkpoint: Path = DEFAULT_CKPT,
           num_matches: int = 10,
@@ -41,7 +51,7 @@ def main(checkpoint: Path = DEFAULT_CKPT,
             model, seed=seed, out_dir=OUT_DIR,
             max_seconds=max_seconds, match_name=tmp_name,
         )
-        if result["finished_by_ko"]:
+        if _should_keep(result):
             ko_count += 1
             final_name = OUT_DIR / f"match_{ko_count:03d}.mp4"
             result["mp4_path"].rename(final_name)
@@ -54,7 +64,9 @@ def main(checkpoint: Path = DEFAULT_CKPT,
             for p in (result["mp4_path"], result["raw_path"], result["audio_path"]):
                 if p.exists():
                     p.unlink()
-            print(f"⏭️  Skipped seed={seed} (no KO)")
+            reason = "no KO" if not result["finished_by_ko"] else \
+                f"low action {result['action_score']:.2f}/s"
+            print(f"⏭️  Skipped seed={seed} ({reason})")
         seed += 1
     print(f"\nDone. {ko_count} KO matches written to {OUT_DIR}/")
 

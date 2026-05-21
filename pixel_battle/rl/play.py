@@ -719,6 +719,8 @@ def run_one_match(model, seed: int, out_dir: Path,
     fight = _render_fight(recorder, model, env, max_seconds, end_hold_frames=120)
     recorder.stop()
 
+    hit_count = sum(1 for ev in fight["events"] if ev.type.value == "hit")
+
     total_duration_ms = int(fight["n_frames"] * FRAME_MS)
     bgm_path = BGM_DIR / "battle_loop.mp3"
     if bgm_path.exists():
@@ -730,13 +732,15 @@ def run_one_match(model, seed: int, out_dir: Path,
     mixer.export(total_duration_ms, str(audio_out))
     mux_audio_video(str(raw_video), str(audio_out), str(final_mp4))
 
+    duration_s = total_duration_ms / 1000.0
     return {
         "finished_by_ko": fight["terminated"],
-        "duration_s": total_duration_ms / 1000.0,
+        "duration_s": duration_s,
         "winner": fight["winner"],
         "mp4_path": final_mp4,
         "raw_path": raw_video,
         "audio_path": audio_out,
+        "action_score": hit_count / max(duration_s, 0.1),
     }
 
 
