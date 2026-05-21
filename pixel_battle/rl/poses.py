@@ -190,7 +190,7 @@ ARCHETYPE_POSES: Dict[str, Dict[str, FigurePose]] = {
     },
     "dash": {
         "cocked":   _fp(-12, (210, -85), (150, -50), (70, 70), (60, 16), 240),
-        "extended": _fp(46, (6, -2), (140, -36), (135, 24), (40, 8), 368),
+        "extended": _fp(46, (6, -2), (140, -36), (135, 24), (40, 8), 368),  # weapon_deg 368 (=8 deg +360): lerp sweeps upward, not down through the below-ground zone
     },
     "bolt": {
         "cocked":   _fp(-10, (140, -70), (120, -50), (104, 16), (76, 20), 150),

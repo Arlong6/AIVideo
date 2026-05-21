@@ -1,6 +1,7 @@
 """Pose model, interpolation, selection, distinctness, visual safety."""
 import math as _math
 import os
+import types
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 from pixel_battle.engine.character import Character
@@ -222,38 +223,39 @@ def test_all_poses_keep_feet_planted_and_in_frame():
                                       else "idle")
                     c.on_ground = pose_id != "jump"
                     c.vel_x = 4.0 if pose_id == "walk" else 0.0
+                    phase_t_values = (None,)   # static poses: single sample
                 else:
                     c.action_state = "attacking"
                     c.attack_phase = phase
-                    c.attack_phase_t = 30
                     c.attack_anim_hint = ("kick" if pose_id == "kick"
                                           else "jab")
+                    vfx_val = pose_id if pose_id != "kick" else "melee"
+                    c.attack_used_kind = types.SimpleNamespace(vfx=vfx_val)
+                    phase_t_values = (30, 999)  # mid-sweep + keyframe endpoint
 
-                    class _Sk:
-                        pass
-                    s = _Sk()
-                    s.vfx = pose_id if pose_id != "kick" else "melee"
-                    c.attack_used_kind = s
+                for attack_phase_t in phase_t_values:
+                    if attack_phase_t is not None:
+                        c.attack_phase_t = attack_phase_t
 
-                geo = compute_figure(c, style)
-                tag = f"{char_id}/{pose_id}/{phase}"
+                    geo = compute_figure(c, style)
+                    tag = f"{char_id}/{pose_id}/{phase}/f{facing}"
 
-                # Feet: the lower foot is planted exactly at pos_y.
-                lower = max(geo.front_foot[1], geo.back_foot[1])
-                assert abs(lower - c.pos_y) < 1e-6, f"{tag} foot float"
+                    # Feet: the lower foot is planted exactly at pos_y.
+                    lower = max(geo.front_foot[1], geo.back_foot[1])
+                    assert abs(lower - c.pos_y) < 1e-6, f"{tag} foot float"
 
-                # Every drawable point — including the weapon tip — in frame.
-                pts = [geo.head_center, geo.shoulder, geo.hip,
-                       geo.front_elbow, geo.front_hand,
-                       geo.back_elbow, geo.back_hand,
-                       geo.front_knee, geo.front_foot,
-                       geo.back_knee, geo.back_foot]
-                if weapon is not None:
-                    wr = _math.radians(geo.weapon_deg)
-                    pts.append((
-                        geo.front_hand[0] + _math.cos(wr) * weapon.length,
-                        geo.front_hand[1] + _math.sin(wr) * weapon.length))
-                for px, py in pts:
-                    assert abs(px - c.pos_x) < _MAX_HALF_W, f"{tag} too wide"
-                    assert c.pos_y - py < _MAX_HEIGHT, f"{tag} too tall"
-                    assert py <= c.pos_y + 2, f"{tag} below ground"
+                    # Every drawable point — including the weapon tip — in frame.
+                    pts = [geo.head_center, geo.shoulder, geo.hip,
+                           geo.front_elbow, geo.front_hand,
+                           geo.back_elbow, geo.back_hand,
+                           geo.front_knee, geo.front_foot,
+                           geo.back_knee, geo.back_foot]
+                    if weapon is not None:
+                        wr = _math.radians(geo.weapon_deg)
+                        pts.append((
+                            geo.front_hand[0] + _math.cos(wr) * weapon.length,
+                            geo.front_hand[1] + _math.sin(wr) * weapon.length))
+                    for px, py in pts:
+                        assert abs(px - c.pos_x) < _MAX_HALF_W, f"{tag} too wide"
+                        assert c.pos_y - py < _MAX_HEIGHT, f"{tag} too tall"
+                        assert py <= c.pos_y + 2, f"{tag} below ground"
