@@ -205,8 +205,95 @@ def compute_figure(char, style: dict) -> FigureGeometry:
         weapon_deg=_mirror_abs(pose.weapon_deg, facing), facing=facing)
 
 
+# Renderer-side phase durations (ms) used only to pace pose interpolation.
+# They do NOT affect gameplay timing.
+_PHASE_DUR: Dict[str, Dict[str, int]] = {
+    "melee":     {"windup": 90,  "strike": 55,  "recover": 130},
+    "slam":      {"windup": 240, "strike": 110, "recover": 260},
+    "spin":      {"windup": 160, "strike": 200, "recover": 200},
+    "dash":      {"windup": 130, "strike": 90,  "recover": 170},
+    "bolt":      {"windup": 150, "strike": 70,  "recover": 160},
+    "multishot": {"windup": 170, "strike": 110, "recover": 180},
+    "aura":      {"windup": 200, "strike": 160, "recover": 220},
+    "beam":      {"windup": 180, "strike": 260, "recover": 220},
+    "kick":      {"windup": 120, "strike": 70,  "recover": 180},
+}
+_DEFAULT_PHASE_DUR = {"windup": 120, "strike": 70, "recover": 160}
+
+
+def _fp(torso, fa, ba, fl, bl, wpn) -> FigurePose:
+    return FigurePose(torso_lean=torso, front_arm=fa, back_arm=ba,
+                      front_leg=fl, back_leg=bl, weapon_deg=wpn)
+
+
+# {archetype: {"cocked": <end of windup>, "extended": <end of strike>}}
+# Authored for facing = +1. Starting values — tuned in Task 11.
+ARCHETYPE_POSES: Dict[str, Dict[str, FigurePose]] = {
+    "melee": {
+        "cocked":   _fp(-18, (215, -95), (150, -45), (110, 20), (70, 24), 250),
+        "extended": _fp(24, (8, -4), (120, -30), (70, 16), (118, 22), 12),
+    },
+    "slam": {
+        "cocked":   _fp(-30, (255, -40), (285, -40), (104, 34), (70, 30), 280),
+        "extended": _fp(40, (70, -6), (95, -10), (84, 22), (96, 24), 95),
+    },
+    "spin": {
+        "cocked":   _fp(0, (200, -10), (340, -10), (100, 18), (80, 18), 200),
+        "extended": _fp(0, (20, -8), (160, -8), (110, 20), (70, 20), 20),
+    },
+    "dash": {
+        "cocked":   _fp(-12, (210, -85), (150, -50), (70, 70), (60, 16), 240),
+        "extended": _fp(46, (6, -2), (140, -36), (135, 24), (40, 8), 8),
+    },
+    "bolt": {
+        "cocked":   _fp(-10, (140, -70), (120, -50), (104, 16), (76, 20), 150),
+        "extended": _fp(16, (4, -8), (96, -40), (96, 16), (84, 18), 4),
+    },
+    "multishot": {
+        "cocked":   _fp(-14, (188, -60), (170, -55), (108, 20), (70, 22), 200),
+        "extended": _fp(20, (340, -30), (30, -30), (74, 16), (112, 20), 330),
+    },
+    "aura": {
+        "cocked":   _fp(-8, (300, -30), (250, -30), (96, 40), (84, 40), 300),
+        "extended": _fp(2, (285, -16), (255, -16), (92, 16), (88, 16), 285),
+    },
+    "beam": {
+        "cocked":   _fp(-26, (200, -70), (170, -60), (110, 30), (60, 24), 200),
+        "extended": _fp(-16, (354, -12), (6, -12), (118, 28), (52, 20), 0),
+    },
+    "kick": {
+        "cocked":   _fp(-14, (250, -50), (290, -50), (40, 110), (88, 16), 300),
+        "extended": _fp(20, (240, -40), (300, -40), (8, 6), (92, 14), 300),
+    },
+}
+
+
+def _phase_dur(pose_id: str, phase: str) -> int:
+    return _PHASE_DUR.get(pose_id, _DEFAULT_PHASE_DUR).get(
+        phase, _DEFAULT_PHASE_DUR[phase])
+
+
 def _resolve_attack_pose(pose_id: str, char) -> FigurePose:
-    return IDLE_POSE   # replaced in Task 5
+    table = ARCHETYPE_POSES.get(pose_id, ARCHETYPE_POSES["melee"])
+    cocked, extended = table["cocked"], table["extended"]
+    phase = getattr(char, "attack_phase", "none")
+    phase_t = getattr(char, "attack_phase_t", 0)
+    if phase == "windup":
+        t = ease_in_cubic(phase_t / _phase_dur(pose_id, "windup"))
+        return lerp_pose(IDLE_POSE, cocked, t)
+    if phase == "strike":
+        t = ease_out_cubic(phase_t / _phase_dur(pose_id, "strike"))
+        return lerp_pose(cocked, extended, t)
+    if phase == "recover":
+        t = ease_in_out_cubic(phase_t / _phase_dur(pose_id, "recover"))
+        return lerp_pose(extended, IDLE_POSE, t)
+    return cocked
+
+
+def cocked_weapon_deg(pose_id: str) -> float:
+    """Weapon angle at the start of the strike sweep (facing +1)."""
+    table = ARCHETYPE_POSES.get(pose_id, ARCHETYPE_POSES["melee"])
+    return table["cocked"].weapon_deg
 
 
 def resolve_pose(char) -> FigurePose:

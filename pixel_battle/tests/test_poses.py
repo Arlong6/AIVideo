@@ -120,3 +120,56 @@ def test_facing_mirrors_horizontally():
     # flips any horizontal asymmetry of the arms.
     assert abs(right.front_hand[0] - 240) > 0  # arm extends off-centre
     assert abs((right.front_hand[0] - 240) + (left.front_hand[0] - 240)) < 1e-6
+
+
+from pixel_battle.rl.poses import ARCHETYPE_POSES
+import math as _math
+
+
+def _attacking(vfx, phase, phase_t, char_id="garen"):
+    c = Character.load(char_id)
+    c.pos_x, c.pos_y = 240.0, 720.0
+    c.facing = 1
+    c.action_state = "attacking"
+    c.attack_anim_hint = "jab"
+    c.attack_phase = phase
+    c.attack_phase_t = phase_t
+
+    class _Sk:
+        pass
+    s = _Sk()
+    s.vfx = vfx
+    c.attack_used_kind = s
+    return c
+
+
+def test_all_eight_archetypes_have_pose_tables():
+    for a in ("melee", "slam", "spin", "dash",
+              "bolt", "multishot", "aura", "beam"):
+        assert a in ARCHETYPE_POSES
+        assert "cocked" in ARCHETYPE_POSES[a]
+        assert "extended" in ARCHETYPE_POSES[a]
+
+
+def test_archetype_strike_silhouettes_are_pairwise_distinct():
+    """Anti-monotony lock: each archetype's strike-end silhouette — front
+    hand + front foot + back hand — must differ meaningfully from every
+    other archetype's."""
+    sigs = {}
+    for a in ("melee", "slam", "spin", "dash",
+              "bolt", "multishot", "aura", "beam"):
+        geo = compute_figure(_attacking(a, "strike", 999), _TEST_STYLE)
+        sigs[a] = (geo.front_hand, geo.front_foot, geo.back_hand)
+    keys = list(sigs)
+    for i in range(len(keys)):
+        for j in range(i + 1, len(keys)):
+            total = sum(_math.hypot(p[0] - q[0], p[1] - q[1])
+                        for p, q in zip(sigs[keys[i]], sigs[keys[j]]))
+            assert total > 25.0, \
+                f"{keys[i]} vs {keys[j]} too similar ({total:.1f}px)"
+
+
+def test_attack_pose_changes_across_phases():
+    w = compute_figure(_attacking("melee", "windup", 10), _TEST_STYLE)
+    s = compute_figure(_attacking("melee", "strike", 999), _TEST_STYLE)
+    assert w.front_hand != s.front_hand
