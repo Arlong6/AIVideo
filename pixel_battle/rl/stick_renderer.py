@@ -18,6 +18,15 @@ from pixel_battle.rl.weapons import get_weapon, draw_weapon, draw_swing_smear
 # ── Constants ────────────────────────────────────────────────────────────────
 SMEAR_VEL_THRESHOLD = 2.5  # motion-smear ghosts kick in at walk speed (3.0)
 
+
+def _swing_smear_start_angle(pose_id: str, facing: int) -> float:
+    """Weapon angle at the start of the strike sweep, in `facing` space.
+
+    `cocked_weapon_deg` is authored for facing +1; mirror it for facing -1.
+    """
+    cocked = cocked_weapon_deg(pose_id)
+    return cocked if facing >= 0 else 180.0 - cocked
+
 # Per-character visual style. Limb lengths are split into two segments
 # (upper_arm + forearm, thigh + shin) for the jointed skeleton.
 _STYLES = {
@@ -100,7 +109,7 @@ def _draw_head(surf, color, geo, style):
 # ── Ghost (smear) drawing ─────────────────────────────────────────────────────
 
 def _draw_ghost(surf, char, color, offset_x, alpha, style):
-    """Faded torso+arms ghost for fast-movement smear."""
+    """Faded torso + front-arm ghost for fast-movement smear."""
     w, h = surf.get_size()
     ghost = pygame.Surface((w, h), pygame.SRCALPHA)
     orig_x = char.pos_x
@@ -150,8 +159,7 @@ def draw_stick_figure(surf, char, color):
         if (char.action_state == "attacking"
                 and char.attack_phase == "strike"):
             pose_id = select_pose_id(char)
-            ang_from = geo.weapon_deg if char.facing >= 0 \
-                else 180.0 - cocked_weapon_deg(pose_id)
+            ang_from = _swing_smear_start_angle(pose_id, char.facing)
             draw_swing_smear(surf, weapon, geo.front_hand,
                              ang_from, geo.weapon_deg, lw, color)
         draw_weapon(surf, weapon, geo.front_hand, geo.weapon_deg, lw,

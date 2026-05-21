@@ -9,8 +9,9 @@ import pytest
 
 from pixel_battle.engine.character import Character
 from pixel_battle.rl.stick_renderer import (
-    draw_stick_figure, get_style, ProjectileLayer,
+    draw_stick_figure, get_style, ProjectileLayer, _swing_smear_start_angle,
 )
+from pixel_battle.rl.poses import cocked_weapon_deg, ARCHETYPE_POSES
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -47,7 +48,8 @@ def test_every_style_has_split_limb_lengths():
     for cid in ("brick_phone", "glass_slab", "garen", "lux", "yasuo", "ashe"):
         st = get_style(cid)
         for key in ("upper_arm", "forearm", "thigh", "shin",
-                    "torso_length", "head_size", "line_width"):
+                    "torso_length", "head_size", "line_width",
+                    "hand_radius", "foot_length", "head_shape"):
             assert key in st, f"{cid} style missing {key}"
 
 
@@ -79,3 +81,17 @@ def test_projectile_layer_spawn_and_decay():
     assert (arr > 0).any()
     layer.draw(surf, 500)
     assert len(layer._items) == 0
+
+
+def test_swing_smear_start_angle_regression():
+    """Regression lock: smear start angle must differ from strike-end angle (facing +1)."""
+    cocked = cocked_weapon_deg("slam")
+    # Facing +1: start angle equals the cocked angle.
+    assert _swing_smear_start_angle("slam", 1) == cocked
+    # Facing -1: start angle is the mirror.
+    assert _swing_smear_start_angle("slam", -1) == 180.0 - cocked
+    # The smear must genuinely sweep — start != end for facing +1.
+    strike_end = ARCHETYPE_POSES["slam"]["extended"].weapon_deg
+    assert _swing_smear_start_angle("slam", 1) != strike_end, (
+        "Smear start angle equals strike-end angle for facing +1 — zero-delta bug regressed"
+    )
