@@ -100,9 +100,9 @@ def test_smear_drawn_when_velocity_high(surf):
     c.vel_x = 5.0  # moving fast
     draw_stick_figure(surf, c, RED)
     # Pixels should exist BEHIND character (smaller x for facing=1, vel>0 means moving right
-    # → trail is to the left). Region sits left of the stationary body silhouette.
+    # → trail is to the left). Ghost offset is -vel_x*{4,8} so trail sits at x~[248:285].
     arr = pygame.surfarray.array3d(surf)
-    trail_region = arr[230:256, 466:548]  # box BEHIND main body
+    trail_region = arr[248:275, 450:600]  # box BEHIND main body (jointed skeleton geometry)
     assert (trail_region.sum(axis=-1) > 0).any(), "expected smear trail behind moving char"
 
 
@@ -113,8 +113,8 @@ def test_no_smear_when_stationary(surf):
     c.vel_x = 0.0
     draw_stick_figure(surf, c, RED)
     arr = pygame.surfarray.array3d(surf)
-    # Nothing should be drawn far from character body
-    trail_region = arr[230:256, 466:548]
+    # Nothing should be drawn in the ghost zone (left of main body) when stationary
+    trail_region = arr[248:275, 450:600]
     assert not (trail_region.sum(axis=-1) > 0).any(), "no smear expected at rest"
 
 
