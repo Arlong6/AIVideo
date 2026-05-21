@@ -100,6 +100,131 @@ def lerp_pose(a: FigurePose, b: FigurePose, t: float) -> FigurePose:
     )
 
 
+# Static (non-attack) poses, authored for facing = +1.
+IDLE_POSE = FigurePose(
+    torso_lean=0.0,
+    front_arm=(88.0, -26.0), back_arm=(100.0, -32.0),
+    front_leg=(96.0, 14.0), back_leg=(84.0, 14.0),
+    weapon_deg=120.0)
+
+WALK_POSE = FigurePose(
+    torso_lean=8.0,
+    front_arm=(60.0, -40.0), back_arm=(130.0, -40.0),
+    front_leg=(120.0, 26.0), back_leg=(60.0, 30.0),
+    weapon_deg=70.0)
+
+JUMP_POSE = FigurePose(
+    torso_lean=6.0,
+    front_arm=(40.0, -70.0), back_arm=(150.0, -70.0),
+    front_leg=(120.0, 70.0), back_leg=(70.0, 70.0),
+    weapon_deg=40.0)
+
+HIT_POSE = FigurePose(
+    torso_lean=-22.0,
+    front_arm=(250.0, -60.0), back_arm=(290.0, -60.0),
+    front_leg=(110.0, 50.0), back_leg=(70.0, 40.0),
+    weapon_deg=300.0)
+
+
+@dataclass
+class FigureGeometry:
+    """World-space positions for every drawable point of the figure."""
+    head_center: Vec
+    shoulder: Vec
+    hip: Vec
+    front_elbow: Vec
+    front_hand: Vec
+    back_elbow: Vec
+    back_hand: Vec
+    front_knee: Vec
+    front_foot: Vec
+    back_knee: Vec
+    back_foot: Vec
+    weapon_deg: float
+    facing: int
+
+
+def _mirror_abs(deg: float, facing: int) -> float:
+    return deg if facing >= 0 else 180.0 - deg
+
+
+def _mirror_flex(flex: float, facing: int) -> float:
+    return flex if facing >= 0 else -flex
+
+
+def compute_figure(char, style: dict) -> FigureGeometry:
+    """Resolve `char`'s pose, run FK, and position the figure with the
+    lower foot planted at `char.pos_y`."""
+    pose = resolve_pose(char)
+    facing = 1 if char.facing >= 0 else -1
+    cx, cy = float(char.pos_x), float(char.pos_y)
+
+    thigh, shin = style["thigh"], style["shin"]
+    upper, fore = style["upper_arm"], style["forearm"]
+    torso_len = style["torso_length"]
+
+    # 1. Solve both legs from a temporary hip at the origin.
+    fh_deg = _mirror_abs(pose.front_leg[0], facing)
+    fk_flex = _mirror_flex(clamp_knee(pose.front_leg[1]), facing)
+    bh_deg = _mirror_abs(pose.back_leg[0], facing)
+    bk_flex = _mirror_flex(clamp_knee(pose.back_leg[1]), facing)
+    f_knee0, f_foot0 = solve_limb((0.0, 0.0), fh_deg, fk_flex, thigh, shin)
+    b_knee0, b_foot0 = solve_limb((0.0, 0.0), bh_deg, bk_flex, thigh, shin)
+
+    # 2. Place the hip so the LOWER foot (largest y) sits at cy.
+    lowest = max(f_foot0[1], b_foot0[1])
+    hip = (cx, cy - lowest)
+
+    def _shift(p):
+        return (p[0] + hip[0], p[1] + hip[1])
+
+    front_knee, front_foot = _shift(f_knee0), _shift(f_foot0)
+    back_knee, back_foot = _shift(b_knee0), _shift(b_foot0)
+
+    # 3. Torso up from hip (270 deg = straight up; + lean toward facing).
+    torso_deg = _mirror_abs(270.0 + pose.torso_lean, facing)
+    tc, ts = _deg2vec(torso_deg)
+    shoulder = (hip[0] + tc * torso_len, hip[1] + ts * torso_len)
+    head_gap = style["head_size"] + 6
+    head_center = (shoulder[0] + tc * head_gap, shoulder[1] + ts * head_gap)
+
+    # 4. Arms from the shoulder.
+    fa_deg = _mirror_abs(pose.front_arm[0], facing)
+    fa_flex = _mirror_flex(clamp_elbow(pose.front_arm[1]), facing)
+    ba_deg = _mirror_abs(pose.back_arm[0], facing)
+    ba_flex = _mirror_flex(clamp_elbow(pose.back_arm[1]), facing)
+    front_elbow, front_hand = solve_limb(shoulder, fa_deg, fa_flex, upper, fore)
+    back_elbow, back_hand = solve_limb(shoulder, ba_deg, ba_flex, upper, fore)
+
+    return FigureGeometry(
+        head_center=head_center, shoulder=shoulder, hip=hip,
+        front_elbow=front_elbow, front_hand=front_hand,
+        back_elbow=back_elbow, back_hand=back_hand,
+        front_knee=front_knee, front_foot=front_foot,
+        back_knee=back_knee, back_foot=back_foot,
+        weapon_deg=_mirror_abs(pose.weapon_deg, facing), facing=facing)
+
+
+def _resolve_attack_pose(pose_id: str, char) -> FigurePose:
+    return IDLE_POSE   # replaced in Task 5
+
+
+def resolve_pose(char) -> FigurePose:
+    """Return the interpolated FigurePose for `char`'s current state."""
+    pose_id = select_pose_id(char)
+    if pose_id in ARCHETYPE_IDS:
+        return _resolve_attack_pose(pose_id, char)
+    if pose_id == "kick":
+        return _resolve_attack_pose("kick", char)
+    if pose_id == "walk":
+        return WALK_POSE
+    if pose_id == "jump":
+        return JUMP_POSE
+    if pose_id == "hit":
+        return HIT_POSE
+    return IDLE_POSE
+
+
 ARCHETYPE_IDS = frozenset(
     {"melee", "slam", "spin", "dash", "bolt", "multishot", "aura", "beam"})
 

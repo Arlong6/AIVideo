@@ -80,3 +80,43 @@ def test_select_kick_overrides_archetype():
     c.attack_anim_hint = "kick"
     c.attack_used_kind = c.skills[0]            # basic, vfx "melee"
     assert select_pose_id(c) == "kick"
+
+
+from pixel_battle.rl.poses import compute_figure, FigureGeometry
+
+# Minimal style for tests (matches the _STYLES schema from Task 8).
+_TEST_STYLE = {
+    "head_shape": "circle", "head_size": 26, "torso_length": 80,
+    "upper_arm": 30, "forearm": 30, "thigh": 34, "shin": 34,
+    "line_width": 7, "hand_radius": 6, "foot_length": 18,
+}
+
+
+def _standing(char_id="garen", facing=1):
+    c = Character.load(char_id)
+    c.pos_x, c.pos_y = 240.0, 720.0
+    c.facing = facing
+    c.action_state = "idle"
+    c.on_ground = True
+    return c
+
+
+def test_compute_figure_returns_geometry():
+    geo = compute_figure(_standing(), _TEST_STYLE)
+    assert isinstance(geo, FigureGeometry)
+
+
+def test_idle_lower_foot_is_planted_at_pos_y():
+    c = _standing()
+    geo = compute_figure(c, _TEST_STYLE)
+    lower_foot_y = max(geo.front_foot[1], geo.back_foot[1])
+    assert abs(lower_foot_y - c.pos_y) < 1e-6
+
+
+def test_facing_mirrors_horizontally():
+    right = compute_figure(_standing(facing=1), _TEST_STYLE)
+    left = compute_figure(_standing(facing=-1), _TEST_STYLE)
+    # Head sits above pos_x for both; mirroring keeps it near centre but
+    # flips any horizontal asymmetry of the arms.
+    assert abs(right.front_hand[0] - 240) > 0  # arm extends off-centre
+    assert abs((right.front_hand[0] - 240) + (left.front_hand[0] - 240)) < 1e-6
