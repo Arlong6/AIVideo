@@ -45,3 +45,56 @@ def clamp_elbow(flex_deg: float) -> float:
 
 def clamp_knee(flex_deg: float) -> float:
     return max(KNEE_FLEX_MIN, min(KNEE_FLEX_MAX, flex_deg))
+
+
+@dataclass
+class FigurePose:
+    """All joint angles for one figure at one instant (authored facing +1).
+
+    Arm tuples are (shoulder_deg, elbow_flex_deg).
+    Leg tuples are (hip_deg, knee_flex_deg).
+    """
+    torso_lean: float                 # deg; + leans toward facing
+    front_arm: Tuple[float, float]
+    back_arm: Tuple[float, float]
+    front_leg: Tuple[float, float]
+    back_leg: Tuple[float, float]
+    weapon_deg: float                 # absolute weapon angle
+
+
+def ease_in_cubic(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return t * t * t
+
+
+def ease_out_cubic(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return 1.0 - (1.0 - t) ** 3
+
+
+def ease_in_out_cubic(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    if t < 0.5:
+        return 4.0 * t * t * t
+    return 1.0 - (-2.0 * t + 2.0) ** 3 / 2.0
+
+
+def _lerp(a: float, b: float, t: float) -> float:
+    return a + (b - a) * t
+
+
+def _lerp_pair(a: Tuple[float, float], b: Tuple[float, float],
+               t: float) -> Tuple[float, float]:
+    return (_lerp(a[0], b[0], t), _lerp(a[1], b[1], t))
+
+
+def lerp_pose(a: FigurePose, b: FigurePose, t: float) -> FigurePose:
+    t = max(0.0, min(1.0, t))
+    return FigurePose(
+        torso_lean=_lerp(a.torso_lean, b.torso_lean, t),
+        front_arm=_lerp_pair(a.front_arm, b.front_arm, t),
+        back_arm=_lerp_pair(a.back_arm, b.back_arm, t),
+        front_leg=_lerp_pair(a.front_leg, b.front_leg, t),
+        back_leg=_lerp_pair(a.back_leg, b.back_leg, t),
+        weapon_deg=_lerp(a.weapon_deg, b.weapon_deg, t),
+    )
