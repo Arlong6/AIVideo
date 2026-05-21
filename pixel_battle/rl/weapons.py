@@ -100,3 +100,25 @@ def draw_weapon(surf, weapon: Weapon, grip_xy: Vec, angle_deg: float,
             _pt(grip_xy, angle_deg + 90, 0)
         pygame.draw.line(surf, (235, 235, 235), pts[0], string_anchor, 1)
         pygame.draw.line(surf, (235, 235, 235), pts[-1], string_anchor, 1)
+
+
+def draw_swing_smear(surf, weapon: Weapon, grip_xy: Vec,
+                     angle_from: float, angle_to: float,
+                     line_width: int, color) -> None:
+    """Draw 3 faded weapon ghosts fanned between angle_from and angle_to,
+    suggesting the blade's motion blur during a strike. No-op if the
+    weapon did not sweep."""
+    import pygame
+    if abs(angle_to - angle_from) < 1.0:
+        return
+    w = max(2, int(line_width * weapon.width))
+    sw, sh = surf.get_size()
+    for i, alpha in ((0.25, 60), (0.5, 95), (0.75, 140)):
+        deg = angle_from + (angle_to - angle_from) * i
+        c, s = _vec(deg)
+        tip = (grip_xy[0] + c * weapon.length,
+               grip_xy[1] + s * weapon.length)
+        ghost = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        pygame.draw.line(ghost, (color[0], color[1], color[2], alpha),
+                         grip_xy, tip, w)
+        surf.blit(ghost, (0, 0))

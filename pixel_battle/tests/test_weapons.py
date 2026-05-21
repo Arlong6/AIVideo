@@ -40,3 +40,26 @@ def test_draw_weapon_marks_the_surface():
                 line_width=8, color=(200, 200, 200), accent=(255, 255, 255))
     arr = pygame.surfarray.array3d(surf)
     assert (arr > 0).any()
+
+
+from pixel_battle.rl.weapons import draw_swing_smear
+
+
+def test_swing_smear_draws_faded_copies():
+    surf = pygame.Surface((300, 300))
+    surf.fill((0, 0, 0))
+    w = get_weapon("garen")
+    draw_swing_smear(surf, w, grip_xy=(150, 150), angle_from=250.0,
+                     angle_to=20.0, line_width=8, color=(200, 80, 80))
+    arr = pygame.surfarray.array3d(surf)
+    assert (arr > 0).any()
+
+
+def test_swing_smear_noop_when_angles_equal():
+    surf = pygame.Surface((300, 300))
+    surf.fill((0, 0, 0))
+    w = get_weapon("garen")
+    draw_swing_smear(surf, w, grip_xy=(150, 150), angle_from=30.0,
+                     angle_to=30.0, line_width=8, color=(200, 80, 80))
+    arr = pygame.surfarray.array3d(surf)
+    assert not (arr > 0).any()
