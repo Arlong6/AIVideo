@@ -3,11 +3,10 @@
 import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
-import numpy as np
 import pygame
 import pytest
 
-from pixel_battle.rl.weapons import Weapon, get_weapon, draw_weapon
+from pixel_battle.rl.weapons import Weapon, get_weapon, draw_weapon, draw_swing_smear, _smear_delta
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -32,17 +31,15 @@ def test_phone_characters_are_unarmed():
     assert get_weapon("unknown_id") is None
 
 
-def test_draw_weapon_marks_the_surface():
+@pytest.mark.parametrize("char_id", ["garen", "lux", "yasuo", "ashe"])
+def test_draw_weapon_marks_the_surface(char_id):
     surf = pygame.Surface((200, 200))
     surf.fill((0, 0, 0))
-    w = get_weapon("garen")
+    w = get_weapon(char_id)
     draw_weapon(surf, w, grip_xy=(100, 100), angle_deg=0.0,
                 line_width=8, color=(200, 200, 200), accent=(255, 255, 255))
     arr = pygame.surfarray.array3d(surf)
     assert (arr > 0).any()
-
-
-from pixel_battle.rl.weapons import draw_swing_smear
 
 
 def test_swing_smear_draws_faded_copies():
@@ -63,3 +60,22 @@ def test_swing_smear_noop_when_angles_equal():
                      angle_to=30.0, line_width=8, color=(200, 80, 80))
     arr = pygame.surfarray.array3d(surf)
     assert not (arr > 0).any()
+
+
+def test_smear_delta_cross_zero_positive():
+    # 250 → 20: shortest arc is +130° (through 0°/360°)
+    assert abs(_smear_delta(250, 20) - 130) < 1e-9
+
+
+def test_smear_delta_cross_zero_negative():
+    # 20 → 250: shortest arc is -130°
+    assert abs(_smear_delta(20, 250) - (-130)) < 1e-9
+
+
+def test_smear_delta_same_angle():
+    assert _smear_delta(45, 45) == 0
+
+
+def test_smear_delta_cross_zero_small():
+    # 350 → 10: shortest arc is +20°
+    assert abs(_smear_delta(350, 10) - 20) < 1e-9

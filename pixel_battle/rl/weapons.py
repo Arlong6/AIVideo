@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from typing import Optional, Tuple
+import pygame
 
 Vec = Tuple[float, float]
 
@@ -44,11 +45,10 @@ def _pt(origin: Vec, deg: float, dist: float) -> Vec:
     return (origin[0] + c * dist, origin[1] + s * dist)
 
 
-def draw_weapon(surf, weapon: Weapon, grip_xy: Vec, angle_deg: float,
+def draw_weapon(surf: pygame.Surface, weapon: Weapon, grip_xy: Vec, angle_deg: float,
                 line_width: int, color, accent,
                 off_hand_xy: Optional[Vec] = None) -> None:
     """Draw `weapon` gripped at `grip_xy`, pointing along `angle_deg`."""
-    import pygame
     gx, gy = int(grip_xy[0]), int(grip_xy[1])
     tip = _pt(grip_xy, angle_deg, weapon.length)
     tip_i = (int(tip[0]), int(tip[1]))
@@ -102,19 +102,24 @@ def draw_weapon(surf, weapon: Weapon, grip_xy: Vec, angle_deg: float,
         pygame.draw.line(surf, (235, 235, 235), pts[-1], string_anchor, 1)
 
 
-def draw_swing_smear(surf, weapon: Weapon, grip_xy: Vec,
+def _smear_delta(angle_from: float, angle_to: float) -> float:
+    """Shortest-arc signed delta in degrees, range (-180, 180]."""
+    return (angle_to - angle_from + 180) % 360 - 180
+
+
+def draw_swing_smear(surf: pygame.Surface, weapon: Weapon, grip_xy: Vec,
                      angle_from: float, angle_to: float,
                      line_width: int, color) -> None:
     """Draw 3 faded weapon ghosts fanned between angle_from and angle_to,
     suggesting the blade's motion blur during a strike. No-op if the
     weapon did not sweep."""
-    import pygame
-    if abs(angle_to - angle_from) < 1.0:
+    delta = _smear_delta(angle_from, angle_to)
+    if abs(delta) < 1.0:
         return
     w = max(2, int(line_width * weapon.width))
     sw, sh = surf.get_size()
     for i, alpha in ((0.25, 60), (0.5, 95), (0.75, 140)):
-        deg = angle_from + (angle_to - angle_from) * i
+        deg = angle_from + delta * i
         c, s = _vec(deg)
         tip = (grip_xy[0] + c * weapon.length,
                grip_xy[1] + s * weapon.length)
