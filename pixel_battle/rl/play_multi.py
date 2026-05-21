@@ -21,7 +21,9 @@ OUT_DIR = ROOT / "pixel_battle" / "output" / "rl_play_multi"
 
 # Drop KO matches below this hits-per-second floor — they read as
 # low-action (fighters circling/retreating). Tuned in Task 11.
-MIN_ACTION_RATE = 0.8
+# Observed action density across 100 seeds: 0.21–0.64 hits/s.
+# 0.35 trims the sluggish bottom tier while keeping the middle-to-upper band.
+MIN_ACTION_RATE = 0.35
 
 
 def _should_keep(result: dict) -> bool:
