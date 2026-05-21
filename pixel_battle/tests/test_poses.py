@@ -1,9 +1,13 @@
 """Pose model, interpolation, selection, distinctness, visual safety."""
+import math as _math
 import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
+from pixel_battle.engine.character import Character
 from pixel_battle.rl.poses import (
     FigurePose, lerp_pose, ease_in_cubic, ease_out_cubic, ease_in_out_cubic,
+    select_pose_id, compute_figure, FigureGeometry, ARCHETYPE_POSES,
+    cocked_weapon_deg,
 )
 
 
@@ -31,15 +35,22 @@ def test_lerp_pose_clamps_t():
     assert lerp_pose(a, b, 9.0).torso_lean == 100.0
 
 
-def test_easing_monotonic_0_to_1():
+def test_easing_monotonic_and_bounded():
+    samples = [i * 0.05 for i in range(21)]  # 0.0, 0.05, ..., 1.0
     for ease in (ease_in_cubic, ease_out_cubic, ease_in_out_cubic):
+        # endpoints
         assert abs(ease(0.0)) < 1e-9
         assert abs(ease(1.0) - 1.0) < 1e-9
-        assert 0.0 <= ease(0.5) <= 1.0
-
-
-from pixel_battle.engine.character import Character
-from pixel_battle.rl.poses import select_pose_id
+        values = [ease(t) for t in samples]
+        # every sample within [0, 1]
+        for t, v in zip(samples, values):
+            assert 0.0 <= v <= 1.0, f"{ease.__name__}({t}) = {v} out of [0,1]"
+        # non-decreasing (monotonic)
+        for i in range(len(values) - 1):
+            assert values[i] <= values[i + 1] + 1e-12, (
+                f"{ease.__name__} not monotonic at t={samples[i]:.2f}: "
+                f"{values[i]} > {values[i+1]}"
+            )
 
 
 def _char(state="idle", on_ground=True, vel_x=0.0):
@@ -82,8 +93,6 @@ def test_select_kick_overrides_archetype():
     assert select_pose_id(c) == "kick"
 
 
-from pixel_battle.rl.poses import compute_figure, FigureGeometry
-
 # Minimal style for tests (matches the _STYLES schema from Task 8).
 _TEST_STYLE = {
     "head_shape": "circle", "head_size": 26, "torso_length": 80,
@@ -120,10 +129,6 @@ def test_facing_mirrors_horizontally():
     # flips any horizontal asymmetry of the arms.
     assert abs(right.front_hand[0] - 240) > 0  # arm extends off-centre
     assert abs((right.front_hand[0] - 240) + (left.front_hand[0] - 240)) < 1e-6
-
-
-from pixel_battle.rl.poses import ARCHETYPE_POSES
-import math as _math
 
 
 def _attacking(vfx, phase, phase_t, char_id="garen"):
@@ -173,3 +178,13 @@ def test_attack_pose_changes_across_phases():
     w = compute_figure(_attacking("melee", "windup", 10), _TEST_STYLE)
     s = compute_figure(_attacking("melee", "strike", 999), _TEST_STYLE)
     assert w.front_hand != s.front_hand
+
+
+def test_cocked_weapon_deg_known_pose():
+    """cocked_weapon_deg returns the weapon_deg from the pose table."""
+    assert cocked_weapon_deg("slam") == ARCHETYPE_POSES["slam"]["cocked"].weapon_deg
+
+
+def test_cocked_weapon_deg_unknown_falls_back_to_melee():
+    """Unknown pose id falls back to the melee cocked weapon angle."""
+    assert cocked_weapon_deg("nonsense") == ARCHETYPE_POSES["melee"]["cocked"].weapon_deg
