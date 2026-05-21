@@ -8,6 +8,7 @@ from pixel_battle.rl.poses import (
     FigurePose, lerp_pose, ease_in_cubic, ease_out_cubic, ease_in_out_cubic,
     select_pose_id, compute_figure, FigureGeometry, ARCHETYPE_POSES,
     cocked_weapon_deg,
+    ELBOW_FLEX_MIN, ELBOW_FLEX_MAX, KNEE_FLEX_MIN, KNEE_FLEX_MAX,
 )
 
 
@@ -188,3 +189,71 @@ def test_cocked_weapon_deg_known_pose():
 def test_cocked_weapon_deg_unknown_falls_back_to_melee():
     """Unknown pose id falls back to the melee cocked weapon angle."""
     assert cocked_weapon_deg("nonsense") == ARCHETYPE_POSES["melee"]["cocked"].weapon_deg
+
+
+# play.py camera shows CAM_VIEW_H = 502 world px with the floor framed
+# ~82% down, so only ~411 px above the feet are ever on-screen.
+_MAX_HALF_W = 260      # gross-error guard on horizontal splay from pos_x
+_MAX_HEIGHT = 400      # figure + weapon must stay under the camera's top edge
+
+
+def test_all_poses_keep_feet_planted_and_in_frame():
+    from pixel_battle.rl.stick_renderer import get_style
+    from pixel_battle.rl.weapons import get_weapon
+
+    pose_specs = [("idle", "none"), ("walk", "none"),
+                  ("jump", "none"), ("hit", "none")]
+    for a in ("melee", "slam", "spin", "dash",
+              "bolt", "multishot", "aura", "beam", "kick"):
+        for ph in ("windup", "strike", "recover"):
+            pose_specs.append((a, ph))
+
+    for char_id in ("brick_phone", "glass_slab", "garen",
+                    "lux", "yasuo", "ashe"):
+        style = get_style(char_id)
+        weapon = get_weapon(char_id)
+        for pose_id, phase in pose_specs:
+            for facing in (1, -1):
+                c = Character.load(char_id)
+                c.pos_x, c.pos_y = 240.0, 720.0
+                c.facing = facing
+                if phase == "none":
+                    c.action_state = ("hit_stagger" if pose_id == "hit"
+                                      else "idle")
+                    c.on_ground = pose_id != "jump"
+                    c.vel_x = 4.0 if pose_id == "walk" else 0.0
+                else:
+                    c.action_state = "attacking"
+                    c.attack_phase = phase
+                    c.attack_phase_t = 30
+                    c.attack_anim_hint = ("kick" if pose_id == "kick"
+                                          else "jab")
+
+                    class _Sk:
+                        pass
+                    s = _Sk()
+                    s.vfx = pose_id if pose_id != "kick" else "melee"
+                    c.attack_used_kind = s
+
+                geo = compute_figure(c, style)
+                tag = f"{char_id}/{pose_id}/{phase}"
+
+                # Feet: the lower foot is planted exactly at pos_y.
+                lower = max(geo.front_foot[1], geo.back_foot[1])
+                assert abs(lower - c.pos_y) < 1e-6, f"{tag} foot float"
+
+                # Every drawable point — including the weapon tip — in frame.
+                pts = [geo.head_center, geo.shoulder, geo.hip,
+                       geo.front_elbow, geo.front_hand,
+                       geo.back_elbow, geo.back_hand,
+                       geo.front_knee, geo.front_foot,
+                       geo.back_knee, geo.back_foot]
+                if weapon is not None:
+                    wr = _math.radians(geo.weapon_deg)
+                    pts.append((
+                        geo.front_hand[0] + _math.cos(wr) * weapon.length,
+                        geo.front_hand[1] + _math.sin(wr) * weapon.length))
+                for px, py in pts:
+                    assert abs(px - c.pos_x) < _MAX_HALF_W, f"{tag} too wide"
+                    assert c.pos_y - py < _MAX_HEIGHT, f"{tag} too tall"
+                    assert py <= c.pos_y + 2, f"{tag} below ground"
