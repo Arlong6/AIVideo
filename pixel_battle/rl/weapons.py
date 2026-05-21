@@ -1,0 +1,102 @@
+# pixel_battle/rl/weapons.py
+"""Held weapons for the renderer — registry + drawing.
+
+Weapon appearance is renderer-side visual data, keyed by char.id, exactly
+like stick_renderer._STYLES. Gameplay data stays in characters.json.
+Angles use the poses.py convention (degrees, 0=right, 90=down).
+"""
+from __future__ import annotations
+import math
+from dataclasses import dataclass
+from typing import Optional, Tuple
+
+Vec = Tuple[float, float]
+
+
+@dataclass
+class Weapon:
+    kind: str          # "greatsword" | "staff" | "katana" | "bow"
+    length: float      # tip distance from the grip, px
+    grip: str          # "one_hand" | "two_hand"
+    width: float       # blade/shaft thickness multiplier (x line_width)
+
+
+# Renderer-side registry — only the 4 LoL champions are armed.
+_WEAPONS = {
+    "garen":  Weapon("greatsword", length=104, grip="two_hand", width=1.7),
+    "lux":    Weapon("staff",      length=110, grip="one_hand", width=0.8),
+    "yasuo":  Weapon("katana",     length=92,  grip="one_hand", width=0.7),
+    "ashe":   Weapon("bow",        length=84,  grip="one_hand", width=0.7),
+}
+
+
+def get_weapon(char_id: str) -> Optional[Weapon]:
+    return _WEAPONS.get(char_id)
+
+
+def _vec(deg: float) -> Vec:
+    r = math.radians(deg)
+    return math.cos(r), math.sin(r)
+
+
+def _pt(origin: Vec, deg: float, dist: float) -> Vec:
+    c, s = _vec(deg)
+    return (origin[0] + c * dist, origin[1] + s * dist)
+
+
+def draw_weapon(surf, weapon: Weapon, grip_xy: Vec, angle_deg: float,
+                line_width: int, color, accent,
+                off_hand_xy: Optional[Vec] = None) -> None:
+    """Draw `weapon` gripped at `grip_xy`, pointing along `angle_deg`."""
+    import pygame
+    gx, gy = int(grip_xy[0]), int(grip_xy[1])
+    tip = _pt(grip_xy, angle_deg, weapon.length)
+    tip_i = (int(tip[0]), int(tip[1]))
+    w = max(2, int(line_width * weapon.width))
+
+    if weapon.kind == "greatsword":
+        # Blade as a tapered quad + crossguard + stub grip.
+        guard = _pt(grip_xy, angle_deg, weapon.length * 0.18)
+        perp = angle_deg + 90
+        half = w
+        p1 = _pt(guard, perp, half)
+        p2 = _pt(guard, perp, -half)
+        pygame.draw.polygon(surf, accent, [p1, p2, tip_i])
+        pygame.draw.polygon(surf, color, [p1, p2, tip_i], 2)
+        cg1 = _pt(guard, perp, half * 2.4)
+        cg2 = _pt(guard, perp, -half * 2.4)
+        pygame.draw.line(surf, color, cg1, cg2, w)
+        butt = _pt(grip_xy, angle_deg + 180, weapon.length * 0.16)
+        pygame.draw.line(surf, color, butt, guard, w)
+
+    elif weapon.kind == "staff":
+        pygame.draw.line(surf, color, (gx, gy), tip_i, w)
+        pygame.draw.circle(surf, accent, tip_i, w + 5)
+        pygame.draw.circle(surf, (255, 255, 255), tip_i, w + 1)
+
+    elif weapon.kind == "katana":
+        # Slightly curved: a 3-point polyline bowed toward the back edge.
+        mid = _pt(grip_xy, angle_deg, weapon.length * 0.55)
+        mid = _pt(mid, angle_deg + 90, w * 1.6)
+        pygame.draw.lines(surf, color, False,
+                          [(gx, gy), mid, tip_i], w)
+        guard = _pt(grip_xy, angle_deg, weapon.length * 0.1)
+        perp = angle_deg + 90
+        pygame.draw.line(surf, color, _pt(guard, perp, w * 2),
+                         _pt(guard, perp, -w * 2), max(2, w - 1))
+
+    elif weapon.kind == "bow":
+        # Bow stave as an arc of points; string from tip to tip (or off-hand).
+        perp = angle_deg + 90
+        n = 9
+        pts = []
+        for i in range(n):
+            f = i / (n - 1)
+            along = _pt(grip_xy, angle_deg, (f - 0.5) * weapon.length)
+            bow = math.sin(f * math.pi) * weapon.length * 0.22
+            pts.append(_pt(along, perp, bow))
+        pygame.draw.lines(surf, color, False, pts, w)
+        string_anchor = off_hand_xy if off_hand_xy is not None else \
+            _pt(grip_xy, angle_deg + 90, 0)
+        pygame.draw.line(surf, (235, 235, 235), pts[0], string_anchor, 1)
+        pygame.draw.line(surf, (235, 235, 235), pts[-1], string_anchor, 1)
