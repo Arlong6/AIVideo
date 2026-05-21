@@ -98,3 +98,28 @@ def lerp_pose(a: FigurePose, b: FigurePose, t: float) -> FigurePose:
         back_leg=_lerp_pair(a.back_leg, b.back_leg, t),
         weapon_deg=_lerp(a.weapon_deg, b.weapon_deg, t),
     )
+
+
+ARCHETYPE_IDS = frozenset(
+    {"melee", "slam", "spin", "dash", "bolt", "multishot", "aura", "beam"})
+
+
+def select_pose_id(char) -> str:
+    """Pick the pose key for `char`'s current state.
+
+    Attacking: `kick` if tagged so, else the skill's vfx archetype
+    (unknown -> `melee`). Otherwise idle / walk / jump / hit.
+    """
+    if char.action_state == "attacking":
+        if getattr(char, "attack_anim_hint", "") == "kick":
+            return "kick"
+        skill = getattr(char, "attack_used_kind", None)
+        vfx = getattr(skill, "vfx", "melee") if skill is not None else "melee"
+        return vfx if vfx in ARCHETYPE_IDS else "melee"
+    if not char.on_ground:
+        return "jump"
+    if char.action_state == "hit_stagger":
+        return "hit"
+    if abs(char.vel_x) > 0.5:
+        return "walk"
+    return "idle"
