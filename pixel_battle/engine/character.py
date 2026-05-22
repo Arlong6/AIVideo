@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List
 
+from pixel_battle.engine.effects import StatusEffect, SHIELD
 from pixel_battle.engine.skill import Skill, SkillType
 
 HP_MAX = 100
@@ -44,6 +45,7 @@ class Character:
     skill_cd_ready_at: Dict[str, int] = field(default_factory=dict)
     retreat_until_ms: int = 0
     windup_stun_until_ms: int = 0
+    effects: List["StatusEffect"] = field(default_factory=list)
 
     @classmethod
     def load(cls, char_id: str) -> "Character":
@@ -81,13 +83,30 @@ class Character:
         self.skill_cd_ready_at = {}
         self.retreat_until_ms = 0
         self.windup_stun_until_ms = 0
+        self.effects = []
         self.hp = HP_MAX
         self.mp = 0
 
     def skills_of_type(self, t: SkillType) -> List[Skill]:
         return [s for s in self.skills if s.skill_type is t]
 
+    def effect_of(self, kind: str):
+        for e in self.effects:
+            if e.kind == kind:
+                return e
+        return None
+
+    def has_effect(self, kind: str) -> bool:
+        return self.effect_of(kind) is not None
+
     def take_damage(self, amount: int) -> None:
+        shield = self.effect_of(SHIELD)
+        if shield is not None and shield.magnitude > 0:
+            absorbed = min(shield.magnitude, amount)
+            shield.magnitude -= absorbed
+            amount -= absorbed
+            if shield.magnitude <= 0:
+                self.effects.remove(shield)
         self.hp = max(0, self.hp - amount)
 
     def gain_mp(self, amount: int) -> None:
