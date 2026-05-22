@@ -23,6 +23,7 @@ from pixel_battle.rl.stick_renderer import (  # noqa: E402
     ProjectileLayer,
     spawn_impact_burst,
     spawn_landing_dust,
+    spawn_flash_puff,
 )
 from pixel_battle.video.recorder import FrameRecorder  # noqa: E402
 from pixel_battle.video.audio_mixer import AudioMixer  # noqa: E402
@@ -576,6 +577,12 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                                        color=burst_color,
                                        current_ms=int(frame * FRAME_MS),
                                        duration_ms=240)
+            elif et == "flash":
+                fx = ev.extra or {}
+                ground_y = env.left.pos_y      # both fighters share the floor
+                actor_col = lcol if ev.actor == env.left.id else rcol
+                spawn_flash_puff(world, fx.get("from_x", 0), ground_y, actor_col)
+                spawn_flash_puff(world, fx.get("to_x", 0), ground_y, actor_col)
 
         # Landing dust — ground-touch edge detection
         pending_dust: list = []

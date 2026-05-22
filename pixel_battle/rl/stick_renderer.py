@@ -222,6 +222,21 @@ def draw_effect_indicators(surf: pygame.Surface, char) -> None:
         pygame.draw.circle(surf, (0, 0, 0), (ex, top_y), 6, 2)
 
 
+def spawn_flash_puff(surf, x: int, ground_y: int, color) -> None:
+    """A quick blink mark — a bright vertical streak plus a few outward
+    sparks — drawn at a Flash origin or destination."""
+    x, ground_y = int(x), int(ground_y)
+    top = ground_y - 150
+    # Vertical light streak.
+    streak = pygame.Surface((10, 150), pygame.SRCALPHA)
+    pygame.draw.line(streak, (color[0], color[1], color[2], 150),
+                     (5, 0), (5, 150), 4)
+    surf.blit(streak, (x - 5, top))
+    # Outward spark dots.
+    for dx, dy in ((-14, -40), (14, -40), (-10, -90), (10, -90)):
+        pygame.draw.circle(surf, color, (x + dx, ground_y + dy), 3)
+
+
 def spawn_landing_dust(surf: pygame.Surface, x: int, ground_y: int,
                         color: Tuple[int, int, int], intensity: float = 1.0) -> None:
     """Draw 4 small expanding ellipses near (x, ground_y) suggesting a dust puff.
