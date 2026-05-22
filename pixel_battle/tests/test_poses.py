@@ -192,8 +192,8 @@ def test_cocked_weapon_deg_unknown_falls_back_to_melee():
     assert cocked_weapon_deg("nonsense") == ARCHETYPE_POSES["melee"]["cocked"].weapon_deg
 
 
-# play.py camera shows CAM_VIEW_H ~589 world px (CAM_ZOOM 1.45) with the
-# floor framed ~82% down, so ~483 px above the feet are on-screen.
+# play.py camera shows CAM_VIEW_H ~712 world px (CAM_ZOOM 1.2) with the
+# floor framed ~82% down, so ~584 px above the feet are on-screen.
 _MAX_HALF_W = 260      # gross-error guard on horizontal splay from pos_x
 _MAX_HEIGHT = 400      # figure + weapon must stay under the camera's top edge
 

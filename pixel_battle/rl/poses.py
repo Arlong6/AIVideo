@@ -159,18 +159,13 @@ def _fp(torso, fa, ba, fl, bl, wpn) -> FigurePose:
 
 # Renderer-side phase durations (ms) used only to pace pose interpolation.
 # They do NOT affect gameplay timing.
-_PHASE_DUR: Dict[str, Dict[str, int]] = {
-    "melee":     {"windup": 90,  "strike": 55,  "recover": 130},
-    "slam":      {"windup": 240, "strike": 110, "recover": 260},
-    "spin":      {"windup": 160, "strike": 200, "recover": 200},
-    "dash":      {"windup": 130, "strike": 90,  "recover": 170},
-    "bolt":      {"windup": 150, "strike": 70,  "recover": 160},
-    "multishot": {"windup": 170, "strike": 110, "recover": 180},
-    "aura":      {"windup": 200, "strike": 160, "recover": 220},
-    "beam":      {"windup": 180, "strike": 260, "recover": 220},
-    "kick":      {"windup": 120, "strike": 70,  "recover": 180},
-}
-_DEFAULT_PHASE_DUR = {"windup": 120, "strike": 70, "recover": 160}
+# Aligned to the engine's real attack-phase durations so each pose
+# interpolates across every frame of the phase:
+#   ATTACK_WINDUP_MS = 200, ATTACK_ACTIVE_MS = 90, ATTACK_RECOVER_MS = 250
+_ENGINE_PHASE = {"windup": 200, "strike": 90, "recover": 250}
+_PHASE_DUR: Dict[str, Dict[str, int]] = {a: dict(_ENGINE_PHASE) for a in (
+    "melee", "slam", "spin", "dash", "bolt", "multishot", "aura", "beam", "kick")}
+_DEFAULT_PHASE_DUR = dict(_ENGINE_PHASE)
 
 
 # {archetype: {"cocked": <end of windup>, "extended": <end of strike>}}
@@ -178,15 +173,15 @@ _DEFAULT_PHASE_DUR = {"windup": 120, "strike": 70, "recover": 160}
 ARCHETYPE_POSES: Dict[str, Dict[str, FigurePose]] = {
     "melee": {
         "cocked":   _fp(-18, (215, -95), (150, -45), (110, 20), (70, 24), 250),
-        "extended": _fp(24, (8, -4), (120, -30), (70, 16), (118, 22), 12),
+        "extended": _fp(24, (8, -4), (120, -30), (70, 16), (118, 22), 372),  # weapon_deg 372 (=12+360): lerp sweeps upward, not down through the below-ground zone
     },
     "slam": {
         "cocked":   _fp(-30, (255, -40), (285, -40), (104, 34), (70, 30), 280),
-        "extended": _fp(30, (40, -6), (95, -10), (84, 22), (96, 24), 55),
+        "extended": _fp(30, (40, -6), (95, -10), (84, 22), (96, 24), 415),  # weapon_deg 415 (=55+360): lerp sweeps upward through the upper arc
     },
     "spin": {
         "cocked":   _fp(0, (200, -10), (340, -10), (100, 18), (80, 18), 200),
-        "extended": _fp(0, (20, -8), (160, -8), (110, 20), (70, 20), 20),
+        "extended": _fp(0, (20, -8), (160, -8), (110, 20), (70, 20), 380),  # weapon_deg 380 (=20+360): lerp sweeps upward, not down
     },
     "dash": {
         "cocked":   _fp(-12, (210, -85), (150, -50), (70, 70), (60, 16), 240),
