@@ -13,7 +13,7 @@ def test_special_action_starts_attack_when_affordable():
     env.left.mp = env.left.mp_max
     # Make sure attack-interval gate is open
     env.left.last_attack_ms = -10_000
-    # Place opponent within ATTACK_GATE_RANGE so the attack isn't gated out
+    # Place opponent within SPECIAL_RANGE so the attack isn't gated out
     env.right.pos_x = env.left.pos_x + 80
     env._apply_action(env.left, env.right, 7)
     assert env.left.action_state == "attacking"
