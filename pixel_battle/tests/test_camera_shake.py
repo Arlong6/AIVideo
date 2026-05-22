@@ -19,7 +19,12 @@ def test_offset_within_magnitude_while_shaking():
 
 
 def test_offset_decays_toward_end_of_shake():
-    # The peak possible magnitude at frame 1 is smaller than at full strength.
-    early_peak = SHAKE_MAG * (SHAKE_FRAMES / SHAKE_FRAMES)
-    late_peak = SHAKE_MAG * (1 / SHAKE_FRAMES)
-    assert late_peak < early_peak
+    """The offset's bound shrinks as the shake runs out of frames."""
+    full_mag = int(SHAKE_MAG * (SHAKE_FRAMES / SHAKE_FRAMES))   # frame at full strength
+    last_mag = int(SHAKE_MAG * (1 / SHAKE_FRAMES))              # final frame
+    assert last_mag < full_mag
+    # The function's actual output on the last frame must respect the decayed bound.
+    for _ in range(40):
+        dx, dy = camera_shake_offset(1)
+        assert abs(dx) <= last_mag
+        assert abs(dy) <= last_mag

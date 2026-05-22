@@ -670,6 +670,8 @@ def _render_fight(recorder: FrameRecorder, model, env,
             oy = random.randint(-mag, mag)
             shaken = pygame.Surface((WIDTH, HEIGHT))
             shaken.fill(BG)
+            # A crit's camera_shake_offset may still be decaying when this fires for an
+            # ultimate; the brief visual overlap is acceptable.
             shaken.blit(surf, (ox, oy))
             recorder.write_frame(shaken)
             screen_shake_frames_left -= 1
