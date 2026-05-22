@@ -55,3 +55,5 @@ def test_bad_conditions_raise():
         compile_condition("dist>=notanumber")
     with pytest.raises(ConditionError):
         compile_condition("target_has:nonsense")
+    with pytest.raises(ConditionError):
+        compile_condition("unknownfield>=100")

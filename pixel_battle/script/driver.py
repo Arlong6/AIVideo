@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pixel_battle.script.conditions import ConditionContext
-from pixel_battle.script.loader import DO_VERBS, FightScript, Intent
+from pixel_battle.script.loader import DO_VERBS, FightScript
 
 # An intent that never satisfies its `until` is force-advanced after this long,
 # so a script can never hang.

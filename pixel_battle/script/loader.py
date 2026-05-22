@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
+import json
 
 import yaml
 
@@ -41,7 +42,6 @@ class FightScript:
 
 
 def _known_character_ids() -> set:
-    import json
     with open(DATA_PATH, encoding="utf-8") as f:
         return set(json.load(f).keys())
 

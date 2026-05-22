@@ -68,6 +68,7 @@ right_script:
     env = PixelBattleEnv(seed=1)
     driver = ScriptDriver(load_script_text(script))
     for _ in range(5):
-        left_act, _ = driver.decide(env.battle)
+        left_act, right_act = driver.decide(env.battle)
         env.battle.elapsed_ms += 16
     assert left_act == 0     # ran out of intents → idle
+    assert right_act == 0
