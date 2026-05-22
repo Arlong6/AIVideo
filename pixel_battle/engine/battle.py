@@ -9,6 +9,7 @@ from enum import Enum
 from typing import List, Optional
 
 from pixel_battle.engine.character import Character
+from pixel_battle.engine.effects import StatusEffect, ROOT, SLOW, TENACITY
 from pixel_battle.engine.rng import BattleRNG
 from pixel_battle.engine.skill import Skill, SkillType
 from pixel_battle.engine.physics import (
@@ -159,6 +160,10 @@ class Battle:
         self._update_stagger(self.left, dt_ms)
         self._update_stagger(self.right, dt_ms)
 
+        # Update status-effect timers
+        self._update_effects(self.left, dt_ms)
+        self._update_effects(self.right, dt_ms)
+
         if skip_ai:
             return
 
@@ -185,6 +190,14 @@ class Battle:
 
         if not char.on_ground:
             char.vel_y = apply_gravity(char.vel_y)
+
+        # Status effects: root pins the character; slow scales its movement.
+        if char.has_effect(ROOT):
+            char.vel_x = 0.0
+        else:
+            _slow = char.effect_of(SLOW)
+            if _slow is not None:
+                char.vel_x *= _slow.magnitude
 
         char.pos_x = clamp_x(char.pos_x + char.vel_x)
         char.pos_y += char.vel_y
@@ -227,6 +240,13 @@ class Battle:
             if char._stagger_remaining_ms <= 0:
                 char.action_state = "idle"
                 char._stagger_remaining_ms = 0
+
+    def _update_effects(self, char: Character, dt_ms: int) -> None:
+        """Decrement status-effect timers; drop expired effects."""
+        for effect in list(char.effects):
+            effect.remaining_ms -= dt_ms
+            if effect.is_expired():
+                char.effects.remove(effect)
 
     # ------------------------------------------------------------------ #
     # Attack phase state machine                                            #
