@@ -9,7 +9,7 @@ from enum import Enum
 from typing import List, Optional
 
 from pixel_battle.engine.character import Character
-from pixel_battle.engine.effects import StatusEffect, ROOT, SLOW, TENACITY
+from pixel_battle.engine.effects import StatusEffect, SkillApplies, ROOT, SLOW, TENACITY
 from pixel_battle.engine.rng import BattleRNG
 from pixel_battle.engine.skill import Skill, SkillType
 from pixel_battle.engine.physics import (
@@ -341,12 +341,7 @@ class Battle:
 
         # Apply opponent-targeted status effect from skill
         if skill.applies is not None and skill.applies.target == "opponent":
-            a = skill.applies
-            existing = defender.effect_of(a.effect)
-            if existing is not None:
-                defender.effects.remove(existing)   # refresh, don't stack
-            defender.effects.append(StatusEffect(
-                kind=a.effect, remaining_ms=a.duration_ms, magnitude=a.magnitude))
+            self._apply_effect(defender, skill.applies)
 
         # Punch recoil — attacker gets a small backward velocity reading as reaction force
         recoil_dir = -1 if attacker.pos_x < defender.pos_x else 1
@@ -454,6 +449,15 @@ class Battle:
     # Action helpers (also callable from tests)                             #
     # ------------------------------------------------------------------ #
 
+    def _apply_effect(self, char: Character, applies: SkillApplies) -> None:
+        """Attach a status effect to `char`, refreshing any existing one of the same kind."""
+        existing = char.effect_of(applies.effect)
+        if existing is not None:
+            char.effects.remove(existing)
+        char.effects.append(StatusEffect(
+            kind=applies.effect, remaining_ms=applies.duration_ms,
+            magnitude=applies.magnitude))
+
     def _start_walk(self, char: Character, direction: int) -> None:
         char.vel_x = direction * WALK_SPEED
         char.action_state = "walking"
@@ -479,6 +483,9 @@ class Battle:
             return  # already mid-attack
         skill = self._choose_attack_skill(char)
         char.attack_used_kind = skill
+        # Apply self-targeted status effect from skill (on cast)
+        if skill.applies is not None and skill.applies.target == "self":
+            self._apply_effect(char, skill.applies)
         # Set anim hint from skill_type for renderer
         if skill.skill_type is SkillType.BASIC:
             char.attack_anim_hint = "jab"
@@ -557,12 +564,7 @@ class Battle:
 
         # Apply self-targeted status effect from skill (on cast)
         if skill.applies is not None and skill.applies.target == "self":
-            a = skill.applies
-            existing = char.effect_of(a.effect)
-            if existing is not None:
-                char.effects.remove(existing)
-            char.effects.append(StatusEffect(
-                kind=a.effect, remaining_ms=a.duration_ms, magnitude=a.magnitude))
+            self._apply_effect(char, skill.applies)
 
         if skill.skill_type in (SkillType.COOLDOWN, SkillType.SPECIAL):
             self._emit(

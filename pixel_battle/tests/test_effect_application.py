@@ -2,6 +2,7 @@
 import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
+from pixel_battle.engine.battle import STAGGER_MS
 from pixel_battle.rl.env import PixelBattleEnv
 from pixel_battle.engine.effects import StatusEffect, ROOT, TENACITY, SkillApplies
 from pixel_battle.engine.skill import SkillType
@@ -32,9 +33,10 @@ def test_tenacity_reduces_applied_stagger():
     dfn.effects.append(StatusEffect(kind=TENACITY, remaining_ms=5000,
                                     magnitude=0.5))
     b._resolve_attack_hit(atk, dfn)
-    from pixel_battle.engine.battle import STAGGER_MS
     # Stagger applied to a tenacious defender is halved.
-    assert dfn._stagger_remaining_ms <= STAGGER_MS * 0.5 + 1
+    # brick_phone's basic stagger_ms == 0, so engine uses STAGGER_MS (300).
+    # tenacity magnitude 0.5 → int(300 * 0.5) == 150.
+    assert dfn._stagger_remaining_ms == int(STAGGER_MS * 0.5)
 
 
 def test_self_buff_applies_to_caster_on_cast():

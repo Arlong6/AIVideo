@@ -35,6 +35,16 @@ def test_shield_overflow_spills_to_hp_and_shield_drops():
     assert c.has_effect(SHIELD) is False     # depleted shield removed
 
 
+def test_shield_exact_match_depletes_fully():
+    """Shield magnitude exactly equal to incoming damage: HP untouched, shield removed."""
+    c = Character.load("garen")
+    c.hp = 100
+    c.effects.append(StatusEffect(kind=SHIELD, remaining_ms=5000, magnitude=10))
+    c.take_damage(10)
+    assert c.hp == 100                        # fully absorbed — HP untouched
+    assert c.has_effect(SHIELD) is False      # shield depleted to exactly 0, then removed
+
+
 def test_reset_physics_clears_effects():
     c = Character.load("garen")
     c.effects.append(StatusEffect(kind=ROOT, remaining_ms=1000))

@@ -6,7 +6,7 @@ with mutable runtime state (hp, mp, current state).
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from pixel_battle.engine.effects import StatusEffect, SHIELD
 from pixel_battle.engine.skill import Skill, SkillType
@@ -45,7 +45,7 @@ class Character:
     skill_cd_ready_at: Dict[str, int] = field(default_factory=dict)
     retreat_until_ms: int = 0
     windup_stun_until_ms: int = 0
-    effects: List["StatusEffect"] = field(default_factory=list)
+    effects: List[StatusEffect] = field(default_factory=list)
 
     @classmethod
     def load(cls, char_id: str) -> "Character":
@@ -90,7 +90,7 @@ class Character:
     def skills_of_type(self, t: SkillType) -> List[Skill]:
         return [s for s in self.skills if s.skill_type is t]
 
-    def effect_of(self, kind: str):
+    def effect_of(self, kind: str) -> Optional[StatusEffect]:
         for e in self.effects:
             if e.kind == kind:
                 return e
