@@ -322,6 +322,9 @@ class Battle:
 
         # Apply stagger + knockback to defender (skill may override default)
         stagger_ms = skill.stagger_ms if skill.stagger_ms > 0 else STAGGER_MS
+        tenacity = defender.effect_of(TENACITY)
+        if tenacity is not None:
+            stagger_ms = int(stagger_ms * tenacity.magnitude)
         defender.action_state = "hit_stagger"
         defender._stagger_remaining_ms = stagger_ms
         knockback_dir = 1 if attacker.pos_x < defender.pos_x else -1
@@ -335,6 +338,15 @@ class Battle:
 
         attacker.last_attack_ms = self.elapsed_ms
         self._hitstop_remaining = _hitstop_for(is_crit)
+
+        # Apply opponent-targeted status effect from skill
+        if skill.applies is not None and skill.applies.target == "opponent":
+            a = skill.applies
+            existing = defender.effect_of(a.effect)
+            if existing is not None:
+                defender.effects.remove(existing)   # refresh, don't stack
+            defender.effects.append(StatusEffect(
+                kind=a.effect, remaining_ms=a.duration_ms, magnitude=a.magnitude))
 
         # Punch recoil — attacker gets a small backward velocity reading as reaction force
         recoil_dir = -1 if attacker.pos_x < defender.pos_x else 1
@@ -542,6 +554,15 @@ class Battle:
         char.attack_phase_t = 0
         char.action_state = "attacking"
         char.vel_x = 0.0
+
+        # Apply self-targeted status effect from skill (on cast)
+        if skill.applies is not None and skill.applies.target == "self":
+            a = skill.applies
+            existing = char.effect_of(a.effect)
+            if existing is not None:
+                char.effects.remove(existing)
+            char.effects.append(StatusEffect(
+                kind=a.effect, remaining_ms=a.duration_ms, magnitude=a.magnitude))
 
         if skill.skill_type in (SkillType.COOLDOWN, SkillType.SPECIAL):
             self._emit(
