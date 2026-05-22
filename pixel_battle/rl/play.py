@@ -399,7 +399,17 @@ def _draw_ko_result(surf: pygame.Surface, winner_char,
 
 # ── Fight renderer ────────────────────────────────────────────────────────────
 
-def _render_fight(recorder: FrameRecorder, model, env,
+def _rl_action_source(model):
+    """Adapt a PPO model to the (env, obs) -> (left_act, right_act) interface."""
+    def _source(env, obs):
+        obs_left, obs_right = obs
+        left_act, _ = model.predict(obs_left, deterministic=False)
+        right_act, _ = model.predict(obs_right, deterministic=False)
+        return int(left_act), int(right_act)
+    return _source
+
+
+def _render_fight(recorder: FrameRecorder, action_source, env,
                    max_seconds: float, end_hold_frames: int = 0) -> dict:
     """Run the fight, writing frames to `recorder`. Returns:
         {n_frames, events, event_video_ms, winner, terminated}
@@ -441,8 +451,7 @@ def _render_fight(recorder: FrameRecorder, model, env,
     n_written = 0
 
     for frame in range(total_frames):
-        left_act, _ = model.predict(obs_left, deterministic=False)
-        right_act, _ = model.predict(obs_right, deterministic=False)
+        left_act, right_act = action_source(env, (obs_left, obs_right))
 
         prev_ev_n = len(env.battle.events)
         (obs_left, obs_right), _, terminated, truncated, _ = env.step(
@@ -736,7 +745,7 @@ def run_one_match(model, seed: int, out_dir: Path,
     recorder.start()
     mixer = AudioMixer(sample_rate=48000)
 
-    fight = _render_fight(recorder, model, env, max_seconds, end_hold_frames=120)
+    fight = _render_fight(recorder, _rl_action_source(model), env, max_seconds, end_hold_frames=120)
     recorder.stop()
 
     hit_count = sum(1 for ev in fight["events"] if ev.type.value == "hit")
@@ -793,7 +802,7 @@ def run_full_episode(model, out_dir: Path, left_id: str, right_id: str,
         recorder.write_frame(surf)
 
     # ── FIGHT ────────────────────────────────────────────────────────────────
-    fight = _render_fight(recorder, model, env, max_seconds, end_hold_frames=0)
+    fight = _render_fight(recorder, _rl_action_source(model), env, max_seconds, end_hold_frames=0)
 
     # ── RESULT ───────────────────────────────────────────────────────────────
     winner_side = fight["winner"]
