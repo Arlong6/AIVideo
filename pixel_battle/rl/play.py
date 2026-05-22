@@ -418,6 +418,8 @@ def _render_fight(recorder: FrameRecorder, model, env,
     frame = 0
 
     projectiles = ProjectileLayer()
+    # Old full-screen shake — now used only for "beam" windup and "ultimate_start".
+    # Crits and hits use the newer camera_shake_offset system (world-space, HUD stable).
     screen_shake_frames_left = 0
     screen_shake_mag = 0
     banner_text = None
@@ -460,8 +462,6 @@ def _render_fight(recorder: FrameRecorder, model, env,
                     int(defender.pos_x), int(defender.pos_y) - 90,
                     burst_color, burst_size, 0,
                 ])
-                screen_shake_frames_left = max(screen_shake_frames_left, 8)
-                screen_shake_mag = max(screen_shake_mag, 7 if is_crit else 4)
                 if defender is env.left:
                     left_flash_frames = max(left_flash_frames, 4)
                 else:
@@ -478,8 +478,6 @@ def _render_fight(recorder: FrameRecorder, model, env,
                     int(defender.pos_x), int(defender.pos_y) - 90,
                     burst_color, 0, 14, 230,
                 ])
-                screen_shake_frames_left = max(screen_shake_frames_left, 10)
-                screen_shake_mag = max(screen_shake_mag, 8)
                 if defender is env.left:
                     left_flash_frames = max(left_flash_frames, 5)
                 else:
