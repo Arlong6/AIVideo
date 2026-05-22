@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import math
 import os
+import random
 from pathlib import Path
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -48,6 +49,22 @@ CAM_VIEW_W = int(WIDTH / CAM_ZOOM)            # ~331 — horizontal world span s
 CAM_VIEW_H = int(HEIGHT / CAM_ZOOM)           # ~589 — vertical world span shown
 CAM_VIEW_Y = GROUND_Y - int(CAM_VIEW_H * 0.82)  # frame the floor ~82% down
 CAM_FOLLOW = 0.12                              # lerp factor for x tracking
+
+SHAKE_FRAMES = 8           # frames a crit screen-shake lasts
+SHAKE_MAG = 14             # peak shake offset, world px
+
+
+def camera_shake_offset(frames_remaining: int) -> tuple:
+    """Decaying random camera offset for a crit screen-shake.
+
+    Returns (0, 0) when not shaking; otherwise a random (dx, dy) whose
+    magnitude decays linearly as `frames_remaining` counts down.
+    """
+    if frames_remaining <= 0:
+        return (0, 0)
+    mag = int(SHAKE_MAG * (frames_remaining / SHAKE_FRAMES))
+    return (random.randint(-mag, mag), random.randint(-mag, mag))
+
 
 INTRO_FRAMES = 108      # 1.8s VS intro
 RESULT_FRAMES = 180     # 3.0s K.O. + winner card
@@ -389,8 +406,6 @@ def _render_fight(recorder: FrameRecorder, model, env,
     `event_video_ms` maps event id -> ms relative to the FIRST fight frame.
     `winner` is 'left'/'right' (KO, or higher HP on timeout) or None on a draw.
     """
-    import random
-
     (obs_left, obs_right), _ = env.reset()
     lcol = _char_color(env.left)
     rcol = _char_color(env.right)
@@ -420,6 +435,7 @@ def _render_fight(recorder: FrameRecorder, model, env,
     prev_on_ground_left = env.left.on_ground
     prev_on_ground_right = env.right.on_ground
     cam_x = (env.left.pos_x + env.right.pos_x) / 2.0
+    shake_frames = 0
     n_written = 0
 
     for frame in range(total_frames):
@@ -468,6 +484,7 @@ def _render_fight(recorder: FrameRecorder, model, env,
                     left_flash_frames = max(left_flash_frames, 5)
                 else:
                     right_flash_frames = max(right_flash_frames, 5)
+                shake_frames = SHAKE_FRAMES
             elif et == "attack_windup":
                 vfx = (ev.extra or {}).get("vfx", "melee")
                 actor_obj = env.left if ev.actor == env.left.id else env.right
@@ -625,11 +642,14 @@ def _render_fight(recorder: FrameRecorder, model, env,
         # Camera — follow midpoint, crop + upscale
         mid_x = (env.left.pos_x + env.right.pos_x) / 2.0
         cam_x += (mid_x - cam_x) * CAM_FOLLOW
-        view_x = int(cam_x - CAM_VIEW_W / 2)
+        sx, sy = camera_shake_offset(shake_frames)
+        view_x = int(cam_x - CAM_VIEW_W / 2) + sx
         view_x = max(0, min(WIDTH - CAM_VIEW_W, view_x))
-        view_y = max(0, min(HEIGHT - CAM_VIEW_H, CAM_VIEW_Y))
+        view_y = max(0, min(HEIGHT - CAM_VIEW_H, CAM_VIEW_Y + sy))
         sub = world.subsurface((view_x, view_y, CAM_VIEW_W, CAM_VIEW_H))
         pygame.transform.scale(sub, (WIDTH, HEIGHT), surf)
+        if shake_frames > 0:
+            shake_frames -= 1
 
         # Screen-space overlays
         if flash_frames_left > 0:
