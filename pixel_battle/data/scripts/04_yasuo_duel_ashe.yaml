@@ -1,28 +1,29 @@
 # pixel_battle/data/scripts/04_yasuo_duel_ashe.yaml
-# Yasuo closes on Ashe with dashes (sweeping_blade), trades, then
-# makes a comeback when his HP is low with Last Breath.
+# Yasuo closes on Ashe with basics + cd then dashes in (sweeping_blade),
+# trades through the mid-fight, then makes a comeback with Last Breath.
 name: "Yasuo dashes down Ashe"
 left: yasuo
 right: ashe
 left_script:
-  - {do: advance,           until: "dist<=150"}
-  - {do: "attack:special",  until: skill_done}   # sweeping_blade dash-close
+  - {do: advance,           until: "dist<=130"}
   - {do: "attack:basic",    until: skill_done}
-  - {do: "attack:cd",       until: skill_done}   # steel_tempest
+  - {do: "attack:cd",       until: skill_done}   # steel_tempest — free, ready at start
   - {do: advance,           until: "dist<=120"}
   - {do: "attack:basic",    until: skill_done}
-  - {do: "attack:special",  until: skill_done}   # gathering_storm
+  - {do: "attack:special",  until: skill_done}   # cast first affordable special (sweeping_blade dash when ready)
   - {do: advance,           until: "dist<=110"}
   - {do: "attack:basic",    until: skill_done}
+  - {do: "attack:special",  until: skill_done}   # cast first affordable special
   - {do: "attack:ultimate", until: skill_done}   # last_breath comeback
 right_script:
   - {do: retreat,           until: "dist>=230"}
   - {do: "attack:cd",       until: skill_done}   # volley — ranged harassment
+  - {do: "attack:basic",    until: skill_done}   # land a hit to build MP before first special
   - {do: retreat,           until: "dist>=225"}
-  - {do: "attack:special",  until: skill_done}   # hawkshot
+  - {do: "attack:special",  until: skill_done}   # cast first affordable special
   - {do: retreat,           until: "dist>=230"}
   - {do: "attack:cd",       until: skill_done}   # volley
   - {do: "attack:basic",    until: skill_done}
   - {do: retreat,           until: "dist>=220"}
-  - {do: "attack:special",  until: skill_done}   # ranger_focus
+  - {do: "attack:special",  until: skill_done}   # cast first affordable special
   - {do: "attack:ultimate", until: skill_done}   # enchanted_crystal_arrow

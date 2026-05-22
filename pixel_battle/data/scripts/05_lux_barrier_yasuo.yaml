@@ -1,28 +1,28 @@
 # pixel_battle/data/scripts/05_lux_barrier_yasuo.yaml
-# Lux casts prismatic_barrier (shield) to survive Yasuo's burst,
+# Lux builds a shield (prismatic_barrier) after surviving Yasuo's opening rush,
 # then retaliates with light_binding (root) and wins with Final Spark.
 name: "Lux barriers Yasuo's burst then roots and wins"
 left: lux
 right: yasuo
 left_script:
-  - {do: "attack:special",  until: skill_done}   # prismatic_barrier — shield up
   - {do: retreat,           until: "dist>=230"}
-  - {do: "attack:cd",       until: skill_done}   # light_binding — root Yasuo
-  - {do: "attack:special",  until: skill_done}   # lucent_singularity
+  - {do: "attack:cd",       until: skill_done}   # light_binding — root Yasuo, free at start
+  - {do: "attack:basic",    until: skill_done}   # build MP before barrier
+  - {do: "attack:special",  until: skill_done}   # cast first affordable special (prismatic_barrier shield once MP >= 20)
   - {do: retreat,           until: "dist>=225"}
-  - {do: "attack:basic",    until: skill_done}
+  - {do: "attack:special",  until: skill_done}   # cast first affordable special
   - {do: "attack:cd",       until: skill_done}   # light_binding again
   - {do: retreat,           until: "dist>=235"}
-  - {do: "attack:special",  until: skill_done}
+  - {do: "attack:basic",    until: skill_done}
   - {do: "attack:ultimate", until: skill_done}   # final_spark — finish
 right_script:
-  - {do: advance,           until: "dist<=140"}
-  - {do: "attack:special",  until: skill_done}   # sweeping_blade dash
+  - {do: advance,           until: "dist<=130"}
   - {do: "attack:basic",    until: skill_done}
-  - {do: "attack:cd",       until: skill_done}   # steel_tempest
+  - {do: "attack:cd",       until: skill_done}   # steel_tempest — free, ready at start
   - {do: advance,           until: "dist<=120"}
   - {do: "attack:basic",    until: skill_done}
-  - {do: "attack:special",  until: skill_done}   # gathering_storm
+  - {do: "attack:special",  until: skill_done}   # cast first affordable special (sweeping_blade dash once MP ready)
   - {do: advance,           until: "dist<=110"}
   - {do: "attack:basic",    until: skill_done}
+  - {do: "attack:special",  until: skill_done}   # cast first affordable special
   - {do: "attack:ultimate", until: skill_done}   # last_breath

@@ -16,11 +16,11 @@ left_script:
 right_script:
   - {do: retreat,          until: "dist>=235"}
   - {do: "attack:cd",      until: skill_done}     # light_binding — roots Garen
-  - {do: "attack:special", until: skill_done}     # lucent_singularity
+  - {do: "attack:basic",   until: skill_done}     # land a hit to build MP before first special
+  - {do: "attack:special", until: skill_done}     # cast first affordable special
   - {do: retreat,          until: "dist>=220"}
-  - {do: "attack:special", until: skill_done}
+  - {do: "attack:special", until: skill_done}     # cast first affordable special
   - {do: retreat,          until: "dist>=235"}
   - {do: "attack:cd",      until: skill_done}
-  - {do: "attack:special", until: skill_done}
-  - {do: idle,             until: "time>=400"}
+  - {do: "attack:special", until: skill_done}     # cast first affordable special
   - {do: "attack:basic",   until: skill_done}

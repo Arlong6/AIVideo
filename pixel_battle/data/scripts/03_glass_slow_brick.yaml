@@ -7,12 +7,12 @@ right: brick_phone
 left_script:
   - {do: retreat,           until: "dist>=210"}
   - {do: "attack:cd",       until: skill_done}   # shard_scatter — slow opponent
+  - {do: advance,           until: "dist<=180"}
+  - {do: "attack:basic",    until: skill_done}   # land a hit to build MP before first special
   - {do: retreat,           until: "dist>=220"}
-  - {do: "attack:special",  until: skill_done}   # ringtone_shock
+  - {do: "attack:special",  until: skill_done}   # cast first affordable special
   - {do: retreat,           until: "dist>=210"}
   - {do: "attack:cd",       until: skill_done}   # shard_scatter again
-  - {do: advance,           until: "dist<=140"}
-  - {do: "attack:basic",    until: skill_done}
   - {do: retreat,           until: "dist>=215"}
   - {do: "attack:ultimate", until: skill_done}   # force_update
 right_script:
@@ -23,6 +23,6 @@ right_script:
   - {do: advance,           until: "dist<=110"}
   - {do: "attack:basic",    until: skill_done}
   - {do: advance,           until: "dist<=110"}
-  - {do: "attack:special",  until: skill_done}   # snake_strike
+  - {do: "attack:special",  until: skill_done}   # cast first affordable special
   - {do: advance,           until: "dist<=110"}
   - {do: "attack:ultimate", until: skill_done}   # indestructible_throw

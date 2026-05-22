@@ -12,6 +12,10 @@ import math
 from dataclasses import dataclass
 from typing import Dict, Tuple
 
+from pixel_battle.engine.battle import (
+    ATTACK_WINDUP_MS, ATTACK_ACTIVE_MS, ATTACK_RECOVER_MS,
+)
+
 Vec = Tuple[float, float]
 
 # Joint flex clamps (degrees) — guard against degenerate/hyperextended limbs.
@@ -159,10 +163,9 @@ def _fp(torso, fa, ba, fl, bl, wpn) -> FigurePose:
 
 # Renderer-side phase durations (ms) used only to pace pose interpolation.
 # They do NOT affect gameplay timing.
-# Aligned to the engine's real attack-phase durations so each pose
-# interpolates across every frame of the phase:
-#   ATTACK_WINDUP_MS = 200, ATTACK_ACTIVE_MS = 90, ATTACK_RECOVER_MS = 250
-_ENGINE_PHASE = {"windup": 200, "strike": 90, "recover": 250}
+# Imported from the engine so this dict stays in sync automatically.
+_ENGINE_PHASE = {"windup": ATTACK_WINDUP_MS,
+                 "strike": ATTACK_ACTIVE_MS, "recover": ATTACK_RECOVER_MS}
 _PHASE_DUR: Dict[str, Dict[str, int]] = {a: dict(_ENGINE_PHASE) for a in (
     "melee", "slam", "spin", "dash", "bolt", "multishot", "aura", "beam", "kick")}
 _DEFAULT_PHASE_DUR = dict(_ENGINE_PHASE)
