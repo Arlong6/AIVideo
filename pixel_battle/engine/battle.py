@@ -60,6 +60,12 @@ def _hitstop_for(is_crit: bool) -> int:
     return HITSTOP_MS_HEAVY if is_crit else HITSTOP_MS
 
 
+def _hit_causes_hitstop(is_crit: bool, skill_type: SkillType) -> bool:
+    """Hitstop fires only on a crit or a non-basic skill hit. Plain basic
+    hits do not freeze the sim, so rapid basic trading renders smoothly."""
+    return is_crit or skill_type is not SkillType.BASIC
+
+
 class BattleState(Enum):
     STARTING = "starting"
     FIGHTING = "fighting"
@@ -337,7 +343,8 @@ class Battle:
             defender.attack_phase_t = 0
 
         attacker.last_attack_ms = self.elapsed_ms
-        self._hitstop_remaining = _hitstop_for(is_crit)
+        if _hit_causes_hitstop(is_crit, skill.skill_type):
+            self._hitstop_remaining = _hitstop_for(is_crit)
 
         # Apply opponent-targeted status effect from skill
         if skill.applies is not None and skill.applies.target == "opponent":
