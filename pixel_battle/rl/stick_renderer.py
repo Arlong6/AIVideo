@@ -222,7 +222,7 @@ def draw_effect_indicators(surf: pygame.Surface, char) -> None:
         pygame.draw.circle(surf, (0, 0, 0), (ex, top_y), 6, 2)
 
 
-def spawn_flash_puff(surf, x: int, ground_y: int, color) -> None:
+def spawn_flash_puff(surf: pygame.Surface, x: int, ground_y: int, color) -> None:
     """A quick blink mark — a bright vertical streak plus a few outward
     sparks — drawn at a Flash origin or destination."""
     x, ground_y = int(x), int(ground_y)

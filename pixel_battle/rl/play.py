@@ -579,7 +579,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                                        duration_ms=240)
             elif et == "flash":
                 fx = ev.extra or {}
-                ground_y = env.left.pos_y      # both fighters share the floor
+                ground_y = GROUND_Y
                 actor_col = lcol if ev.actor == env.left.id else rcol
                 spawn_flash_puff(world, fx.get("from_x", 0), ground_y, actor_col)
                 spawn_flash_puff(world, fx.get("to_x", 0), ground_y, actor_col)
