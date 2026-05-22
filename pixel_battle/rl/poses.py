@@ -120,10 +120,10 @@ JUMP_POSE = FigurePose(
     weapon_deg=40.0)
 
 HIT_POSE = FigurePose(
-    torso_lean=-22.0,
-    front_arm=(250.0, -60.0), back_arm=(290.0, -60.0),
-    front_leg=(110.0, 50.0), back_leg=(70.0, 40.0),
-    weapon_deg=300.0)
+    torso_lean=-38.0,
+    front_arm=(235.0, -80.0), back_arm=(305.0, -80.0),
+    front_leg=(120.0, 70.0), back_leg=(62.0, 58.0),
+    weapon_deg=295.0)
 
 
 @dataclass
