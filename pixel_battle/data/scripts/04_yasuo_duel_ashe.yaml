@@ -1,0 +1,28 @@
+# pixel_battle/data/scripts/04_yasuo_duel_ashe.yaml
+# Yasuo closes on Ashe with dashes (sweeping_blade), trades, then
+# makes a comeback when his HP is low with Last Breath.
+name: "Yasuo dashes down Ashe"
+left: yasuo
+right: ashe
+left_script:
+  - {do: advance,           until: "dist<=150"}
+  - {do: "attack:special",  until: skill_done}   # sweeping_blade dash-close
+  - {do: "attack:basic",    until: skill_done}
+  - {do: "attack:cd",       until: skill_done}   # steel_tempest
+  - {do: advance,           until: "dist<=120"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: "attack:special",  until: skill_done}   # gathering_storm
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: "attack:ultimate", until: skill_done}   # last_breath comeback
+right_script:
+  - {do: retreat,           until: "dist>=230"}
+  - {do: "attack:cd",       until: skill_done}   # volley — ranged harassment
+  - {do: retreat,           until: "dist>=225"}
+  - {do: "attack:special",  until: skill_done}   # hawkshot
+  - {do: retreat,           until: "dist>=230"}
+  - {do: "attack:cd",       until: skill_done}   # volley
+  - {do: "attack:basic",    until: skill_done}
+  - {do: retreat,           until: "dist>=220"}
+  - {do: "attack:special",  until: skill_done}   # ranger_focus
+  - {do: "attack:ultimate", until: skill_done}   # enchanted_crystal_arrow

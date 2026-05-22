@@ -1,0 +1,28 @@
+# pixel_battle/data/scripts/02_garen_rush_lux.yaml
+# Garen rushes down Lux, uses courage (tenacity) to power through CC,
+# then finishes with Demacian Justice.
+name: "Garen rushes down Lux"
+left: garen
+right: lux
+left_script:
+  - {do: advance,           until: "dist<=130"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: "attack:special",  until: skill_done}   # courage — tenacity self-buff
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:cd",       until: skill_done}   # decisive_strike
+  - {do: advance,           until: "dist<=120"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: "attack:ultimate", until: skill_done}   # demacian_justice
+right_script:
+  - {do: retreat,           until: "dist>=240"}
+  - {do: "attack:cd",       until: skill_done}   # light_binding — root attempt
+  - {do: retreat,           until: "dist>=230"}
+  - {do: "attack:special",  until: skill_done}   # lucent_singularity
+  - {do: retreat,           until: "dist>=235"}
+  - {do: "attack:cd",       until: skill_done}
+  - {do: "attack:special",  until: skill_done}
+  - {do: advance,           until: "dist<=120"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: "attack:ultimate", until: skill_done}   # final_spark

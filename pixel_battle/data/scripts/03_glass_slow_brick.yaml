@@ -1,0 +1,28 @@
+# pixel_battle/data/scripts/03_glass_slow_brick.yaml
+# Glass Slab uses shard_scatter (slow) to control Brick Phone,
+# then kites and chips away with ranged tools.
+name: "Glass Slab slows and kites Brick Phone"
+left: glass_slab
+right: brick_phone
+left_script:
+  - {do: retreat,           until: "dist>=210"}
+  - {do: "attack:cd",       until: skill_done}   # shard_scatter — slow opponent
+  - {do: retreat,           until: "dist>=220"}
+  - {do: "attack:special",  until: skill_done}   # ringtone_shock
+  - {do: retreat,           until: "dist>=210"}
+  - {do: "attack:cd",       until: skill_done}   # shard_scatter again
+  - {do: advance,           until: "dist<=140"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: retreat,           until: "dist>=215"}
+  - {do: "attack:ultimate", until: skill_done}   # force_update
+right_script:
+  - {do: advance,           until: "dist<=130"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: advance,           until: "dist<=120"}
+  - {do: "attack:cd",       until: skill_done}   # screw_dart
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:special",  until: skill_done}   # snake_strike
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:ultimate", until: skill_done}   # indestructible_throw

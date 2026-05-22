@@ -1,0 +1,26 @@
+# pixel_battle/data/scripts/01_lux_kite_garen.yaml
+name: "Lux kites and roots Garen"
+left: garen
+right: lux
+left_script:
+  - {do: advance,          until: "dist<=130"}
+  - {do: "attack:basic",   until: skill_done}
+  - {do: advance,          until: "dist<=130"}
+  - {do: "attack:basic",   until: skill_done}
+  - {do: advance,          until: "dist<=110"}
+  - {do: "attack:cd",      until: skill_done}
+  - {do: advance,          until: "dist<=110"}
+  - {do: "attack:ultimate", until: skill_done}
+  - {do: advance,          until: "dist<=120"}
+  - {do: "attack:basic",   until: skill_done}
+right_script:
+  - {do: retreat,          until: "dist>=235"}
+  - {do: "attack:cd",      until: skill_done}     # light_binding — roots Garen
+  - {do: "attack:special", until: skill_done}     # lucent_singularity
+  - {do: retreat,          until: "dist>=220"}
+  - {do: "attack:special", until: skill_done}
+  - {do: retreat,          until: "dist>=235"}
+  - {do: "attack:cd",      until: skill_done}
+  - {do: "attack:special", until: skill_done}
+  - {do: idle,             until: "time>=400"}
+  - {do: "attack:basic",   until: skill_done}
