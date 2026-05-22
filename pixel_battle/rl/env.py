@@ -13,6 +13,7 @@ from gymnasium import spaces
 from pixel_battle.engine.battle import Battle, BattleState
 from pixel_battle.engine.character import Character
 from pixel_battle.engine.rng import BattleRNG
+from pixel_battle.engine.physics import MELEE_RANGE, SPECIAL_RANGE
 
 
 TICK_MS = 16
@@ -32,9 +33,6 @@ ENGAGE_BONUS = 0.015         # per-step reward for being at fighting distance
 ENGAGE_RADIUS = 120          # px; how close counts as "engaged"
 KO_WIN_BONUS = 60.0          # terminal reward for landing the KO
 KO_LOSS_PENALTY = 50.0       # terminal penalty for being KO'd
-ATTACK_GATE_RANGE = 145      # px; attacks issued beyond this are a no-op
-                             # (slightly past SPECIAL_RANGE so connecting
-                             # attacks are allowed but cross-arena spam is not)
 # Reward design notes:
 # - APPROACH_WEIGHT shaping (potential-based, telescopes) pulls the fighters
 #   together from the spawn distance; ENGAGE_BONUS then keeps them in the
@@ -176,13 +174,11 @@ class PixelBattleEnv(gym.Env):
             return
         # Direction toward opponent (+1 if opp to my right, -1 if to my left)
         fwd = 1 if opp.pos_x > me.pos_x else -1
-        # Attack-range gate: starting an attack locks the character in an
-        # ~540ms "attacking" state during which _apply_action is a no-op,
-        # so an attack issued from out of range freezes the character in
-        # place mid-arena. Gating attacks to fire only when the opponent is
-        # within reach turns a far attack into a no-op — the agent stays
-        # free to keep walking in. (Ultimate is ungated; it always connects.)
-        in_attack_range = abs(me.pos_x - opp.pos_x) <= ATTACK_GATE_RANGE
+        # Per-skill attack gate: an attack issued out of the skill's reach is
+        # a no-op (no doomed whiff animation). Melee actions (basic, kick)
+        # gate at MELEE_RANGE; special and cd actions at SPECIAL_RANGE.
+        # (Ultimate is ungated — it always connects.)
+        dist = abs(me.pos_x - opp.pos_x)
         if action == 1:                          # back (away from opp)
             me.vel_x = -3.0 * fwd
             me.facing = fwd                       # still face opp while backpedaling
@@ -192,16 +188,16 @@ class PixelBattleEnv(gym.Env):
         elif action == 3 and me.on_ground:       # jump
             me.vel_y = -8.0
             me.on_ground = False
-        elif action == 4 and in_attack_range:    # basic attack
+        elif action == 4 and dist <= MELEE_RANGE:      # basic attack
             self.battle._start_attack_with_kind(me, opp, "basic")
-        elif action == 5 and in_attack_range:    # cd skill
+        elif action == 5 and dist <= SPECIAL_RANGE:    # cd skill
             self.battle._start_attack_with_kind(me, opp, "cooldown")
         elif action == 6 and me.ultimate_ready():
             # cinematic_pause=False — no multi-second freeze in the RL render
             self.battle._trigger_ultimate(me, opp, cinematic_pause=False)
-        elif action == 7 and in_attack_range:    # special skill
+        elif action == 7 and dist <= SPECIAL_RANGE:    # special skill
             self.battle._start_attack_with_kind(me, opp, "special")
-        elif action == 8 and in_attack_range:    # kick
+        elif action == 8 and dist <= MELEE_RANGE:      # kick
             self.battle._start_attack_with_kind(me, opp, "kick")
 
 
