@@ -196,6 +196,32 @@ def spawn_impact_burst(surf: pygame.Surface, x: int, y: int,
     pygame.draw.circle(surf, (255, 255, 255), (x, y), max(2, size // 8))
 
 
+# Per-effect indicator colours.
+_EFFECT_COLORS = {
+    "root":     (150, 110, 60),    # shackle brown
+    "slow":     (90, 140, 235),    # cold blue
+    "shield":   (235, 225, 110),   # golden
+    "tenacity": (210, 120, 220),   # violet
+}
+
+
+def draw_effect_indicators(surf: pygame.Surface, char) -> None:
+    """Draw a small dot per active status effect in a row above the head."""
+    effects = getattr(char, "effects", None)
+    if not effects:
+        return
+    cx = int(char.pos_x)
+    top_y = int(char.pos_y) - 210          # above the figure
+    spacing = 16
+    n = len(effects)
+    start_x = cx - (n - 1) * spacing // 2
+    for i, effect in enumerate(effects):
+        color = _EFFECT_COLORS.get(effect.kind, (220, 220, 220))
+        ex = start_x + i * spacing
+        pygame.draw.circle(surf, color, (ex, top_y), 6)
+        pygame.draw.circle(surf, (0, 0, 0), (ex, top_y), 6, 2)
+
+
 def spawn_landing_dust(surf: pygame.Surface, x: int, ground_y: int,
                         color: Tuple[int, int, int], intensity: float = 1.0) -> None:
     """Draw 4 small expanding ellipses near (x, ground_y) suggesting a dust puff.

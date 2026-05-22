@@ -19,6 +19,7 @@ from pixel_battle.rl.env import PixelBattleEnv  # noqa: E402
 from pixel_battle.engine.character import Character  # noqa: E402
 from pixel_battle.rl.stick_renderer import (  # noqa: E402
     draw_stick_figure,
+    draw_effect_indicators,
     ProjectileLayer,
     spawn_impact_burst,
     spawn_landing_dust,
@@ -596,6 +597,8 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         right_flash_frames = max(0, right_flash_frames - 1)
         draw_stick_figure(world, env.left, left_color)
         draw_stick_figure(world, env.right, right_color)
+        draw_effect_indicators(world, env.left)
+        draw_effect_indicators(world, env.right)
 
         projectiles.draw(world, int(frame * FRAME_MS))
 
