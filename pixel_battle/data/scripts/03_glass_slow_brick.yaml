@@ -1,28 +1,64 @@
 # pixel_battle/data/scripts/03_glass_slow_brick.yaml
 # Glass Slab uses shard_scatter (slow) to control Brick Phone,
-# then kites and chips away with ranged tools.
+# then advances and chips away at close range.
+# Winner: Glass Slab (left). Finisher: keep pressing until Brick Phone KO'd.
 name: "Glass Slab slows and kites Brick Phone"
 left: glass_slab
 right: brick_phone
 left_script:
-  - {do: retreat,           until: "dist>=210"}
-  - {do: "attack:cd",       until: skill_done}   # shard_scatter — slow opponent
-  - {do: advance,           until: "dist<=180"}
-  - {do: "attack:basic",    until: skill_done}   # land a hit to build MP before first special
-  - {do: retreat,           until: "dist>=220"}
-  - {do: "attack:special",  until: skill_done}   # cast first affordable special
-  - {do: retreat,           until: "dist>=210"}
-  - {do: "attack:cd",       until: skill_done}   # shard_scatter again
-  - {do: retreat,           until: "dist>=215"}
-  - {do: "attack:ultimate", until: skill_done}   # force_update
+  # Opening — stay at special range and use cd/specials
+  - {do: advance,           until: "dist<=130"}
+  - {do: "attack:cd",       until: skill_done}    # shard_scatter — slow opponent
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}    # land a hit to build MP
+  - {do: advance,           until: "dist<=125"}
+  - {do: "attack:cd",       until: skill_done}    # shard_scatter — slow again
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: advance,           until: "dist<=125"}
+  - {do: "attack:special",  until: skill_done}    # ringtone_shock / ad_popup_spam
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:ultimate", until: skill_done}    # force_update (dmg=22) — burst
+  # --- Finisher: relentlessly close and hammer Brick Phone ---
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:cd",       until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:special",  until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:cd",       until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:cd",       until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
 right_script:
   - {do: advance,           until: "dist<=130"}
   - {do: "attack:basic",    until: skill_done}
   - {do: advance,           until: "dist<=120"}
-  - {do: "attack:cd",       until: skill_done}   # screw_dart
+  - {do: "attack:cd",       until: skill_done}    # screw_dart
   - {do: advance,           until: "dist<=110"}
   - {do: "attack:basic",    until: skill_done}
   - {do: advance,           until: "dist<=110"}
-  - {do: "attack:special",  until: skill_done}   # cast first affordable special
+  - {do: "attack:special",  until: skill_done}    # snake_strike / ringtone_blast
   - {do: advance,           until: "dist<=110"}
-  - {do: "attack:ultimate", until: skill_done}   # indestructible_throw
+  - {do: "attack:ultimate", until: skill_done}    # indestructible_throw (dmg=25)
+  - {do: idle,              until: "time>=3000"}  # exhausted — Glass Slab finishes it

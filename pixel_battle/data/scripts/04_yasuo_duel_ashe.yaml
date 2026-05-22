@@ -1,29 +1,43 @@
 # pixel_battle/data/scripts/04_yasuo_duel_ashe.yaml
 # Yasuo closes on Ashe with basics + cd then dashes in (sweeping_blade),
 # trades through the mid-fight, then makes a comeback with Last Breath.
+# Winner: Yasuo (left). Finisher: relentless melee until Ashe KO'd.
 name: "Yasuo dashes down Ashe"
 left: yasuo
 right: ashe
 left_script:
   - {do: advance,           until: "dist<=130"}
   - {do: "attack:basic",    until: skill_done}
-  - {do: "attack:cd",       until: skill_done}   # steel_tempest — free, ready at start
+  - {do: "attack:cd",       until: skill_done}    # steel_tempest — free, ready at start
   - {do: advance,           until: "dist<=120"}
   - {do: "attack:basic",    until: skill_done}
-  - {do: "attack:special",  until: skill_done}   # cast first affordable special (sweeping_blade dash when ready)
+  - {do: "attack:special",  until: skill_done}    # sweeping_blade dash
   - {do: advance,           until: "dist<=110"}
   - {do: "attack:basic",    until: skill_done}
-  - {do: "attack:special",  until: skill_done}   # cast first affordable special
-  - {do: "attack:ultimate", until: skill_done}   # last_breath comeback
+  - {do: "attack:special",  until: skill_done}    # gathering_storm
+  - {do: "attack:ultimate", until: skill_done}    # last_breath (dmg=30) — KO potential
+  # --- Finisher: close in and hammer until Ashe drops ---
+  - {do: advance,           until: "dist<=105"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=105"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=105"}
+  - {do: "attack:cd",       until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=105"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=105"}
+  - {do: "attack:special",  until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=105"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
 right_script:
   - {do: retreat,           until: "dist>=230"}
-  - {do: "attack:cd",       until: skill_done}   # volley — ranged harassment
-  - {do: "attack:basic",    until: skill_done}   # land a hit to build MP before first special
+  - {do: "attack:cd",       until: skill_done}    # volley — ranged harassment
+  - {do: "attack:basic",    until: skill_done}    # land a hit to build MP
   - {do: retreat,           until: "dist>=225"}
-  - {do: "attack:special",  until: skill_done}   # cast first affordable special
+  - {do: "attack:special",  until: skill_done}    # ranger_focus
   - {do: retreat,           until: "dist>=230"}
-  - {do: "attack:cd",       until: skill_done}   # volley
+  - {do: "attack:cd",       until: skill_done}    # volley
   - {do: "attack:basic",    until: skill_done}
   - {do: retreat,           until: "dist>=220"}
-  - {do: "attack:special",  until: skill_done}   # cast first affordable special
-  - {do: "attack:ultimate", until: skill_done}   # enchanted_crystal_arrow
+  - {do: "attack:special",  until: skill_done}    # hawkshot
+  - {do: idle,              until: "time>=3000"}  # Ashe retreats — Yasuo closes and finishes

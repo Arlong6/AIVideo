@@ -1,26 +1,61 @@
 # pixel_battle/data/scripts/01_lux_kite_garen.yaml
+# Lux kites back, roots Garen with light_binding, then chips away.
+# Winner: Lux (right). Finisher: advance tight and hammer until Garen KO'd.
 name: "Lux kites and roots Garen"
 left: garen
 right: lux
 left_script:
-  - {do: advance,          until: "dist<=130"}
-  - {do: "attack:basic",   until: skill_done}
-  - {do: advance,          until: "dist<=130"}
-  - {do: "attack:basic",   until: skill_done}
-  - {do: advance,          until: "dist<=110"}
-  - {do: "attack:cd",      until: skill_done}
-  - {do: advance,          until: "dist<=110"}
-  - {do: "attack:ultimate", until: skill_done}
-  - {do: advance,          until: "dist<=120"}
-  - {do: "attack:basic",   until: skill_done}
+  - {do: advance,           until: "dist<=130"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:cd",       until: skill_done}    # decisive_strike
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:ultimate", until: skill_done}    # demacian_justice (dmg=30)
+  - {do: advance,           until: "dist<=120"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: idle,              until: "time>=3500"}  # winded — Lux finishes him
 right_script:
-  - {do: retreat,          until: "dist>=235"}
-  - {do: "attack:cd",      until: skill_done}     # light_binding — roots Garen
-  - {do: "attack:basic",   until: skill_done}     # land a hit to build MP before first special
-  - {do: "attack:special", until: skill_done}     # cast first affordable special
-  - {do: retreat,          until: "dist>=220"}
-  - {do: "attack:special", until: skill_done}     # cast first affordable special
-  - {do: retreat,          until: "dist>=235"}
-  - {do: "attack:cd",      until: skill_done}
-  - {do: "attack:special", until: skill_done}     # cast first affordable special
-  - {do: "attack:basic",   until: skill_done}
+  # Stay at special range and use cd (light_binding, range special)
+  - {do: advance,           until: "dist<=130"}
+  - {do: "attack:cd",       until: skill_done}    # light_binding — roots Garen
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}    # build MP
+  - {do: advance,           until: "dist<=125"}
+  - {do: "attack:special",  until: skill_done}    # lucent_singularity (dmg=8)
+  - {do: advance,           until: "dist<=125"}
+  - {do: "attack:special",  until: skill_done}    # second special
+  - {do: advance,           until: "dist<=125"}
+  - {do: "attack:cd",       until: skill_done}    # light_binding again
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:ultimate", until: skill_done}    # final_spark (dmg=32)
+  # --- Finisher: tight approach + alternate cd/basic until Garen KO'd ---
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:cd",       until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:cd",       until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:special",  until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:cd",       until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:cd",       until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:cd",       until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=85"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
