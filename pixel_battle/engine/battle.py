@@ -22,6 +22,8 @@ INTRO_MS = 2000
 CRIT_CHANCE = 0.10
 CRIT_MULT = 2
 STAGGER_MS = 300
+HITSTOP_MS = 50          # freeze on a normal hit — the "impact" pause
+HITSTOP_MS_HEAVY = 100   # freeze on a crit — heavier hits read weightier
 SPECIAL_MP_GAIN_PER_HIT = 12
 MP_GAIN_ON_HIT_TAKEN = 6
 ULTIMATE_DURATION_MS = 6500  # gives cinematic ~6s + 0.5s buffer
@@ -50,6 +52,11 @@ RETREAT_DURATION_MS = 800           # max consecutive ms in retreat before force
 WALL_STUCK_PX = 30                  # distance from arena edge that counts as stuck
 DEFENSIVE_RETREAT_HP = 15           # HP below which defensive retreat may trigger
 MIN_CHAR_DISTANCE = 70              # px; min horizontal distance between character centers
+
+
+def _hitstop_for(is_crit: bool) -> int:
+    """Freeze duration (ms) for a hit — longer for a crit."""
+    return HITSTOP_MS_HEAVY if is_crit else HITSTOP_MS
 
 
 class BattleState(Enum):
@@ -87,6 +94,7 @@ class Battle:
         self.rng = rng
         self.state = BattleState.STARTING
         self.elapsed_ms = 0
+        self._hitstop_remaining = 0
         self.events: List[Event] = []
         self._ultimate_resume_at: Optional[int] = None
 
@@ -99,6 +107,9 @@ class Battle:
     # ------------------------------------------------------------------ #
 
     def tick_ms(self, dt_ms: int, skip_ai: bool = False) -> None:
+        if self._hitstop_remaining > 0:
+            self._hitstop_remaining -= dt_ms
+            return
         self.elapsed_ms += dt_ms
 
         if self.state is BattleState.STARTING:
@@ -303,6 +314,7 @@ class Battle:
             defender.attack_phase_t = 0
 
         attacker.last_attack_ms = self.elapsed_ms
+        self._hitstop_remaining = _hitstop_for(is_crit)
 
         # Punch recoil — attacker gets a small backward velocity reading as reaction force
         recoil_dir = -1 if attacker.pos_x < defender.pos_x else 1
