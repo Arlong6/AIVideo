@@ -65,8 +65,8 @@ def test_cd_skill_hit_sets_ready_at():
     assert a.skill_cd_ready_at["screw_dart"] >= bat.elapsed_ms
 
 
-def test_cd_skill_connects_at_special_range():
-    """CD skill has range='special' so it lands beyond MELEE_RANGE."""
+def test_cd_skill_connects_at_numeric_range():
+    """CD skill has a numeric range (250), so it lands in the zone past MELEE_RANGE (110)."""
     bat, a, b = _setup_close_battle(seed=99)
     cd_skill = a.skills_of_type(SkillType.COOLDOWN)[0]
     # Place attacker JUST beyond MELEE_RANGE but inside SPECIAL_RANGE

@@ -24,3 +24,8 @@ def test_effective_range_special_type_defaults_to_special():
 def test_effective_range_basic_defaults_to_melee():
     s = Skill.from_dict({"id": "x", "type": "basic", "anim": "a"})
     assert s.effective_range == MELEE_RANGE
+
+
+def test_effective_range_cooldown_no_range_defaults_to_melee():
+    s = Skill.from_dict({"id": "x", "type": "cooldown", "anim": "a"})
+    assert s.effective_range == MELEE_RANGE

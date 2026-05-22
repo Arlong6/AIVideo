@@ -50,14 +50,12 @@ def test_hitstop_fires_on_skill_hits():
 
 
 def test_special_hit_sets_hitstop_via_resolve():
-    from pixel_battle.rl.env import PixelBattleEnv
-    from pixel_battle.engine.skill import SkillType as _ST
     env = PixelBattleEnv(seed=1)
     b = env.battle
     atk, dfn = env.left, env.right
     atk.pos_x, dfn.pos_x = 240.0, 300.0
     atk.accuracy = 1.0
-    special = atk.skills_of_type(_ST.SPECIAL)[0]
+    special = atk.skills_of_type(SkillType.SPECIAL)[0]
     atk.attack_used_kind = special
     atk.mp = 100
     b._hitstop_remaining = 0
