@@ -1725,7 +1725,7 @@
         },
         {
           "date": "2026-05-22",
-          "views": 50,
+          "views": 51,
           "likes": 1,
           "comments": 1
         }
@@ -8691,7 +8691,7 @@
         },
         {
           "date": "2026-05-22",
-          "views": 19,
+          "views": 20,
           "likes": 0,
           "comments": 0
         }
@@ -8833,7 +8833,7 @@
         },
         {
           "date": "2026-05-22",
-          "views": 153,
+          "views": 154,
           "likes": 0,
           "comments": 2
         }
@@ -10045,7 +10045,7 @@
         },
         {
           "date": "2026-05-22",
-          "views": 57,
+          "views": 58,
           "likes": 0,
           "comments": 1
         }
@@ -10169,7 +10169,7 @@
         },
         {
           "date": "2026-05-22",
-          "views": 49,
+          "views": 50,
           "likes": 1,
           "comments": 0
         }
@@ -12416,7 +12416,7 @@
         },
         {
           "date": "2026-05-22",
-          "views": 34,
+          "views": 37,
           "likes": 0,
           "comments": 1
         }
@@ -12473,8 +12473,8 @@
         },
         {
           "date": "2026-05-22",
-          "views": 453,
-          "likes": 3,
+          "views": 537,
+          "likes": 6,
           "comments": 1
         }
       ]
@@ -12495,7 +12495,7 @@
         },
         {
           "date": "2026-05-22",
-          "views": 179,
+          "views": 188,
           "likes": 0,
           "comments": 1
         }
@@ -12517,6 +12517,22 @@
         }
       ],
       "series_tag": "default"
+    },
+    {
+      "video_id": "ZAOXmMuWFaQ",
+      "topic": "世田谷一家殺害事件",
+      "slot": 1,
+      "duration_s": 86,
+      "publish_at": "2026-05-23T10:00:00+08:00",
+      "uploaded_at": "2026-05-22T20:07:03.730343+00:00",
+      "stats": [
+        {
+          "date": "2026-05-22",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
