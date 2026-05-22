@@ -23,7 +23,7 @@
     "damage": [2, 3],
     "skills": [
       {"id": "swipe", "type": "basic", "anim": "attack", "vfx": "melee"},
-      {"id": "shard_scatter", "type": "cooldown", "cooldown_ms": 4000, "dmg": 4, "range": "special", "stagger_ms": 500, "anim": "shard_scatter", "vfx": "multishot"},
+      {"id": "shard_scatter", "type": "cooldown", "cooldown_ms": 4000, "dmg": 4, "range": "special", "stagger_ms": 500, "anim": "shard_scatter", "vfx": "multishot", "applies": {"effect": "slow", "duration_ms": 1800, "magnitude": 0.45, "target": "opponent"}},
       {"id": "ringtone_shock", "type": "special", "mp_cost": 30, "dmg": 7, "anim": "ringtone_shock", "vfx": "aura"},
       {"id": "ad_popup_spam", "type": "special", "mp_cost": 25, "dmg": 6, "anim": "ad_popup_spam", "vfx": "multishot"},
       {"id": "force_update", "type": "ultimate", "mp_cost": 100, "dmg": 22, "anim": "force_update", "vfx": "beam"}
@@ -40,7 +40,7 @@
       {"id": "strike", "type": "basic", "anim": "attack", "vfx": "melee"},
       {"id": "decisive_strike", "type": "cooldown", "cooldown_ms": 3500, "dmg": 6, "range": "melee", "anim": "decisive_strike", "vfx": "dash"},
       {"id": "judgment", "type": "special", "mp_cost": 28, "dmg": 9, "anim": "judgment", "vfx": "spin"},
-      {"id": "courage", "type": "special", "mp_cost": 22, "dmg": 5, "anim": "courage", "vfx": "aura"},
+      {"id": "courage", "type": "special", "mp_cost": 22, "dmg": 5, "anim": "courage", "vfx": "aura", "applies": {"effect": "tenacity", "duration_ms": 5000, "magnitude": 0.5, "target": "self"}},
       {"id": "demacian_justice", "type": "ultimate", "mp_cost": 100, "dmg": 30, "anim": "demacian_justice", "vfx": "slam"}
     ]
   },
@@ -53,9 +53,9 @@
     "damage": [2, 3],
     "skills": [
       {"id": "light_strike", "type": "basic", "anim": "attack", "vfx": "melee"},
-      {"id": "light_binding", "type": "cooldown", "cooldown_ms": 4000, "dmg": 5, "range": "special", "stagger_ms": 500, "anim": "light_binding", "vfx": "bolt"},
+      {"id": "light_binding", "type": "cooldown", "cooldown_ms": 4000, "dmg": 5, "range": "special", "stagger_ms": 500, "anim": "light_binding", "vfx": "bolt", "applies": {"effect": "root", "duration_ms": 1500, "magnitude": 1.0, "target": "opponent"}},
       {"id": "lucent_singularity", "type": "special", "mp_cost": 26, "dmg": 8, "anim": "lucent_singularity", "vfx": "bolt"},
-      {"id": "prismatic_barrier", "type": "special", "mp_cost": 20, "dmg": 4, "anim": "prismatic_barrier", "vfx": "aura"},
+      {"id": "prismatic_barrier", "type": "special", "mp_cost": 20, "dmg": 4, "anim": "prismatic_barrier", "vfx": "aura", "applies": {"effect": "shield", "duration_ms": 5000, "magnitude": 25, "target": "self"}},
       {"id": "final_spark", "type": "ultimate", "mp_cost": 100, "dmg": 32, "anim": "final_spark", "vfx": "beam"}
     ]
   },

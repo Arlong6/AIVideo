@@ -1,6 +1,9 @@
 """Skill data model. Skills are pure data loaded from characters.json."""
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
+
+from pixel_battle.engine.effects import SkillApplies
 
 
 class SkillType(Enum):
@@ -22,6 +25,7 @@ class Skill:
     stagger_ms: int = 0          # 0 = use engine default STAGGER_MS
     vfx: str = "melee"           # visual archetype the renderer draws:
                                  # melee/bolt/multishot/aura/dash/spin/slam/beam
+    applies: Optional[SkillApplies] = None
 
     @classmethod
     def from_dict(cls, d: dict) -> "Skill":
@@ -39,4 +43,6 @@ class Skill:
             range=d.get("range", "melee"),
             stagger_ms=d.get("stagger_ms", 0),
             vfx=d.get("vfx", "melee"),
+            applies=(SkillApplies.from_dict(d["applies"])
+                     if d.get("applies") else None),
         )
