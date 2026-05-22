@@ -4,15 +4,18 @@ import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 
-def test_rl_action_source_is_callable():
+def test_rl_action_source_returns_int_pair():
+    import numpy as np
     from pixel_battle.rl.play import _rl_action_source
 
     class _FakeModel:
         def predict(self, obs, deterministic=False):
-            return 0, None
+            return np.array(3), None
 
     src = _rl_action_source(_FakeModel())
-    assert callable(src)
+    left, right = src(None, (np.zeros(10), np.zeros(10)))
+    assert isinstance(left, int) and isinstance(right, int)
+    assert 0 <= left <= 8 and 0 <= right <= 8
 
 
 def test_script_action_source_drives_from_a_script():

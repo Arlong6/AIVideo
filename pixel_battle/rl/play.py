@@ -416,6 +416,8 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         {n_frames, events, event_video_ms, winner, terminated}
     `event_video_ms` maps event id -> ms relative to the FIRST fight frame.
     `winner` is 'left'/'right' (KO, or higher HP on timeout) or None on a draw.
+    `action_source` is a callable ``(env, obs) -> (left_act, right_act)``
+        returning the two characters' action integers for the tick.
     """
     (obs_left, obs_right), _ = env.reset()
     lcol = _char_color(env.left)
@@ -456,7 +458,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
 
         prev_ev_n = len(env.battle.events)
         (obs_left, obs_right), _, terminated, truncated, _ = env.step(
-            (int(left_act), int(right_act))
+            (left_act, right_act)
         )
 
         for ev in env.battle.events[prev_ev_n:]:

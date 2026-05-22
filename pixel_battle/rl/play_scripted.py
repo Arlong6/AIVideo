@@ -19,7 +19,7 @@ OUT_DIR = ROOT / "pixel_battle" / "output" / "scripted"
 
 def _script_action_source(driver: ScriptDriver):
     """Adapt a ScriptDriver to the (env, obs) -> (left_act, right_act) interface."""
-    def _source(env, obs):
+    def _source(env, _obs):
         return driver.decide(env.battle)
     return _source
 
@@ -37,9 +37,11 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
     raw = out_dir / f"{script_path.stem}_raw.mp4"
     recorder = FrameRecorder(str(raw), fps=FPS, width=WIDTH, height=HEIGHT)
     recorder.start()
-    _render_fight(recorder, _script_action_source(driver), env,
-                  max_seconds=60.0, end_hold_frames=120)
-    recorder.stop()
+    try:
+        _render_fight(recorder, _script_action_source(driver), env,
+                      max_seconds=60.0, end_hold_frames=120)
+    finally:
+        recorder.stop()
     print(f"Scripted render: {raw}")
     return raw
 
