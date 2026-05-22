@@ -43,9 +43,9 @@ BG = (18, 22, 40)
 # Camera — zoom + horizontal follow so fighters fill the vertical frame
 # instead of sitting tiny in the bottom strip. The world is drawn at native
 # size, then a sub-region is cropped + upscaled to the output resolution.
-CAM_ZOOM = 1.7
-CAM_VIEW_W = int(WIDTH / CAM_ZOOM)            # 282 — horizontal world span shown
-CAM_VIEW_H = int(HEIGHT / CAM_ZOOM)           # 502 — vertical world span shown
+CAM_ZOOM = 1.45            # was 1.7 — slight zoom-out: smaller fighters, more stage
+CAM_VIEW_W = int(WIDTH / CAM_ZOOM)            # ~331 — horizontal world span shown
+CAM_VIEW_H = int(HEIGHT / CAM_ZOOM)           # ~589 — vertical world span shown
 CAM_VIEW_Y = GROUND_Y - int(CAM_VIEW_H * 0.82)  # frame the floor ~82% down
 CAM_FOLLOW = 0.12                              # lerp factor for x tracking
 
