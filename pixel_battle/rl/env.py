@@ -10,10 +10,13 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 
-from pixel_battle.engine.battle import Battle, BattleState
+from pixel_battle.engine.battle import Battle, BattleState, EventType
 from pixel_battle.engine.character import Character
 from pixel_battle.engine.rng import BattleRNG
-from pixel_battle.engine.physics import MELEE_RANGE, SPECIAL_RANGE, MAX_ATTACK_RANGE
+from pixel_battle.engine.physics import (
+    MELEE_RANGE, SPECIAL_RANGE, MAX_ATTACK_RANGE,
+    FLASH_DISTANCE, FLASH_COOLDOWN_MS, clamp_x,
+)
 
 
 TICK_MS = 16
@@ -199,6 +202,24 @@ class PixelBattleEnv(gym.Env):
             self.battle._start_attack_with_kind(me, opp, "special")
         elif action == 8 and dist <= MELEE_RANGE:      # kick
             self.battle._start_attack_with_kind(me, opp, "kick")
+        elif action == 9:                        # flash toward opponent
+            self._do_flash(me, opp, toward=True)
+        elif action == 10:                       # flash away from opponent
+            self._do_flash(me, opp, toward=False)
+
+    def _do_flash(self, me: Character, opp: Character, toward: bool) -> None:
+        """Instant teleport (Flash). No-op while on cooldown."""
+        if self.battle.elapsed_ms < me.flash_ready_at_ms:
+            return
+        sign = 1 if opp.pos_x > me.pos_x else -1
+        if not toward:
+            sign = -sign
+        from_x = me.pos_x
+        me.pos_x = clamp_x(me.pos_x + sign * FLASH_DISTANCE)
+        me.facing = 1 if opp.pos_x > me.pos_x else -1
+        me.flash_ready_at_ms = self.battle.elapsed_ms + FLASH_COOLDOWN_MS
+        self.battle._emit(EventType.FLASH, actor=me.id,
+                          extra={"from_x": from_x, "to_x": me.pos_x})
 
 
 class SinglePerspectiveEnv(gym.Env):

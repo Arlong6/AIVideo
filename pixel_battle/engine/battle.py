@@ -82,6 +82,7 @@ class EventType(Enum):
     ULTIMATE_START = "ultimate_start"
     ULTIMATE_END = "ultimate_end"
     KO = "ko"
+    FLASH = "flash"
 
 
 @dataclass

@@ -30,6 +30,7 @@ class Character:
     mp: int = 0
     mp_max: int = MP_MAX
     last_attack_ms: int = -10000
+    flash_ready_at_ms: int = 0
     # Physics fields — safe defaults so existing tests don't break before reset_physics is called
     pos_x: float = 0.0
     pos_y: float = 0.0
@@ -80,6 +81,7 @@ class Character:
         self.attack_used_kind = None
         self.attack_anim_hint = "jab"
         self.last_attack_ms = -10000
+        self.flash_ready_at_ms = 0
         self.skill_cd_ready_at = {}
         self.retreat_until_ms = 0
         self.windup_stun_until_ms = 0

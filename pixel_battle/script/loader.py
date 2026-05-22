@@ -18,6 +18,7 @@ DO_VERBS = {
     "idle": 0, "retreat": 1, "advance": 2, "jump": 3,
     "attack:basic": 4, "attack:cd": 5, "attack:ultimate": 6,
     "attack:special": 7, "attack:kick": 8,
+    "flash:in": 9, "flash:back": 10,
 }
 
 
