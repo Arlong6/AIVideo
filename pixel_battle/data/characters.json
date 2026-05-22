@@ -8,8 +8,8 @@
     "damage": [2, 3],
     "skills": [
       {"id": "headbutt", "type": "basic", "anim": "attack", "vfx": "melee"},
-      {"id": "screw_dart", "type": "cooldown", "cooldown_ms": 4000, "dmg": 5, "range": "special", "anim": "screw_dart", "vfx": "bolt"},
-      {"id": "snake_strike", "type": "special", "mp_cost": 30, "dmg": 8, "anim": "snake_strike", "vfx": "bolt"},
+      {"id": "screw_dart", "type": "cooldown", "cooldown_ms": 4000, "dmg": 5, "range": 250, "anim": "screw_dart", "vfx": "bolt"},
+      {"id": "snake_strike", "type": "special", "mp_cost": 30, "dmg": 8, "range": 240, "anim": "snake_strike", "vfx": "bolt"},
       {"id": "ringtone_blast", "type": "special", "mp_cost": 25, "dmg": 6, "anim": "ringtone_blast", "vfx": "aura"},
       {"id": "indestructible_throw", "type": "ultimate", "mp_cost": 100, "dmg": 25, "anim": "indestructible_throw", "vfx": "slam"}
     ]
@@ -23,10 +23,10 @@
     "damage": [2, 3],
     "skills": [
       {"id": "swipe", "type": "basic", "anim": "attack", "vfx": "melee"},
-      {"id": "shard_scatter", "type": "cooldown", "cooldown_ms": 4000, "dmg": 4, "range": "special", "stagger_ms": 500, "anim": "shard_scatter", "vfx": "multishot", "applies": {"effect": "slow", "duration_ms": 1800, "magnitude": 0.45, "target": "opponent"}},
+      {"id": "shard_scatter", "type": "cooldown", "cooldown_ms": 4000, "dmg": 4, "range": 240, "stagger_ms": 500, "anim": "shard_scatter", "vfx": "multishot", "applies": {"effect": "slow", "duration_ms": 1800, "magnitude": 0.45, "target": "opponent"}},
       {"id": "ringtone_shock", "type": "special", "mp_cost": 30, "dmg": 7, "anim": "ringtone_shock", "vfx": "aura"},
-      {"id": "ad_popup_spam", "type": "special", "mp_cost": 25, "dmg": 6, "anim": "ad_popup_spam", "vfx": "multishot"},
-      {"id": "force_update", "type": "ultimate", "mp_cost": 100, "dmg": 22, "anim": "force_update", "vfx": "beam"}
+      {"id": "ad_popup_spam", "type": "special", "mp_cost": 25, "dmg": 6, "range": 240, "anim": "ad_popup_spam", "vfx": "multishot"},
+      {"id": "force_update", "type": "ultimate", "mp_cost": 100, "dmg": 22, "range": 320, "anim": "force_update", "vfx": "beam"}
     ]
   },
   "garen": {
@@ -53,10 +53,10 @@
     "damage": [2, 3],
     "skills": [
       {"id": "light_strike", "type": "basic", "anim": "attack", "vfx": "melee"},
-      {"id": "light_binding", "type": "cooldown", "cooldown_ms": 4000, "dmg": 5, "range": "special", "stagger_ms": 500, "anim": "light_binding", "vfx": "bolt", "applies": {"effect": "root", "duration_ms": 1500, "magnitude": 1.0, "target": "opponent"}},
-      {"id": "lucent_singularity", "type": "special", "mp_cost": 26, "dmg": 8, "anim": "lucent_singularity", "vfx": "bolt"},
+      {"id": "light_binding", "type": "cooldown", "cooldown_ms": 4000, "dmg": 5, "range": 280, "stagger_ms": 500, "anim": "light_binding", "vfx": "bolt", "applies": {"effect": "root", "duration_ms": 1500, "magnitude": 1.0, "target": "opponent"}},
+      {"id": "lucent_singularity", "type": "special", "mp_cost": 26, "dmg": 8, "range": 300, "anim": "lucent_singularity", "vfx": "bolt"},
       {"id": "prismatic_barrier", "type": "special", "mp_cost": 20, "dmg": 4, "anim": "prismatic_barrier", "vfx": "aura", "applies": {"effect": "shield", "duration_ms": 5000, "magnitude": 25, "target": "self"}},
-      {"id": "final_spark", "type": "ultimate", "mp_cost": 100, "dmg": 32, "anim": "final_spark", "vfx": "beam"}
+      {"id": "final_spark", "type": "ultimate", "mp_cost": 100, "dmg": 32, "range": 340, "anim": "final_spark", "vfx": "beam"}
     ]
   },
   "yasuo": {
@@ -83,10 +83,10 @@
     "damage": [2, 3],
     "skills": [
       {"id": "frost_shot", "type": "basic", "anim": "attack", "vfx": "melee"},
-      {"id": "volley", "type": "cooldown", "cooldown_ms": 3500, "dmg": 6, "range": "special", "anim": "volley", "vfx": "multishot"},
+      {"id": "volley", "type": "cooldown", "cooldown_ms": 3500, "dmg": 6, "range": 260, "anim": "volley", "vfx": "multishot"},
       {"id": "ranger_focus", "type": "special", "mp_cost": 22, "dmg": 7, "anim": "ranger_focus", "vfx": "aura"},
-      {"id": "hawkshot", "type": "special", "mp_cost": 18, "dmg": 4, "range": "special", "anim": "hawkshot", "vfx": "bolt"},
-      {"id": "enchanted_crystal_arrow", "type": "ultimate", "mp_cost": 100, "dmg": 32, "anim": "enchanted_crystal_arrow", "vfx": "bolt"}
+      {"id": "hawkshot", "type": "special", "mp_cost": 18, "dmg": 4, "range": 300, "anim": "hawkshot", "vfx": "bolt"},
+      {"id": "enchanted_crystal_arrow", "type": "ultimate", "mp_cost": 100, "dmg": 32, "range": 340, "anim": "enchanted_crystal_arrow", "vfx": "bolt"}
     ]
   }
 }

@@ -289,13 +289,7 @@ class Battle:
             skill = attacker.skills_of_type(SkillType.BASIC)[0]
 
         distance = abs(attacker.pos_x - defender.pos_x)
-        # Range: skill.range field if set, else type-based fallback
-        if skill.range == "special":
-            range_limit = SPECIAL_RANGE
-        elif skill.skill_type is SkillType.SPECIAL:
-            range_limit = SPECIAL_RANGE
-        else:
-            range_limit = MELEE_RANGE
+        range_limit = skill.effective_range
 
         if distance > range_limit:
             self._emit(EventType.MISS, actor=attacker.id, target=defender.id,

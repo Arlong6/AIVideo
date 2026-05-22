@@ -1,9 +1,10 @@
 """Skill data model. Skills are pure data loaded from characters.json."""
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Optional, Union
 
 from pixel_battle.engine.effects import SkillApplies
+from pixel_battle.engine.physics import MELEE_RANGE, SPECIAL_RANGE
 
 
 class SkillType(Enum):
@@ -21,11 +22,22 @@ class Skill:
     mp_cost: int = 0
     dmg: int = 0
     cooldown_ms: int = 0
-    range: str = "melee"        # "melee" | "special"
+    range: Union[str, int] = "melee"        # "melee" | "special" | numeric px
     stagger_ms: int = 0          # 0 = use engine default STAGGER_MS
     vfx: str = "melee"           # visual archetype the renderer draws:
                                  # melee/bolt/multishot/aura/dash/spin/slam/beam
     applies: Optional[SkillApplies] = None
+
+    @property
+    def effective_range(self) -> int:
+        """Numeric attack range in px — a numeric `range` wins; otherwise
+        'special'/SPECIAL-type skills reach SPECIAL_RANGE, the rest MELEE_RANGE."""
+        r = self.range
+        if isinstance(r, (int, float)) and not isinstance(r, bool):
+            return int(r)
+        if r == "special" or self.skill_type is SkillType.SPECIAL:
+            return SPECIAL_RANGE
+        return MELEE_RANGE
 
     @classmethod
     def from_dict(cls, d: dict) -> "Skill":

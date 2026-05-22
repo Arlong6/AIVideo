@@ -15,6 +15,7 @@ GROUND_FRICTION = 0.85      # vel_x decay per frame when on ground and no input
 # Combat
 MELEE_RANGE = 110           # horizontal distance for basic attack to connect
 SPECIAL_RANGE = 130         # special skill reach
+MAX_ATTACK_RANGE = 360      # upper bound for the env pre-fire gate on cd/special
 ULTIMATE_TRIGGER_DISTANCE = 999  # ultimates always connect (no range gate)
 
 

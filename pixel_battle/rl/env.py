@@ -13,7 +13,7 @@ from gymnasium import spaces
 from pixel_battle.engine.battle import Battle, BattleState
 from pixel_battle.engine.character import Character
 from pixel_battle.engine.rng import BattleRNG
-from pixel_battle.engine.physics import MELEE_RANGE, SPECIAL_RANGE
+from pixel_battle.engine.physics import MELEE_RANGE, SPECIAL_RANGE, MAX_ATTACK_RANGE
 
 
 TICK_MS = 16
@@ -190,12 +190,12 @@ class PixelBattleEnv(gym.Env):
             me.on_ground = False
         elif action == 4 and dist <= MELEE_RANGE:      # basic attack
             self.battle._start_attack_with_kind(me, opp, "basic")
-        elif action == 5 and dist <= SPECIAL_RANGE:    # cd skill
+        elif action == 5 and dist <= MAX_ATTACK_RANGE:    # cd skill
             self.battle._start_attack_with_kind(me, opp, "cooldown")
         elif action == 6 and me.ultimate_ready():
             # cinematic_pause=False — no multi-second freeze in the RL render
             self.battle._trigger_ultimate(me, opp, cinematic_pause=False)
-        elif action == 7 and dist <= SPECIAL_RANGE:    # special skill
+        elif action == 7 and dist <= MAX_ATTACK_RANGE:    # special skill
             self.battle._start_attack_with_kind(me, opp, "special")
         elif action == 8 and dist <= MELEE_RANGE:      # kick
             self.battle._start_attack_with_kind(me, opp, "kick")
