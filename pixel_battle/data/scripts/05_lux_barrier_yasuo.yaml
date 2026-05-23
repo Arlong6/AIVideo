@@ -1,62 +1,53 @@
 # pixel_battle/data/scripts/05_lux_barrier_yasuo.yaml
-# Lux builds a shield (prismatic_barrier) after surviving Yasuo's opening rush,
-# then retaliates with light_binding (root) and wins with Final Spark.
-# Winner: Lux (left). Finisher: advance tight and hammer until Yasuo KO'd.
+# Lux kites Yasuo: opens with prismatic_barrier shield, then roots with
+# light_binding from long range, escapes with Flash, lands Final Spark.
+# Winner: Lux (left). Finisher: close-range spam until Yasuo KO'd.
 name: "Lux barriers Yasuo's burst then roots and wins"
 left: lux
 right: yasuo
 left_script:
-  # Opening — engage at special range, build MP, then use specials
-  - {do: advance,           until: "dist<=130"}
-  - {do: "attack:cd",       until: skill_done}    # light_binding — root Yasuo
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:basic",    until: skill_done}    # build MP before barrier
-  - {do: advance,           until: "dist<=125"}
-  - {do: "attack:special",  until: skill_done}    # prismatic_barrier (shield + dmg=4)
-  - {do: advance,           until: "dist<=125"}
-  - {do: "attack:special",  until: skill_done}    # lucent_singularity (dmg=8)
-  - {do: advance,           until: "dist<=125"}
+  # Lux opens at long range, builds shield, then roots Yasuo repeatedly
+  - {do: retreat,           until: "dist>=260"}
+  - {do: "attack:special",  until: skill_done}    # prismatic_barrier — shield on self
+  - {do: retreat,           until: "dist>=270"}
+  - {do: "attack:cd",       until: skill_done}    # light_binding roots at 280 px
+  - {do: "flash:back",      until: "dist>=260"}   # escape when Yasuo closes
+  - {do: retreat,           until: "dist>=280"}
+  - {do: "attack:basic",    until: skill_done}    # build MP
+  - {do: retreat,           until: "dist>=280"}
+  - {do: "attack:special",  until: skill_done}    # lucent_singularity at 300 px
+  - {do: "flash:back",      until: "dist>=260"}
+  - {do: retreat,           until: "dist>=270"}
   - {do: "attack:cd",       until: skill_done}    # light_binding again
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:basic",    until: skill_done}
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:ultimate", until: skill_done}    # final_spark (dmg=32) — big burst
-  # --- Finisher: tight approach + alternate cd/basic until Yasuo KO'd ---
-  - {do: advance,           until: "dist<=85"}
+  - {do: retreat,           until: "dist>=290"}
+  - {do: "attack:ultimate", until: skill_done}    # final_spark (dmg=32) at 340 px
+  # --- Finisher: close and spam until Yasuo KO'd ---
+  - {do: advance,           until: "dist<=100"}
   - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=85"}
+  - {do: advance,           until: "dist<=100"}
   - {do: "attack:cd",       until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=85"}
+  - {do: advance,           until: "dist<=100"}
   - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=85"}
-  - {do: "attack:cd",       until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=85"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=85"}
+  - {do: advance,           until: "dist<=100"}
   - {do: "attack:special",  until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=85"}
+  - {do: advance,           until: "dist<=100"}
   - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=85"}
+  - {do: advance,           until: "dist<=100"}
   - {do: "attack:cd",       until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=85"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=85"}
-  - {do: "attack:cd",       until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=85"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=85"}
-  - {do: "attack:cd",       until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=85"}
+  - {do: advance,           until: "dist<=100"}
   - {do: "attack:basic",    until: "target_hp<=0"}
 right_script:
+  # Yasuo tries to close with Flash + sweeping_blade but Lux keeps kiting
   - {do: advance,           until: "dist<=130"}
   - {do: "attack:basic",    until: skill_done}
-  - {do: "attack:cd",       until: skill_done}    # steel_tempest — free, ready at start
-  - {do: advance,           until: "dist<=120"}
-  - {do: "attack:basic",    until: skill_done}
+  - {do: "attack:cd",       until: skill_done}    # steel_tempest — free at start
+  - {do: "flash:in",        until: "dist<=120"}   # close when Lux retreats far
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}    # build MP
   - {do: "attack:special",  until: skill_done}    # sweeping_blade dash
   - {do: advance,           until: "dist<=110"}
   - {do: "attack:basic",    until: skill_done}
   - {do: "attack:special",  until: skill_done}    # gathering_storm
-  - {do: "attack:ultimate", until: skill_done}    # last_breath
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:ultimate", until: skill_done}    # last_breath — desperation
   - {do: idle,              until: "time>=3000"}  # staggered — Lux finishes him

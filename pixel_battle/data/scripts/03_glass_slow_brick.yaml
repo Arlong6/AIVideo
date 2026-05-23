@@ -1,29 +1,29 @@
 # pixel_battle/data/scripts/03_glass_slow_brick.yaml
-# Glass Slab uses shard_scatter (slow) to control Brick Phone,
-# then advances and chips away at close range.
-# Winner: Glass Slab (left). Finisher: keep pressing until Brick Phone KO'd.
+# Glass Slab kites at range: opens with shard_scatter slow (240 px), keeps
+# distance with retreats and Flash, chips with ad_popup_spam, closes with Force Update.
+# Winner: Glass Slab (left). Finisher: relentless melee until Brick Phone KO'd.
 name: "Glass Slab slows and kites Brick Phone"
 left: glass_slab
 right: brick_phone
 left_script:
-  # Opening — stay at special range and use cd/specials
-  - {do: advance,           until: "dist<=130"}
-  - {do: "attack:cd",       until: skill_done}    # shard_scatter — slow opponent
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:basic",    until: skill_done}    # land a hit to build MP
-  - {do: advance,           until: "dist<=125"}
-  - {do: "attack:cd",       until: skill_done}    # shard_scatter — slow again
-  - {do: advance,           until: "dist<=110"}
+  # Glass Slab stays at 230-240 px and pours on ranged poke
+  - {do: retreat,           until: "dist>=230"}
+  - {do: "attack:cd",       until: skill_done}    # shard_scatter — slow + dmg at 240 px
+  - {do: retreat,           until: "dist>=230"}
+  - {do: "attack:basic",    until: skill_done}    # build MP
+  - {do: retreat,           until: "dist>=220"}
+  - {do: "attack:special",  until: skill_done}    # ad_popup_spam at 240 px
+  - {do: "flash:back",      until: "dist>=220"}   # escape when Brick closes
+  - {do: retreat,           until: "dist>=230"}
+  - {do: "attack:cd",       until: skill_done}    # shard_scatter again
+  - {do: retreat,           until: "dist>=220"}
   - {do: "attack:basic",    until: skill_done}
-  - {do: advance,           until: "dist<=125"}
-  - {do: "attack:special",  until: skill_done}    # ringtone_shock / ad_popup_spam
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:basic",    until: skill_done}
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:ultimate", until: skill_done}    # force_update (dmg=22) — burst
-  # --- Finisher: relentlessly close and hammer Brick Phone ---
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: retreat,           until: "dist>=220"}
+  - {do: "attack:special",  until: skill_done}    # ad_popup_spam
+  - {do: "flash:back",      until: "dist>=220"}
+  - {do: retreat,           until: "dist>=270"}
+  - {do: "attack:ultimate", until: skill_done}    # force_update at 320 px (dmg=22)
+  # --- Finisher: close range spam until Brick Phone KO'd ---
   - {do: advance,           until: "dist<=100"}
   - {do: "attack:basic",    until: "target_hp<=0"}
   - {do: advance,           until: "dist<=100"}
@@ -36,29 +36,16 @@ left_script:
   - {do: "attack:special",  until: "target_hp<=0"}
   - {do: advance,           until: "dist<=100"}
   - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:cd",       until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:cd",       until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
 right_script:
-  - {do: advance,           until: "dist<=130"}
-  - {do: "attack:basic",    until: skill_done}
-  - {do: advance,           until: "dist<=120"}
-  - {do: "attack:cd",       until: skill_done}    # screw_dart
+  # Brick Phone tries to close but Glass Slab keeps retreating; fires ranged shots
+  - {do: advance,           until: "dist<=230"}
+  - {do: "attack:cd",       until: skill_done}    # screw_dart at 250 px
+  - {do: advance,           until: "dist<=220"}
+  - {do: "attack:basic",    until: skill_done}    # build MP
+  - {do: advance,           until: "dist<=220"}
+  - {do: "attack:special",  until: skill_done}    # snake_strike at 240 px
   - {do: advance,           until: "dist<=110"}
   - {do: "attack:basic",    until: skill_done}
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:special",  until: skill_done}    # snake_strike / ringtone_blast
   - {do: advance,           until: "dist<=110"}
   - {do: "attack:ultimate", until: skill_done}    # indestructible_throw (dmg=25)
   - {do: idle,              until: "time>=3000"}  # exhausted — Glass Slab finishes it
