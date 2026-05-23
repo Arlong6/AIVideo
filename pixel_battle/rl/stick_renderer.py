@@ -63,8 +63,8 @@ _DEFAULT_STYLE = {"head_shape": "circle", "head_size": 22,
 
 
 _FIGURE_SCALE = 0.85       # shrink every figure ~15% — characters read smaller
-_SCALED_KEYS = ("head_size", "torso_length", "upper_arm", "forearm",
-                "thigh", "shin", "line_width", "hand_radius", "foot_length")
+_SCALED_KEYS = frozenset({"head_size", "torso_length", "upper_arm", "forearm",
+                          "thigh", "shin", "line_width", "hand_radius", "foot_length"})
 
 
 def get_style(char_id: str) -> dict:

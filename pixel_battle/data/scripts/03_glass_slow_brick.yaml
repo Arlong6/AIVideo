@@ -12,14 +12,14 @@ left_script:
   - {do: retreat,           until: "dist>=230"}
   - {do: "attack:basic",    until: skill_done}    # build MP
   - {do: retreat,           until: "dist>=220"}
-  - {do: "attack:special",  until: skill_done}    # ad_popup_spam at 240 px
+  - {do: "attack:special",  until: skill_done}    # ringtone_shock aura (mp_cost=30, affordable first by JSON order); ad_popup_spam (mp_cost=25, range 240) fires only if mp<30
   - {do: "flash:back",      until: "dist>=220"}   # escape when Brick closes
   - {do: retreat,           until: "dist>=230"}
   - {do: "attack:cd",       until: skill_done}    # shard_scatter again
   - {do: retreat,           until: "dist>=220"}
   - {do: "attack:basic",    until: skill_done}
   - {do: retreat,           until: "dist>=220"}
-  - {do: "attack:special",  until: skill_done}    # ad_popup_spam
+  - {do: "attack:special",  until: skill_done}    # ringtone_shock or ad_popup_spam (same priority rule)
   - {do: "flash:back",      until: "dist>=220"}
   - {do: retreat,           until: "dist>=270"}
   - {do: "attack:ultimate", until: skill_done}    # force_update at 320 px (dmg=22)

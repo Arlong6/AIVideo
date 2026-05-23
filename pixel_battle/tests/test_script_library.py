@@ -1,6 +1,8 @@
 """Every shipped fight script loads + validates."""
 from pathlib import Path
 
+import pytest
+
 from pixel_battle.script.loader import load_script
 
 _SCRIPT_DIR = Path(__file__).resolve().parents[1] / "data" / "scripts"
@@ -30,3 +32,20 @@ def test_script_matchup_and_depth():
         assert len(s.right_intents) >= 3, (
             f"{path.name}: right_intents has only {len(s.right_intents)} intent(s); minimum 3"
         )
+
+
+@pytest.mark.parametrize(
+    "script_path",
+    sorted(_SCRIPT_DIR.glob("*.yaml")),
+    ids=lambda p: p.name,
+)
+def test_script_has_ko_finisher(script_path):
+    """Every script must contain at least one intent whose `until` is exactly
+    `target_hp<=0`.  Without this guard, the episode can end without a KO."""
+    s = load_script(script_path)
+    all_intents = s.left_intents + s.right_intents
+    has_finisher = any(i.until_src == "target_hp<=0" for i in all_intents)
+    assert has_finisher, (
+        f"{script_path.name}: no intent with until='target_hp<=0' found — "
+        "script is missing a KO finisher"
+    )

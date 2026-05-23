@@ -39,7 +39,7 @@ right_script:
   - {do: retreat,           until: "dist>=255"}
   - {do: "attack:basic",    until: skill_done}    # land a hit, build MP
   - {do: retreat,           until: "dist>=280"}
-  - {do: "attack:special",  until: skill_done}    # hawkshot at 300 px
+  - {do: "attack:special",  until: skill_done}    # ranger_focus aura (affordable first, mp_cost=22); hawkshot (mp_cost=18) fires only when ranger_focus is already on cd or mp<22
   - {do: "flash:back",      until: "dist>=240"}
   - {do: retreat,           until: "dist>=255"}
   - {do: "attack:cd",       until: skill_done}    # volley again

@@ -115,7 +115,7 @@ WALK_POSE = FigurePose(
     torso_lean=8.0,
     front_arm=(60.0, -40.0), back_arm=(130.0, -40.0),
     front_leg=(120.0, 26.0), back_leg=(60.0, 30.0),
-    weapon_deg=55.0)   # was 70 — raised to keep tip in frame when figure is scaled
+    weapon_deg=55.0)   # was 70; reduced so weapon tip stays above ground at 0.85× figure scale
 
 JUMP_POSE = FigurePose(
     torso_lean=6.0,

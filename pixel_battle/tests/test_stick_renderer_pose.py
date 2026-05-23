@@ -84,13 +84,31 @@ def test_projectile_layer_spawn_and_decay():
 
 
 def test_get_style_applies_figure_scale():
-    from pixel_battle.rl.stick_renderer import get_style, _STYLES, _FIGURE_SCALE
+    from pixel_battle.rl.stick_renderer import (
+        get_style, _STYLES, _FIGURE_SCALE, _SCALED_KEYS, _DEFAULT_STYLE,
+    )
+    assert _FIGURE_SCALE < 1.0
+
+    # Every numeric key in _SCALED_KEYS must be scaled down for a known character.
     raw = _STYLES["garen"]
     scaled = get_style("garen")
-    # head_shape (a string) is untouched; size fields are scaled down.
+    for key in _SCALED_KEYS:
+        expected = max(1, int(raw[key] * _FIGURE_SCALE))
+        assert scaled[key] == expected, (
+            f"garen: scaled[{key!r}]={scaled[key]!r} != expected {expected!r}"
+        )
+
+    # head_shape (non-numeric) must be preserved unchanged.
     assert scaled["head_shape"] == raw["head_shape"]
-    assert scaled["torso_length"] == max(1, int(raw["torso_length"] * _FIGURE_SCALE))
-    assert _FIGURE_SCALE < 1.0
+
+    # Unknown character falls back to _DEFAULT_STYLE and is also scaled.
+    default_scaled = get_style("nonexistent_id")
+    for key in _SCALED_KEYS:
+        expected = max(1, int(_DEFAULT_STYLE[key] * _FIGURE_SCALE))
+        assert default_scaled[key] == expected, (
+            f"default fallback: scaled[{key!r}]={default_scaled[key]!r} != expected {expected!r}"
+        )
+    assert default_scaled["head_shape"] == _DEFAULT_STYLE["head_shape"]
 
 
 def test_swing_smear_start_angle_regression():
