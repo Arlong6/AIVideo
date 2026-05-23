@@ -109,13 +109,13 @@ IDLE_POSE = FigurePose(
     torso_lean=0.0,
     front_arm=(88.0, -26.0), back_arm=(100.0, -32.0),
     front_leg=(96.0, 14.0), back_leg=(84.0, 14.0),
-    weapon_deg=120.0)
+    weapon_deg=45.0)   # was 120 — raised so the tip clears ground at any figure scale
 
 WALK_POSE = FigurePose(
     torso_lean=8.0,
     front_arm=(60.0, -40.0), back_arm=(130.0, -40.0),
     front_leg=(120.0, 26.0), back_leg=(60.0, 30.0),
-    weapon_deg=70.0)
+    weapon_deg=55.0)   # was 70 — raised to keep tip in frame when figure is scaled
 
 JUMP_POSE = FigurePose(
     torso_lean=6.0,
@@ -180,7 +180,7 @@ ARCHETYPE_POSES: Dict[str, Dict[str, FigurePose]] = {
     },
     "slam": {
         "cocked":   _fp(-30, (255, -40), (285, -40), (104, 34), (70, 30), 280),
-        "extended": _fp(30, (40, -6), (95, -10), (84, 22), (96, 24), 415),  # weapon_deg 415 (=55+360): lerp sweeps upward through the upper arc
+        "extended": _fp(30, (40, -6), (95, -10), (84, 22), (96, 24), 410),  # weapon_deg 410 (=50+360): was 415(55°); lowered to keep tip above ground at 85% scale
     },
     "spin": {
         "cocked":   _fp(0, (200, -10), (340, -10), (100, 18), (80, 18), 200),

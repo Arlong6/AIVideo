@@ -62,8 +62,15 @@ _DEFAULT_STYLE = {"head_shape": "circle", "head_size": 22,
                   "hand_radius": 4, "foot_length": 12}
 
 
+_FIGURE_SCALE = 0.85       # shrink every figure ~15% — characters read smaller
+_SCALED_KEYS = ("head_size", "torso_length", "upper_arm", "forearm",
+                "thigh", "shin", "line_width", "hand_radius", "foot_length")
+
+
 def get_style(char_id: str) -> dict:
-    return _STYLES.get(char_id, _DEFAULT_STYLE)
+    base = _STYLES.get(char_id, _DEFAULT_STYLE)
+    return {k: (max(1, int(v * _FIGURE_SCALE)) if k in _SCALED_KEYS else v)
+            for k, v in base.items()}
 
 
 # ── Jointed skeleton draw helpers ─────────────────────────────────────────────

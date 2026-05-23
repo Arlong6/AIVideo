@@ -83,6 +83,16 @@ def test_projectile_layer_spawn_and_decay():
     assert len(layer._items) == 0
 
 
+def test_get_style_applies_figure_scale():
+    from pixel_battle.rl.stick_renderer import get_style, _STYLES, _FIGURE_SCALE
+    raw = _STYLES["garen"]
+    scaled = get_style("garen")
+    # head_shape (a string) is untouched; size fields are scaled down.
+    assert scaled["head_shape"] == raw["head_shape"]
+    assert scaled["torso_length"] == max(1, int(raw["torso_length"] * _FIGURE_SCALE))
+    assert _FIGURE_SCALE < 1.0
+
+
 def test_swing_smear_start_angle_regression():
     """Regression lock: smear start angle must differ from strike-end angle (facing +1)."""
     cocked = cocked_weapon_deg("slam")
