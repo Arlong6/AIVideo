@@ -1,5 +1,8 @@
 # pixel_battle/rl/play_scripted.py
-"""Render a fight from an authored YAML script (no RL policy)."""
+"""Render a fight from an authored YAML script (no RL policy).
+
+Auto-detects legacy condition scripts and new timeline scripts; the loader
+returns whichever driver fits the file."""
 from __future__ import annotations
 import argparse
 import os
@@ -11,34 +14,41 @@ import pygame  # noqa: E402
 from pixel_battle.rl.env import PixelBattleEnv  # noqa: E402
 from pixel_battle.rl.play import _render_fight, WIDTH, HEIGHT, FPS, ROOT  # noqa: E402
 from pixel_battle.video.recorder import FrameRecorder  # noqa: E402
-from pixel_battle.script.driver import ScriptDriver  # noqa: E402
-from pixel_battle.script.loader import load_script  # noqa: E402
+from pixel_battle.script.loader import load_fight_file  # noqa: E402
 
 OUT_DIR = ROOT / "pixel_battle" / "output" / "scripted"
 
 
-def _script_action_source(driver: ScriptDriver):
-    """Adapt a ScriptDriver to the (env, obs) -> (left_act, right_act) interface."""
+def _driver_action_source(driver):
+    """Adapt any driver with `.decide(battle)` to the
+    (env, obs) -> (left_act, right_act) interface used by `_render_fight`."""
     def _source(env, _obs):
         return driver.decide(env.battle)
     return _source
 
 
+# Backward-compat alias — existing tests import this name.
+_script_action_source = _driver_action_source
+
+
 def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
-    """Render the fight described by `script_path`; return the mp4 path."""
     pygame.init()
     pygame.display.set_mode((1, 1))
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    script = load_script(script_path)
-    env = PixelBattleEnv(left_id=script.left, right_id=script.right)
-    driver = ScriptDriver(script)
+    driver = load_fight_file(script_path)
+    # Both driver types carry left/right character ids in their loaded data
+    if hasattr(driver, "script"):
+        left_id, right_id = driver.script.left, driver.script.right
+    else:
+        left_id, right_id = driver.timeline.left, driver.timeline.right
+    env = PixelBattleEnv(left_id=left_id, right_id=right_id)
 
     raw = out_dir / f"{script_path.stem}_raw.mp4"
     recorder = FrameRecorder(str(raw), fps=FPS, width=WIDTH, height=HEIGHT)
     recorder.start()
     try:
-        _render_fight(recorder, _script_action_source(driver), env,
+        _render_fight(recorder, _driver_action_source(driver), env,
                       max_seconds=60.0, end_hold_frames=120)
     finally:
         recorder.stop()

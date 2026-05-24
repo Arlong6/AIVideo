@@ -94,3 +94,36 @@ def load_script_text(text: str) -> FightScript:
 def load_script(path) -> FightScript:
     """Load + validate a fight script from a YAML file."""
     return load_script_text(Path(path).read_text(encoding="utf-8"))
+
+
+def load_fight_file(path):
+    """Top-level loader: returns either a ScriptDriver (legacy condition
+    format) or a TimelineDriver (new timeline format) based on which
+    timeline/script keys the YAML contains.
+
+    Detection: presence of `left_timeline` / `right_timeline` keys → timeline;
+    presence of `left_script` / `right_script` → legacy; mixed = ambiguous;
+    neither = unknown format."""
+    from pixel_battle.script.timeline_loader import load_timeline
+    from pixel_battle.script.timeline_driver import TimelineDriver
+    from pixel_battle.script.driver import ScriptDriver
+
+    text = Path(path).read_text(encoding="utf-8")
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as e:
+        raise ScriptError(f"invalid YAML: {e}") from e
+    if not isinstance(data, dict):
+        raise ScriptError("fight file must be a YAML mapping")
+    has_timeline = ("left_timeline" in data) or ("right_timeline" in data)
+    has_script = ("left_script" in data) or ("right_script" in data)
+    if has_timeline and has_script:
+        raise ScriptError(
+            f"{path}: ambiguous format — has both timeline and script keys")
+    if has_timeline:
+        return TimelineDriver(load_timeline(path))
+    if has_script:
+        return ScriptDriver(load_script_text(text))
+    raise ScriptError(
+        f"{path}: neither timeline (left_timeline/right_timeline) "
+        "nor legacy (left_script/right_script) keys present")
