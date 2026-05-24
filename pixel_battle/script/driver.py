@@ -29,6 +29,8 @@ class ScriptDriver:
 
     def __init__(self, script: FightScript):
         self.script = script
+        self.left = script.left
+        self.right = script.right
         self._left = _SideState(script.left_intents)
         self._right = _SideState(script.right_intents)
 

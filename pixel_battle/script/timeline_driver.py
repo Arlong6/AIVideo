@@ -83,6 +83,8 @@ class TimelineDriver:
 
     def __init__(self, timeline: Timeline):
         self.timeline = timeline
+        self.left = timeline.left
+        self.right = timeline.right
         self._left = _SideCursor(events=timeline.left_events)
         self._right = _SideCursor(events=timeline.right_events)
 

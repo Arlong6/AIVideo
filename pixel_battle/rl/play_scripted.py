@@ -37,12 +37,7 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     driver = load_fight_file(script_path)
-    # Both driver types carry left/right character ids in their loaded data
-    if hasattr(driver, "script"):
-        left_id, right_id = driver.script.left, driver.script.right
-    else:
-        left_id, right_id = driver.timeline.left, driver.timeline.right
-    env = PixelBattleEnv(left_id=left_id, right_id=right_id)
+    env = PixelBattleEnv(left_id=driver.left, right_id=driver.right)
 
     raw = out_dir / f"{script_path.stem}_raw.mp4"
     recorder = FrameRecorder(str(raw), fps=FPS, width=WIDTH, height=HEIGHT)

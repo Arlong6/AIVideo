@@ -104,6 +104,9 @@ def load_fight_file(path):
     Detection: presence of `left_timeline` / `right_timeline` keys → timeline;
     presence of `left_script` / `right_script` → legacy; mixed = ambiguous;
     neither = unknown format."""
+    # Local imports: driver / timeline_loader / timeline_driver each import
+    # `DO_VERBS` / `FightScript` from this module, so top-level imports here
+    # would create import cycles. Keep these deferred.
     from pixel_battle.script.timeline_loader import load_timeline
     from pixel_battle.script.timeline_driver import TimelineDriver
     from pixel_battle.script.driver import ScriptDriver

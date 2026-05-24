@@ -46,7 +46,7 @@ def dump_timeline_for(legacy_path: Path, out_path: Path) -> None:
     right_events = []
     last_left_action = 0
     last_right_action = 0
-    while env.battle.elapsed_ms < MAX_MS and not env.battle.state.name == "KO":
+    while env.battle.elapsed_ms < MAX_MS and env.battle.state.name != "KO":
         left_act, right_act = driver.decide(env.battle)
         t = env.battle.elapsed_ms
         # Log a transition into a non-idle action (or any change away from idle)
