@@ -6,24 +6,14 @@ name: "Glass Slab slows and kites Brick Phone"
 left: glass_slab
 right: brick_phone
 left_script:
-  # Glass Slab stays at 230-240 px and pours on ranged poke
+  # Glass Slab kites briefly — 3 poke intents to establish flavour (not long)
   - {do: retreat,           until: "dist>=230"}
   - {do: "attack:cd",       until: skill_done}    # shard_scatter — slow + dmg at 240 px
-  - {do: retreat,           until: "dist>=230"}
-  - {do: "attack:basic",    until: skill_done}    # build MP
-  - {do: retreat,           until: "dist>=220"}
-  - {do: "attack:special",  until: skill_done}    # ringtone_shock aura (mp_cost=30, affordable first by JSON order); ad_popup_spam (mp_cost=25, range 240) fires only if mp<30
-  - {do: "flash:back",      until: "dist>=220"}   # escape when Brick closes
-  - {do: retreat,           until: "dist>=230"}
-  - {do: "attack:cd",       until: skill_done}    # shard_scatter again
-  - {do: retreat,           until: "dist>=220"}
-  - {do: "attack:basic",    until: skill_done}
-  - {do: retreat,           until: "dist>=220"}
-  - {do: "attack:special",  until: skill_done}    # ringtone_shock or ad_popup_spam (same priority rule)
-  - {do: "flash:back",      until: "dist>=220"}
-  - {do: retreat,           until: "dist>=270"}
-  - {do: "attack:ultimate", until: skill_done}    # force_update at 320 px (dmg=22)
-  # --- Finisher: close range spam until Brick Phone KO'd ---
+  - {do: "flash:back",      until: "dist>=220"}   # escape to maintain distance
+  - {do: "attack:special",  until: skill_done}    # ad_popup_spam (mp_cost=25) or ringtone_shock
+  # --- Finisher: advance and batter until Brick Phone KO'd ---
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
   - {do: advance,           until: "dist<=100"}
   - {do: "attack:basic",    until: "target_hp<=0"}
   - {do: advance,           until: "dist<=100"}
@@ -31,9 +21,15 @@ left_script:
   - {do: advance,           until: "dist<=100"}
   - {do: "attack:basic",    until: "target_hp<=0"}
   - {do: advance,           until: "dist<=100"}
+  - {do: "attack:special",  until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
   - {do: "attack:basic",    until: "target_hp<=0"}
   - {do: advance,           until: "dist<=100"}
-  - {do: "attack:special",  until: "target_hp<=0"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
   - {do: advance,           until: "dist<=100"}
   - {do: "attack:basic",    until: "target_hp<=0"}
 right_script:
