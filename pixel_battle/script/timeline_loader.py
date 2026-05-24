@@ -75,10 +75,10 @@ def _parse_timeline(raw, char_id: str, db: dict, side: str) -> List[TimelineEven
         if t < 0:
             raise TimelineLoadError(
                 f"{side}_timeline[{i}]: t is negative ({t})")
-        if t < last_t:
+        if t <= last_t:
             raise TimelineLoadError(
                 f"{side}_timeline[{i}]: non-monotonic t "
-                f"({t} < previous {last_t})")
+                f"({t} <= previous {last_t}; timestamps must strictly increase)")
         do = str(item["do"])
         action_int, skill_id = _resolve_do(
             do, char_id, db, f"{side}_timeline[{i}]")

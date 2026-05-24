@@ -65,6 +65,15 @@ def test_nonmonotonic_t_rejected():
         load_timeline_text(bad)
 
 
+def test_duplicate_t_rejected():
+    # Spec §6: timestamps must be STRICTLY increasing. Two events at the
+    # same t on the same side is a likely author copy-paste mistake.
+    bad = _GOOD.replace("t: 3000, do: \"attack:basic\"",
+                        "t: 500, do: \"attack:basic\"")
+    with pytest.raises(TimelineLoadError, match="non-monotonic"):
+        load_timeline_text(bad)
+
+
 def test_missing_required_key():
     with pytest.raises(TimelineLoadError, match="missing required key"):
         load_timeline_text("name: x\nleft: garen\nright: lux\n")
