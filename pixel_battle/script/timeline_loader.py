@@ -3,7 +3,7 @@
 from __future__ import annotations
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Tuple
 
 import yaml
 
@@ -31,7 +31,7 @@ def _load_character_db():
         return json.load(f)
 
 
-def _resolve_do(do: str, char_id: str, db: dict, side: str) -> (int, str):
+def _resolve_do(do: str, char_id: str, db: dict, side: str) -> Tuple[int, Optional[str]]:
     """Resolve a `do` field to (action_int, skill_id_or_None).
 
     Raises TimelineLoadError on unknown verb or unknown skill."""

@@ -87,11 +87,10 @@ def test_root_blocks_movement_but_not_cast():
 
 
 def test_cast_sets_pending_skill_id_on_character():
-    left = [TimelineEvent(t=0, action_int=5, raw_do="cast:light_binding",
-                          skill_id="light_binding")]
-    right = []
-    b, d = _two_char_battle([], left)   # put on right (lux) since light_binding is Lux's
-    # (above: swap order so right has the cast event)
+    # light_binding is a Lux skill — put it on the RIGHT timeline (Lux's side).
+    cast_event = [TimelineEvent(t=0, action_int=5, raw_do="cast:light_binding",
+                                skill_id="light_binding")]
+    b, d = _two_char_battle([], cast_event)
     b.elapsed_ms = 0
     d.decide(b)
     assert b.right.pending_cast_skill_id == "light_binding"

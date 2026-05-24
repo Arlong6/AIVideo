@@ -6,15 +6,17 @@ character cannot act at the scheduled time, the entire remaining timeline
 on THAT character shifts forward together; the other character is
 unaffected. See spec §7."""
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import List
+from dataclasses import dataclass
+from typing import List, Optional
 
+from pixel_battle.engine.effects import ROOT
 from pixel_battle.script.timeline_format import Timeline, TimelineEvent
 
 
 # Engine tick granularity — match Battle.tick_ms's typical step (the renderer
 # steps at 1 frame ≈ 16 ms). When the driver can't fire an event, it pushes
 # the per-character delay by this much so the event retries next tick.
+# Must match rl/env.py:TICK_MS. Update both together.
 ENGINE_TICK_MS = 16
 
 # Action int constants — kept in sync with DO_VERBS / engine `_apply_action`.
@@ -32,6 +34,7 @@ _FLASH_BACK = 10
 
 _ATTACK_ACTIONS = frozenset({_ATK_BASIC, _ATK_CD, _ATK_ULT, _ATK_SPECIAL, _ATK_KICK})
 _MOVE_ACTIONS = frozenset({_RETREAT, _ADVANCE, _JUMP})
+_GROUND_ACTIONS = _MOVE_ACTIONS | _ATTACK_ACTIONS
 
 
 @dataclass
@@ -40,7 +43,7 @@ class _SideCursor:
     index: int = 0
     delay_ms: int = 0
 
-    def peek(self) -> TimelineEvent:
+    def peek(self) -> Optional[TimelineEvent]:
         return self.events[self.index] if self.index < len(self.events) else None
 
     def advance(self) -> None:
@@ -66,10 +69,9 @@ def _can_act(char, action_int: int) -> bool:
         return False
     # `pos_y > GROUND_Y - tolerance` -- jumping mid-air. Ground verbs (move/
     # attack) are engine no-ops in mid-air; let them wait for landing.
-    if char.action_state == "jumping" and action_int in (_MOVE_ACTIONS | _ATTACK_ACTIONS):
+    if char.action_state == "jumping" and action_int in _GROUND_ACTIONS:
         return False
     # Root: blocks movement; Flash/cast still allowed
-    from pixel_battle.engine.effects import ROOT
     if char.has_effect(ROOT) and action_int in _MOVE_ACTIONS:
         return False
     return True
