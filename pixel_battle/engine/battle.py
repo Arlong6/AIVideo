@@ -514,57 +514,62 @@ class Battle:
 
     def _start_attack_with_kind(self, char: Character, opp: Character,
                                   kind: str) -> None:
-        """RL-friendly attack initiator: skip the random selection in
-        _choose_attack_skill and pick by category instead.
-
-        kind: "basic" | "cooldown" | "special" | "kick"
-          - basic: always picks the first BASIC skill (always available)
-          - cooldown: picks first off-cooldown COOLDOWN skill; no-op if none
-          - special: picks first affordable SPECIAL skill (mp >= mp_cost);
-            no-op if none affordable. MP deduction happens on hit.
-          - kick: reuses the BASIC skill stats but tags attack_anim_hint
-            so the renderer can switch to a leg-based pose.
-        Unknown kinds are a no-op.
-        """
+        """RL-friendly attack initiator.  Respects `char.pending_cast_skill_id`:
+        if set, the engine picks that specific skill within the SkillType list
+        (or no-ops if the named skill is not on the character or not available).
+        The field is consumed (cleared) on every call, success or no-op, so a
+        stale id cannot fire on a later tick."""
         if char.action_state in ("attacking", "hit_stagger", "ko"):
+            char.pending_cast_skill_id = None
             return
         if self.elapsed_ms < char.last_attack_ms + char.attack_interval_ms:
-            return  # respect attack interval gate
+            char.pending_cast_skill_id = None
+            return
 
+        explicit_id = char.pending_cast_skill_id
+        char.pending_cast_skill_id = None     # consumed regardless of outcome
+
+        skill = None
         if kind == "basic":
-            skill = char.skills_of_type(SkillType.BASIC)[0]
+            basics = char.skills_of_type(SkillType.BASIC)
+            skill = (next((s for s in basics if s.id == explicit_id), None)
+                     if explicit_id else basics[0])
             char.attack_anim_hint = "jab"
         elif kind == "cooldown":
             cd_skills = char.skills_of_type(SkillType.COOLDOWN)
             available = [s for s in cd_skills
-                          if char.skill_off_cooldown(s, self.elapsed_ms)]
-            if not available:
-                return  # no CD skill ready — no-op
-            skill = available[0]
+                         if char.skill_off_cooldown(s, self.elapsed_ms)]
+            if explicit_id:
+                skill = next((s for s in available if s.id == explicit_id), None)
+            elif available:
+                skill = available[0]
             char.attack_anim_hint = "cooldown"
         elif kind == "special":
             specials = char.skills_of_type(SkillType.SPECIAL)
             affordable = [s for s in specials if char.mp >= s.mp_cost]
-            if not affordable:
-                return
-            skill = affordable[0]
+            if explicit_id:
+                skill = next((s for s in affordable if s.id == explicit_id), None)
+            elif affordable:
+                skill = affordable[0]
             char.attack_anim_hint = "special"
         elif kind == "kick":
-            # Kick reuses the BASIC skill stats but the renderer should show
-            # a leg-based animation. We tag the character via attack_anim_hint.
-            skill = char.skills_of_type(SkillType.BASIC)[0]
+            basics = char.skills_of_type(SkillType.BASIC)
+            skill = (next((s for s in basics if s.id == explicit_id), None)
+                     if explicit_id else basics[0])
             char.attack_anim_hint = "kick"
         else:
             return
 
-        # Mirror _start_attack body but with explicit skill choice
+        if skill is None:
+            return    # named skill not available or unknown kind → no-op
+
+        # Existing body — start the attack with the selected skill
         char.attack_used_kind = skill
         char.attack_phase = "windup"
         char.attack_phase_t = 0
         char.action_state = "attacking"
         char.vel_x = 0.0
 
-        # Apply self-targeted status effect from skill (on cast)
         if skill.applies is not None and skill.applies.target == "self":
             self._apply_effect(char, skill.applies)
 

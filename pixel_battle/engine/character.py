@@ -47,6 +47,7 @@ class Character:
     retreat_until_ms: int = 0
     windup_stun_until_ms: int = 0
     effects: List[StatusEffect] = field(default_factory=list)
+    pending_cast_skill_id: Optional[str] = None
 
     @classmethod
     def load(cls, char_id: str) -> "Character":
@@ -88,6 +89,7 @@ class Character:
         self.effects = []
         self.hp = HP_MAX
         self.mp = 0
+        self.pending_cast_skill_id = None
 
     def skills_of_type(self, t: SkillType) -> List[Skill]:
         return [s for s in self.skills if s.skill_type is t]
