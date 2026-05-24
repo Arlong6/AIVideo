@@ -1,47 +1,80 @@
-# pixel_battle/data/scripts/03_glass_slow_brick.yaml
-# Glass Slab kites at range: opens with shard_scatter slow (240 px), keeps
-# distance with retreats and Flash, chips with ad_popup_spam, closes with Force Update.
-# Winner: Glass Slab (left). Finisher: relentless melee until Brick Phone KO'd.
+# ──────────────────────────────────────────────────────────
+# 玻璃板 vs 磚石手機 — 玻璃與磚石之爭
+# ──────────────────────────────────────────────────────────
+# 【第一幕 · 開場  0.0–6.0s】
+#   磚石手機以頭搥起手，厚重的機身硬碰硬地壓進戰場。
+#   玻璃板後撤一步，碎玻璃散射技射出——試探距離、鋪設陷阱。
+#   廣告視窗轟炸與螺絲飛鏢交織，金屬碰撞聲此起彼落。
+#
+# 【第二幕 · 蓄勢  6.0–12.0s】
+#   玻璃板收到磚石蠻衝，激活手機震動衝擊波反擊。
+#   磚石手機亮出終極招式「摔不壞拋擲」，空氣中炸開一聲金屬悶響。
+#   玻璃板抖了抖，裂縫在邊框蔓延——但沒有倒。
+#
+# 【第三幕 · 衝突  12.0–20.0s】
+#   玻璃板步步緊逼，碎片連射把磚石手機壓制住。
+#   廣告彈出垃圾訊息接連爆開，讓磚石手機疲於應對。
+#   磚石手機強撐蛇形突刺，打出最後的反擊——但已油盡燈枯。
+#
+# 【終幕 · 終結  20.0s+】
+#   玻璃板引爆強制更新光束，一道蒼白射線橫貫整個戰場。
+#   磚石手機螢幕熄滅，啪地一聲砸在地上，任憑螢幕玻璃爆碎。
+#   勝者：玻璃板。它滑動解鎖，顯示「WINNER」。
+# ──────────────────────────────────────────────────────────
 name: "Glass Slab slows and kites Brick Phone"
 left: glass_slab
 right: brick_phone
-left_script:
-  # Glass Slab kites briefly — 3 poke intents to establish flavour (not long)
-  - {do: retreat,           until: "dist>=230"}
-  - {do: "attack:cd",       until: skill_done}    # shard_scatter — slow + dmg at 240 px
-  - {do: "flash:back",      until: "dist>=220"}   # escape to maintain distance
-  - {do: "attack:special",  until: skill_done}    # ad_popup_spam (mp_cost=25) or ringtone_shock
-  # --- Finisher: advance and batter until Brick Phone KO'd ---
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:cd",       until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:special",  until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-right_script:
-  # Brick Phone tries to close but Glass Slab keeps retreating; fires ranged shots
-  - {do: advance,           until: "dist<=230"}
-  - {do: "attack:cd",       until: skill_done}    # screw_dart at 250 px
-  - {do: advance,           until: "dist<=220"}
-  - {do: "attack:basic",    until: skill_done}    # build MP
-  - {do: advance,           until: "dist<=220"}
-  - {do: "attack:special",  until: skill_done}    # snake_strike at 240 px
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:basic",    until: skill_done}
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:ultimate", until: skill_done}    # indestructible_throw (dmg=25)
-  - {do: idle,              until: "time>=3000"}  # exhausted — Glass Slab finishes it
+duration_ms: 22000
+left_timeline:
+  - {t: 2000, do: "attack:cd"}
+  - {t: 2600, do: "flash:back"}
+  - {t: 2800, do: "attack:special"}
+  - {t: 3600, do: advance}
+  - {t: 4400, do: advance}
+  - {t: 5200, do: advance}
+  - {t: 6000, do: advance}
+  - {t: 7000, do: "attack:basic"}
+  - {t: 7800, do: advance}
+  - {t: 8600, do: advance}
+  - {t: 9400, do: advance}
+  - {t: 10200, do: "attack:basic"}
+  - {t: 11000, do: advance}
+  - {t: 11800, do: advance}
+  - {t: 12600, do: "attack:cd"}
+  - {t: 13400, do: advance}
+  - {t: 14200, do: advance}
+  - {t: 15000, do: "attack:basic"}
+  - {t: 15800, do: advance}
+  - {t: 16600, do: advance}
+  - {t: 17400, do: "attack:special"}
+  - {t: 18200, do: advance}
+  - {t: 19000, do: advance}
+  - {t: 19800, do: "attack:basic"}
+  - {t: 20600, do: advance}
+  - {t: 21000, do: "attack:ultimate"}
+right_timeline:
+  - {t: 2000, do: advance}
+  - {t: 2200, do: "attack:cd"}
+  - {t: 2800, do: advance}
+  - {t: 3200, do: "attack:basic"}
+  - {t: 4000, do: advance}
+  - {t: 4800, do: advance}
+  - {t: 5600, do: advance}
+  - {t: 6400, do: advance}
+  - {t: 7100, do: "attack:special"}
+  - {t: 7900, do: advance}
+  - {t: 8700, do: advance}
+  - {t: 9500, do: "attack:basic"}
+  - {t: 10300, do: advance}
+  - {t: 11100, do: advance}
+  - {t: 11900, do: "attack:ultimate"}
+  - {t: 12700, do: advance}
+  - {t: 13500, do: advance}
+  - {t: 14300, do: "attack:basic"}
+  - {t: 15100, do: advance}
+  - {t: 15900, do: "attack:cd"}
+  - {t: 16700, do: advance}
+  - {t: 17500, do: "attack:special"}
+  - {t: 18300, do: advance}
+  - {t: 19100, do: advance}
+  - {t: 19900, do: "attack:basic"}

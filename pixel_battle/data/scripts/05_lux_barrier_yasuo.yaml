@@ -1,53 +1,85 @@
-# pixel_battle/data/scripts/05_lux_barrier_yasuo.yaml
-# Lux kites Yasuo: opens with prismatic_barrier shield, then roots with
-# light_binding from long range, escapes with Flash, lands Final Spark.
-# Winner: Lux (left). Finisher: close-range spam until Yasuo KO'd.
+# ──────────────────────────────────────────────────────────
+# 拉克絲 vs 亞索 — 光盾與斷劍
+# ──────────────────────────────────────────────────────────
+# 【第一幕 · 開場  0.0–7.0s】
+#   亞索如影向前衝，風刃連斬硬要突破拉克絲的防線。
+#   拉克絲慌忙後退，棱鏡護盾在最後一刻撐開，擋下了致命一擊。
+#   護盾碎裂的瞬間，金色光芒散落滿地——她還活著。
+#
+# 【第二幕 · 蓄勢  7.0–14.0s】
+#   拉克絲趁亞索最後之息落空的空隙，光之束縛鎖鏈射出。
+#   亞索被根定住三秒，只能眼睜睜看著拉克絲後撤、積蓄魔力。
+#   螢光奇點在亞索腳邊引爆，HP的刻度以驚人速度歸零。
+#
+# 【第三幕 · 衝突  14.0–22.0s】
+#   亞索拼盡最後的氣力衝上來，凜風再聚也只剩虛影。
+#   拉克絲用基本光束逐漸蠶食，每一發都精準落在要害。
+#   戰場上的風變得稀薄，亞索的步伐愈來愈沉。
+#
+# 【終幕 · 終結  22.0s+】
+#   拉克絲深吸一口氣，祭出終極：最終閃光。
+#   一道刺眼的白光橫貫戰場，亞索被掃落塵埃，再無反抗之力。
+#   勝者：拉克絲。她收杖，護盾的殘影還在手邊輕輕旋轉。
+# ──────────────────────────────────────────────────────────
 name: "Lux barriers Yasuo's burst then roots and wins"
 left: lux
 right: yasuo
-left_script:
-  # Lux opens at long range, builds shield, then roots Yasuo repeatedly
-  - {do: retreat,           until: "dist>=260"}
-  - {do: "attack:special",  until: skill_done}    # prismatic_barrier — shield on self
-  - {do: retreat,           until: "dist>=270"}
-  - {do: "attack:cd",       until: skill_done}    # light_binding roots at 280 px
-  - {do: "flash:back",      until: "dist>=260"}   # escape when Yasuo closes
-  - {do: retreat,           until: "dist>=280"}
-  - {do: "attack:basic",    until: skill_done}    # build MP
-  - {do: retreat,           until: "dist>=280"}
-  - {do: "attack:special",  until: skill_done}    # lucent_singularity at 300 px
-  - {do: "flash:back",      until: "dist>=260"}
-  - {do: retreat,           until: "dist>=270"}
-  - {do: "attack:cd",       until: skill_done}    # light_binding again
-  - {do: retreat,           until: "dist>=290"}
-  - {do: "attack:ultimate", until: skill_done}    # final_spark (dmg=32) at 340 px
-  # --- Finisher: close and spam until Yasuo KO'd ---
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:cd",       until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:special",  until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:cd",       until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-right_script:
-  # Yasuo tries to close with Flash + sweeping_blade but Lux keeps kiting
-  - {do: advance,           until: "dist<=130"}
-  - {do: "attack:basic",    until: skill_done}
-  - {do: "attack:cd",       until: skill_done}    # steel_tempest — free at start
-  - {do: "flash:in",        until: "dist<=120"}   # close when Lux retreats far
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:basic",    until: skill_done}    # build MP
-  - {do: "attack:special",  until: skill_done}    # sweeping_blade dash
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:basic",    until: skill_done}
-  - {do: "attack:special",  until: skill_done}    # gathering_storm
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:ultimate", until: skill_done}    # last_breath — desperation
-  - {do: idle,              until: "time>=3000"}  # staggered — Lux finishes him
+duration_ms: 25000
+left_timeline:
+  - {t: 2000, do: retreat}
+  - {t: 2800, do: retreat}
+  - {t: 3600, do: "attack:special"}
+  - {t: 4400, do: retreat}
+  - {t: 5200, do: retreat}
+  - {t: 6000, do: retreat}
+  - {t: 6800, do: retreat}
+  - {t: 7600, do: "attack:cd"}
+  - {t: 8400, do: retreat}
+  - {t: 9200, do: retreat}
+  - {t: 10000, do: retreat}
+  - {t: 10800, do: "attack:special"}
+  - {t: 11600, do: retreat}
+  - {t: 12400, do: retreat}
+  - {t: 13200, do: retreat}
+  - {t: 14000, do: "attack:cd"}
+  - {t: 14800, do: retreat}
+  - {t: 15600, do: retreat}
+  - {t: 16400, do: "attack:basic"}
+  - {t: 17200, do: retreat}
+  - {t: 18000, do: retreat}
+  - {t: 18800, do: "attack:special"}
+  - {t: 19600, do: retreat}
+  - {t: 20400, do: "attack:cd"}
+  - {t: 21200, do: retreat}
+  - {t: 22000, do: advance}
+  - {t: 22500, do: "attack:ultimate"}
+right_timeline:
+  - {t: 2000, do: advance}
+  - {t: 2900, do: "attack:basic"}
+  - {t: 3700, do: advance}
+  - {t: 4500, do: advance}
+  - {t: 5300, do: advance}
+  - {t: 6100, do: advance}
+  - {t: 6900, do: "attack:cd"}
+  - {t: 7500, do: "flash:in"}
+  - {t: 7700, do: advance}
+  - {t: 7900, do: "attack:basic"}
+  - {t: 8100, do: "attack:special"}
+  - {t: 9000, do: advance}
+  - {t: 9800, do: advance}
+  - {t: 10600, do: advance}
+  - {t: 11400, do: advance}
+  - {t: 12200, do: "attack:basic"}
+  - {t: 13000, do: advance}
+  - {t: 13800, do: "attack:special"}
+  - {t: 14600, do: advance}
+  - {t: 15400, do: advance}
+  - {t: 16200, do: "attack:ultimate"}
+  - {t: 17000, do: advance}
+  - {t: 17800, do: advance}
+  - {t: 18600, do: "attack:basic"}
+  - {t: 19400, do: advance}
+  - {t: 20200, do: "attack:cd"}
+  - {t: 21000, do: advance}
+  - {t: 21800, do: advance}
+  - {t: 22600, do: "attack:special"}

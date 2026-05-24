@@ -1,48 +1,58 @@
-# pixel_battle/data/scripts/04_yasuo_duel_ashe.yaml
-# Yasuo uses Flash + sweeping_blade to close on Ashe, trades through mid-fight,
-# then finishes with Last Breath. Ashe genuinely kites at 260 px with Volley.
-# Winner: Yasuo (left). Finisher: relentless melee until Ashe KO'd.
+# ──────────────────────────────────────────────────────────
+# 亞索 vs 艾希 — 浪人與冰冷弓矢
+# ──────────────────────────────────────────────────────────
+# 【第一幕 · 開場  0.0–6.0s】
+#   亞索斗笠低垂，風刃隨意揮出——輕鬆寫意，卻暗藏殺機。
+#   艾希彎弓搭箭向後退，冰霜箭矢在空氣中留下白色軌跡。
+#   雙方試探拉鋸，誰也不急著打出底牌。
+#
+# 【第二幕 · 蓄勢  6.0–9.0s】
+#   鋼鐵之刃！亞索的灼熱旋風向前衝出，弧形氣刃破空而至。
+#   艾希閃現後退試圖甩開，箭雨齊射只是擦邊而過。
+#   亞索閃現追上，連刃不停——他不給敵人喘息的機會。
+#
+# 【第三幕 · 衝突  9.0–10.5s】
+#   凜風聚刃斬再次引爆，艾希的冰霜護甲在旋風中崩解。
+#   艾希掙扎起身，聚焦射擊造成最後的反擊——徒勞。
+#   亞索摺扇一收，踏步上前，眼神平靜如風前之眼。
+#
+# 【終幕 · 終結  10.5s+】
+#   最後一聲吹風：最後之息。亞索瞬間橫越戰場，劍氣橫貫。
+#   艾希應聲倒地，冰弓滑落，戰場歸於死寂的冷風。
+#   勝者：亞索。他回收長劍，斗笠下的嘴角帶著一絲淡漠。
+# ──────────────────────────────────────────────────────────
 name: "Yasuo dashes down Ashe"
 left: yasuo
 right: ashe
-left_script:
-  # Yasuo advances relentlessly; uses Flash to bridge the gap
-  - {do: advance,           until: "dist<=130"}
-  - {do: "attack:basic",    until: skill_done}
-  - {do: "attack:cd",       until: skill_done}    # steel_tempest — free at start, range 130
-  - {do: "flash:in",        until: "dist<=120"}   # blink in when Ashe retreats
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:basic",    until: skill_done}    # build MP
-  - {do: "attack:special",  until: skill_done}    # sweeping_blade dash
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:basic",    until: skill_done}
-  - {do: "attack:special",  until: skill_done}    # gathering_storm aura
-  - {do: "flash:in",        until: "dist<=120"}   # another Flash to stay close
-  - {do: advance,           until: "dist<=110"}
-  - {do: "attack:ultimate", until: skill_done}    # last_breath (dmg=30) — KO potential
-  # --- Finisher: close in and hammer until Ashe drops ---
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:cd",       until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:special",  until: "target_hp<=0"}
-  - {do: advance,           until: "dist<=100"}
-  - {do: "attack:basic",    until: "target_hp<=0"}
-right_script:
-  # Ashe kites at 260 px, fires Volley, escapes with Flash when Yasuo gets close
-  - {do: retreat,           until: "dist>=255"}
-  - {do: "attack:cd",       until: skill_done}    # volley at 260 px — harassment
-  - {do: "flash:back",      until: "dist>=240"}   # escape Yasuo's advance
-  - {do: retreat,           until: "dist>=255"}
-  - {do: "attack:basic",    until: skill_done}    # land a hit, build MP
-  - {do: retreat,           until: "dist>=280"}
-  - {do: "attack:special",  until: skill_done}    # ranger_focus aura (affordable first, mp_cost=22); hawkshot (mp_cost=18) fires only when ranger_focus is already on cd or mp<22
-  - {do: "flash:back",      until: "dist>=240"}
-  - {do: retreat,           until: "dist>=255"}
-  - {do: "attack:cd",       until: skill_done}    # volley again
-  - {do: retreat,           until: "dist>=280"}
-  - {do: "attack:basic",    until: skill_done}
-  - {do: idle,              until: "time>=3000"}  # Ashe retreating — Yasuo closes and wins
+duration_ms: 11000
+left_timeline:
+  - {t: 2000, do: advance}
+  - {t: 2900, do: "attack:basic"}
+  - {t: 3700, do: advance}
+  - {t: 4500, do: advance}
+  - {t: 5300, do: advance}
+  - {t: 6100, do: advance}
+  - {t: 6900, do: "attack:cd"}
+  - {t: 7500, do: "flash:in"}
+  - {t: 7700, do: advance}
+  - {t: 7900, do: "attack:basic"}
+  - {t: 8100, do: "attack:special"}
+  - {t: 9000, do: advance}
+  - {t: 9200, do: "attack:basic"}
+  - {t: 9900, do: advance}
+  - {t: 10200, do: "attack:special"}
+  - {t: 10700, do: advance}
+  - {t: 10900, do: "attack:ultimate"}
+right_timeline:
+  - {t: 2000, do: retreat}
+  - {t: 2800, do: retreat}
+  - {t: 3600, do: retreat}
+  - {t: 4400, do: retreat}
+  - {t: 5200, do: retreat}
+  - {t: 6000, do: "attack:cd"}
+  - {t: 6600, do: "flash:back"}
+  - {t: 7400, do: retreat}
+  - {t: 8200, do: retreat}
+  - {t: 9000, do: retreat}
+  - {t: 9800, do: retreat}
+  - {t: 10600, do: retreat}

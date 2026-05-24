@@ -1,0 +1,49 @@
+# pixel_battle/data/scripts/02_garen_rush_lux.yaml
+# Garen charges in relentlessly, uses Flash to bridge the gap when Lux retreats,
+# shrugs off CC with Courage, then ends it with Demacian Justice.
+# Winner: Garen (left). Finisher: close and hammer until Lux KO'd.
+name: "Garen rushes down Lux"
+left: garen
+right: lux
+left_script:
+  # Garen advances hard; uses Flash to close the wide gap Lux creates
+  - {do: advance,           until: "dist<=130"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: advance,           until: "dist<=120"}
+  - {do: "attack:cd",       until: skill_done}    # decisive_strike — free at start
+  - {do: "flash:in",        until: "dist<=120"}   # blink in when Lux retreats
+  - {do: "attack:basic",    until: skill_done}    # build MP
+  - {do: advance,           until: "dist<=120"}
+  - {do: "attack:special",  until: skill_done}    # judgment (dmg=9) or courage
+  - {do: "flash:in",        until: "dist<=120"}   # another Flash to stay close
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:cd",       until: skill_done}    # decisive_strike again
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:ultimate", until: skill_done}    # demacian_justice — heavy burst
+  # --- Finisher: press close and hammer until Lux drops ---
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:cd",       until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+right_script:
+  # Lux tries to kite but Garen closes with Flash — she retreats and fires
+  - {do: retreat,           until: "dist>=270"}
+  - {do: "attack:cd",       until: skill_done}    # light_binding — root attempt
+  - {do: "flash:back",      until: "dist>=260"}
+  - {do: "attack:basic",    until: skill_done}    # land a hit to build MP
+  - {do: retreat,           until: "dist>=280"}
+  - {do: "attack:special",  until: skill_done}    # lucent_singularity
+  - {do: "flash:back",      until: "dist>=260"}
+  - {do: retreat,           until: "dist>=270"}
+  - {do: "attack:cd",       until: skill_done}    # light_binding again
+  - {do: retreat,           until: "dist>=270"}
+  - {do: "attack:ultimate", until: skill_done}    # final_spark — desperation
+  - {do: idle,              until: "time>=3000"}  # Lux KO'd by Garen's relentless rush

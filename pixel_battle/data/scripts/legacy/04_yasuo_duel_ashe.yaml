@@ -1,0 +1,48 @@
+# pixel_battle/data/scripts/04_yasuo_duel_ashe.yaml
+# Yasuo uses Flash + sweeping_blade to close on Ashe, trades through mid-fight,
+# then finishes with Last Breath. Ashe genuinely kites at 260 px with Volley.
+# Winner: Yasuo (left). Finisher: relentless melee until Ashe KO'd.
+name: "Yasuo dashes down Ashe"
+left: yasuo
+right: ashe
+left_script:
+  # Yasuo advances relentlessly; uses Flash to bridge the gap
+  - {do: advance,           until: "dist<=130"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: "attack:cd",       until: skill_done}    # steel_tempest — free at start, range 130
+  - {do: "flash:in",        until: "dist<=120"}   # blink in when Ashe retreats
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}    # build MP
+  - {do: "attack:special",  until: skill_done}    # sweeping_blade dash
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: "attack:special",  until: skill_done}    # gathering_storm aura
+  - {do: "flash:in",        until: "dist<=120"}   # another Flash to stay close
+  - {do: advance,           until: "dist<=110"}
+  - {do: "attack:ultimate", until: skill_done}    # last_breath (dmg=30) — KO potential
+  # --- Finisher: close in and hammer until Ashe drops ---
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:cd",       until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:special",  until: "target_hp<=0"}
+  - {do: advance,           until: "dist<=100"}
+  - {do: "attack:basic",    until: "target_hp<=0"}
+right_script:
+  # Ashe kites at 260 px, fires Volley, escapes with Flash when Yasuo gets close
+  - {do: retreat,           until: "dist>=255"}
+  - {do: "attack:cd",       until: skill_done}    # volley at 260 px — harassment
+  - {do: "flash:back",      until: "dist>=240"}   # escape Yasuo's advance
+  - {do: retreat,           until: "dist>=255"}
+  - {do: "attack:basic",    until: skill_done}    # land a hit, build MP
+  - {do: retreat,           until: "dist>=280"}
+  - {do: "attack:special",  until: skill_done}    # ranger_focus aura (affordable first, mp_cost=22); hawkshot (mp_cost=18) fires only when ranger_focus is already on cd or mp<22
+  - {do: "flash:back",      until: "dist>=240"}
+  - {do: retreat,           until: "dist>=255"}
+  - {do: "attack:cd",       until: skill_done}    # volley again
+  - {do: retreat,           until: "dist>=280"}
+  - {do: "attack:basic",    until: skill_done}
+  - {do: idle,              until: "time>=3000"}  # Ashe retreating — Yasuo closes and wins

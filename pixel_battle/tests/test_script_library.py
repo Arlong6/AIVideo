@@ -5,7 +5,7 @@ import pytest
 
 from pixel_battle.script.loader import load_script
 
-_SCRIPT_DIR = Path(__file__).resolve().parents[1] / "data" / "scripts"
+_SCRIPT_DIR = Path(__file__).resolve().parents[1] / "data" / "scripts" / "legacy"
 
 
 def test_all_scripts_load():
