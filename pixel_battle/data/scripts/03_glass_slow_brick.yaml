@@ -2,79 +2,130 @@
 # 玻璃板 vs 磚石手機 — 玻璃與磚石之爭
 # ──────────────────────────────────────────────────────────
 # 【第一幕 · 開場  0.0–6.0s】
-#   磚石手機以頭搥起手，厚重的機身硬碰硬地壓進戰場。
-#   玻璃板後撤一步，碎玻璃散射技射出——試探距離、鋪設陷阱。
-#   廣告視窗轟炸與螺絲飛鏢交織，金屬碰撞聲此起彼落。
+#   磚石手機踏步向前，厚重機身硬壓戰場。
+#   玻璃板碎片橫掃，光芒劃出刺眼弧線。
+#   雙方同步逼近，廣告彈窗與螺絲飛鏢接連爆開。
 #
-# 【第二幕 · 蓄勢  6.0–12.0s】
-#   玻璃板收到磚石蠻衝，激活手機震動衝擊波反擊。
-#   磚石手機亮出終極招式「摔不壞拋擲」，空氣中炸開一聲金屬悶響。
-#   玻璃板抖了抖，裂縫在邊框蔓延——但沒有倒。
+# 【第二幕 · 蓄勢  6.0–16.0s】
+#   玻璃板連發散射積蓄能量，磁場慢化磚石機身。
+#   磚石手機螺絲飛鏢精準命中，金屬碰撞聲此起彼落。
+#   玻璃板的魔力條悄悄注滿，廣告風暴蓄勢待發。
 #
-# 【第三幕 · 衝突  12.0–20.0s】
-#   玻璃板步步緊逼，碎片連射把磚石手機壓制住。
-#   廣告彈出垃圾訊息接連爆開，讓磚石手機疲於應對。
-#   磚石手機強撐蛇形突刺，打出最後的反擊——但已油盡燈枯。
+# 【第三幕 · 衝突  16.0–22.0s】
+#   玻璃板廣告轟炸接連爆開，磚石手機疲於應對。
+#   磚石手機強撐螺絲反擊，但玻璃板的散射源源不絕。
+#   裂縫愈來愈深，磚石螢幕開始閃爍抖動。
 #
-# 【終幕 · 終結  20.0s+】
-#   玻璃板引爆強制更新光束，一道蒼白射線橫貫整個戰場。
-#   磚石手機螢幕熄滅，啪地一聲砸在地上，任憑螢幕玻璃爆碎。
+# 【終幕 · 終結  22.0s+】
+#   玻璃板最後一輪廣告+散射連擊，磚石手機螢幕熄滅。
+#   啪地砸地，任憑螢幕玻璃爆碎。
 #   勝者：玻璃板。它滑動解鎖，顯示「WINNER」。
 # ──────────────────────────────────────────────────────────
 name: "Glass Slab slows and kites Brick Phone"
 left: glass_slab
 right: brick_phone
-duration_ms: 22000
+duration_ms: 28000
 left_timeline:
-  - {t: 2000, do: "attack:cd"}
-  - {t: 2600, do: "flash:back"}
-  - {t: 2800, do: "attack:special"}
+  - {t: 2000, do: advance}
+  - {t: 2400, do: advance}
+  - {t: 2800, do: advance}
+  - {t: 3200, do: "attack:cd"}
   - {t: 3600, do: advance}
+  - {t: 4000, do: advance}
   - {t: 4400, do: advance}
+  - {t: 4800, do: "attack:cd"}
   - {t: 5200, do: advance}
+  - {t: 5600, do: advance}
   - {t: 6000, do: advance}
-  - {t: 7000, do: "attack:basic"}
-  - {t: 7800, do: advance}
-  - {t: 8600, do: advance}
-  - {t: 9400, do: advance}
-  - {t: 10200, do: "attack:basic"}
-  - {t: 11000, do: advance}
-  - {t: 11800, do: advance}
-  - {t: 12600, do: "attack:cd"}
-  - {t: 13400, do: advance}
-  - {t: 14200, do: advance}
-  - {t: 15000, do: "attack:basic"}
-  - {t: 15800, do: advance}
-  - {t: 16600, do: advance}
-  - {t: 17400, do: "attack:special"}
-  - {t: 18200, do: advance}
-  - {t: 19000, do: advance}
-  - {t: 19800, do: "attack:basic"}
-  - {t: 20600, do: advance}
-  - {t: 21000, do: "attack:ultimate"}
+  - {t: 6400, do: "attack:cd"}
+  - {t: 6800, do: advance}
+  - {t: 7200, do: advance}
+  - {t: 7600, do: advance}
+  - {t: 8000, do: "attack:cd"}
+  - {t: 8400, do: advance}
+  - {t: 8800, do: advance}
+  - {t: 9200, do: advance}
+  - {t: 9600, do: "attack:cd"}
+  - {t: 10000, do: advance}
+  - {t: 10400, do: advance}
+  - {t: 10800, do: advance}
+  - {t: 11200, do: "attack:cd"}
+  - {t: 11600, do: advance}
+  - {t: 12000, do: advance}
+  - {t: 12400, do: advance}
+  - {t: 12800, do: "attack:special"}
+  - {t: 13200, do: advance}
+  - {t: 13600, do: advance}
+  - {t: 14000, do: advance}
+  - {t: 14400, do: "attack:cd"}
+  - {t: 14800, do: advance}
+  - {t: 15200, do: advance}
+  - {t: 15600, do: advance}
+  - {t: 16000, do: "attack:cd"}
+  - {t: 16400, do: advance}
+  - {t: 16800, do: advance}
+  - {t: 17200, do: advance}
+  - {t: 17600, do: "attack:special"}
+  - {t: 18000, do: advance}
+  - {t: 18400, do: advance}
+  - {t: 18800, do: advance}
+  - {t: 19200, do: "attack:cd"}
+  - {t: 19600, do: advance}
+  - {t: 20000, do: advance}
+  - {t: 20400, do: advance}
+  - {t: 20800, do: "attack:cd"}
+  - {t: 21200, do: advance}
+  - {t: 21600, do: advance}
+  - {t: 22000, do: advance}
+  - {t: 22400, do: "attack:special"}
 right_timeline:
   - {t: 2000, do: advance}
-  - {t: 2200, do: "attack:cd"}
+  - {t: 2400, do: advance}
   - {t: 2800, do: advance}
-  - {t: 3200, do: "attack:basic"}
+  - {t: 3200, do: advance}
+  - {t: 3600, do: advance}
   - {t: 4000, do: advance}
-  - {t: 4800, do: advance}
+  - {t: 4400, do: advance}
+  - {t: 4800, do: "attack:cd"}
+  - {t: 5200, do: advance}
   - {t: 5600, do: advance}
+  - {t: 6000, do: advance}
   - {t: 6400, do: advance}
-  - {t: 7100, do: "attack:special"}
-  - {t: 7900, do: advance}
-  - {t: 8700, do: advance}
-  - {t: 9500, do: "attack:basic"}
-  - {t: 10300, do: advance}
-  - {t: 11100, do: advance}
-  - {t: 11900, do: "attack:ultimate"}
-  - {t: 12700, do: advance}
-  - {t: 13500, do: advance}
-  - {t: 14300, do: "attack:basic"}
-  - {t: 15100, do: advance}
-  - {t: 15900, do: "attack:cd"}
-  - {t: 16700, do: advance}
-  - {t: 17500, do: "attack:special"}
-  - {t: 18300, do: advance}
-  - {t: 19100, do: advance}
-  - {t: 19900, do: "attack:basic"}
+  - {t: 6800, do: advance}
+  - {t: 7200, do: advance}
+  - {t: 7600, do: advance}
+  - {t: 8000, do: "attack:cd"}
+  - {t: 8400, do: advance}
+  - {t: 8800, do: advance}
+  - {t: 9200, do: advance}
+  - {t: 9600, do: advance}
+  - {t: 10000, do: advance}
+  - {t: 10400, do: advance}
+  - {t: 10800, do: advance}
+  - {t: 11200, do: "attack:cd"}
+  - {t: 11600, do: advance}
+  - {t: 12000, do: advance}
+  - {t: 12400, do: advance}
+  - {t: 12800, do: advance}
+  - {t: 13200, do: advance}
+  - {t: 13600, do: advance}
+  - {t: 14000, do: advance}
+  - {t: 14400, do: "attack:cd"}
+  - {t: 14800, do: advance}
+  - {t: 15200, do: advance}
+  - {t: 15600, do: advance}
+  - {t: 16000, do: advance}
+  - {t: 16400, do: advance}
+  - {t: 16800, do: advance}
+  - {t: 17200, do: advance}
+  - {t: 17600, do: "attack:cd"}
+  - {t: 18000, do: advance}
+  - {t: 18400, do: advance}
+  - {t: 18800, do: advance}
+  - {t: 19200, do: "attack:cd"}
+  - {t: 19600, do: advance}
+  - {t: 20000, do: advance}
+  - {t: 20400, do: advance}
+  - {t: 20800, do: "attack:cd"}
+  - {t: 21200, do: advance}
+  - {t: 21600, do: advance}

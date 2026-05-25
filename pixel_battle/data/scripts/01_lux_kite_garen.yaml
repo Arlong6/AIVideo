@@ -1,65 +1,139 @@
 # ──────────────────────────────────────────────────────────
-# 拉克絲 vs 蓋倫 — 風箏與追擊
+# 蓋倫 vs 拉克絲 — 風箏與追擊
 # ──────────────────────────────────────────────────────────
-# 【第一幕 · 開場  0.0–6.0s】
-#   蓋倫抬起巨劍,鐵靴踏地轟鳴,氣勢如山地壓進場。
-#   拉克絲足尖輕點,向後滑退，光之法杖泛起淡金流光。
+# 【第一幕 · 開場  0.0–5.0s】
+#   蓋倫抬起巨劍，鐵靴踏地轟鳴，氣勢如山地壓進場。
+#   拉克絲足尖輕點，向後滑退，光之法杖泛起淡金流光。
 #   她需要距離——這場仗不能讓對手靠近。
 #
-# 【第二幕 · 蓄勢  6.0–10.0s】
+# 【第二幕 · 蓄勢  5.0–14.0s】
 #   《光之束縛》如金色鎖鏈驟然射出，蓋倫腳步一頓——
-#   被束縛住的瞬間，蓋倫咬緊牙關眼眸中殺意翻湧。
-#   拉克絲趁機閃身後撤，積蓄著決定性一擊的能量。
+#   被束縛住的瞬間，蓋倫咬緊牙關，眼眸中殺意翻湧。
+#   拉克絲趁機後撤，積蓄著螢光奇點的魔力。
 #
-# 【第三幕 · 衝突  10.0–13.0s】
-#   蓋倫祭出閃現瞬移切入，大劍的風壓讓拉克絲踉蹌。
-#   電光火石間，決定性突刺的銀芒劃過——傷！
-#   拉克絲被迫近戰應對，卻在危機中迎來最後的機會。
+# 【第三幕 · 衝突  14.0–22.0s】
+#   蓋倫決定性突刺再次劃出弧線，瞬間縮短了距離。
+#   拉克絲連放束縛與奇點，每道光芒都精準落在要害。
+#   蓋倫的HP在光之連擊下急速歸零，步伐愈來愈沉。
 #
-# 【終幕 · 終結  13.0s+】
-#   拉克絲引爆殘餘MP，近距離一連串基本攻擊如暴雨般落下。
-#   蓋倫單膝跪地，巨劍砸入塵土，身形轟然倒塌。
+# 【終幕 · 終結  22.0s+】
+#   拉克絲引爆全部魔力，螢光奇點再次引爆。
+#   蓋倫的巨劍砸入塵土，身形轟然倒塌。
 #   勝者：拉克絲。光芒在她手中最後一次閃滅。
 # ──────────────────────────────────────────────────────────
 name: "Lux kites and roots Garen"
 left: garen
 right: lux
-duration_ms: 14400
+duration_ms: 28000
 left_timeline:
-  - {t: 2000, do: advance}
-  - {t: 2900, do: "attack:basic"}
-  - {t: 3800, do: advance}
-  - {t: 4600, do: advance}
-  - {t: 5400, do: advance}
-  - {t: 6900, do: advance}
-  - {t: 7800, do: "attack:cd"}
-  - {t: 8400, do: advance}
-  - {t: 9700, do: "flash:in"}
-  - {t: 9800, do: "attack:cd"}
-  - {t: 10700, do: advance}
-  - {t: 11000, do: "attack:basic"}
-  - {t: 11800, do: advance}
-  - {t: 12100, do: "attack:basic"}
-  - {t: 12800, do: advance}
-  - {t: 13000, do: "attack:special"}
-right_timeline:
-  - {t: 2000, do: retreat}
-  - {t: 2800, do: retreat}
-  - {t: 3700, do: retreat}
-  - {t: 4600, do: retreat}
-  - {t: 5500, do: retreat}
-  - {t: 6000, do: "attack:cd"}
-  - {t: 6600, do: retreat}
-  - {t: 7400, do: retreat}
-  - {t: 8200, do: retreat}
-  - {t: 9000, do: retreat}
-  - {t: 9800, do: retreat}
-  - {t: 10600, do: "attack:basic"}
-  - {t: 11200, do: advance}
-  - {t: 11800, do: "attack:cd"}
-  - {t: 12400, do: advance}
+  - {t: 2000, do: "attack:basic"}
+  - {t: 2400, do: "attack:basic"}
+  - {t: 2800, do: "attack:basic"}
+  - {t: 3200, do: "attack:basic"}
+  - {t: 3600, do: "attack:basic"}
+  - {t: 4000, do: "attack:basic"}
+  - {t: 4400, do: "attack:basic"}
+  - {t: 4800, do: "attack:basic"}
+  - {t: 5200, do: "attack:basic"}
+  - {t: 5600, do: "attack:basic"}
+  - {t: 6000, do: "attack:basic"}
+  - {t: 6400, do: "attack:basic"}
+  - {t: 6800, do: "attack:basic"}
+  - {t: 7200, do: "attack:basic"}
+  - {t: 7600, do: "attack:basic"}
+  - {t: 8000, do: "attack:basic"}
+  - {t: 8400, do: "attack:basic"}
+  - {t: 8800, do: "attack:basic"}
+  - {t: 9200, do: "attack:basic"}
+  - {t: 9600, do: "attack:basic"}
+  - {t: 10000, do: "attack:basic"}
+  - {t: 10400, do: "attack:basic"}
+  - {t: 10800, do: "attack:basic"}
+  - {t: 11200, do: "attack:basic"}
+  - {t: 11600, do: "attack:basic"}
+  - {t: 12000, do: "attack:basic"}
+  - {t: 12400, do: "attack:basic"}
   - {t: 12800, do: "attack:basic"}
-  - {t: 13200, do: advance}
+  - {t: 13200, do: "attack:basic"}
+  - {t: 13600, do: "attack:basic"}
+  - {t: 14000, do: "attack:basic"}
+  - {t: 14400, do: "attack:basic"}
+  - {t: 14800, do: "attack:basic"}
+  - {t: 15200, do: "attack:basic"}
+  - {t: 15600, do: "attack:basic"}
+  - {t: 16000, do: "attack:basic"}
+  - {t: 16400, do: "attack:basic"}
+  - {t: 16800, do: "attack:basic"}
+  - {t: 17200, do: "attack:basic"}
+  - {t: 17600, do: "attack:basic"}
+  - {t: 18000, do: "attack:basic"}
+  - {t: 18400, do: "attack:basic"}
+  - {t: 18800, do: "attack:basic"}
+  - {t: 19200, do: "attack:basic"}
+  - {t: 19600, do: "attack:basic"}
+  - {t: 20000, do: "attack:basic"}
+  - {t: 20400, do: "attack:basic"}
+  - {t: 20800, do: "attack:basic"}
+  - {t: 21200, do: "attack:basic"}
+  - {t: 21600, do: "attack:basic"}
+  - {t: 22000, do: "attack:basic"}
+  - {t: 22400, do: "attack:basic"}
+  - {t: 22800, do: "attack:basic"}
+  - {t: 23200, do: "attack:basic"}
+right_timeline:
+  - {t: 2000, do: advance}
+  - {t: 2400, do: advance}
+  - {t: 2800, do: "attack:cd"}
+  - {t: 3200, do: "attack:basic"}
+  - {t: 3600, do: "attack:basic"}
+  - {t: 4000, do: "attack:basic"}
+  - {t: 4400, do: "attack:basic"}
+  - {t: 4800, do: "attack:basic"}
+  - {t: 5200, do: "attack:basic"}
+  - {t: 5600, do: "attack:basic"}
+  - {t: 6000, do: advance}
+  - {t: 6400, do: advance}
+  - {t: 6800, do: "attack:cd"}
+  - {t: 7200, do: "attack:basic"}
+  - {t: 7600, do: "attack:basic"}
+  - {t: 8000, do: "attack:basic"}
+  - {t: 8400, do: "attack:basic"}
+  - {t: 8800, do: "attack:basic"}
+  - {t: 9200, do: "attack:basic"}
+  - {t: 9600, do: "attack:basic"}
+  - {t: 10000, do: advance}
+  - {t: 10400, do: advance}
+  - {t: 10800, do: "attack:cd"}
+  - {t: 11200, do: "attack:basic"}
+  - {t: 11600, do: "cast:lucent_singularity"}
+  - {t: 12000, do: "attack:basic"}
+  - {t: 12400, do: "attack:basic"}
+  - {t: 12800, do: "attack:basic"}
+  - {t: 13200, do: "attack:basic"}
   - {t: 13600, do: "attack:basic"}
   - {t: 14000, do: advance}
-  - {t: 14200, do: "attack:basic"}
+  - {t: 14400, do: advance}
+  - {t: 14800, do: "attack:cd"}
+  - {t: 15200, do: "attack:basic"}
+  - {t: 15600, do: "cast:lucent_singularity"}
+  - {t: 16000, do: "attack:basic"}
+  - {t: 16400, do: "attack:basic"}
+  - {t: 16800, do: "attack:basic"}
+  - {t: 17200, do: "attack:basic"}
+  - {t: 17600, do: "attack:basic"}
+  - {t: 18000, do: advance}
+  - {t: 18400, do: advance}
+  - {t: 18800, do: "attack:cd"}
+  - {t: 19200, do: "attack:basic"}
+  - {t: 19600, do: "cast:lucent_singularity"}
+  - {t: 20000, do: "attack:basic"}
+  - {t: 20400, do: "attack:basic"}
+  - {t: 20800, do: "attack:basic"}
+  - {t: 21200, do: "attack:basic"}
+  - {t: 21600, do: "attack:basic"}
+  - {t: 22000, do: advance}
+  - {t: 22400, do: advance}
+  - {t: 22800, do: "attack:cd"}
+  - {t: 23200, do: "cast:lucent_singularity"}
+  - {t: 23600, do: "attack:basic"}
+  - {t: 24000, do: "attack:basic"}

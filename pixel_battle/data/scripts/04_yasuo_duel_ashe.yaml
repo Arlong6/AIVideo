@@ -2,57 +2,128 @@
 # 亞索 vs 艾希 — 浪人與冰冷弓矢
 # ──────────────────────────────────────────────────────────
 # 【第一幕 · 開場  0.0–6.0s】
-#   亞索斗笠低垂，風刃隨意揮出——輕鬆寫意，卻暗藏殺機。
-#   艾希彎弓搭箭向後退，冰霜箭矢在空氣中留下白色軌跡。
-#   雙方試探拉鋸，誰也不急著打出底牌。
+#   亞索斗笠低垂，大步逼近，風刃隨手揮出——輕鬆寫意，暗藏殺機。
+#   艾希彎弓搭箭，冰霜箭矢在空氣中留下白色軌跡。
+#   兩人同步接近，戰場中央積累著濃烈的殺意。
 #
-# 【第二幕 · 蓄勢  6.0–9.0s】
-#   鋼鐵之刃！亞索的灼熱旋風向前衝出，弧形氣刃破空而至。
-#   艾希閃現後退試圖甩開，箭雨齊射只是擦邊而過。
-#   亞索閃現追上，連刃不停——他不給敵人喘息的機會。
+# 【第二幕 · 蓄勢  7.0–15.0s】
+#   亞索加快鋼鐵之刃的節奏，弧形氣刃一浪接一浪衝出。
+#   艾希箭雨連發，冰霜箭矢打在亞索身上，他卻面不改色。
+#   鋼刃與箭雨在近戰區域激烈交鋒，雙方都受傷不輕。
 #
-# 【第三幕 · 衝突  9.0–10.5s】
-#   凜風聚刃斬再次引爆，艾希的冰霜護甲在旋風中崩解。
-#   艾希掙扎起身，聚焦射擊造成最後的反擊——徒勞。
-#   亞索摺扇一收，踏步上前，眼神平靜如風前之眼。
+# 【第三幕 · 衝突  15.0–22.0s】
+#   亞索凌空突刺，每一劍都比前一劍更快更狠。
+#   艾希聚焦射擊，拉滿的弓弦再也撐不住壓力。
+#   亞索的狂攻讓艾希開始感到後繼無力，HP條急速歸零。
 #
-# 【終幕 · 終結  10.5s+】
-#   最後一聲吹風：最後之息。亞索瞬間橫越戰場，劍氣橫貫。
+# 【終幕 · 終結  22.0s+】
+#   亞索最後的斬擊橫貫戰場，鋼刃應聲命中。
 #   艾希應聲倒地，冰弓滑落，戰場歸於死寂的冷風。
-#   勝者：亞索。他回收長劍，斗笠下的嘴角帶著一絲淡漠。
+#   勝者：亞索。他回收長劍，斗笠下帶著淡漠。
 # ──────────────────────────────────────────────────────────
 name: "Yasuo dashes down Ashe"
 left: yasuo
 right: ashe
-duration_ms: 11000
+duration_ms: 28000
 left_timeline:
   - {t: 2000, do: advance}
-  - {t: 2900, do: "attack:basic"}
-  - {t: 3700, do: advance}
-  - {t: 4500, do: advance}
-  - {t: 5300, do: advance}
-  - {t: 6100, do: advance}
-  - {t: 6900, do: "attack:cd"}
-  - {t: 7500, do: "flash:in"}
-  - {t: 7700, do: advance}
-  - {t: 7900, do: "attack:basic"}
-  - {t: 8100, do: "attack:special"}
-  - {t: 9000, do: advance}
-  - {t: 9200, do: "attack:basic"}
-  - {t: 9900, do: advance}
-  - {t: 10200, do: "attack:special"}
-  - {t: 10700, do: advance}
-  - {t: 10900, do: "attack:ultimate"}
+  - {t: 2400, do: advance}
+  - {t: 2800, do: advance}
+  - {t: 3200, do: advance}
+  - {t: 3600, do: advance}
+  - {t: 4000, do: advance}
+  - {t: 4400, do: advance}
+  - {t: 4800, do: advance}
+  - {t: 5200, do: advance}
+  - {t: 5600, do: advance}
+  - {t: 6000, do: advance}
+  - {t: 6400, do: "cast:steel_tempest"}
+  - {t: 6800, do: advance}
+  - {t: 7200, do: advance}
+  - {t: 7600, do: advance}
+  - {t: 8000, do: "attack:basic"}
+  - {t: 8400, do: advance}
+  - {t: 8800, do: advance}
+  - {t: 9200, do: advance}
+  - {t: 9600, do: "cast:steel_tempest"}
+  - {t: 10000, do: advance}
+  - {t: 10400, do: advance}
+  - {t: 10800, do: advance}
+  - {t: 11200, do: "attack:special"}
+  - {t: 11600, do: advance}
+  - {t: 12000, do: advance}
+  - {t: 12400, do: advance}
+  - {t: 12800, do: "cast:steel_tempest"}
+  - {t: 13200, do: advance}
+  - {t: 13600, do: advance}
+  - {t: 14000, do: advance}
+  - {t: 14400, do: "attack:special"}
+  - {t: 14800, do: advance}
+  - {t: 15200, do: advance}
+  - {t: 15600, do: advance}
+  - {t: 16000, do: "cast:steel_tempest"}
+  - {t: 16400, do: advance}
+  - {t: 16800, do: advance}
+  - {t: 17200, do: advance}
+  - {t: 17600, do: "attack:special"}
+  - {t: 18000, do: advance}
+  - {t: 18400, do: advance}
+  - {t: 18800, do: advance}
+  - {t: 19200, do: "cast:steel_tempest"}
+  - {t: 19600, do: advance}
+  - {t: 20000, do: advance}
+  - {t: 20400, do: advance}
+  - {t: 20800, do: "attack:special"}
+  - {t: 21200, do: advance}
+  - {t: 21600, do: advance}
+  - {t: 22000, do: advance}
+  - {t: 22400, do: "cast:steel_tempest"}
+  - {t: 22800, do: advance}
+  - {t: 23200, do: advance}
+  - {t: 23600, do: advance}
+  - {t: 24000, do: "attack:special"}
 right_timeline:
-  - {t: 2000, do: retreat}
-  - {t: 2800, do: retreat}
-  - {t: 3600, do: retreat}
-  - {t: 4400, do: retreat}
-  - {t: 5200, do: retreat}
-  - {t: 6000, do: "attack:cd"}
-  - {t: 6600, do: "flash:back"}
-  - {t: 7400, do: retreat}
-  - {t: 8200, do: retreat}
-  - {t: 9000, do: retreat}
-  - {t: 9800, do: retreat}
-  - {t: 10600, do: retreat}
+  - {t: 2000, do: advance}
+  - {t: 2400, do: advance}
+  - {t: 2800, do: advance}
+  - {t: 3200, do: advance}
+  - {t: 3600, do: advance}
+  - {t: 4000, do: advance}
+  - {t: 4400, do: advance}
+  - {t: 4800, do: "cast:volley"}
+  - {t: 5200, do: advance}
+  - {t: 5600, do: advance}
+  - {t: 5900, do: advance}
+  - {t: 6400, do: "attack:cd"}
+  - {t: 6800, do: advance}
+  - {t: 7200, do: advance}
+  - {t: 7600, do: advance}
+  - {t: 8000, do: "attack:cd"}
+  - {t: 8400, do: advance}
+  - {t: 8800, do: advance}
+  - {t: 9200, do: advance}
+  - {t: 9600, do: "attack:cd"}
+  - {t: 10000, do: advance}
+  - {t: 10400, do: advance}
+  - {t: 10800, do: advance}
+  - {t: 11200, do: "attack:cd"}
+  - {t: 11600, do: advance}
+  - {t: 12000, do: advance}
+  - {t: 12400, do: advance}
+  - {t: 12800, do: "attack:cd"}
+  - {t: 13200, do: advance}
+  - {t: 13600, do: advance}
+  - {t: 14000, do: advance}
+  - {t: 14400, do: "attack:cd"}
+  - {t: 14800, do: advance}
+  - {t: 15200, do: advance}
+  - {t: 15600, do: advance}
+  - {t: 16000, do: "attack:cd"}
+  - {t: 16400, do: advance}
+  - {t: 16800, do: advance}
+  - {t: 17200, do: advance}
+  - {t: 17600, do: "attack:cd"}
+  - {t: 18000, do: advance}
+  - {t: 18400, do: advance}
+  - {t: 18800, do: advance}
+  - {t: 19200, do: "attack:cd"}
