@@ -19,6 +19,7 @@ DO_VERBS = {
     "attack:basic": 4, "attack:cd": 5, "attack:ultimate": 6,
     "attack:special": 7, "attack:kick": 8,
     "flash:in": 9, "flash:back": 10,
+    "block": 11, "crouch": 12,
 }
 
 

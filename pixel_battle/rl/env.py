@@ -10,7 +10,10 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 
-from pixel_battle.engine.battle import Battle, BattleState, EventType
+from pixel_battle.engine.battle import (
+    Battle, BattleState, EventType,
+    BLOCK_DURATION_MS, CROUCH_DURATION_MS,
+)
 from pixel_battle.engine.character import Character
 from pixel_battle.engine.rng import BattleRNG
 from pixel_battle.engine.physics import (
@@ -175,6 +178,7 @@ class PixelBattleEnv(gym.Env):
     def _apply_action(self, me: Character, opp: Character, action: int):
         if me.action_state in ("attacking", "hit_stagger", "ko"):
             return
+        # Block/crouch are allowed to pre-empt idle/walking but not attacking/stagger
         # Direction toward opponent (+1 if opp to my right, -1 if to my left)
         fwd = 1 if opp.pos_x > me.pos_x else -1
         # Per-skill attack gate: an attack issued out of the skill's reach is
@@ -206,6 +210,13 @@ class PixelBattleEnv(gym.Env):
             self._do_flash(me, opp, toward=True)
         elif action == 10:                       # flash away from opponent
             self._do_flash(me, opp, toward=False)
+        elif action == 11:                       # block
+            me.action_state = "blocking"
+            me.block_end_ms = self.battle.elapsed_ms + BLOCK_DURATION_MS
+            me.vel_x = 0.0
+        elif action == 12:                       # crouch
+            me.action_state = "crouching"
+            me.crouch_end_ms = self.battle.elapsed_ms + CROUCH_DURATION_MS
 
     def _do_flash(self, me: Character, opp: Character, toward: bool) -> None:
         """Instant teleport (Flash). No-op while on cooldown."""

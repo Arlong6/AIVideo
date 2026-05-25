@@ -36,6 +36,14 @@ ATTACK_RECOVER_MS = 250
 
 JUMP_COOLDOWN_MS = 600
 
+# Defensive actions
+BLOCK_DURATION_MS = 500   # ms active guard lasts
+CROUCH_DURATION_MS = 600  # ms crouching stance lasts
+BLOCK_DMG_MULT = 0.3      # damage multiplier while blocking
+
+# Projectile vfx types that can be dodged by crouching
+_PROJECTILE_VFX = frozenset({"bolt", "multishot", "beam"})
+
 # Skill-driven movement — gives fights footwork and back-and-forth instead
 # of a static clinch. "dash" vfx skills lunge the caster forward; every hit
 # knocks the defender back by an amount that scales with the damage dealt.
@@ -248,6 +256,16 @@ class Battle:
                 char.action_state = "idle"
                 char._stagger_remaining_ms = 0
 
+        elif char.action_state == "blocking":
+            block_end = getattr(char, "block_end_ms", 0)
+            if self.elapsed_ms >= block_end:
+                char.action_state = "idle"
+
+        elif char.action_state == "crouching":
+            crouch_end = getattr(char, "crouch_end_ms", 0)
+            if self.elapsed_ms >= crouch_end:
+                char.action_state = "idle"
+
     def _update_effects(self, char: Character, dt_ms: int) -> None:
         """Decrement status-effect timers; drop expired effects."""
         for effect in list(char.effects):
@@ -297,6 +315,14 @@ class Battle:
                        extra={"reason": "out_of_range"})
             return
 
+        # Crouch dodge: low-profile stance evades projectile skills.
+        # Melee/dash skills are at ground level too — no dodge.
+        if (defender.action_state == "crouching"
+                and getattr(skill, "vfx", "") in _PROJECTILE_VFX):
+            self._emit(EventType.MISS, actor=attacker.id, target=defender.id,
+                       extra={"reason": "crouched_under"})
+            return
+
         if not self.rng.roll_check(attacker.accuracy):
             self._emit(EventType.MISS, actor=attacker.id, target=defender.id)
             return
@@ -307,6 +333,10 @@ class Battle:
         if is_crit:
             dmg *= CRIT_MULT
             self._emit(EventType.CRIT, actor=attacker.id, target=defender.id, amount=dmg)
+
+        # Block: absorb most of the damage.
+        if defender.action_state == "blocking":
+            dmg = max(1, int(dmg * BLOCK_DMG_MULT))
 
         use_special = skill.skill_type is SkillType.SPECIAL
         use_cooldown = skill.skill_type is SkillType.COOLDOWN

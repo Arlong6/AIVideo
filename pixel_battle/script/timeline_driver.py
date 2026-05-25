@@ -31,10 +31,13 @@ _ATK_SPECIAL = 7
 _ATK_KICK = 8
 _FLASH_IN = 9
 _FLASH_BACK = 10
+_BLOCK = 11
+_CROUCH = 12
 
 _ATTACK_ACTIONS = frozenset({_ATK_BASIC, _ATK_CD, _ATK_ULT, _ATK_SPECIAL, _ATK_KICK})
 _MOVE_ACTIONS = frozenset({_RETREAT, _ADVANCE, _JUMP})
 _GROUND_ACTIONS = _MOVE_ACTIONS | _ATTACK_ACTIONS
+_DEFENSIVE_ACTIONS = frozenset({_BLOCK, _CROUCH})
 
 
 @dataclass
@@ -62,11 +65,16 @@ def _can_act(char, action_int: int) -> bool:
       - rooted + movement verb: root pins the character; the script wants
         movement to fire after root drops, not while it's active.
     Casting and Flash are NOT blocked by root (Flash bypasses root; a cast
-    issued under root should start windup the moment root expires)."""
+    issued under root should start windup the moment root expires).
+    Block and crouch can fire from any non-attacking/non-stagger state."""
     if action_int == _IDLE:
         return True
     if char.action_state in ("attacking", "hit_stagger"):
         return False
+    # Defensive actions (block/crouch) can fire from idle, walk, or even
+    # while blocking/crouching (to re-enter the defensive state).
+    if action_int in _DEFENSIVE_ACTIONS:
+        return True
     # `pos_y > GROUND_Y - tolerance` -- jumping mid-air. Ground verbs (move/
     # attack) are engine no-ops in mid-air; let them wait for landing.
     if char.action_state == "jumping" and action_int in _GROUND_ACTIONS:
