@@ -6,7 +6,7 @@ ARENA_RIGHT = 420
 GROUND_Y = 530  # feet landing position; matches renderer HORIZON_Y
 
 # Motion
-WALK_SPEED = 2.8           # px/frame
+WALK_SPEED = 4.5           # px/frame — 60% faster for snappy approach/retreat
 JUMP_VELOCITY = -14.0       # upward impulse (y is screen-down)
 GRAVITY = 0.85              # px/frame²
 MAX_FALL_SPEED = 18.0

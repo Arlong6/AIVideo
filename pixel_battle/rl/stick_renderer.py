@@ -62,7 +62,7 @@ _DEFAULT_STYLE = {"head_shape": "circle", "head_size": 22,
                   "hand_radius": 4, "foot_length": 12}
 
 
-_FIGURE_SCALE = 0.85       # shrink every figure ~15% — characters read smaller
+_FIGURE_SCALE = 0.65       # shrink every figure ~35% — characters read smaller, arena feels wider
 _SCALED_KEYS = frozenset({"head_size", "torso_length", "upper_arm", "forearm",
                           "thigh", "shin", "line_width", "hand_radius", "foot_length"})
 
