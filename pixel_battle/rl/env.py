@@ -15,7 +15,7 @@ from pixel_battle.engine.character import Character
 from pixel_battle.engine.rng import BattleRNG
 from pixel_battle.engine.physics import (
     MELEE_RANGE, SPECIAL_RANGE, MAX_ATTACK_RANGE,
-    FLASH_DISTANCE, FLASH_COOLDOWN_MS, clamp_x,
+    FLASH_DISTANCE, FLASH_COOLDOWN_MS, WALK_SPEED, clamp_x,
 )
 
 
@@ -183,10 +183,10 @@ class PixelBattleEnv(gym.Env):
         # (Ultimate is ungated — it always connects.)
         dist = abs(me.pos_x - opp.pos_x)
         if action == 1:                          # back (away from opp)
-            me.vel_x = -3.0 * fwd
+            me.vel_x = -WALK_SPEED * fwd
             me.facing = fwd                       # still face opp while backpedaling
         elif action == 2:                        # forward (toward opp)
-            me.vel_x = 3.0 * fwd
+            me.vel_x = WALK_SPEED * fwd
             me.facing = fwd
         elif action == 3 and me.on_ground:       # jump
             me.vel_y = -8.0

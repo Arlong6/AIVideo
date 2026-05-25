@@ -1,128 +1,117 @@
 # ──────────────────────────────────────────────────────────
-# 蓋倫 vs 拉克絲 — 鐵衛突進
+# 蓋倫 vs 拉克絲 — 鐵衛突進，無處可逃
 # ──────────────────────────────────────────────────────────
-# 【第一幕 · 開場  0.0–5.0s】
-#   蓋倫不廢話，盾牌一撥，大腳踏地，鐵衛的衝鋒氣勢排山倒海。
-#   拉克絲施展光之束縛試圖阻截，卻被蓋倫咬牙強行衝破。
-#   蓋倫每一次突刺都帶著鐵衛的狂野氣勢壓進場。
+# 【第一幕 · 開場  0.0–6.0s】
+#   蓋倫不廢話，開場即閃現壓進拉克絲；她施展束縛，但蓋倫頂著傷繼續猛壓。
+#   拉克絲閃現逃至右端邊界，連發螢光奇點試圖製造距離。
+#   鋼鐵意志 vs 光之智慧——戰場瞬間蔓延整個競技場。
 #
-# 【第二幕 · 蓄勢  5.0–13.0s】
-#   蓋倫決定性突刺劃出銀色弧線，把拉克絲一次次壓制。
-#   拉克絲用光之束縛與螢光奇點拼命反擊，但蓋倫頂著傷繼續衝。
-#   鐵衛的意志力讓每道光束都無法阻擋他的前進。
+# 【第二幕 · 蓄勢  6.0–15.0s】
+#   蓋倫決定性突刺劃出銀弧，再一次閃現強行貼臉；拉克絲失去閃現慌忙後撤。
+#   審判旋轉將拉克絲逼至左側牆角，光之束縛的最後嘗試被突刺打斷。
+#   兩人的HP都在交換傷害中跌落，但蓋倫的勢頭更猛。
 #
-# 【第三幕 · 衝突  13.0–20.0s】
-#   蓋倫怒吼，審判之旋轉如鋼鐵颶風席捲拉克絲周圍。
-#   拉克絲退無可退，基本攻擊只是螳臂擋車。
-#   蓋倫的巨劍一次又一次落下，HP條急速歸零。
+# 【第三幕 · 衝突  15.0–22.0s】
+#   拉克絲閃現重置距離，但蓋倫幾乎同步閃現追上；兩道閃光在戰場交錯。
+#   連續三段突刺讓拉克絲的防線徹底潰散，HP條見底。
+#   蓋倫最後的旋轉如山崩——勝負已定。
 #
-# 【終幕 · 終結  20.0s+】
-#   蓋倫高舉決定性突刺，最後一擊如山崩落下。
-#   拉克絲的防護罩在衝擊中粉碎，倒地瞬間裙擺揚起金粉。
-#   勝者：蓋倫。他收劍，對跌倒的法師點頭致意。
+# 【終幕 · KO  22.0s+】
+#   勝者：蓋倫。他插劍入地，沉默地望向倒下的法師。
 # ──────────────────────────────────────────────────────────
 name: "Garen rushes down Lux"
 left: garen
 right: lux
-duration_ms: 28000
+duration_ms: 26000
 left_timeline:
-  - {t: 2000, do: advance}
-  - {t: 2400, do: advance}
-  - {t: 2800, do: advance}
-  - {t: 3200, do: advance}
-  - {t: 3600, do: advance}
-  - {t: 4000, do: advance}
-  - {t: 4400, do: "attack:cd"}
-  - {t: 4800, do: advance}
-  - {t: 5200, do: advance}
-  - {t: 5600, do: advance}
-  - {t: 6000, do: advance}
-  - {t: 6400, do: advance}
-  - {t: 6800, do: advance}
-  - {t: 7200, do: "attack:cd"}
-  - {t: 7600, do: advance}
-  - {t: 8000, do: advance}
-  - {t: 8400, do: advance}
-  - {t: 8800, do: advance}
-  - {t: 9200, do: advance}
-  - {t: 9600, do: advance}
-  - {t: 10000, do: "attack:special"}
-  - {t: 10400, do: advance}
-  - {t: 10800, do: advance}
-  - {t: 11200, do: advance}
-  - {t: 11600, do: advance}
-  - {t: 12000, do: advance}
-  - {t: 12400, do: advance}
-  - {t: 12800, do: "attack:cd"}
-  - {t: 13200, do: advance}
-  - {t: 13600, do: advance}
-  - {t: 14000, do: advance}
-  - {t: 14400, do: advance}
-  - {t: 14800, do: advance}
-  - {t: 15200, do: advance}
-  - {t: 15600, do: "attack:cd"}
-  - {t: 16000, do: advance}
-  - {t: 16400, do: advance}
-  - {t: 16800, do: advance}
-  - {t: 17200, do: advance}
-  - {t: 17600, do: advance}
-  - {t: 18000, do: advance}
-  - {t: 18400, do: "attack:special"}
-  - {t: 18800, do: advance}
-  - {t: 19200, do: advance}
-  - {t: 19600, do: advance}
-  - {t: 20000, do: advance}
-  - {t: 20400, do: advance}
-  - {t: 20800, do: advance}
-  - {t: 21200, do: "attack:cd"}
-right_timeline:
+  # Garen opens with immediate flash-in and decisive strike
+  - {t: 800, do: "flash:in"}
+  - {t: 1400, do: "attack:cd"}
   - {t: 2000, do: "attack:basic"}
-  - {t: 2400, do: "attack:basic"}
-  - {t: 2800, do: "attack:basic"}
-  - {t: 3200, do: "attack:basic"}
-  - {t: 3600, do: "attack:basic"}
-  - {t: 4000, do: "attack:basic"}
-  - {t: 4400, do: "attack:basic"}
-  - {t: 4800, do: "attack:basic"}
-  - {t: 5200, do: "attack:basic"}
-  - {t: 5600, do: "attack:basic"}
-  - {t: 6000, do: "attack:basic"}
-  - {t: 6400, do: "attack:basic"}
-  - {t: 6800, do: "attack:basic"}
-  - {t: 7200, do: "attack:basic"}
-  - {t: 7600, do: "attack:basic"}
-  - {t: 8000, do: "attack:basic"}
-  - {t: 8400, do: "attack:basic"}
-  - {t: 8800, do: "attack:basic"}
-  - {t: 9200, do: "attack:basic"}
-  - {t: 9600, do: "attack:basic"}
-  - {t: 10000, do: "attack:basic"}
-  - {t: 10400, do: "attack:basic"}
-  - {t: 10800, do: "attack:basic"}
-  - {t: 11200, do: "attack:basic"}
-  - {t: 11600, do: "attack:basic"}
-  - {t: 12000, do: "attack:basic"}
+  - {t: 2500, do: "attack:basic"}
+  - {t: 2900, do: "attack:special"}
+  - {t: 3500, do: "attack:basic"}
+  # Lux flashed — advance to cut her off
+  - {t: 4000, do: advance}
+  - {t: 4500, do: "attack:cd"}
+  - {t: 5100, do: "attack:basic"}
+  - {t: 5600, do: "attack:special"}
+  - {t: 6200, do: "attack:basic"}
+  # Second flash-in — deny kiting space
+  - {t: 6700, do: "flash:in"}
+  - {t: 7300, do: "attack:cd"}
+  - {t: 7800, do: "attack:basic"}
+  - {t: 8400, do: "attack:special"}
+  - {t: 9000, do: "attack:basic"}
+  - {t: 9500, do: "attack:cd"}
+  # Push to far right corner
+  - {t: 10100, do: "flash:in"}
+  - {t: 10700, do: "attack:basic"}
+  - {t: 11200, do: "attack:cd"}
+  - {t: 11800, do: "attack:special"}
   - {t: 12400, do: "attack:basic"}
-  - {t: 12800, do: "attack:basic"}
-  - {t: 13200, do: "attack:basic"}
-  - {t: 13600, do: "attack:basic"}
-  - {t: 14000, do: "attack:basic"}
-  - {t: 14400, do: "attack:basic"}
-  - {t: 14800, do: "attack:basic"}
+  - {t: 12900, do: advance}
+  # Traverse left across arena
+  - {t: 13500, do: "attack:cd"}
+  - {t: 14100, do: "attack:basic"}
+  - {t: 14600, do: "attack:special"}
   - {t: 15200, do: "attack:basic"}
-  - {t: 15600, do: "attack:basic"}
-  - {t: 16000, do: "attack:basic"}
-  - {t: 16400, do: "attack:basic"}
+  # Third flash — relentless
+  - {t: 15800, do: "flash:in"}
+  - {t: 16400, do: "attack:cd"}
+  - {t: 16900, do: "attack:special"}
+  - {t: 17500, do: "attack:basic"}
+  - {t: 18100, do: "attack:cd"}
+  - {t: 18700, do: "attack:basic"}
+  # Final press
+  - {t: 19300, do: "flash:in"}
+  - {t: 19900, do: "attack:special"}
+  - {t: 20500, do: "attack:cd"}
+  - {t: 21100, do: "attack:basic"}
+  - {t: 21700, do: "attack:special"}
+  - {t: 22300, do: "attack:cd"}
+right_timeline:
+  # Lux opens at range with light_binding before Garen reaches
+  - {t: 700, do: "cast:light_binding"}
+  - {t: 1300, do: "attack:basic"}
+  - {t: 1800, do: "flash:back"}
+  - {t: 2400, do: "attack:basic"}
+  - {t: 2900, do: "cast:lucent_singularity"}
+  - {t: 3500, do: "attack:basic"}
+  # Garen still coming — shield then flash
+  - {t: 4000, do: "cast:prismatic_barrier"}
+  - {t: 4500, do: "attack:basic"}
+  - {t: 5000, do: "flash:back"}
+  - {t: 5600, do: "attack:basic"}
+  - {t: 6100, do: "cast:light_binding"}
+  - {t: 6700, do: "attack:basic"}
+  # Second flash burned — kite without it
+  - {t: 7200, do: retreat}
+  - {t: 7800, do: "cast:lucent_singularity"}
+  - {t: 8400, do: "attack:basic"}
+  - {t: 8900, do: "cast:light_binding"}
+  - {t: 9500, do: retreat}
+  - {t: 10000, do: "attack:basic"}
+  - {t: 10600, do: "cast:lucent_singularity"}
+  # Last desperate escape — flash to far left
+  - {t: 11200, do: "flash:back"}
+  - {t: 11800, do: "attack:basic"}
+  - {t: 12300, do: "cast:light_binding"}
+  - {t: 12900, do: "attack:basic"}
+  - {t: 13400, do: "cast:lucent_singularity"}
+  - {t: 14000, do: retreat}
+  - {t: 14600, do: "attack:basic"}
+  - {t: 15100, do: "cast:light_binding"}
+  # Running out of options — fight back
+  - {t: 15700, do: "attack:basic"}
+  - {t: 16200, do: "cast:lucent_singularity"}
   - {t: 16800, do: "attack:basic"}
-  - {t: 17200, do: "attack:basic"}
-  - {t: 17600, do: "attack:basic"}
-  - {t: 18000, do: "attack:basic"}
-  - {t: 18400, do: "attack:basic"}
-  - {t: 18800, do: "attack:basic"}
-  - {t: 19200, do: "attack:basic"}
-  - {t: 19600, do: "attack:basic"}
-  - {t: 20000, do: "attack:basic"}
-  - {t: 20400, do: "attack:basic"}
-  - {t: 20800, do: "attack:basic"}
-  - {t: 21200, do: "attack:basic"}
-  - {t: 21600, do: "attack:basic"}
+  - {t: 17300, do: "cast:light_binding"}
+  - {t: 17900, do: "attack:basic"}
+  - {t: 18500, do: "cast:lucent_singularity"}
+  - {t: 19000, do: "attack:basic"}
+  - {t: 19600, do: "cast:light_binding"}
+  - {t: 20200, do: "attack:basic"}
+  - {t: 20700, do: "cast:lucent_singularity"}
+  - {t: 21300, do: "attack:basic"}
+  - {t: 21900, do: "cast:light_binding"}

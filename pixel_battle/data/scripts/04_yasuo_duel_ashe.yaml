@@ -1,129 +1,105 @@
 # ──────────────────────────────────────────────────────────
-# 亞索 vs 艾希 — 浪人與冰冷弓矢
+# 亞索 vs 艾希 — 浪人橫斬，冰箭追逐
 # ──────────────────────────────────────────────────────────
 # 【第一幕 · 開場  0.0–6.0s】
-#   亞索斗笠低垂，大步逼近，風刃隨手揮出——輕鬆寫意，暗藏殺機。
-#   艾希彎弓搭箭，冰霜箭矢在空氣中留下白色軌跡。
-#   兩人同步接近，戰場中央積累著濃烈的殺意。
+#   亞索斗笠低垂，鋼鐵之刃劃出弧形氣刃衝過競技場；直接閃現貼臉。
+#   艾希彎弓搭箭，萬箭齊發瞬間覆蓋半個戰場；閃現退至右端邊界。
+#   兩道特效在空中交錯——第一次接觸電光石火，雙方都受傷。
 #
-# 【第二幕 · 蓄勢  7.0–15.0s】
-#   亞索加快鋼鐵之刃的節奏，弧形氣刃一浪接一浪衝出。
-#   艾希箭雨連發，冰霜箭矢打在亞索身上，他卻面不改色。
-#   鋼刃與箭雨在近戰區域激烈交鋒，雙方都受傷不輕。
+# 【第二幕 · 蓄勢  6.0–15.0s】
+#   亞索連續橫斬推進，sweeping_blade 衝刺跨越整個戰場；艾希連連後閃。
+#   艾希在左端落腳，鷹眼偵查鎖定亞索，冰霜箭雨持續輸出。
+#   亞索閃現衝入射程，冰霜減速讓他步伐一頓，但他仍不停追。
 #
 # 【第三幕 · 衝突  15.0–22.0s】
-#   亞索凌空突刺，每一劍都比前一劍更快更狠。
-#   艾希聚焦射擊，拉滿的弓弦再也撐不住壓力。
-#   亞索的狂攻讓艾希開始感到後繼無力，HP條急速歸零。
+#   亞索最後一次閃現越過艾希身後，切斷她的退路；sweeping_blade 收割爆發。
+#   艾希聚焦射擊拼命反殺，弓弦崩斷之際 HP 條見底。
+#   一刀橫掃，艾希仰面倒地，冰弓墜落，戰場歸於冷風。
 #
-# 【終幕 · 終結  22.0s+】
-#   亞索最後的斬擊橫貫戰場，鋼刃應聲命中。
-#   艾希應聲倒地，冰弓滑落，戰場歸於死寂的冷風。
-#   勝者：亞索。他回收長劍，斗笠下帶著淡漠。
+# 【終幕 · KO  22.0s+】
+#   勝者：亞索。他收劍，斗笠下帶著淡漠，風吹過散落的箭羽。
 # ──────────────────────────────────────────────────────────
 name: "Yasuo dashes down Ashe"
 left: yasuo
 right: ashe
-duration_ms: 28000
+duration_ms: 26000
 left_timeline:
-  - {t: 2000, do: advance}
-  - {t: 2400, do: advance}
-  - {t: 2800, do: advance}
-  - {t: 3200, do: advance}
-  - {t: 3600, do: advance}
-  - {t: 4000, do: advance}
-  - {t: 4400, do: advance}
-  - {t: 4800, do: advance}
-  - {t: 5200, do: advance}
-  - {t: 5600, do: advance}
-  - {t: 6000, do: advance}
-  - {t: 6400, do: "cast:steel_tempest"}
-  - {t: 6800, do: advance}
-  - {t: 7200, do: advance}
-  - {t: 7600, do: advance}
-  - {t: 8000, do: "attack:basic"}
+  # Yasuo opens with steel_tempest AoE then immediately flash-in
+  - {t: 800, do: "cast:steel_tempest"}
+  - {t: 1400, do: "flash:in"}
+  - {t: 2000, do: "attack:basic"}
+  - {t: 2600, do: "attack:special"}
+  # Ashe flashed away — sweeping_blade dash to close
+  - {t: 3300, do: "cast:sweeping_blade"}
+  - {t: 3900, do: "attack:basic"}
+  - {t: 4500, do: "cast:steel_tempest"}
+  # Flash-in again — relentless dash style
+  - {t: 5200, do: "flash:in"}
+  - {t: 5800, do: "attack:basic"}
+  - {t: 6500, do: "cast:sweeping_blade"}
+  - {t: 7100, do: "attack:basic"}
+  - {t: 7700, do: "cast:steel_tempest"}
+  # Traverse to right arena edge — cut off Ashe's retreat
   - {t: 8400, do: advance}
-  - {t: 8800, do: advance}
-  - {t: 9200, do: advance}
-  - {t: 9600, do: "cast:steel_tempest"}
-  - {t: 10000, do: advance}
-  - {t: 10400, do: advance}
-  - {t: 10800, do: advance}
-  - {t: 11200, do: "attack:special"}
-  - {t: 11600, do: advance}
-  - {t: 12000, do: advance}
-  - {t: 12400, do: advance}
-  - {t: 12800, do: "cast:steel_tempest"}
-  - {t: 13200, do: advance}
-  - {t: 13600, do: advance}
-  - {t: 14000, do: advance}
-  - {t: 14400, do: "attack:special"}
-  - {t: 14800, do: advance}
-  - {t: 15200, do: advance}
-  - {t: 15600, do: advance}
-  - {t: 16000, do: "cast:steel_tempest"}
-  - {t: 16400, do: advance}
-  - {t: 16800, do: advance}
-  - {t: 17200, do: advance}
-  - {t: 17600, do: "attack:special"}
-  - {t: 18000, do: advance}
-  - {t: 18400, do: advance}
-  - {t: 18800, do: advance}
-  - {t: 19200, do: "cast:steel_tempest"}
-  - {t: 19600, do: advance}
-  - {t: 20000, do: advance}
-  - {t: 20400, do: advance}
-  - {t: 20800, do: "attack:special"}
-  - {t: 21200, do: advance}
-  - {t: 21600, do: advance}
-  - {t: 22000, do: advance}
-  - {t: 22400, do: "cast:steel_tempest"}
-  - {t: 22800, do: advance}
-  - {t: 23200, do: advance}
-  - {t: 23600, do: advance}
-  - {t: 24000, do: "attack:special"}
+  - {t: 9000, do: "attack:basic"}
+  - {t: 9600, do: "cast:sweeping_blade"}
+  - {t: 10300, do: "attack:basic"}
+  - {t: 10900, do: "flash:in"}
+  - {t: 11500, do: "cast:steel_tempest"}
+  - {t: 12200, do: "attack:basic"}
+  # Push to left edge — full arena traversal
+  - {t: 12900, do: advance}
+  - {t: 13500, do: "cast:sweeping_blade"}
+  - {t: 14200, do: "attack:basic"}
+  - {t: 14800, do: "cast:steel_tempest"}
+  # Final burst — flash behind Ashe
+  - {t: 15500, do: "flash:in"}
+  - {t: 16100, do: "cast:sweeping_blade"}
+  - {t: 16800, do: "attack:basic"}
+  - {t: 17400, do: "cast:steel_tempest"}
+  - {t: 18100, do: "attack:basic"}
+  - {t: 18700, do: "attack:special"}
+  - {t: 19400, do: "cast:steel_tempest"}
+  - {t: 20100, do: "flash:in"}
+  - {t: 20700, do: "attack:basic"}
+  - {t: 21400, do: "cast:sweeping_blade"}
+  - {t: 22000, do: "attack:basic"}
 right_timeline:
-  - {t: 2000, do: advance}
-  - {t: 2400, do: advance}
-  - {t: 2800, do: advance}
-  - {t: 3200, do: advance}
-  - {t: 3600, do: advance}
-  - {t: 4000, do: advance}
-  - {t: 4400, do: advance}
-  - {t: 4800, do: "cast:volley"}
-  - {t: 5200, do: advance}
-  - {t: 5600, do: advance}
-  - {t: 5900, do: advance}
-  - {t: 6400, do: "attack:cd"}
-  - {t: 6800, do: advance}
-  - {t: 7200, do: advance}
-  - {t: 7600, do: advance}
-  - {t: 8000, do: "attack:cd"}
-  - {t: 8400, do: advance}
-  - {t: 8800, do: advance}
-  - {t: 9200, do: advance}
-  - {t: 9600, do: "attack:cd"}
-  - {t: 10000, do: advance}
-  - {t: 10400, do: advance}
-  - {t: 10800, do: advance}
-  - {t: 11200, do: "attack:cd"}
-  - {t: 11600, do: advance}
-  - {t: 12000, do: advance}
-  - {t: 12400, do: advance}
-  - {t: 12800, do: "attack:cd"}
-  - {t: 13200, do: advance}
-  - {t: 13600, do: advance}
-  - {t: 14000, do: advance}
-  - {t: 14400, do: "attack:cd"}
-  - {t: 14800, do: advance}
-  - {t: 15200, do: advance}
-  - {t: 15600, do: advance}
-  - {t: 16000, do: "attack:cd"}
-  - {t: 16400, do: advance}
-  - {t: 16800, do: advance}
-  - {t: 17200, do: advance}
-  - {t: 17600, do: "attack:cd"}
-  - {t: 18000, do: advance}
-  - {t: 18400, do: advance}
-  - {t: 18800, do: advance}
-  - {t: 19200, do: "attack:cd"}
+  # Ashe opens at range — volley before Yasuo reaches
+  - {t: 600, do: "cast:volley"}
+  - {t: 1300, do: "attack:basic"}
+  - {t: 1900, do: "flash:back"}
+  - {t: 2600, do: "cast:volley"}
+  # Yasuo closing — flash to far right edge
+  - {t: 3300, do: retreat}
+  - {t: 4000, do: "attack:basic"}
+  - {t: 4700, do: "cast:volley"}
+  - {t: 5300, do: "flash:back"}
+  # Kite from right side — hawkshot for vision
+  - {t: 6000, do: "cast:hawkshot"}
+  - {t: 6700, do: "attack:basic"}
+  - {t: 7400, do: "cast:volley"}
+  - {t: 8100, do: retreat}
+  - {t: 8800, do: "attack:basic"}
+  - {t: 9500, do: "cast:volley"}
+  # Flash to left side — traverse whole arena
+  - {t: 10200, do: "flash:back"}
+  - {t: 10900, do: "attack:basic"}
+  - {t: 11600, do: "cast:volley"}
+  - {t: 12300, do: "attack:basic"}
+  - {t: 13000, do: "cast:ranger_focus"}
+  # Yasuo pushing — retreat to edge
+  - {t: 13700, do: retreat}
+  - {t: 14400, do: "attack:basic"}
+  - {t: 15100, do: "cast:volley"}
+  - {t: 15700, do: "flash:back"}
+  # Cornered — fight back with everything
+  - {t: 16400, do: "cast:volley"}
+  - {t: 17100, do: "attack:basic"}
+  - {t: 17800, do: "cast:ranger_focus"}
+  - {t: 18500, do: "attack:basic"}
+  - {t: 19200, do: "cast:volley"}
+  - {t: 19900, do: "attack:basic"}
+  - {t: 20600, do: "cast:ranger_focus"}
+  - {t: 21300, do: "attack:basic"}
+  - {t: 22000, do: "cast:volley"}
