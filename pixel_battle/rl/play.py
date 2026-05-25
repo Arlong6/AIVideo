@@ -420,9 +420,18 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     `action_source` is a callable ``(env, obs) -> (left_act, right_act)``
         returning the two characters' action integers for the tick.
     """
+    from pixel_battle.rl.hud import HUD as _HUD
+    from pixel_battle.rl.impact_fx import ImpactFX as _ImpactFX
+    from pixel_battle.rl.ko_sequence import KOSequence as _KOSequence
+    from pixel_battle.engine.battle import BattleState as _BattleState
+
     (obs_left, obs_right), _ = env.reset()
     lcol = _char_color(env.left)
     rcol = _char_color(env.right)
+
+    hud_overlay = _HUD()
+    impact_fx = _ImpactFX()
+    ko_seq = _KOSequence()
 
     surf = pygame.Surface((WIDTH, HEIGHT))
     world = pygame.Surface((WIDTH, HEIGHT))
@@ -584,6 +593,39 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 spawn_flash_puff(world, fx.get("from_x", 0), ground_y, actor_col)
                 spawn_flash_puff(world, fx.get("to_x", 0), ground_y, actor_col)
 
+        # Route new events to the impact FX layer (KOF-style sparks + text)
+        for ev in env.battle.events[prev_ev_n:]:
+            ev_t = ev.type.value
+            if ev_t in ("hit", "crit"):
+                target = env.right if ev.target == env.right.id else env.left
+                col = hud_overlay._color(target.id)
+                impact_fx.spawn_hit_spark(x=int(target.pos_x),
+                                          y=int(target.pos_y) - 20,
+                                          damage=ev.amount, color=col)
+                is_crit_ev = (ev_t == "crit") or bool((ev.extra or {}).get("crit"))
+                if is_crit_ev:
+                    impact_fx.flash_screen(color=(255, 240, 180), alpha=160)
+                    impact_fx.spawn_floating_text(x=int(target.pos_x),
+                                                  y=int(target.pos_y) - 40,
+                                                  text="CRIT!", color=(255, 220, 60))
+                else:
+                    impact_fx.spawn_floating_text(x=int(target.pos_x),
+                                                  y=int(target.pos_y) - 40,
+                                                  text="HIT!", color=(255, 240, 200))
+            elif ev_t == "ultimate_start":
+                impact_fx.flash_screen(color=(255, 60, 60), alpha=200)
+
+        # KO sequence — drives slow-mo + zoom once battle.state == KO
+        ko_active = env.battle.state == _BattleState.KO
+        ko_loser_x = (int(env.battle.left.pos_x)
+                      if env.battle.left.hp <= 0 else int(env.battle.right.pos_x))
+        ko_result = ko_seq.tick(ko_active=ko_active, ko_loser_x=ko_loser_x, dt_ms=16)
+        if ko_result.spawn_flash:
+            impact_fx.flash_screen(color=(255, 255, 255), alpha=255)
+        if ko_result.spawn_splash:
+            impact_fx.spawn_floating_text(x=WIDTH // 2, y=HEIGHT // 2 - 80,
+                                          text="K.O.!", color=(255, 80, 80))
+
         # Landing dust — ground-touch edge detection
         pending_dust: list = []
         if env.left.on_ground and not prev_on_ground_left:
@@ -658,14 +700,24 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         for (dx, dy) in pending_dust:
             spawn_landing_dust(world, dx, dy, (180, 180, 200), intensity=1.7)
 
-        # Camera — follow midpoint, crop + upscale
+        # Camera — follow midpoint (biased toward loser during KO), crop + upscale
         mid_x = (env.left.pos_x + env.right.pos_x) / 2.0
+        if ko_result.zoom > 1.0:
+            # Bias camera center toward the loser for dramatic framing
+            mid_x = mid_x * 0.4 + ko_result.zoom_focus_x * 0.6
         cam_x += (mid_x - cam_x) * CAM_FOLLOW
         sx, sy = camera_shake_offset(shake_frames)
-        view_x = int(cam_x - CAM_VIEW_W / 2) + sx
-        view_x = max(0, min(WIDTH - CAM_VIEW_W, view_x))
-        view_y = max(0, min(HEIGHT - CAM_VIEW_H, CAM_VIEW_Y + sy))
-        sub = world.subsurface((view_x, view_y, CAM_VIEW_W, CAM_VIEW_H))
+        # KO zoom: tighter crop window so the loser fills more of the frame
+        frame_zoom = ko_result.zoom * CAM_ZOOM
+        view_w = int(WIDTH / frame_zoom)
+        view_h = int(HEIGHT / frame_zoom)
+        view_w = max(1, min(WIDTH, view_w))
+        view_h = max(1, min(HEIGHT, view_h))
+        view_x = int(cam_x - view_w / 2) + sx
+        view_x = max(0, min(WIDTH - view_w, view_x))
+        cam_view_y_adjusted = GROUND_Y - int(view_h * 0.82)
+        view_y = max(0, min(HEIGHT - view_h, cam_view_y_adjusted + sy))
+        sub = world.subsurface((view_x, view_y, view_w, view_h))
         pygame.transform.scale(sub, (WIDTH, HEIGHT), surf)
         if shake_frames > 0:
             shake_frames -= 1
@@ -678,6 +730,15 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             flash_frames_left -= 1
 
         _draw_hud(surf, env)
+
+        # New KOF-style HUD (top bars + name plates + timer) and impact FX
+        hud_overlay.draw(surf, env.battle, elapsed_ms=int(frame * FRAME_MS))
+        impact_fx.update_and_draw(surf, dt_ms=16)
+
+        # KO splash text held on screen during HOLD phase
+        if ko_result.splash_alpha > 0 and not ko_result.spawn_splash:
+            # splash_alpha held at 255 in HOLD — just let the floating text handle it
+            pass
 
         if banner_text is not None and frame <= banner_until_frame:
             _draw_banner(surf, banner_text)
@@ -703,10 +764,43 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         n_written += 1
 
         if terminated:
-            # KO drama — freeze the final frame and build a whiteout that
-            # hands off into the result card's own flash.
+            # KO drama: first run KO sequence frames (slow-mo zoom + splash),
+            # then the standard whiteout that hands off to the result card.
+            # The engine is already frozen (BattleState.KO → tick_ms no-ops).
+            # We generate ~75 extra drama frames using the KO sequence controller.
+            ko_drama_frames = int(1.5 * FPS)   # ~1.5s of drama
+            ko_surf_base = surf.copy()          # snapshot of the last fight frame
+            for _kf in range(ko_drama_frames):
+                _ko_r = ko_seq.tick(ko_active=True, ko_loser_x=ko_loser_x, dt_ms=16)
+                if _ko_r.spawn_flash:
+                    impact_fx.flash_screen(color=(255, 255, 255), alpha=255)
+                if _ko_r.spawn_splash:
+                    impact_fx.spawn_floating_text(x=WIDTH // 2, y=HEIGHT // 2 - 80,
+                                                  text="K.O.!", color=(255, 80, 80))
+
+                # Redraw world with KO zoom applied
+                _fz = _ko_r.zoom * CAM_ZOOM
+                _vw = max(1, min(WIDTH, int(WIDTH / _fz)))
+                _vh = max(1, min(HEIGHT, int(HEIGHT / _fz)))
+                _vx = int(ko_result.zoom_focus_x - _vw / 2)
+                _vx = max(0, min(WIDTH - _vw, _vx))
+                _cam_view_y_ko = GROUND_Y - int(_vh * 0.82)
+                _vy = max(0, min(HEIGHT - _vh, _cam_view_y_ko))
+                try:
+                    _sub = world.subsurface((_vx, _vy, _vw, _vh))
+                    pygame.transform.scale(_sub, (WIDTH, HEIGHT), surf)
+                except Exception:
+                    surf.blit(ko_surf_base, (0, 0))
+
+                hud_overlay.draw(surf, env.battle, elapsed_ms=int(frame * FRAME_MS))
+                impact_fx.update_and_draw(surf, dt_ms=16)
+                recorder.write_frame(surf)
+                n_written += 1
+
+            # Standard whiteout into the result card
+            final_frame = surf.copy()
             for k in range(16):
-                ko_frame = surf.copy()
+                ko_frame = final_frame.copy()
                 wa = int(215 * (k / 16) ** 1.4)
                 wl = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
                 wl.fill((255, 255, 255, wa))
@@ -714,7 +808,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 recorder.write_frame(ko_frame)
                 n_written += 1
             for _ in range(end_hold_frames):
-                recorder.write_frame(surf)
+                recorder.write_frame(final_frame)
                 n_written += 1
             break
 
