@@ -6,17 +6,146 @@ impact burst + landing dust helpers.
 """
 from __future__ import annotations
 import math
-from typing import Tuple
+from typing import Optional, Tuple
 
 import pygame
 
 from pixel_battle.engine.character import Character
-from pixel_battle.rl.poses import compute_figure, cocked_weapon_deg, select_pose_id
+from pixel_battle.rl.poses import (
+    FigureGeometry, compute_figure, cocked_weapon_deg, ease_in_out_cubic,
+    select_pose_id,
+)
 from pixel_battle.rl.weapons import get_weapon, draw_weapon, draw_swing_smear
 
 
 # ── Constants ────────────────────────────────────────────────────────────────
 SMEAR_VEL_THRESHOLD = 2.5  # motion-smear ghosts kick in at walk speed (3.0)
+
+# Cross-state transition: when action_state changes, lerp between the last
+# geometry snapshot and the new geometry over this many ms.
+STATE_TRANSITION_MS = 130
+
+
+# ── Cross-state pose interpolation ───────────────────────────────────────────
+
+def _lerp_xy(a: Tuple[float, float], b: Tuple[float, float], t: float) -> Tuple[float, float]:
+    return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+
+
+def _lerp_geo(a: FigureGeometry, b: FigureGeometry, t: float) -> FigureGeometry:
+    """Linear-interpolate every joint position between two FigureGeometry snapshots.
+
+    `t` should already be eased before calling.  weapon_deg is lerped by the
+    shortest angular delta to avoid 360° wrap-around artifacts.
+    """
+    t = max(0.0, min(1.0, t))
+
+    # Shortest-path angular lerp for weapon_deg.
+    da = b.weapon_deg - a.weapon_deg
+    # Normalise delta into (-180, 180] so lerp always picks the short arc.
+    da = (da + 180.0) % 360.0 - 180.0
+    weapon_deg = a.weapon_deg + da * t
+
+    return FigureGeometry(
+        head_center=_lerp_xy(a.head_center, b.head_center, t),
+        shoulder=_lerp_xy(a.shoulder, b.shoulder, t),
+        hip=_lerp_xy(a.hip, b.hip, t),
+        front_elbow=_lerp_xy(a.front_elbow, b.front_elbow, t),
+        front_hand=_lerp_xy(a.front_hand, b.front_hand, t),
+        back_elbow=_lerp_xy(a.back_elbow, b.back_elbow, t),
+        back_hand=_lerp_xy(a.back_hand, b.back_hand, t),
+        front_knee=_lerp_xy(a.front_knee, b.front_knee, t),
+        front_foot=_lerp_xy(a.front_foot, b.front_foot, t),
+        back_knee=_lerp_xy(a.back_knee, b.back_knee, t),
+        back_foot=_lerp_xy(a.back_foot, b.back_foot, t),
+        weapon_deg=weapon_deg,
+        facing=b.facing,
+    )
+
+
+class RenderState:
+    """Per-character renderer cache that smooths pose transitions.
+
+    When the pose key changes, we snapshot the last rendered FigureGeometry as
+    the "from" position and lerp into the new target geometry over
+    STATE_TRANSITION_MS ms using ease_in_out_cubic.
+
+    Two separate references are maintained:
+      _from_geo  — fixed start-of-transition snapshot; does NOT update
+                   while a transition is in progress.
+      _last_geo  — the geometry returned on the most recent call; used so
+                   that if a SECOND state change fires mid-transition, the
+                   new transition starts from exactly where the figure
+                   visually was (smooth chain-transition).
+    """
+
+    def __init__(self) -> None:
+        self._last_pose_key: Optional[str] = None
+        self._from_geo: Optional[FigureGeometry] = None   # start of current transition
+        self._last_geo: Optional[FigureGeometry] = None   # last rendered output
+        self._transition_t_ms: float = STATE_TRANSITION_MS  # starts "done"
+
+    def resolve(self, char, style: dict, dt_ms: float = 16.0) -> FigureGeometry:
+        """Return the smoothed FigureGeometry for `char` this frame.
+
+        Call exactly once per draw call.  `dt_ms` must match the render tick.
+        """
+        new_key = _pose_key(char)
+        new_geo = compute_figure(char, style)
+
+        # ── Bootstrap (first call) ────────────────────────────────────────────
+        if self._last_pose_key is None:
+            self._last_pose_key = new_key
+            self._from_geo = new_geo
+            self._last_geo = new_geo
+            self._transition_t_ms = STATE_TRANSITION_MS
+            return new_geo
+
+        # ── State changed? Start a fresh transition ───────────────────────────
+        if new_key != self._last_pose_key:
+            # Snapshot the LAST rendered output as the "from" position.
+            # If we were mid-transition, _last_geo is already a blended
+            # intermediate — starting from there gives a smooth chain.
+            self._from_geo = self._last_geo
+            self._transition_t_ms = 0.0
+            self._last_pose_key = new_key
+
+        # ── Advance timer ─────────────────────────────────────────────────────
+        self._transition_t_ms += dt_ms
+
+        if self._transition_t_ms >= STATE_TRANSITION_MS:
+            # Transition complete.
+            self._last_geo = new_geo
+            return new_geo
+
+        # ── Mid-transition: lerp _from_geo → new_geo ─────────────────────────
+        frac = ease_in_out_cubic(self._transition_t_ms / STATE_TRANSITION_MS)
+        blended = _lerp_geo(self._from_geo, new_geo, frac)
+        self._last_geo = blended
+        return blended
+
+    @property
+    def transition_active(self) -> bool:
+        """True while a cross-state lerp is in progress."""
+        return self._transition_t_ms < STATE_TRANSITION_MS
+
+
+def _pose_key(char) -> str:
+    """A string that uniquely identifies the current pose bucket.
+
+    Changes whenever a state-transition should begin. Using select_pose_id
+    captures both action_state and physics conditions (vel, on_ground) the
+    same way the pose resolver does, so the key changes exactly when the
+    rendered pose would snap.
+    """
+    return select_pose_id(char)
+
+
+# Module-level cache: one RenderState per character object identity.
+# The cache lives at module scope so it persists across draw calls within a
+# single render run.  It is keyed by `id(char)` which is stable for the
+# lifetime of a single Battle instance.
+_RENDER_STATE_CACHE: dict = {}
 
 
 def _swing_smear_start_angle(pose_id: str, facing: int) -> float:
@@ -135,8 +264,12 @@ def _draw_ghost(surf, char, color, offset_x, alpha, style):
 
 # ── Main draw function ────────────────────────────────────────────────────────
 
-def draw_stick_figure(surf, char, color):
-    """Draw a jointed stick figure for `char` onto `surf` in `color`."""
+def draw_stick_figure(surf, char, color, dt_ms: float = 16.0):
+    """Draw a jointed stick figure for `char` onto `surf` in `color`.
+
+    `dt_ms` should match the render tick interval (default 16 ms = 60 fps).
+    It is forwarded to the per-character RenderState for transition timing.
+    """
     style = get_style(char.id)
     lw = style["line_width"]
 
@@ -144,7 +277,11 @@ def draw_stick_figure(surf, char, color):
         _draw_ghost(surf, char, color, -int(char.vel_x * 8), 64, style)
         _draw_ghost(surf, char, color, -int(char.vel_x * 4), 128, style)
 
-    geo = compute_figure(char, style)
+    char_key = id(char)
+    if char_key not in _RENDER_STATE_CACHE:
+        _RENDER_STATE_CACHE[char_key] = RenderState()
+    rs = _RENDER_STATE_CACHE[char_key]
+    geo = rs.resolve(char, style, dt_ms=dt_ms)
 
     # Back limbs first (depth).
     _draw_limb(surf, color, geo.shoulder, geo.back_elbow, geo.back_hand,
