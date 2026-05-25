@@ -129,6 +129,28 @@ HIT_POSE = FigurePose(
     front_leg=(120.0, 70.0), back_leg=(62.0, 58.0),
     weapon_deg=295.0)
 
+# Visible flinch: body bent backward, near arm raised in defensive guard,
+# head turned away from attacker.
+HIT_REACT_POSE = FigurePose(
+    torso_lean=-28.0,
+    front_arm=(290.0, -60.0), back_arm=(210.0, -45.0),
+    front_leg=(115.0, 55.0), back_leg=(65.0, 45.0),
+    weapon_deg=285.0)
+
+# Arms crossed in front, torso forward-tucked — active guard.
+BLOCK_POSE = FigurePose(
+    torso_lean=14.0,
+    front_arm=(330.0, -50.0), back_arm=(30.0, -50.0),
+    front_leg=(100.0, 28.0), back_leg=(80.0, 28.0),
+    weapon_deg=0.0)
+
+# Low crouching stance — knees deeply bent, hands forward for balance.
+CROUCH_POSE = FigurePose(
+    torso_lean=0.0,
+    front_arm=(20.0, -35.0), back_arm=(160.0, -35.0),
+    front_leg=(130.0, 80.0), back_leg=(50.0, 80.0),
+    weapon_deg=10.0)
+
 
 @dataclass
 class FigureGeometry:
@@ -221,7 +243,8 @@ def select_pose_id(char) -> str:
     """Pick the pose key for `char`'s current state.
 
     Attacking: `kick` if tagged so, else the skill's vfx archetype
-    (unknown -> `melee`). Otherwise idle / walk / jump / hit.
+    (unknown -> `melee`). Otherwise idle / walk / jump / hit /
+    hit_react / block / crouch.
     """
     if char.action_state == "attacking":
         if getattr(char, "attack_anim_hint", "") == "kick":
@@ -233,7 +256,11 @@ def select_pose_id(char) -> str:
     if not char.on_ground:
         return "jump"
     if char.action_state == "hit_stagger":
-        return "hit"
+        return "hit_react"
+    if char.action_state == "blocking":
+        return "block"
+    if char.action_state == "crouching":
+        return "crouch"
     if abs(char.vel_x) > 0.5:
         return "walk"
     return "idle"
@@ -280,8 +307,14 @@ def resolve_pose(char) -> FigurePose:
         return WALK_POSE
     if pose_id == "jump":
         return JUMP_POSE
+    if pose_id == "hit_react":
+        return HIT_REACT_POSE
     if pose_id == "hit":
         return HIT_POSE
+    if pose_id == "block":
+        return BLOCK_POSE
+    if pose_id == "crouch":
+        return CROUCH_POSE
     return IDLE_POSE
 
 

@@ -10,6 +10,7 @@ from pixel_battle.rl.poses import (
     select_pose_id, compute_figure, FigureGeometry, ARCHETYPE_POSES,
     cocked_weapon_deg,
     ELBOW_FLEX_MIN, ELBOW_FLEX_MAX, KNEE_FLEX_MIN, KNEE_FLEX_MAX,
+    HIT_REACT_POSE, BLOCK_POSE, CROUCH_POSE,
 )
 
 
@@ -67,7 +68,8 @@ def test_select_idle_walk_jump_hit():
     assert select_pose_id(_char("idle")) == "idle"
     assert select_pose_id(_char("idle", vel_x=2.0)) == "walk"
     assert select_pose_id(_char("idle", on_ground=False)) == "jump"
-    assert select_pose_id(_char("hit_stagger")) == "hit"
+    # hit_stagger now maps to "hit_react" (visible flinch pose)
+    assert select_pose_id(_char("hit_stagger")) == "hit_react"
 
 
 def test_select_attack_uses_vfx_archetype():
@@ -203,11 +205,18 @@ def test_all_poses_keep_feet_planted_and_in_frame():
     from pixel_battle.rl.weapons import get_weapon
 
     pose_specs = [("idle", "none"), ("walk", "none"),
-                  ("jump", "none"), ("hit", "none")]
+                  ("jump", "none"), ("hit", "none"),
+                  ("block", "none"), ("crouch", "none")]
     for a in ("melee", "slam", "spin", "dash",
               "bolt", "multishot", "aura", "beam", "kick"):
         for ph in ("windup", "strike", "recover"):
             pose_specs.append((a, ph))
+
+    # Map pose_id → action_state for static (non-attack) poses
+    _STATIC_STATE = {
+        "idle": "idle", "walk": "idle", "jump": "idle",
+        "hit": "hit_stagger", "block": "blocking", "crouch": "crouching",
+    }
 
     for char_id in ("brick_phone", "glass_slab", "garen",
                     "lux", "yasuo", "ashe"):
@@ -219,8 +228,7 @@ def test_all_poses_keep_feet_planted_and_in_frame():
                 c.pos_x, c.pos_y = 240.0, 720.0
                 c.facing = facing
                 if phase == "none":
-                    c.action_state = ("hit_stagger" if pose_id == "hit"
-                                      else "idle")
+                    c.action_state = _STATIC_STATE.get(pose_id, "idle")
                     c.on_ground = pose_id != "jump"
                     c.vel_x = 4.0 if pose_id == "walk" else 0.0
                     phase_t_values = (None,)   # static poses: single sample
