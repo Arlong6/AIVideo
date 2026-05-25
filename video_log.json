@@ -10111,7 +10111,7 @@
         },
         {
           "date": "2026-05-25",
-          "views": 29,
+          "views": 30,
           "likes": 0,
           "comments": 0
         }
@@ -11017,7 +11017,7 @@
         },
         {
           "date": "2026-05-25",
-          "views": 60,
+          "views": 65,
           "likes": 0,
           "comments": 1
         }
@@ -14076,8 +14076,8 @@
         },
         {
           "date": "2026-05-25",
-          "views": 21,
-          "likes": 0,
+          "views": 23,
+          "likes": 1,
           "comments": 1
         }
       ]
@@ -14126,7 +14126,7 @@
         },
         {
           "date": "2026-05-25",
-          "views": 8,
+          "views": 10,
           "likes": 0,
           "comments": 1
         }
@@ -14148,6 +14148,22 @@
         }
       ],
       "series_tag": "unsolved"
+    },
+    {
+      "video_id": "L_Cw8_BCFK8",
+      "topic": "彭婉如命案 (台灣1996年未解懸案)",
+      "slot": 1,
+      "duration_s": 81,
+      "publish_at": "2026-05-26T10:00:00+08:00",
+      "uploaded_at": "2026-05-25T20:01:24.788708+00:00",
+      "stats": [
+        {
+          "date": "2026-05-25",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
