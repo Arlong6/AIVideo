@@ -1,113 +1,102 @@
-# ──────────────────────────────────────────────────────────
-# 蓋倫 vs 拉克絲 — 閃現突擊、格擋與光之風箏
-# ──────────────────────────────────────────────────────────
-# 【第一幕 · 開場  0.0–6.0s】
-#   拉克絲率先出手，射出束縛鎖鏈；蓋倫格盾前擋、吃下 30% 傷害，
-#   隨即閃現壓入，鐵衛突刺正面轟入。
-#   拉克絲慌忙閃現逃回右側邊緣，光之法杖即刻再度射出奇點爆炸。
+# ──────────────────────────────────────────────────────────────────────────────
+# 蓋倫 vs 拉克絲 — 魔法師的護盾、突刺追擊與光之終幕
+# ──────────────────────────────────────────────────────────────────────────────
+# 【第一幕 · 開場  0.0–8.0s】
+#   蓋倫閃現壓入，「決意一擊」衝刺斬穿距離直擊拉克絲。
+#   拉克絲在受創後施展「棱鏡護障」護盾，並以「光之鎖鏈」束縛蓋倫。
+#   蓋倫頂著束縛繼續追擊，護盾在連擊中耗盡。
 #
-# 【第二幕 · 蓄勢  6.0–12.0s】
-#   蓋倫閃現縮距，拉克絲閃現應對並發出閃爍奇點——
-#   蓋倫輕蹲讓過光束，一道 MISS 光效劃過頭頂，隨後反身突刺。
-#   拉克絲不斷用束縛牽制，蓋倫強行格擋，繼續壓步。
+# 【第二幕 · 風箏  8.0–16.0s】
+#   拉克絲閃現後撤至右側邊界，維持距離並發射「螢光奇點」。
+#   蓋倫蹲下閃過「終極聖光」光束 — MISS！
+#   蓋倫反覆閃現追擊，「決意一擊」再次突入，持續積累 MP。
 #
-# 【第三幕 · 衝突  12.0–20.0s】
-#   拉克絲蓄力終極技——終極聖光橫掃整個戰場；
-#   蓋倫迅速閃現後退 + 蹲下，光束從頭頂掠過，再次 MISS！
-#   蓋倫咬牙反攻，連段突刺 + 審判旋轉狂轟爛炸，
-#   拉克絲 HP 條急速歸零。
+# 【第三幕 · 高潮  16.0–22.0s】
+#   蓋倫「德瑪西亞的正義」降臨，拉克絲 HP 歸零。
 #
-# 【終幕 · KO  20.0s+】
-#   勝者：蓋倫。鐵衛收劍，踏過碎裂的法杖殘骸，低頭默示。
-# ──────────────────────────────────────────────────────────
-name: "Lux kites and roots Garen — with blocks and dodges"
+# 【終幕 · KO  22.0s+】
+#   勝者：蓋倫。踏過碎裂法杖。
+# ──────────────────────────────────────────────────────────────────────────────
+name: "Lux kites Garen — wide arena, dual shield, mage confidence"
 left: garen
 right: lux
 duration_ms: 26000
+seed: 7
 left_timeline:
-  # Act 1 — Garen BLOCKS Lux's opening light_binding then rushes in
-  - {t: 800, do: block}
-  - {t: 1400, do: "flash:in"}
-  - {t: 1900, do: "attack:basic"}
-  - {t: 2600, do: "attack:cd"}
-  # Advance to re-engage; Lux flashes back
-  - {t: 3400, do: advance}
-  - {t: 3900, do: "attack:special"}
-  - {t: 4700, do: "attack:basic"}
-  # Second flash-in burst
-  - {t: 5500, do: "flash:in"}
-  - {t: 6000, do: "attack:cd"}
-  - {t: 6600, do: "attack:basic"}
-  # Garen CROUCHES under Lux's lucent_singularity (~t=7200) — MISS
-  - {t: 7000, do: crouch}
-  - {t: 7700, do: "attack:special"}
-  # Lux's judgment at ~8500 — Garen blocks
-  - {t: 8200, do: block}
-  - {t: 8800, do: "attack:basic"}
-  - {t: 9400, do: "attack:cd"}
-  - {t: 10000, do: advance}
-  - {t: 10500, do: "attack:basic"}
-  # Third flash-in — maximum aggression
-  - {t: 11200, do: "flash:in"}
-  - {t: 11700, do: "attack:special"}
-  - {t: 12400, do: "attack:basic"}
-  - {t: 13000, do: "attack:cd"}
-  - {t: 13600, do: "attack:basic"}
-  # Push forward
-  - {t: 14300, do: advance}
-  - {t: 14800, do: "attack:basic"}
-  - {t: 15400, do: "attack:cd"}
-  # Garen CROUCHES + flashes back to dodge final_spark (~t=16500)
-  - {t: 15900, do: crouch}
-  - {t: 16400, do: "flash:back"}
-  # Climax — heavy combo to close out Lux
-  - {t: 17200, do: "flash:in"}
-  - {t: 17700, do: "attack:special"}
-  - {t: 18300, do: "attack:basic"}
-  - {t: 18900, do: "attack:cd"}
-  - {t: 19500, do: "attack:basic"}
-  - {t: 20100, do: "attack:special"}
-  - {t: 20700, do: "attack:cd"}
-  - {t: 21300, do: "flash:in"}
-  - {t: 21800, do: "attack:basic"}
-  - {t: 22400, do: "attack:cd"}
-right_timeline:
-  # Act 1 — Lux opens with light_binding (Garen blocks it)
-  - {t: 900, do: "cast:light_binding"}
-  - {t: 1600, do: "flash:back"}
-  - {t: 2200, do: "cast:lucent_singularity"}
-  - {t: 2900, do: "attack:basic"}
-  # Garen closing — Lux BLOCKS Garen's special (~t=3900)
-  - {t: 3700, do: block}
-  - {t: 4300, do: "cast:light_binding"}
+  # ── Act 1: Flash in + decisive_strike DASH immediately after intro
+  # Use basic/cd only — no specials so MP accumulates toward demacian_justice
+  - {t: 2100, do: "flash:in"}
+  - {t: 2150, do: "attack:cd"}
+  - {t: 2600, do: "attack:basic"}
+  - {t: 3100, do: "attack:basic"}
+  - {t: 3500, do: "attack:cd"}
+  - {t: 4000, do: "attack:basic"}
+  - {t: 4500, do: "attack:cd"}
   - {t: 5000, do: "attack:basic"}
-  - {t: 5700, do: "flash:back"}
-  # Lux fires lucent_singularity — Garen crouches under it
-  - {t: 6300, do: "cast:lucent_singularity"}
-  - {t: 7000, do: "attack:basic"}
-  - {t: 7600, do: "cast:light_binding"}
-  # Lux BLOCKS Garen's flash-in at ~t=8200
-  - {t: 8000, do: block}
-  - {t: 8600, do: "attack:basic"}
-  - {t: 9200, do: "cast:lucent_singularity"}
+  - {t: 5500, do: "attack:basic"}
+  # ── Act 2: Second flash-in after Lux flash:back (t=7000)
+  - {t: 6000, do: "attack:cd"}
+  - {t: 6200, do: "flash:in"}
+  - {t: 6700, do: "attack:basic"}
+  - {t: 7100, do: "attack:cd"}
+  - {t: 7600, do: "attack:basic"}
+  - {t: 8100, do: "attack:basic"}
+  # ── Garen CROUCHES under Lux's final_spark (~t=10400)
+  - {t: 8700, do: crouch}
+  - {t: 9300, do: "attack:basic"}
+  - {t: 9800, do: "attack:cd"}
+  # ── Act 3: Third flash-in — MP near 100, ultimate imminent
+  - {t: 10200, do: "flash:in"}
+  - {t: 10250, do: "attack:cd"}
+  - {t: 10800, do: "attack:basic"}
+  - {t: 11300, do: "attack:basic"}
+  - {t: 11800, do: "attack:cd"}
+  - {t: 12300, do: "attack:basic"}
+  - {t: 12700, do: "attack:cd"}
+  # ── Ultimate fires when MP≥100
+  - {t: 13200, do: "cast:demacian_justice"}
+  - {t: 13800, do: "attack:basic"}
+  - {t: 14300, do: "attack:basic"}
+  - {t: 14800, do: "attack:cd"}
+  - {t: 15300, do: "attack:basic"}
+  - {t: 15800, do: "attack:basic"}
+  - {t: 16300, do: "attack:cd"}
+  - {t: 16800, do: "attack:basic"}
+  - {t: 17300, do: "attack:cd"}
+  - {t: 17800, do: "attack:basic"}
+  - {t: 18300, do: "attack:basic"}
+right_timeline:
+  # ── Act 1: Lux opens with light_binding before decisive_strike lands
+  - {t: 2200, do: "cast:light_binding"}
+  - {t: 2800, do: "attack:basic"}
+  # No shield yet — Lux doesn't have enough MP
+  - {t: 3400, do: "cast:lucent_singularity"}
+  - {t: 4000, do: "attack:basic"}
+  - {t: 4600, do: "cast:light_binding"}
+  - {t: 5200, do: "attack:basic"}
+  - {t: 5800, do: "cast:lucent_singularity"}
+  - {t: 6400, do: "attack:basic"}
+  # ── Lux flash:back for kiting at t=7000
+  - {t: 7000, do: "flash:back"}
+  # ── Act 2: kite from right edge. Shield fires when Lux has 24+ MP
+  - {t: 7500, do: "cast:prismatic_barrier"}
+  - {t: 8100, do: "attack:basic"}
+  - {t: 8700, do: "cast:lucent_singularity"}
+  - {t: 9300, do: "attack:basic"}
+  # Lux fires final_spark (beam) — Garen crouches to dodge at t=8700
   - {t: 9900, do: retreat}
-  - {t: 10400, do: "cast:light_binding"}
-  - {t: 11100, do: "attack:basic"}
-  - {t: 11700, do: "flash:back"}
-  - {t: 12300, do: "cast:lucent_singularity"}
-  - {t: 12900, do: "attack:basic"}
-  - {t: 13500, do: "cast:light_binding"}
-  - {t: 14200, do: "attack:basic"}
-  - {t: 14900, do: "cast:lucent_singularity"}
-  # Lux fires final_spark (beam) — Garen crouches and flashes back → MISS
-  - {t: 15600, do: "flash:back"}
-  - {t: 16300, do: "cast:final_spark"}
-  # Desperate last stand — Lux BLOCKS Garen's climax flash-in
-  - {t: 17100, do: block}
-  - {t: 17700, do: "attack:basic"}
-  - {t: 18400, do: "cast:light_binding"}
-  - {t: 19100, do: "attack:basic"}
-  - {t: 19700, do: "cast:lucent_singularity"}
-  - {t: 20400, do: "attack:basic"}
-  - {t: 21000, do: "cast:light_binding"}
-  - {t: 21600, do: "attack:basic"}
+  - {t: 10400, do: "cast:final_spark"}
+  # ── Post-spark: Lux repositions
+  - {t: 11200, do: block}
+  - {t: 11800, do: "cast:light_binding"}
+  - {t: 12400, do: "attack:basic"}
+  - {t: 13000, do: "cast:lucent_singularity"}
+  # ── Act 3 — desperate last stand
+  - {t: 13700, do: "attack:basic"}
+  - {t: 14300, do: "cast:light_binding"}
+  - {t: 14900, do: "attack:basic"}
+  - {t: 15500, do: "cast:lucent_singularity"}
+  - {t: 16100, do: "attack:basic"}
+  - {t: 16700, do: "cast:light_binding"}
+  - {t: 17300, do: "attack:basic"}
+  - {t: 17900, do: "cast:lucent_singularity"}

@@ -103,6 +103,9 @@ def load_timeline_text(text: str) -> Timeline:
     for side in ("left", "right"):
         if data[side] not in db:
             raise TimelineLoadError(f"unknown character id: {data[side]!r}")
+    seed = data.get("seed")
+    if seed is not None and not isinstance(seed, int):
+        raise TimelineLoadError(f"'seed' must be an integer, got {seed!r}")
     return Timeline(
         name=str(data["name"]),
         left=str(data["left"]), right=str(data["right"]),
@@ -111,6 +114,7 @@ def load_timeline_text(text: str) -> Timeline:
             data["left_timeline"], str(data["left"]), db, "left"),
         right_events=_parse_timeline(
             data["right_timeline"], str(data["right"]), db, "right"),
+        seed=int(seed) if seed is not None else None,
     )
 
 

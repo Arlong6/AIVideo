@@ -37,7 +37,11 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     driver = load_fight_file(script_path)
-    env = PixelBattleEnv(left_id=driver.left, right_id=driver.right)
+    tl_seed = getattr(driver.timeline, "seed", None)
+    env_kwargs = {"left_id": driver.left, "right_id": driver.right}
+    if tl_seed is not None:
+        env_kwargs["seed"] = tl_seed
+    env = PixelBattleEnv(**env_kwargs)
 
     raw = out_dir / f"{script_path.stem}_raw.mp4"
     recorder = FrameRecorder(str(raw), fps=FPS, width=WIDTH, height=HEIGHT)

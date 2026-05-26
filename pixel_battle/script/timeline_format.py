@@ -22,3 +22,4 @@ class Timeline:
     duration_ms: int                # author-declared expected fight length
     left_events: List[TimelineEvent]
     right_events: List[TimelineEvent]
+    seed: Optional[int] = None      # optional RNG seed for deterministic render
