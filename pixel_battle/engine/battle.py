@@ -14,6 +14,7 @@ from pixel_battle.engine.rng import BattleRNG
 from pixel_battle.engine.skill import Skill, SkillType
 from pixel_battle.engine.physics import (
     ARENA_LEFT, ARENA_RIGHT, GROUND_Y,
+    AI_ENGAGE_LEFT, AI_ENGAGE_RIGHT,
     WALK_SPEED, JUMP_VELOCITY, GRAVITY, MAX_FALL_SPEED,
     MELEE_RANGE, SPECIAL_RANGE, ULTIMATE_TRIGGER_DISTANCE,
     apply_gravity, clamp_x,
@@ -58,7 +59,7 @@ AI_RETREAT_IN_RANGE_PROB = 0.05   # rare retreat to break clinch
 AI_JUMP_APPROACH_PROB = 0.03      # chance to jump while closing distance
 
 RETREAT_DURATION_MS = 800           # max consecutive ms in retreat before forced re-evaluate
-WALL_STUCK_PX = 30                  # distance from arena edge that counts as stuck
+WALL_STUCK_PX = 30                  # distance from AI_ENGAGE_LEFT/RIGHT that counts as stuck
 DEFENSIVE_RETREAT_HP = 15           # HP below which defensive retreat may trigger
 MIN_CHAR_DISTANCE = 70              # px; min horizontal distance between character centers
 
@@ -114,9 +115,13 @@ class Battle:
         self.events: List[Event] = []
         self._ultimate_resume_at: Optional[int] = None
 
-        # Initialize physics positions
-        left.reset_physics(initial_x=ARENA_LEFT + 60, facing=1)
-        right.reset_physics(initial_x=ARENA_RIGHT - 60, facing=-1)
+        # Initialize physics positions — keep the same 240 px starting gap
+        # regardless of arena width, so existing scripts don't need re-tuning.
+        # Characters start at 120 / 360 (midpoints of old bounds).
+        _START_LEFT = 120
+        _START_RIGHT = 360
+        left.reset_physics(initial_x=_START_LEFT, facing=1)
+        right.reset_physics(initial_x=_START_RIGHT, facing=-1)
 
     # ------------------------------------------------------------------ #
     # Public API                                                            #
@@ -214,7 +219,18 @@ class Battle:
             if _slow is not None:
                 char.vel_x *= _slow.magnitude
 
-        char.pos_x = clamp_x(char.pos_x + char.vel_x)
+        new_x = clamp_x(char.pos_x + char.vel_x)
+        # Engagement soft wall: bleed-stop velocity when a character would
+        # drift into the visual-only fringe (20-60 / 420-460).
+        # This keeps old fight dynamics intact after the arena widened to 20-460.
+        # Flash teleports bypass this (they set pos_x directly, not via vel_x).
+        if new_x < AI_ENGAGE_LEFT and char.vel_x < 0:
+            char.vel_x = 0.0
+            new_x = AI_ENGAGE_LEFT
+        elif new_x > AI_ENGAGE_RIGHT and char.vel_x > 0:
+            char.vel_x = 0.0
+            new_x = AI_ENGAGE_RIGHT
+        char.pos_x = new_x
         char.pos_y += char.vel_y
 
         # Ground collision
@@ -235,17 +251,18 @@ class Battle:
     def _resolve_character_collision(self) -> None:
         """Push both characters apart if they're closer than MIN_CHAR_DISTANCE.
         Each takes half of the correction so the midpoint is preserved.
+        Clamp to AI_ENGAGE bounds (not the wider fringe) to match old dynamics.
         """
         dx = abs(self.left.pos_x - self.right.pos_x)
         if dx >= MIN_CHAR_DISTANCE:
             return
         push = (MIN_CHAR_DISTANCE - dx) / 2.0
         if self.left.pos_x < self.right.pos_x:
-            self.left.pos_x = clamp_x(self.left.pos_x - push)
-            self.right.pos_x = clamp_x(self.right.pos_x + push)
+            self.left.pos_x = max(AI_ENGAGE_LEFT, self.left.pos_x - push)
+            self.right.pos_x = min(AI_ENGAGE_RIGHT, self.right.pos_x + push)
         else:
-            self.left.pos_x = clamp_x(self.left.pos_x + push)
-            self.right.pos_x = clamp_x(self.right.pos_x - push)
+            self.left.pos_x = min(AI_ENGAGE_RIGHT, self.left.pos_x + push)
+            self.right.pos_x = max(AI_ENGAGE_LEFT, self.right.pos_x - push)
 
     def _update_stagger(self, char: Character, dt_ms: int) -> None:
         if char.action_state == "hit_stagger":
@@ -422,8 +439,10 @@ class Battle:
             char.facing = -1
 
         distance = abs(char.pos_x - opp.pos_x)
-        at_wall = (char.pos_x - ARENA_LEFT < WALL_STUCK_PX or
-                   ARENA_RIGHT - char.pos_x < WALL_STUCK_PX)
+        # Use AI_ENGAGE_LEFT/RIGHT (60/420) so "stuck-at-wall" fires at the
+        # same absolute positions as before the arena was widened to 20/460.
+        at_wall = (char.pos_x - AI_ENGAGE_LEFT < WALL_STUCK_PX or
+                   AI_ENGAGE_RIGHT - char.pos_x < WALL_STUCK_PX)
         can_retreat = (not at_wall
                        and char.retreat_until_ms == 0
                        and not retreat_just_cleared)

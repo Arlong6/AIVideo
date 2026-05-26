@@ -1,9 +1,19 @@
 """2D physics primitives for melee battle."""
 
 # World — characters live in a horizontal arena 480 wide
-ARENA_LEFT = 60
-ARENA_RIGHT = 420
+ARENA_LEFT = 20
+ARENA_RIGHT = 460
 GROUND_Y = 530  # feet landing position; matches renderer HORIZON_Y
+
+# Engagement zone — kept at the original 60-420 range.
+# Used by: (1) AI retreat/wall-stuck checks in battle.py so the AI still
+# turns around at the same absolute positions it did before the arena widened,
+# and (2) Flash teleport clamping so scripted flash:back calls don't push
+# characters further than the scripts were tuned for.
+AI_ENGAGE_LEFT = 60
+AI_ENGAGE_RIGHT = 420
+FLASH_ARENA_LEFT = AI_ENGAGE_LEFT
+FLASH_ARENA_RIGHT = AI_ENGAGE_RIGHT
 
 # Motion
 WALK_SPEED = 4.5           # px/frame — 60% faster for snappy approach/retreat

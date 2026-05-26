@@ -19,6 +19,7 @@ from pixel_battle.engine.rng import BattleRNG
 from pixel_battle.engine.physics import (
     MELEE_RANGE, SPECIAL_RANGE, MAX_ATTACK_RANGE,
     FLASH_DISTANCE, FLASH_COOLDOWN_MS, WALK_SPEED, clamp_x,
+    FLASH_ARENA_LEFT, FLASH_ARENA_RIGHT,
 )
 
 
@@ -226,7 +227,11 @@ class PixelBattleEnv(gym.Env):
         if not toward:
             sign = -sign
         from_x = me.pos_x
-        me.pos_x = clamp_x(me.pos_x + sign * FLASH_DISTANCE)
+        # Clamp flash destination to the engagement zone (FLASH_ARENA_*) rather
+        # than the full arena so existing scripts don't break when the walking
+        # arena is wider than the old 60-420 bounds.
+        raw_dest = me.pos_x + sign * FLASH_DISTANCE
+        me.pos_x = max(FLASH_ARENA_LEFT, min(FLASH_ARENA_RIGHT, raw_dest))
         me.facing = 1 if opp.pos_x > me.pos_x else -1
         me.flash_ready_at_ms = self.battle.elapsed_ms + FLASH_COOLDOWN_MS
         self.battle._emit(EventType.FLASH, actor=me.id,
