@@ -59,7 +59,7 @@
       {"id": "light_strike", "type": "basic", "anim": "attack", "vfx": "melee"},
       {"id": "light_binding", "type": "cooldown", "cooldown_ms": 4000, "dmg": 5, "range": 280, "stagger_ms": 500, "anim": "light_binding", "vfx": "bolt", "applies": {"effect": "root", "duration_ms": 1500, "magnitude": 1.0, "target": "opponent"}},
       {"id": "lucent_singularity", "type": "special", "mp_cost": 26, "dmg": 8, "range": 300, "anim": "lucent_singularity", "vfx": "bolt"},
-      {"id": "prismatic_barrier", "type": "special", "mp_cost": 20, "dmg": 4, "anim": "prismatic_barrier", "vfx": "aura", "applies": {"effect": "shield", "duration_ms": 5000, "magnitude": 25, "target": "self"}},
+      {"id": "prismatic_barrier", "type": "special", "mp_cost": 20, "dmg": 4, "anim": "prismatic_barrier", "vfx": "shield", "applies": {"effect": "shield", "duration_ms": 5000, "magnitude": 25, "target": "self"}},
       {"id": "final_spark", "type": "ultimate", "mp_cost": 100, "dmg": 32, "range": 340, "anim": "final_spark", "vfx": "beam"}
     ]
   },
