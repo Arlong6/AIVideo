@@ -1,102 +1,101 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# 蓋倫 vs 拉克絲 — 魔法師的護盾、突刺追擊與光之終幕
+# 蓋倫 vs 拉克絲 — 每個 VFX 原型的精彩展示
 # ──────────────────────────────────────────────────────────────────────────────
-# 【第一幕 · 開場  0.0–8.0s】
-#   蓋倫閃現壓入，「決意一擊」衝刺斬穿距離直擊拉克絲。
-#   拉克絲在受創後施展「棱鏡護障」護盾，並以「光之鎖鏈」束縛蓋倫。
-#   蓋倫頂著束縛繼續追擊，護盾在連擊中耗盡。
+# 【幕一 · 光之護障  0–7s】
+#   🛡 SHIELD VFX — 拉克絲「棱鏡護障」發動，光柱竄升，護盾光環浮現。
+#   ⚡ BOLT VFX   — 「光之鎖鏈」射出，軌跡殘影跟隨，蓋倫被束縛。
+#   💨 DASH VFX   — 蓋倫「決意一擊」衝刺殘影，三重鬼影掠過戰場。
 #
-# 【第二幕 · 風箏  8.0–16.0s】
-#   拉克絲閃現後撤至右側邊界，維持距離並發射「螢光奇點」。
-#   蓋倫蹲下閃過「終極聖光」光束 — MISS！
-#   蓋倫反覆閃現追擊，「決意一擊」再次突入，持續積累 MP。
+# 【幕二 · 星爆風箏  7–15s】
+#   🌟 AURA VFX  — 拉克絲「棱鏡護障」再次施放，八芒星光放射。
+#   🔵 BOLT VFX  — 「螢光奇點」連射，光彈噴湧，多段命中。
+#   💥 BEAM VFX  — 拉克絲「終極聖光」開炮，橫掃粗光束。
 #
-# 【第三幕 · 高潮  16.0–22.0s】
-#   蓋倫「德瑪西亞的正義」降臨，拉克絲 HP 歸零。
-#
-# 【終幕 · KO  22.0s+】
+# 【幕三 · 德瑪正義  15–24s】
+#   ☄ ULTIMATE VFX — 蓋倫「德瑪西亞的正義」降臨：
+#     全螢幕品牌色閃光 + 鏡頭震動 + 30道放射火花 + 巨字 ULTIMATE!
 #   勝者：蓋倫。踏過碎裂法杖。
 # ──────────────────────────────────────────────────────────────────────────────
-name: "Lux kites Garen — wide arena, dual shield, mage confidence"
+name: "Lux vs Garen — VFX archetype showcase: shield, bolt, dash, aura, beam, ultimate"
 left: garen
 right: lux
 duration_ms: 26000
 seed: 7
 left_timeline:
   # ── Act 1: Flash in + decisive_strike DASH immediately after intro
-  # Use basic/cd only — no specials so MP accumulates toward demacian_justice
+  # DASH VFX fires on decisive_strike (vfx=dash): afterimage ghosts
   - {t: 2100, do: "flash:in"}
-  - {t: 2150, do: "attack:cd"}
-  - {t: 2600, do: "attack:basic"}
-  - {t: 3100, do: "attack:basic"}
-  - {t: 3500, do: "attack:cd"}
-  - {t: 4000, do: "attack:basic"}
-  - {t: 4500, do: "attack:cd"}
-  - {t: 5000, do: "attack:basic"}
-  - {t: 5500, do: "attack:basic"}
+  - {t: 2150, do: "attack:cd"}        # decisive_strike → DASH VFX
+  - {t: 2700, do: "attack:basic"}
+  - {t: 3200, do: "attack:basic"}
+  - {t: 3600, do: "attack:cd"}        # decisive_strike → DASH VFX
+  - {t: 4100, do: "attack:basic"}
+  - {t: 4600, do: "attack:cd"}        # decisive_strike → DASH VFX
+  - {t: 5100, do: "attack:basic"}
+  - {t: 5600, do: "attack:basic"}
   # ── Act 2: Second flash-in after Lux flash:back (t=7000)
-  - {t: 6000, do: "attack:cd"}
-  - {t: 6200, do: "flash:in"}
-  - {t: 6700, do: "attack:basic"}
-  - {t: 7100, do: "attack:cd"}
-  - {t: 7600, do: "attack:basic"}
-  - {t: 8100, do: "attack:basic"}
+  - {t: 6100, do: "attack:cd"}
+  - {t: 6300, do: "flash:in"}
+  - {t: 6800, do: "attack:basic"}
+  - {t: 7200, do: "attack:cd"}
+  - {t: 7700, do: "attack:basic"}
+  - {t: 8200, do: "attack:basic"}
   # ── Garen CROUCHES under Lux's final_spark (~t=10400)
-  - {t: 8700, do: crouch}
-  - {t: 9300, do: "attack:basic"}
-  - {t: 9800, do: "attack:cd"}
+  - {t: 8800, do: crouch}
+  - {t: 9400, do: "attack:basic"}
+  - {t: 9900, do: "attack:cd"}
   # ── Act 3: Third flash-in — MP near 100, ultimate imminent
-  - {t: 10200, do: "flash:in"}
-  - {t: 10250, do: "attack:cd"}
-  - {t: 10800, do: "attack:basic"}
-  - {t: 11300, do: "attack:basic"}
-  - {t: 11800, do: "attack:cd"}
-  - {t: 12300, do: "attack:basic"}
-  - {t: 12700, do: "attack:cd"}
-  # ── Ultimate fires when MP≥100
-  - {t: 13200, do: "cast:demacian_justice"}
-  - {t: 13800, do: "attack:basic"}
-  - {t: 14300, do: "attack:basic"}
-  - {t: 14800, do: "attack:cd"}
-  - {t: 15300, do: "attack:basic"}
-  - {t: 15800, do: "attack:basic"}
-  - {t: 16300, do: "attack:cd"}
-  - {t: 16800, do: "attack:basic"}
-  - {t: 17300, do: "attack:cd"}
-  - {t: 17800, do: "attack:basic"}
-  - {t: 18300, do: "attack:basic"}
+  - {t: 10300, do: "flash:in"}
+  - {t: 10350, do: "attack:cd"}
+  - {t: 10900, do: "attack:basic"}
+  - {t: 11400, do: "attack:basic"}
+  - {t: 11900, do: "attack:cd"}
+  - {t: 12400, do: "attack:basic"}
+  - {t: 12800, do: "attack:cd"}
+  # ── ULTIMATE: demacian_justice fires when MP≥100
+  - {t: 13300, do: "cast:demacian_justice"}  # ULTIMATE VFX
+  - {t: 13900, do: "attack:basic"}
+  - {t: 14400, do: "attack:basic"}
+  - {t: 14900, do: "attack:cd"}
+  - {t: 15400, do: "attack:basic"}
+  - {t: 15900, do: "attack:basic"}
+  - {t: 16400, do: "attack:cd"}
+  - {t: 16900, do: "attack:basic"}
+  - {t: 17400, do: "attack:cd"}
+  - {t: 17900, do: "attack:basic"}
+  - {t: 18400, do: "attack:basic"}
 right_timeline:
-  # ── Act 1: Lux opens with light_binding before decisive_strike lands
-  - {t: 2200, do: "cast:light_binding"}
-  - {t: 2800, do: "attack:basic"}
-  # No shield yet — Lux doesn't have enough MP
-  - {t: 3400, do: "cast:lucent_singularity"}
-  - {t: 4000, do: "attack:basic"}
-  - {t: 4600, do: "cast:light_binding"}
-  - {t: 5200, do: "attack:basic"}
-  - {t: 5800, do: "cast:lucent_singularity"}
-  - {t: 6400, do: "attack:basic"}
+  # ── Act 1: Lux opens — SHIELD VFX first, then BOLT to bind
+  - {t: 2050, do: "cast:prismatic_barrier"}   # SHIELD VFX — pillar + base ring
+  - {t: 2300, do: "cast:light_binding"}       # BOLT VFX — projectile trail
+  - {t: 2900, do: "attack:basic"}
+  - {t: 3500, do: "cast:lucent_singularity"}  # BOLT VFX
+  - {t: 4100, do: "attack:basic"}
+  - {t: 4700, do: "cast:light_binding"}       # BOLT VFX — roots Garen
+  - {t: 5300, do: "attack:basic"}
+  - {t: 5900, do: "cast:lucent_singularity"}  # BOLT VFX
+  - {t: 6500, do: "attack:basic"}
   # ── Lux flash:back for kiting at t=7000
   - {t: 7000, do: "flash:back"}
-  # ── Act 2: kite from right edge. Shield fires when Lux has 24+ MP
-  - {t: 7500, do: "cast:prismatic_barrier"}
-  - {t: 8100, do: "attack:basic"}
-  - {t: 8700, do: "cast:lucent_singularity"}
-  - {t: 9300, do: "attack:basic"}
-  # Lux fires final_spark (beam) — Garen crouches to dodge at t=8700
-  - {t: 9900, do: retreat}
-  - {t: 10400, do: "cast:final_spark"}
+  # ── Act 2: kite from right edge — AURA, BOLT, BEAM showcase
+  - {t: 7400, do: "cast:prismatic_barrier"}   # SHIELD VFX again (refresh shield)
+  - {t: 8000, do: "attack:basic"}
+  - {t: 8600, do: "cast:lucent_singularity"}  # BOLT VFX
+  - {t: 9200, do: "attack:basic"}
+  # Lux repositions + fires final_spark (beam) — Garen crouches to dodge
+  - {t: 9800, do: retreat}
+  - {t: 10300, do: "cast:final_spark"}        # BEAM VFX — wide laser sweep
   # ── Post-spark: Lux repositions
-  - {t: 11200, do: block}
-  - {t: 11800, do: "cast:light_binding"}
-  - {t: 12400, do: "attack:basic"}
-  - {t: 13000, do: "cast:lucent_singularity"}
+  - {t: 11100, do: block}
+  - {t: 11700, do: "cast:light_binding"}      # BOLT VFX
+  - {t: 12300, do: "attack:basic"}
+  - {t: 12900, do: "cast:lucent_singularity"} # BOLT VFX
   # ── Act 3 — desperate last stand
-  - {t: 13700, do: "attack:basic"}
-  - {t: 14300, do: "cast:light_binding"}
-  - {t: 14900, do: "attack:basic"}
-  - {t: 15500, do: "cast:lucent_singularity"}
-  - {t: 16100, do: "attack:basic"}
-  - {t: 16700, do: "cast:light_binding"}
-  - {t: 17300, do: "attack:basic"}
-  - {t: 17900, do: "cast:lucent_singularity"}
+  - {t: 13600, do: "attack:basic"}
+  - {t: 14200, do: "cast:light_binding"}      # BOLT VFX
+  - {t: 14800, do: "attack:basic"}
+  - {t: 15400, do: "cast:lucent_singularity"} # BOLT VFX
+  - {t: 16000, do: "attack:basic"}
+  - {t: 16600, do: "cast:light_binding"}      # BOLT VFX
+  - {t: 17200, do: "attack:basic"}
+  - {t: 17800, do: "cast:lucent_singularity"} # BOLT VFX
