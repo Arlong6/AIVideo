@@ -424,6 +424,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     from pixel_battle.rl.impact_fx import ImpactFX as _ImpactFX
     from pixel_battle.rl.ko_sequence import KOSequence as _KOSequence
     from pixel_battle.engine.battle import BattleState as _BattleState
+    from pixel_battle.engine.skill import SkillType as _SkillType
 
     (obs_left, obs_right), _ = env.reset()
     lcol = _char_color(env.left)
@@ -441,6 +442,8 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     frame = 0
 
     projectiles = ProjectileLayer()
+    # Attacker-recoil cache: maps id(char) -> remaining_ms for the near-hand recoil nudge
+    _attacker_recoil: dict = {}
     # Old full-screen shake — now used only for "beam" windup and "ultimate_start".
     # Crits and hits use the newer camera_shake_offset system (world-space, HUD stable).
     screen_shake_frames_left = 0
@@ -488,6 +491,18 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     left_flash_frames = max(left_flash_frames, 4)
                 else:
                     right_flash_frames = max(right_flash_frames, 4)
+                # ── Camera shake on hit ──
+                if is_crit:
+                    impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
+                else:
+                    impact_fx.camera_shake.trigger(magnitude_px=2.0, duration_ms=120.0)
+                # ── Hit-confirm ring at defender's hip ──
+                impact_fx.spawn_hit_ring(
+                    x=int(defender.pos_x),
+                    y=int(defender.pos_y) - 60,
+                    color=burst_color)
+                # ── Attacker recoil: mark near-hand kick-back for 100 ms ──
+                _attacker_recoil[id(attacker)] = 100
             elif et == "crit":
                 defender = env.right if ev.target == env.right.id else env.left
                 attacker = env.left if ev.actor == env.left.id else env.right
@@ -507,9 +522,12 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 shake_frames = SHAKE_FRAMES
             elif et == "attack_windup":
                 vfx = (ev.extra or {}).get("vfx", "melee")
+                skill_type_str = (ev.extra or {}).get("skill_type", "")
                 actor_obj = env.left if ev.actor == env.left.id else env.right
                 target_obj = env.right if actor_obj is env.left else env.left
                 a_color = lcol if actor_obj is env.left else rcol
+                brand_col = getattr(actor_obj, "brand_color",
+                                    getattr(actor_obj, "color", a_color))
                 ax, ay = int(actor_obj.pos_x), int(actor_obj.pos_y)
                 tx, ty = int(target_obj.pos_x), int(target_obj.pos_y)
                 now_ms = int(frame * FRAME_MS)
@@ -523,17 +541,36 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                                            end=(tx, ty - 90 + off),
                                            color=a_color, current_ms=now_ms,
                                            duration_ms=300)
+                    # Multishot fan sparks from caster hand
+                    for off_deg in (-20, -10, 0, 10, 20):
+                        impact_fx.spawn_hit_spark(
+                            x=ax, y=ay - 110, damage=2, color=a_color)
                 elif vfx == "beam":
                     bx = tx + (tx - ax) // 3
                     active_beams.append([ax, ay - 95, bx, ty - 95, a_color, 0])
+                    # New: high-alpha beam overlay from ImpactFX
+                    impact_fx.spawn_beam_fx(x1=ax, x2=bx, y=ay - 95,
+                                             color=brand_col)
                     screen_shake_frames_left = max(screen_shake_frames_left, 6)
                     screen_shake_mag = max(screen_shake_mag, 5)
                 elif vfx == "spin":
                     active_spins.append([ax, ay - 90, a_color, 0])
                 elif vfx == "aura":
                     active_auras.append([ax, ay - 90, a_color, 0])
+                    # New: radial starburst from ImpactFX
+                    impact_fx.spawn_aura_starburst(x=ax, y=ay - 90,
+                                                    color=brand_col)
+                elif vfx == "shield":
+                    # New: buff pillar — bright vertical particles
+                    impact_fx.spawn_buff_pillar(x=ax, y=ay - 20, color=brand_col)
+                    active_auras.append([ax, ay - 90, a_color, 0])
                 elif vfx == "dash":
                     active_bursts.append([ax, ay - 90, a_color, 40, 0])
+                    # New: dash afterimage from caster toward target
+                    impact_fx.spawn_dash_afterimage(
+                        sx=float(ax), sy=float(ay),
+                        ex=float(tx), ey=float(ty),
+                        color=a_color)
                 elif vfx == "slam":
                     active_shockwaves.append([tx, ty - 90, a_color, 0, 16, 300])
                 kind = (ev.extra or {}).get("skill_type")
@@ -548,6 +585,8 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 defender = env.right if ev.target == env.right.id else env.left
                 actor_obj = env.left if ev.actor == env.left.id else env.right
                 burst_color = lcol if actor_obj is env.left else rcol
+                brand_col_ult = getattr(actor_obj, "brand_color",
+                                        getattr(actor_obj, "color", burst_color))
                 active_bursts.append([
                     int(defender.pos_x), int(defender.pos_y) - 90,
                     burst_color, 120, 0,
@@ -571,6 +610,14 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     left_flash_frames = max(left_flash_frames, 7)
                 else:
                     right_flash_frames = max(right_flash_frames, 7)
+                # ── NEW: ultimate burst (flash + 30 sparks + text) ──
+                impact_fx.spawn_ultimate_burst(
+                    x=int(actor_obj.pos_x),
+                    y=int(actor_obj.pos_y) - 60,
+                    color=brand_col_ult,
+                    surf_size=(WIDTH, HEIGHT))
+                # Larger camera shake via CameraShake helper
+                impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
                 ult_vfx = (ev.extra or {}).get("vfx", "slam")
                 u_ax, u_ay = int(actor_obj.pos_x), int(actor_obj.pos_y)
                 u_tx, u_ty = int(defender.pos_x), int(defender.pos_y)
@@ -580,6 +627,8 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                                          (255, 255, 255), 0])
                     active_beams.append([u_ax, u_ay - 95, bx, u_ty - 95,
                                          burst_color, 0])
+                    impact_fx.spawn_beam_fx(x1=u_ax, x2=bx, y=u_ay - 95,
+                                             color=brand_col_ult)
                 elif ult_vfx == "bolt":
                     projectiles.spawn(start=(u_ax, u_ay - 130),
                                        end=(u_tx, u_ty - 90),
@@ -598,7 +647,9 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             ev_t = ev.type.value
             if ev_t in ("hit", "crit"):
                 target = env.right if ev.target == env.right.id else env.left
+                attacker_ev = env.left if ev.actor == env.left.id else env.right
                 col = hud_overlay._color(target.id)
+                burst_col_ev = lcol if attacker_ev is env.left else rcol
                 impact_fx.spawn_hit_spark(x=int(target.pos_x),
                                           y=int(target.pos_y) - 20,
                                           damage=ev.amount, color=col)
@@ -612,6 +663,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     impact_fx.spawn_floating_text(x=int(target.pos_x),
                                                   y=int(target.pos_y) - 40,
                                                   text="HIT!", color=(255, 240, 200))
+                # Hit-confirm ring (also for crit — ring appears at defender hip)
+                impact_fx.spawn_hit_ring(x=int(target.pos_x),
+                                         y=int(target.pos_y) - 60,
+                                         color=burst_col_ev)
             elif ev_t == "ultimate_start":
                 impact_fx.flash_screen(color=(255, 60, 60), alpha=200)
 
@@ -646,8 +701,33 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         right_color = HIT_FLASH if right_flash_frames > 0 else rcol
         left_flash_frames = max(0, left_flash_frames - 1)
         right_flash_frames = max(0, right_flash_frames - 1)
-        draw_stick_figure(world, env.left, left_color)
-        draw_stick_figure(world, env.right, right_color)
+
+        # Attacker recoil: tick down timers and apply temporary pos nudge
+        # so the near-hand reads as "kicked back on contact."
+        # We store remaining_ms in _attacker_recoil keyed by id(char).
+        for char in (env.left, env.right):
+            cid = id(char)
+            if cid in _attacker_recoil:
+                _attacker_recoil[cid] = max(0, _attacker_recoil[cid] - int(FRAME_MS))
+                if _attacker_recoil[cid] == 0:
+                    del _attacker_recoil[cid]
+        # Apply the recoil nudge: temporarily shift pos_x toward defender so
+        # the figure's front arm extends slightly — reads as "punch recoil."
+        # We only nudge the pos_y by +4 px (downward shift = arm kick-back).
+        def _draw_with_recoil(surf, char, color):
+            cid = id(char)
+            if cid in _attacker_recoil:
+                orig_y = char.pos_y
+                char.pos_y = orig_y + 4
+                try:
+                    draw_stick_figure(surf, char, color)
+                finally:
+                    char.pos_y = orig_y
+            else:
+                draw_stick_figure(surf, char, color)
+
+        _draw_with_recoil(world, env.left, left_color)
+        _draw_with_recoil(world, env.right, right_color)
         draw_effect_indicators(world, env.left, current_ms=int(frame * FRAME_MS))
         draw_effect_indicators(world, env.right, current_ms=int(frame * FRAME_MS))
 
@@ -706,7 +786,11 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             # Bias camera center toward the loser for dramatic framing
             mid_x = mid_x * 0.4 + ko_result.zoom_focus_x * 0.6
         cam_x += (mid_x - cam_x) * CAM_FOLLOW
-        sx, sy = camera_shake_offset(shake_frames)
+        # Combine old crit-shake with new per-hit ImpactFX CameraShake
+        sx0, sy0 = camera_shake_offset(shake_frames)
+        sx1, sy1 = impact_fx.camera_shake.update(FRAME_MS)
+        sx = sx0 + sx1
+        sy = sy0 + sy1
         # KO zoom: tighter crop window so the loser fills more of the frame
         frame_zoom = ko_result.zoom * CAM_ZOOM
         view_w = int(WIDTH / frame_zoom)
