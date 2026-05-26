@@ -31,9 +31,9 @@ MP_GAIN_ON_HIT_TAKEN = 6
 ULTIMATE_DURATION_MS = 6500  # gives cinematic ~6s + 0.5s buffer
 
 # Attack phase timing (ms)
-ATTACK_WINDUP_MS = 200
+ATTACK_WINDUP_MS = 150
 ATTACK_ACTIVE_MS = 90
-ATTACK_RECOVER_MS = 250
+ATTACK_RECOVER_MS = 140
 
 JUMP_COOLDOWN_MS = 600
 
@@ -646,7 +646,7 @@ class Battle:
         else:
             char.vel_x = -7.0 * char.facing       # attacker hops back
             opp.vel_x += 5.0 * char.facing        # defender drifts away
-        opp.windup_stun_until_ms = self.elapsed_ms + 200
+        opp.windup_stun_until_ms = self.elapsed_ms + ATTACK_WINDUP_MS
 
     def _choose_attack_skill(self, char: Character) -> Skill:
         """Priority: CD-skill (off-cd, 70%) > affordable special (40%) > basic."""

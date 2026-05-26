@@ -1,6 +1,6 @@
 """P5: Windup stun gates defender AI while attacker casts."""
 from pixel_battle.engine.character import Character
-from pixel_battle.engine.battle import Battle
+from pixel_battle.engine.battle import Battle, ATTACK_WINDUP_MS
 from pixel_battle.engine.rng import BattleRNG
 
 
@@ -58,7 +58,7 @@ from pixel_battle.engine.skill import SkillType
 
 
 def test_start_attack_sets_defender_windup_stun_for_cd_skill():
-    """When attacker casts a CD skill, opp.windup_stun_until_ms is bumped to elapsed_ms + 200."""
+    """When attacker casts a CD skill, opp.windup_stun_until_ms is bumped to elapsed_ms + ATTACK_WINDUP_MS."""
     a = Character.load("brick_phone")
     b = Character.load("glass_slab")
     bat = Battle(left=a, right=b, rng=BattleRNG(42))
@@ -82,8 +82,8 @@ def test_start_attack_sets_defender_windup_stun_for_cd_skill():
             found = True
             break
     assert found, "Couldn't force a CD skill choice"
-    assert b.windup_stun_until_ms == bat.elapsed_ms + 200, \
-        f"Expected stun = elapsed_ms+200, got {b.windup_stun_until_ms} (elapsed={bat.elapsed_ms})"
+    assert b.windup_stun_until_ms == bat.elapsed_ms + ATTACK_WINDUP_MS, \
+        f"Expected stun = elapsed_ms+{ATTACK_WINDUP_MS}, got {b.windup_stun_until_ms} (elapsed={bat.elapsed_ms})"
 
 
 def test_start_attack_does_not_stun_on_basic():

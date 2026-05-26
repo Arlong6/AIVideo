@@ -92,9 +92,9 @@ right_timeline:
   # Push across to left side — full traversal
   - {t: 10300, do: "attack:basic"}
   - {t: 10800, do: "cast:steel_tempest"}
-  - {t: 11400, do: advance}
-  - {t: 12000, do: "attack:basic"}
-  - {t: 12500, do: "cast:sweeping_blade"}
+  - {t: 11400, do: "attack:basic"}
+  - {t: 11900, do: "attack:basic"}
+  - {t: 12400, do: "cast:sweeping_blade"}
   - {t: 13100, do: "attack:basic"}
   - {t: 13700, do: "flash:in"}
   # Aggressive final burst

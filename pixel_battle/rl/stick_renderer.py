@@ -29,7 +29,7 @@ SMEAR_VEL_THRESHOLD = 2.5  # motion-smear ghosts kick in at walk speed (3.0)
 
 # Cross-state transition: when action_state changes, lerp between the last
 # geometry snapshot and the new geometry over this many ms.
-STATE_TRANSITION_MS = 130
+STATE_TRANSITION_MS = 90
 
 
 # ── Cross-state pose interpolation ───────────────────────────────────────────
