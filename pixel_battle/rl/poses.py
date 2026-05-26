@@ -318,10 +318,46 @@ def resolve_pose(char) -> FigurePose:
     return IDLE_POSE
 
 
+def _apply_pose_overrides(pose: FigurePose, overrides: dict,
+                           pose_id: str) -> FigurePose:
+    """Return a copy of `pose` with per-character overrides applied.
+
+    Currently supported keys in `overrides`:
+      idle_weapon_deg  — weapon_deg for the idle pose
+      walk_weapon_deg  — weapon_deg for the walk pose
+      idle_torso_lean  — torso_lean for both idle and walk poses
+    """
+    if not overrides:
+        return pose
+    wpn = pose.weapon_deg
+    lean = pose.torso_lean
+    if pose_id == "idle":
+        wpn = overrides.get("idle_weapon_deg", wpn)
+        lean = overrides.get("idle_torso_lean", lean)
+    elif pose_id == "walk":
+        wpn = overrides.get("walk_weapon_deg", wpn)
+        lean = overrides.get("idle_torso_lean", lean)
+    if wpn == pose.weapon_deg and lean == pose.torso_lean:
+        return pose
+    return FigurePose(
+        torso_lean=lean,
+        front_arm=pose.front_arm,
+        back_arm=pose.back_arm,
+        front_leg=pose.front_leg,
+        back_leg=pose.back_leg,
+        weapon_deg=wpn,
+    )
+
+
 def compute_figure(char, style: dict) -> FigureGeometry:
     """Resolve `char`'s pose, run FK, and position the figure with the
     lower foot planted at `char.pos_y`."""
+    pose_id = select_pose_id(char)
     pose = resolve_pose(char)
+
+    # Apply per-character pose overrides (e.g. Lux mage stance).
+    overrides = style.get("pose_overrides") or {}
+    pose = _apply_pose_overrides(pose, overrides, pose_id)
     facing = 1 if char.facing >= 0 else -1
     cx, cy = float(char.pos_x), float(char.pos_y)
 
