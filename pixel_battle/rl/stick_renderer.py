@@ -10,6 +10,12 @@ from typing import Optional, Tuple
 
 import pygame
 
+try:
+    from pygame import gfxdraw as _gfxdraw
+    _HAS_GFXDRAW = True
+except ImportError:
+    _HAS_GFXDRAW = False
+
 from pixel_battle.engine.character import Character
 from pixel_battle.rl.poses import (
     FigureGeometry, compute_figure, cocked_weapon_deg, ease_in_out_cubic,
@@ -174,7 +180,16 @@ _STYLES = {
     "lux":         {"head_shape": "diamond",  "head_size": 30,
                     "torso_length": 108, "upper_arm": 30, "forearm": 30,
                     "thigh": 36, "shin": 36, "line_width": 5,
-                    "hand_radius": 4, "foot_length": 13},
+                    "hand_radius": 4, "foot_length": 13,
+                    # Pose overrides — make Lux read as a mage, not a brawler.
+                    # idle_weapon_deg: staff angled back/down (at-ease casting stance).
+                    # walk_weapon_deg: staff carried forward-ready.
+                    # idle_torso_lean: slight forward lean, she's always leaning into magic.
+                    "pose_overrides": {
+                        "idle_weapon_deg": 160.0,
+                        "walk_weapon_deg": 140.0,
+                        "idle_torso_lean": 5.0,
+                    }},
     "yasuo":       {"head_shape": "circle",   "head_size": 27,
                     "torso_length": 94, "upper_arm": 33, "forearm": 32,
                     "thigh": 33, "shin": 33, "line_width": 6,
@@ -348,18 +363,91 @@ _EFFECT_COLORS = {
     "tenacity": (210, 120, 220),   # violet
 }
 
+# Shield ring parameters.
+_SHIELD_RING_RADIUS = 32          # px (unscaled figure units)
+_SHIELD_RING_WIDTH = 3            # stroke width
+_SHIELD_PULSE_PERIOD_MS = 600.0   # full sine cycle (ms)
+_SHIELD_ALPHA_MIN = 80
+_SHIELD_ALPHA_MAX = 180
+_SHIELD_BLEND_WITH_WHITE = 0.5    # 0.0 = pure brand color, 1.0 = pure white
 
-def draw_effect_indicators(surf: pygame.Surface, char) -> None:
-    """Draw a small dot per active status effect in a row above the head."""
+
+def _blend_with_white(color: tuple, t: float) -> tuple:
+    """Blend `color` toward white by factor `t` ∈ [0, 1]."""
+    return (
+        int(color[0] + (255 - color[0]) * t),
+        int(color[1] + (255 - color[1]) * t),
+        int(color[2] + (255 - color[2]) * t),
+    )
+
+
+def _draw_shield_ring(surf: pygame.Surface, char, current_ms: float = 0.0) -> None:
+    """Draw a translucent pulsing ring around `char` when it has a SHIELD effect.
+
+    Ring is centered on the character's hip (torso center-of-mass proxy),
+    with a sinusoidal alpha pulse over _SHIELD_PULSE_PERIOD_MS.
+    """
+    from pixel_battle.engine.effects import SHIELD as _SHIELD_KIND
+    effects = getattr(char, "effects", None)
+    shield_effect = next((e for e in (effects or []) if e.kind == _SHIELD_KIND), None)
+    if shield_effect is None:
+        return
+
+    # Color: blend brand_color toward white.
+    brand = getattr(char, "brand_color", getattr(char, "color", (235, 225, 110)))
+    ring_color = _blend_with_white(brand, _SHIELD_BLEND_WITH_WHITE)
+
+    # Pulse alpha sinusoidally.
+    phase = (current_ms % _SHIELD_PULSE_PERIOD_MS) / _SHIELD_PULSE_PERIOD_MS
+    pulse = (math.sin(phase * 2 * math.pi) + 1.0) / 2.0  # 0..1
+    alpha = int(_SHIELD_ALPHA_MIN + (_SHIELD_ALPHA_MAX - _SHIELD_ALPHA_MIN) * pulse)
+
+    cx = int(char.pos_x)
+    # Hip is ~half torso-length above pos_y.  Use a fixed visual offset.
+    cy = int(char.pos_y) - 60
+
+    # Blit a small SRCALPHA surface so we get real transparency.
+    r = _SHIELD_RING_RADIUS
+    pad = _SHIELD_RING_WIDTH + 2
+    d = (r + pad) * 2
+    ring_surf = pygame.Surface((d, d), pygame.SRCALPHA)
+    rc = (ring_color[0], ring_color[1], ring_color[2], alpha)
+    if _HAS_GFXDRAW:
+        _gfxdraw.aacircle(ring_surf, r + pad, r + pad, r, rc)
+        # Fill with a second, thicker filled circle at lower alpha for the glow.
+        glow_a = max(0, alpha // 3)
+        gc = (ring_color[0], ring_color[1], ring_color[2], glow_a)
+        _gfxdraw.filled_circle(ring_surf, r + pad, r + pad, r + 4, gc)
+        _gfxdraw.aacircle(ring_surf, r + pad, r + pad, r, rc)
+    else:
+        pygame.draw.circle(ring_surf, rc, (r + pad, r + pad), r, _SHIELD_RING_WIDTH)
+    surf.blit(ring_surf, (cx - r - pad, cy - r - pad))
+
+
+def draw_effect_indicators(surf: pygame.Surface, char,
+                            current_ms: float = 0.0) -> None:
+    """Draw status effect indicators.
+
+    SHIELD: dramatic pulsing glow ring around the torso.
+    All other effects: small colored dot row above the head.
+    """
     effects = getattr(char, "effects", None)
     if not effects:
+        return
+
+    from pixel_battle.engine.effects import SHIELD as _SHIELD_KIND
+    _draw_shield_ring(surf, char, current_ms=current_ms)
+
+    # Dot row for non-shield effects.
+    non_shield = [e for e in effects if e.kind != _SHIELD_KIND]
+    if not non_shield:
         return
     cx = int(char.pos_x)
     top_y = int(char.pos_y) - 210          # above the figure
     spacing = 16
-    n = len(effects)
+    n = len(non_shield)
     start_x = cx - (n - 1) * spacing // 2
-    for i, effect in enumerate(effects):
+    for i, effect in enumerate(non_shield):
         color = _EFFECT_COLORS.get(effect.kind, (220, 220, 220))
         ex = start_x + i * spacing
         pygame.draw.circle(surf, color, (ex, top_y), 6)

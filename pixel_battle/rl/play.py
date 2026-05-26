@@ -648,8 +648,8 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         right_flash_frames = max(0, right_flash_frames - 1)
         draw_stick_figure(world, env.left, left_color)
         draw_stick_figure(world, env.right, right_color)
-        draw_effect_indicators(world, env.left)
-        draw_effect_indicators(world, env.right)
+        draw_effect_indicators(world, env.left, current_ms=int(frame * FRAME_MS))
+        draw_effect_indicators(world, env.right, current_ms=int(frame * FRAME_MS))
 
         projectiles.draw(world, int(frame * FRAME_MS))
 
