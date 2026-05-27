@@ -99,3 +99,65 @@ def test_draw_stick_figure_produces_ghosts_at_high_velocity():
         f"Fast-movement figure ({fast_px} px) should have more pixels than idle "
         f"({idle_px} px) due to ghost smear"
     )
+
+
+# ── Motion ghost snapshot queue ───────────────────────────────────────────────
+
+def test_motion_ghost_spawns_during_fast_movement():
+    """RenderState must accumulate motion ghosts when |vel_x| > threshold
+    and the character is on the ground.  After MOTION_GHOST_INTERVAL_FRAMES
+    render calls we expect at least 1 ghost in the queue."""
+    from pixel_battle.engine.character import Character
+    from pixel_battle.rl.stick_renderer import (
+        RenderState, MOTION_GHOST_VEL_THRESHOLD, MOTION_GHOST_INTERVAL_FRAMES,
+        get_style,
+    )
+
+    c = Character.load("garen")
+    c.pos_x, c.pos_y = 240.0, 530.0
+    c.facing = 1
+    c.action_state = "walking"
+    c.on_ground = True
+    c.vel_x = MOTION_GHOST_VEL_THRESHOLD + 1.0   # fast enough to trigger
+
+    style = get_style("garen")
+    rs = RenderState()
+    surf = pygame.Surface((480, 854))
+
+    # Drive 10 render frames — should spawn at least floor(10/INTERVAL) ghosts
+    for _ in range(10):
+        rs.resolve(c, style, dt_ms=16.0)
+        rs.update_motion_ghosts(c, style, dt_ms=16.0)
+
+    expected_min = 10 // MOTION_GHOST_INTERVAL_FRAMES
+    assert len(rs._motion_ghosts) >= expected_min, (
+        f"Expected ≥{expected_min} motion ghost(s) after 10 fast frames, "
+        f"got {len(rs._motion_ghosts)}"
+    )
+
+
+def test_motion_ghost_max_capped():
+    """Queue must not exceed MOTION_GHOST_MAX entries."""
+    from pixel_battle.engine.character import Character
+    from pixel_battle.rl.stick_renderer import (
+        RenderState, MOTION_GHOST_VEL_THRESHOLD, MOTION_GHOST_MAX, get_style,
+    )
+
+    c = Character.load("garen")
+    c.pos_x, c.pos_y = 240.0, 530.0
+    c.facing = 1
+    c.action_state = "walking"
+    c.on_ground = True
+    c.vel_x = MOTION_GHOST_VEL_THRESHOLD + 3.0
+
+    style = get_style("garen")
+    rs = RenderState()
+
+    # Drive enough frames to saturate the queue (well over MOTION_GHOST_MAX * INTERVAL)
+    for _ in range(50):
+        rs.resolve(c, style, dt_ms=16.0)
+        rs.update_motion_ghosts(c, style, dt_ms=16.0)
+
+    assert len(rs._motion_ghosts) <= MOTION_GHOST_MAX, (
+        f"Motion ghost queue exceeded max: {len(rs._motion_ghosts)} > {MOTION_GHOST_MAX}"
+    )

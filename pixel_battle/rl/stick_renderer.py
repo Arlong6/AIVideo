@@ -27,6 +27,13 @@ from pixel_battle.rl.weapons import get_weapon, draw_weapon, draw_swing_smear
 # ── Constants ────────────────────────────────────────────────────────────────
 SMEAR_VEL_THRESHOLD = 2.5  # motion-smear ghosts kick in at walk speed (3.0)
 
+# Motion-afterimage trail — spawned every N render frames when |vel_x| > threshold
+MOTION_GHOST_VEL_THRESHOLD = 5.0   # px/frame; faster than a normal walk
+MOTION_GHOST_INTERVAL_FRAMES = 3   # spawn one ghost every 3 render frames
+MOTION_GHOST_LIFETIME_MS = 180     # each ghost lives 180 ms
+MOTION_GHOST_MAX = 4               # max ghosts per character in flight at once
+MOTION_GHOST_ALPHA_START = 100     # initial alpha (decays linearly to 0)
+
 # Cross-state transition: when action_state changes, lerp between the last
 # geometry snapshot and the new geometry over this many ms.
 STATE_TRANSITION_MS = 90
@@ -97,6 +104,10 @@ class RenderState:
         # Weapon trail — ring buffer of (tip_x, tip_y) during attack phases
         self._trail: list = []   # list of (x, y) tip positions, newest last
         self._trail_recover_ms: float = 0.0  # elapsed ms in recover when trail active
+        # Motion-afterimage ghosts — list of (geo_snapshot, age_ms)
+        # spawned every N frames when |vel_x| > MOTION_GHOST_VEL_THRESHOLD
+        self._motion_ghosts: list = []   # [(FigureGeometry, age_ms), ...]
+        self._motion_ghost_frame_counter: int = 0
 
     def resolve(self, char, style: dict, dt_ms: float = 16.0) -> FigureGeometry:
         """Return the smoothed FigureGeometry for `char` this frame.
@@ -219,6 +230,66 @@ class RenderState:
             p1 = (int(self._trail[i][0]), int(self._trail[i][1]))
             pygame.draw.line(trail_surf, (*base_color, alpha), p0, p1, trail_width)
         surf.blit(trail_surf, (0, 0))
+
+
+    def update_motion_ghosts(self, char, style: dict, dt_ms: float) -> None:
+        """Snapshot the current figure if the character is moving fast enough.
+
+        Spawns a new ghost every MOTION_GHOST_INTERVAL_FRAMES render frames
+        when |vel_x| > MOTION_GHOST_VEL_THRESHOLD AND the character is on the
+        ground (not airborne — jumps have their own trail).  Max MOTION_GHOST_MAX
+        ghosts in flight; oldest evicted.
+        """
+        # Tick all existing ghosts
+        surviving = []
+        for (geo_snap, age_ms) in self._motion_ghosts:
+            age_ms += dt_ms
+            if age_ms < MOTION_GHOST_LIFETIME_MS:
+                surviving.append((geo_snap, age_ms))
+        self._motion_ghosts = surviving
+
+        # Decide whether to spawn a new ghost this frame
+        vel = abs(getattr(char, "vel_x", 0.0))
+        on_ground = getattr(char, "on_ground", True)
+        if vel > MOTION_GHOST_VEL_THRESHOLD and on_ground:
+            self._motion_ghost_frame_counter += 1
+            if self._motion_ghost_frame_counter >= MOTION_GHOST_INTERVAL_FRAMES:
+                self._motion_ghost_frame_counter = 0
+                if self._last_geo is not None:
+                    # Evict oldest if at capacity
+                    while len(self._motion_ghosts) >= MOTION_GHOST_MAX:
+                        self._motion_ghosts.pop(0)
+                    self._motion_ghosts.append((self._last_geo, 0.0))
+        else:
+            self._motion_ghost_frame_counter = 0
+
+    def draw_motion_ghosts(self, surf: pygame.Surface, color: tuple,
+                            style: dict) -> None:
+        """Draw all live motion-afterimage ghosts as faded skeleton silhouettes."""
+        if not self._motion_ghosts:
+            return
+        lw = max(1, style["line_width"] - 1)
+        for (geo, age_ms) in self._motion_ghosts:
+            frac = age_ms / max(1.0, MOTION_GHOST_LIFETIME_MS)
+            alpha = max(0, int(MOTION_GHOST_ALPHA_START * (1.0 - frac)))
+            if alpha < 4:
+                continue
+            ghost = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            gc = (color[0], color[1], color[2], alpha)
+            # Minimal silhouette: torso + front arm + front leg
+            pygame.draw.line(ghost, gc, _ixy(geo.hip), _ixy(geo.shoulder), lw)
+            pygame.draw.line(ghost, gc, _ixy(geo.shoulder),
+                             _ixy(geo.front_elbow), lw)
+            pygame.draw.line(ghost, gc, _ixy(geo.front_elbow),
+                             _ixy(geo.front_hand), lw)
+            pygame.draw.line(ghost, gc, _ixy(geo.hip),
+                             _ixy(geo.front_knee), lw)
+            surf.blit(ghost, (0, 0))
+
+
+def _ixy(pt: Tuple[float, float]) -> Tuple[int, int]:
+    """Convert a float (x, y) pair to an int tuple for pygame drawing."""
+    return (int(pt[0]), int(pt[1]))
 
 
 def _pose_key(char) -> str:
@@ -382,6 +453,10 @@ def draw_stick_figure(surf, char, color, dt_ms: float = 16.0):
         _RENDER_STATE_CACHE[char_key] = RenderState()
     rs = _RENDER_STATE_CACHE[char_key]
     geo = rs.resolve(char, style, dt_ms=dt_ms)
+
+    # Motion-afterimage ghosts: update snapshot queue, then draw behind figure
+    rs.update_motion_ghosts(char, style, dt_ms=dt_ms)
+    rs.draw_motion_ghosts(surf, color, style)
 
     # Back limbs first (depth).
     _draw_limb(surf, color, geo.shoulder, geo.back_elbow, geo.back_hand,
