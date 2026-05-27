@@ -599,14 +599,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         x=int(defender.pos_x),
                         y=int(defender.pos_y) - 90,
                         color=brand_col_crit)
-                    # ── Slow-mo gating: only big crits (≥15 dmg) earn a slow-mo beat ──
-                    # Plain basic crits (6–10 dmg) are common; slow-mo every one
-                    # kills the pacing. Reserve for heavy-skill crits.
-                    _SLOWMO_DMG_THRESHOLD = 15
-                    if ev.amount >= _SLOWMO_DMG_THRESHOLD:
-                        _slowmo_remaining_ms = max(_slowmo_remaining_ms, 160.0)
-                        _slowmo_dt_scale = 0.35
-                    # Pre-KO slow-mo: always — the final blow must have drama
+                    # Slow-mo fires ONLY on pre-KO; per-crit slow-mo was too frequent.
                     if defender.hp <= 0:
                         _slowmo_remaining_ms = max(_slowmo_remaining_ms, 200.0)
                         _slowmo_dt_scale = 0.3
