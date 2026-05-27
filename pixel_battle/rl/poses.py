@@ -197,40 +197,47 @@ _DEFAULT_PHASE_DUR = dict(_ENGINE_PHASE)
 # Authored for facing = +1. Starting values — tuned in Task 11.
 ARCHETYPE_POSES: Dict[str, Dict[str, FigurePose]] = {
     "melee": {
-        "cocked":   _fp(-18, (215, -95), (150, -45), (110, 20), (70, 24), 250),
-        "extended": _fp(24, (8, -4), (120, -30), (70, 16), (118, 22), 372),  # weapon_deg 372 (=12+360): lerp sweeps upward, not down through the below-ground zone
+        # Cocked: arm pulled FURTHER BACK (shoulder 220, elbow more flexed -110)
+        # Extended: arm reaches WIDER FORWARD (shoulder 2, elbow almost straight -2)
+        "cocked":   _fp(-24, (220, -110), (148, -50), (110, 20), (70, 24), 242),
+        "extended": _fp(30, (2, -2), (118, -28), (68, 16), (118, 22), 372),
     },
     "slam": {
-        "cocked":   _fp(-30, (255, -40), (285, -40), (104, 34), (70, 30), 280),
-        "extended": _fp(30, (40, -6), (95, -10), (84, 22), (96, 24), 398),  # weapon_deg 398 (=38+360): was 410(50°); lowered to keep tip above ground at 0.65× figure scale
+        # Cocked: weapon goes overhead (~270° = straight up)
+        # Extended: deep down/forward (~38° → 398 in lerp space, clears ground)
+        "cocked":   _fp(-38, (258, -45), (288, -45), (104, 34), (68, 30), 270),
+        "extended": _fp(36, (38, -5), (92, -8), (82, 22), (96, 24), 396),  # 396 = max that keeps garen's blade tip above ground at 0.65× scale
     },
     "spin": {
         "cocked":   _fp(0, (200, -10), (340, -10), (100, 18), (80, 18), 200),
-        "extended": _fp(0, (20, -8), (160, -8), (110, 20), (70, 20), 380),  # weapon_deg 380 (=20+360): lerp sweeps upward, not down
+        "extended": _fp(0, (20, -8), (160, -8), (110, 20), (70, 20), 380),
     },
     "dash": {
-        "cocked":   _fp(-12, (210, -85), (150, -50), (70, 70), (60, 16), 240),
-        "extended": _fp(46, (6, -2), (140, -36), (135, 24), (40, 8), 368),  # weapon_deg 368 (=8 deg +360): lerp sweeps upward, not down through the below-ground zone
+        # Cocked: torso leaned back 18°; Extended: torso lean 28° + arm extended
+        "cocked":   _fp(-18, (214, -92), (148, -54), (68, 72), (58, 16), 236),
+        "extended": _fp(28, (4, -2), (138, -34), (136, 24), (38, 8), 368),
     },
     "bolt": {
-        "cocked":   _fp(-10, (140, -70), (120, -50), (104, 16), (76, 20), 150),
-        "extended": _fp(16, (4, -8), (96, -40), (96, 16), (84, 18), -8),  # was 4; -8 shifts sweep endpoint so tip clears ground at 0.65× scale during strike lerp
+        # Cocked: weapon and arm pulled WAY back over shoulder (shoulder ~155°)
+        # Extended: arm fully extended forward at shoulder height
+        "cocked":   _fp(-14, (155, -82), (120, -54), (104, 16), (76, 20), 155),
+        "extended": _fp(20, (2, -6), (94, -38), (96, 16), (84, 18), -8),
     },
     "multishot": {
-        "cocked":   _fp(-14, (188, -60), (170, -55), (108, 20), (70, 22), 200),
-        "extended": _fp(20, (340, -30), (30, -30), (74, 16), (112, 20), 330),
+        "cocked":   _fp(-18, (192, -68), (168, -58), (108, 20), (70, 22), 198),
+        "extended": _fp(24, (338, -28), (28, -28), (72, 16), (112, 20), 330),
     },
     "aura": {
-        "cocked":   _fp(-8, (300, -30), (250, -30), (96, 40), (84, 40), 300),
+        "cocked":   _fp(-10, (302, -34), (248, -34), (96, 40), (84, 40), 298),
         "extended": _fp(2, (285, -16), (255, -16), (92, 16), (88, 16), 285),
     },
     "beam": {
-        "cocked":   _fp(-26, (200, -70), (170, -60), (110, 30), (60, 24), 200),
+        "cocked":   _fp(-30, (202, -76), (168, -64), (110, 30), (58, 24), 198),
         "extended": _fp(-16, (354, -12), (6, -12), (118, 28), (52, 20), 0),
     },
     "kick": {
-        "cocked":   _fp(-14, (250, -50), (290, -50), (40, 110), (88, 16), 300),
-        "extended": _fp(20, (240, -40), (300, -40), (8, 6), (92, 14), 300),
+        "cocked":   _fp(-18, (252, -55), (292, -55), (36, 115), (86, 16), 298),
+        "extended": _fp(24, (238, -38), (302, -38), (6, 6), (92, 14), 298),
     },
 }
 
