@@ -31,6 +31,10 @@ SMEAR_VEL_THRESHOLD = 2.5  # motion-smear ghosts kick in at walk speed (3.0)
 # geometry snapshot and the new geometry over this many ms.
 STATE_TRANSITION_MS = 90
 
+# Weapon swing trail — tracked in RenderState, drawn during ACTIVE + early RECOVER
+TRAIL_N = 8          # max tip positions buffered
+TRAIL_ACTIVE_MS = 80  # how long into RECOVER the trail stays visible
+
 
 # ── Cross-state pose interpolation ───────────────────────────────────────────
 
@@ -90,6 +94,9 @@ class RenderState:
         self._from_geo: Optional[FigureGeometry] = None   # start of current transition
         self._last_geo: Optional[FigureGeometry] = None   # last rendered output
         self._transition_t_ms: float = STATE_TRANSITION_MS  # starts "done"
+        # Weapon trail — ring buffer of (tip_x, tip_y) during attack phases
+        self._trail: list = []   # list of (x, y) tip positions, newest last
+        self._trail_recover_ms: float = 0.0  # elapsed ms in recover when trail active
 
     def resolve(self, char, style: dict, dt_ms: float = 16.0) -> FigureGeometry:
         """Return the smoothed FigureGeometry for `char` this frame.
@@ -134,6 +141,84 @@ class RenderState:
     def transition_active(self) -> bool:
         """True while a cross-state lerp is in progress."""
         return self._transition_t_ms < STATE_TRANSITION_MS
+
+    def update_trail(self, char, geo: FigureGeometry, weapon, dt_ms: float) -> None:
+        """Update the weapon-tip trail buffer based on the current attack phase.
+
+        Call AFTER resolve() so `geo` is the final smoothed geometry.
+        """
+        phase = getattr(char, "attack_phase", "none")
+        if weapon is None:
+            self._trail = []
+            self._trail_recover_ms = 0.0
+            return
+
+        import math as _m
+        wr = _m.radians(geo.weapon_deg)
+        tip = (geo.front_hand[0] + _m.cos(wr) * weapon.length,
+               geo.front_hand[1] + _m.sin(wr) * weapon.length)
+
+        if phase == "active":
+            self._trail_recover_ms = 0.0
+            self._trail.append(tip)
+            if len(self._trail) > TRAIL_N:
+                self._trail.pop(0)
+        elif phase == "recover":
+            self._trail_recover_ms += dt_ms
+            if self._trail_recover_ms <= TRAIL_ACTIVE_MS:
+                self._trail.append(tip)
+                if len(self._trail) > TRAIL_N:
+                    self._trail.pop(0)
+            else:
+                # Fade out complete — clear for next attack
+                self._trail = []
+        else:
+            self._trail = []
+            self._trail_recover_ms = 0.0
+
+    def draw_trail(self, surf: pygame.Surface, char, color: tuple,
+                   weapon) -> None:
+        """Draw the fading arc connecting buffered weapon-tip positions.
+
+        Width and tint depend on the attack's skill type:
+          basic → 3 px, brand color
+          cooldown/special → 5 px, blend toward white
+          ultimate → 7 px, full white
+        """
+        if len(self._trail) < 2:
+            return
+        skill = getattr(char, "attack_used_kind", None)
+        hint = getattr(char, "attack_anim_hint", "jab")
+        if skill is not None:
+            st = getattr(skill, "skill_type", None)
+            from pixel_battle.engine.skill import SkillType as _ST
+            if st is _ST.ULTIMATE:
+                trail_width = 7
+                base_color = (255, 255, 255)
+            elif st in (_ST.COOLDOWN, _ST.SPECIAL):
+                trail_width = 5
+                # blend brand color 50% toward white
+                base_color = (
+                    min(255, color[0] + (255 - color[0]) // 2),
+                    min(255, color[1] + (255 - color[1]) // 2),
+                    min(255, color[2] + (255 - color[2]) // 2),
+                )
+            else:
+                trail_width = 3
+                base_color = color
+        else:
+            trail_width = 3
+            base_color = color
+
+        n = len(self._trail)
+        trail_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        for i in range(1, n):
+            # Newer segments are brighter; older are transparent
+            alpha = int(220 * i / (n - 1)) if n > 1 else 220
+            p0 = (int(self._trail[i - 1][0]), int(self._trail[i - 1][1]))
+            p1 = (int(self._trail[i][0]), int(self._trail[i][1]))
+            pygame.draw.line(trail_surf, (*base_color, alpha), p0, p1, trail_width)
+        surf.blit(trail_surf, (0, 0))
 
 
 def _pose_key(char) -> str:
@@ -312,8 +397,11 @@ def draw_stick_figure(surf, char, color, dt_ms: float = 16.0):
                style["foot_length"])
     pygame.draw.line(surf, color, geo.hip, geo.front_knee, lw)
 
-    # Weapon + swing smear, then the front arm grips over it.
+    # Weapon + swing smear + weapon trail, then the front arm grips over it.
     weapon = get_weapon(char.id)
+    # Update and draw the weapon-tip trail (active + early recover)
+    rs.update_trail(char, geo, weapon, dt_ms=dt_ms)
+    rs.draw_trail(surf, char, color, weapon)
     if weapon is not None:
         if (char.action_state == "attacking"
                 and char.attack_phase == "strike"):
