@@ -593,16 +593,20 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     else:
                         right_flash_frames = max(right_flash_frames, 10)
                     shake_frames = SHAKE_FRAMES * 2  # doubled for 120fps
-                    # ── Crit emphasis: full-screen white flash + speed lines + slow-mo ──
+                    # ── Crit emphasis: full-screen white flash + speed lines ──
                     impact_fx.flash_screen(color=(255, 255, 255), alpha=200)
                     impact_fx.spawn_crit_speed_lines(
                         x=int(defender.pos_x),
                         y=int(defender.pos_y) - 90,
                         color=brand_col_crit)
-                    # Crit slow-mo: next ~100 ms of sim runs at 40% speed
-                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 100.0)
-                    _slowmo_dt_scale = 0.4
-                    # Pre-KO slow-mo: if this crit drops the defender to 0 HP
+                    # ── Slow-mo gating: only big crits (≥15 dmg) earn a slow-mo beat ──
+                    # Plain basic crits (6–10 dmg) are common; slow-mo every one
+                    # kills the pacing. Reserve for heavy-skill crits.
+                    _SLOWMO_DMG_THRESHOLD = 15
+                    if ev.amount >= _SLOWMO_DMG_THRESHOLD:
+                        _slowmo_remaining_ms = max(_slowmo_remaining_ms, 160.0)
+                        _slowmo_dt_scale = 0.35
+                    # Pre-KO slow-mo: always — the final blow must have drama
                     if defender.hp <= 0:
                         _slowmo_remaining_ms = max(_slowmo_remaining_ms, 200.0)
                         _slowmo_dt_scale = 0.3
@@ -708,6 +712,9 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         surf_size=(WIDTH, HEIGHT))
                     # Larger camera shake via CameraShake helper
                     impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
+                    # ── Ultimate slow-mo: every ultimate earns a dramatic beat ──
+                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 160.0)
+                    _slowmo_dt_scale = 0.35
                     # Ultimate charge orb — 2× scale with rising particle column
                     impact_fx.spawn_charge_orb(
                         x=int(actor_obj.pos_x), y=int(actor_obj.pos_y) - 130,
@@ -833,20 +840,24 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             # Apply the recoil nudge: temporarily shift pos_y by +4 px (downward = arm kick-back).
             _cur_time_ms = frame * RENDER_MS
 
-            def _draw_with_recoil(surf, char, color):
+            def _draw_with_recoil(surf, char, color, opp_x):
                 cid = id(char)
                 if cid in _attacker_recoil:
                     orig_y = char.pos_y
                     char.pos_y = orig_y + 4
                     try:
-                        draw_stick_figure(surf, char, color, time_ms=_cur_time_ms)
+                        draw_stick_figure(surf, char, color, time_ms=_cur_time_ms,
+                                          opponent_x=opp_x)
                     finally:
                         char.pos_y = orig_y
                 else:
-                    draw_stick_figure(surf, char, color, time_ms=_cur_time_ms)
+                    draw_stick_figure(surf, char, color, time_ms=_cur_time_ms,
+                                      opponent_x=opp_x)
 
-            _draw_with_recoil(world, env.left, left_color)
-            _draw_with_recoil(world, env.right, right_color)
+            _draw_with_recoil(world, env.left, left_color,
+                               opp_x=float(env.right.pos_x))
+            _draw_with_recoil(world, env.right, right_color,
+                               opp_x=float(env.left.pos_x))
             draw_effect_indicators(world, env.left, current_ms=int(frame * RENDER_MS))
             draw_effect_indicators(world, env.right, current_ms=int(frame * RENDER_MS))
         finally:

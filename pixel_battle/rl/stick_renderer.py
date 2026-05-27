@@ -38,6 +38,13 @@ MOTION_GHOST_ALPHA_START = 100     # initial alpha (decays linearly to 0)
 # geometry snapshot and the new geometry over this many ms.
 STATE_TRANSITION_MS = 55
 
+# Idle visual feint — renderer-only horizontal drift when a character has been
+# idle for > FEINT_ONSET_MS and is within FEINT_ENGAGE_RANGE px of the opponent.
+FEINT_ONSET_MS = 400        # ms of idle before feint starts
+FEINT_AMPLITUDE = 6.0       # ± px of horizontal offset
+FEINT_PERIOD_MS = 1200.0    # full oscillation period (ms)
+FEINT_ENGAGE_RANGE = 320.0  # px; beyond this, no feint (out-of-fight fringe)
+
 # Default render tick interval for draw_stick_figure (120 fps)
 _RENDER_TICK_MS = 1000.0 / 120   # 8.333 ms
 
@@ -113,6 +120,13 @@ class RenderState:
         self._motion_ghost_frame_counter: int = 0
         # Walk cycle phase — accumulated ms while pose_id == "walk"
         self._walk_phase_t: float = 0.0
+        # Idle feint — accumulated ms while in idle near an opponent
+        # Used to drive a renderer-only horizontal drift (anti-statue bob).
+        self._idle_t_ms: float = 0.0
+        # Last computed feint dx (drawn-position-only offset, px).
+        # Preserved across state changes so the cross-state lerp can taper it
+        # back to 0 smoothly without a visible snap.
+        self._feint_dx: float = 0.0
 
     def resolve(self, char, style: dict, dt_ms: float = 16.0,
                 time_ms: float = 0.0) -> FigureGeometry:
@@ -293,6 +307,43 @@ class RenderState:
             pygame.draw.line(trail_surf, (*base_color, alpha), p0, p1, trail_width)
         surf.blit(trail_surf, (0, 0))
 
+
+    def update_idle_feint(self, char, dt_ms: float,
+                           opponent_x: Optional[float] = None) -> float:
+        """Update idle feint timer and return the current drawn-position-only dx.
+
+        Rules:
+          - While char.action_state == 'idle' AND distance to opponent ≤
+            FEINT_ENGAGE_RANGE: accumulate _idle_t_ms, compute sinusoidal feint.
+          - While NOT idle (or opponent too far): decay _idle_t_ms toward 0 and
+            let the existing STATE_TRANSITION_MS lerp taper the offset naturally
+            (we just hold _feint_dx; the cross-state blend handles fade-out via
+            the draw-position offset in draw_stick_figure).
+        The returned dx is drawn-position-only; char.pos_x is never modified.
+        """
+        action_state = getattr(char, "action_state", "idle")
+        own_x = float(getattr(char, "pos_x", 0.0))
+        dist = abs(own_x - (opponent_x or 9999.0))
+
+        if action_state == "idle" and dist <= FEINT_ENGAGE_RANGE:
+            self._idle_t_ms += dt_ms
+        else:
+            # Not idle or out of range — reset timer, feint dx decays via lerp
+            self._idle_t_ms = 0.0
+
+        if self._idle_t_ms >= FEINT_ONSET_MS:
+            # Sinusoidal drift, onset-adjusted so it starts from 0
+            onset_t = self._idle_t_ms - FEINT_ONSET_MS
+            self._feint_dx = math.sin(
+                2.0 * math.pi * onset_t / FEINT_PERIOD_MS
+            ) * FEINT_AMPLITUDE
+        else:
+            # Before onset: smoothly decay toward 0 rather than snap
+            # (also handles the "just left idle" case)
+            decay = 1.0 - min(1.0, dt_ms / STATE_TRANSITION_MS)
+            self._feint_dx *= decay
+
+        return self._feint_dx
 
     def update_motion_ghosts(self, char, style: dict, dt_ms: float) -> None:
         """Snapshot the current figure if the character is moving fast enough.
@@ -520,12 +571,16 @@ def _draw_ghost(surf, char, color, offset_x, alpha, style):
 # ── Main draw function ────────────────────────────────────────────────────────
 
 def draw_stick_figure(surf, char, color, dt_ms: float = _RENDER_TICK_MS,
-                      time_ms: float = 0.0):
+                      time_ms: float = 0.0,
+                      opponent_x: Optional[float] = None):
     """Draw a jointed stick figure for `char` onto `surf` in `color`.
 
     `dt_ms` should match the render tick interval (default 8.333 ms = 120 fps).
     It is forwarded to the per-character RenderState for transition timing.
     `time_ms` is the current render time in ms, used for idle breathing bob.
+    `opponent_x` is used for the idle feint range check.  Pass the opponent's
+    current pos_x so the feint only fires when characters are close enough to
+    be "in the fight."  If None (default), the feint is suppressed.
     """
     style = get_style(char.id)
     lw = style["line_width"]
@@ -539,6 +594,30 @@ def draw_stick_figure(surf, char, color, dt_ms: float = _RENDER_TICK_MS,
         _RENDER_STATE_CACHE[char_key] = RenderState()
     rs = _RENDER_STATE_CACHE[char_key]
     geo = rs.resolve(char, style, dt_ms=dt_ms, time_ms=time_ms)
+
+    # ── Idle visual feint: renderer-only horizontal drift ────────────────────
+    # Doesn't touch char.pos_x; just offsets the drawn position.
+    feint_dx = rs.update_idle_feint(char, dt_ms=dt_ms, opponent_x=opponent_x)
+    if feint_dx != 0.0:
+        # Shift every joint in the geometry by feint_dx (x-axis only)
+        def _shift(pt):
+            return (pt[0] + feint_dx, pt[1])
+        from pixel_battle.rl.poses import FigureGeometry as _FG
+        geo = _FG(
+            head_center=_shift(geo.head_center),
+            shoulder=_shift(geo.shoulder),
+            hip=_shift(geo.hip),
+            front_elbow=_shift(geo.front_elbow),
+            front_hand=_shift(geo.front_hand),
+            back_elbow=_shift(geo.back_elbow),
+            back_hand=_shift(geo.back_hand),
+            front_knee=_shift(geo.front_knee),
+            front_foot=_shift(geo.front_foot),
+            back_knee=_shift(geo.back_knee),
+            back_foot=_shift(geo.back_foot),
+            weapon_deg=geo.weapon_deg,
+            facing=geo.facing,
+        )
 
     # Motion-afterimage ghosts: update snapshot queue, then draw behind figure
     rs.update_motion_ghosts(char, style, dt_ms=dt_ms)
