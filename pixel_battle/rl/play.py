@@ -10,6 +10,7 @@ import math
 import os
 import random
 from pathlib import Path
+from typing import Optional
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 import pygame  # noqa: E402
@@ -466,13 +467,43 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     shake_frames = 0
     n_written = 0
 
+    # ── Motion blur ───────────────────────────────────────────────────────────
+    # Blend the previous world surface at 20 % alpha onto the current frame.
+    # Adds perceived smoothness without muddying at 60 fps. Skipped during KO HOLD.
+    MOTION_BLUR_ALPHA = 51  # ~20 % of 255
+    prev_world: Optional[pygame.Surface] = None
+
+    # ── Slow-mo controller ────────────────────────────────────────────────────
+    # When a crit or pre-KO event fires, we reduce effective dt fed to the engine.
+    # The renderer still runs at 60 fps wall-clock; the engine receives slower time.
+    _slowmo_remaining_ms: float = 0.0   # wall-clock ms of slow-mo left
+    _slowmo_dt_scale: float = 1.0       # dt multiplier (< 1 = slower)
+
     for frame in range(total_frames):
         left_act, right_act = action_source(env, (obs_left, obs_right))
 
         prev_ev_n = len(env.battle.events)
-        (obs_left, obs_right), _, terminated, truncated, _ = env.step(
-            (left_act, right_act)
-        )
+        # Slow-mo: advance the engine at a reduced rate this frame.
+        # When _slowmo_remaining_ms > 0 we pass a scaled dt to the battle;
+        # the renderer still writes a full 60-fps frame so motion "holds."
+        if _slowmo_remaining_ms > 0:
+            _slowmo_remaining_ms -= FRAME_MS
+            effective_dt = int(FRAME_MS * _slowmo_dt_scale)
+            # Drive the battle engine directly with the scaled dt (skip_ai so
+            # the scripted driver's decisions are not second-guessed mid-effect).
+            env.battle.tick_ms(effective_dt, skip_ai=False)
+            # Re-derive observations from the existing env state
+            try:
+                obs_left, obs_right = env._obs_pair()
+            except Exception:
+                pass   # obs not critical for scripted renderer
+            terminated = env.battle.state is _BattleState.KO
+            truncated = False
+        else:
+            _slowmo_dt_scale = 1.0
+            (obs_left, obs_right), _, terminated, truncated, _ = env.step(
+                (left_act, right_act)
+            )
 
         for ev in env.battle.events[prev_ev_n:]:
             event_video_ms[id(ev)] = int(frame * FRAME_MS)
@@ -503,10 +534,16 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     color=burst_color)
                 # ── Attacker recoil: mark near-hand kick-back for 100 ms ──
                 _attacker_recoil[id(attacker)] = 100
+                # ── Pre-KO slow-mo: final blow gives a "going down" beat ──
+                if defender.hp <= 0:
+                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 200.0)
+                    _slowmo_dt_scale = 0.3
             elif et == "crit":
                 defender = env.right if ev.target == env.right.id else env.left
                 attacker = env.left if ev.actor == env.left.id else env.right
                 burst_color = lcol if attacker is env.left else rcol
+                brand_col_crit = getattr(attacker, "brand_color",
+                                         getattr(attacker, "color", burst_color))
                 active_bursts.append([
                     int(defender.pos_x), int(defender.pos_y) - 90,
                     burst_color, 88, 0,
@@ -520,6 +557,19 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 else:
                     right_flash_frames = max(right_flash_frames, 5)
                 shake_frames = SHAKE_FRAMES
+                # ── Crit emphasis: full-screen white flash + speed lines + slow-mo ──
+                impact_fx.flash_screen(color=(255, 255, 255), alpha=200)
+                impact_fx.spawn_crit_speed_lines(
+                    x=int(defender.pos_x),
+                    y=int(defender.pos_y) - 90,
+                    color=brand_col_crit)
+                # Crit slow-mo: next ~100 ms of sim runs at 40% speed
+                _slowmo_remaining_ms = max(_slowmo_remaining_ms, 100.0)
+                _slowmo_dt_scale = 0.4
+                # Pre-KO slow-mo: if this crit drops the defender to 0 HP
+                if defender.hp <= 0:
+                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 200.0)
+                    _slowmo_dt_scale = 0.3
             elif et == "attack_windup":
                 vfx = (ev.extra or {}).get("vfx", "melee")
                 skill_type_str = (ev.extra or {}).get("skill_type", "")
@@ -578,6 +628,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     skill_id = (ev.extra or {}).get("skill_id", "?")
                     banner_text = str(skill_id).upper().replace("_", " ") + "!"
                     banner_until_frame = frame + 36
+                    # Charge orb at caster's near-hand height (shoulder ~-130 px)
+                    impact_fx.spawn_charge_orb(
+                        x=ax, y=ay - 130, color=brand_col,
+                        lifetime_ms=150, scale=1.0)
             elif et == "ultimate_start":
                 banner_text = "ULTIMATE!"
                 banner_until_frame = frame + 78
@@ -618,6 +672,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     surf_size=(WIDTH, HEIGHT))
                 # Larger camera shake via CameraShake helper
                 impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
+                # Ultimate charge orb — 2× scale with rising particle column
+                impact_fx.spawn_charge_orb(
+                    x=int(actor_obj.pos_x), y=int(actor_obj.pos_y) - 130,
+                    color=brand_col_ult, lifetime_ms=300, scale=2.0)
                 ult_vfx = (ev.extra or {}).get("vfx", "slam")
                 u_ax, u_ay = int(actor_obj.pos_x), int(actor_obj.pos_y)
                 u_tx, u_ty = int(defender.pos_x), int(defender.pos_y)
@@ -656,9 +714,13 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 is_crit_ev = (ev_t == "crit") or bool((ev.extra or {}).get("crit"))
                 if is_crit_ev:
                     impact_fx.flash_screen(color=(255, 240, 180), alpha=160)
+                    # Bigger (1.5×) brand-colored CRIT! text
+                    crit_brand = getattr(attacker_ev, "brand_color",
+                                         getattr(attacker_ev, "color", burst_col_ev))
                     impact_fx.spawn_floating_text(x=int(target.pos_x),
                                                   y=int(target.pos_y) - 40,
-                                                  text="CRIT!", color=(255, 220, 60))
+                                                  text="CRIT!", color=crit_brand,
+                                                  font_size=66)  # ~1.5× of default 44
                 else:
                     impact_fx.spawn_floating_text(x=int(target.pos_x),
                                                   y=int(target.pos_y) - 40,
@@ -779,6 +841,15 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
 
         for (dx, dy) in pending_dust:
             spawn_landing_dust(world, dx, dy, (180, 180, 200), intensity=1.7)
+
+        # ── Motion blur: blend previous world at 20 % alpha onto current ────
+        # Skip during KO HOLD state so the final frame reads crisp.
+        if prev_world is not None and not ko_result.zoom > 1.0:
+            blur_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            blur_overlay.blit(prev_world, (0, 0))
+            blur_overlay.set_alpha(MOTION_BLUR_ALPHA)
+            world.blit(blur_overlay, (0, 0))
+        prev_world = world.copy()
 
         # Camera — follow midpoint (biased toward loser during KO), crop + upscale
         mid_x = (env.left.pos_x + env.right.pos_x) / 2.0
