@@ -27,6 +27,7 @@ BEAM_MS = 300
 DASH_AFTERIMAGE_MS = 350
 ULTIMATE_BURST_MS = 500
 HIT_RING_MS = 220           # hit-confirm ring duration
+CHARGE_ORB_MS = 150         # matches ATTACK_WINDUP_MS — orb fills the full windup
 
 ULTIMATE_FONT_SIZE = 32
 
@@ -93,6 +94,34 @@ class _DashAfterimage:
     color: Tuple[int, int, int]
     age_ms: int = 0
     life_ms: int = DASH_AFTERIMAGE_MS
+
+
+@dataclass
+class _ChargeOrb:
+    """Expanding glow ball at the caster's hand during cd/special/ultimate windup.
+
+    scale=1.0 → radius 2→12 px; scale=2.0 (ultimate) → 4→24 px.
+    On expiry (age_ms >= life_ms) spawns 12 radial sparks automatically.
+    """
+    x: float
+    y: float
+    color: Tuple[int, int, int]
+    scale: float = 1.0
+    age_ms: int = 0
+    life_ms: int = CHARGE_ORB_MS
+    exploded: bool = False
+
+
+@dataclass
+class _SpeedLine:
+    """Single radial speed line radiating from a hit point."""
+    x: float
+    y: float
+    angle_deg: float
+    color: Tuple[int, int, int]
+    age_ms: int = 0
+    life_ms: int = 120
+    length: int = 60
 
 
 @dataclass
@@ -163,6 +192,8 @@ class ImpactFX:
         self._beams: List[_BeamFX] = []
         self._dash_afterimages: List[_DashAfterimage] = []
         self._hit_rings: List[_HitRing] = []
+        self._charge_orbs: List[_ChargeOrb] = []
+        self._speed_lines: List[_SpeedLine] = []
         self.camera_shake: CameraShake = CameraShake()
 
     def spawn_hit_spark(self, x: int, y: int, damage: int,
@@ -245,6 +276,41 @@ class ImpactFX:
                        color: Tuple[int, int, int]) -> None:
         """Hit-confirm: expanding alpha-fading ring at the defender's hip."""
         self._hit_rings.append(_HitRing(x=float(x), y=float(y), color=color))
+
+    def spawn_charge_orb(self, x: float, y: float,
+                          color: Tuple[int, int, int],
+                          lifetime_ms: int = CHARGE_ORB_MS,
+                          scale: float = 1.0) -> None:
+        """Charge ball at the caster's near-hand for cd/special/ultimate windup.
+
+        scale=1.0: basic charge ball (radius 2→12 px).
+        scale=2.0: ultimate size (radius 4→24 px) + vertical particle column.
+        """
+        self._charge_orbs.append(
+            _ChargeOrb(x=float(x), y=float(y), color=color,
+                       scale=scale, life_ms=lifetime_ms))
+        if scale >= 2.0:
+            # Vertical column of rising particles for ultimate charge
+            for _ in range(10):
+                ang = random.uniform(math.pi * 1.1, math.pi * 1.9)  # upward fan
+                speed = random.uniform(2.5, 5.5)
+                life = random.randint(80, lifetime_ms)
+                self._active.append(_Spark(
+                    x=float(x) + random.uniform(-10, 10),
+                    y=float(y),
+                    vx=math.cos(ang) * speed * 0.3,
+                    vy=-abs(speed),
+                    life_ms=life,
+                    color=color))
+
+    def spawn_crit_speed_lines(self, x: int, y: int,
+                                color: Tuple[int, int, int]) -> None:
+        """4 radial speed lines radiating from the hit point (crit emphasis)."""
+        for i in range(4):
+            angle = 45.0 + i * 90.0  # 4 diagonal directions
+            self._speed_lines.append(
+                _SpeedLine(x=float(x), y=float(y),
+                           angle_deg=angle, color=color))
 
     def spawn_ultimate_burst(self, x: int, y: int,
                               color: Tuple[int, int, int],
@@ -419,6 +485,77 @@ class ImpactFX:
                     surf.blit(ring_surf,
                                (int(hr.x) - radius - 4, int(hr.y) - radius - 4))
         self._hit_rings = alive_rings
+
+        # ── Charge orbs ───────────────────────────────────────────────────────
+        alive_orbs: List[_ChargeOrb] = []
+        for orb in self._charge_orbs:
+            orb.age_ms += dt_ms
+            if orb.age_ms < orb.life_ms:
+                alive_orbs.append(orb)
+            else:
+                # Explode: 12 radial sparks on the last frame
+                if not orb.exploded:
+                    orb.exploded = True
+                    for i in range(12):
+                        ang = (math.tau * i) / 12
+                        speed = random.uniform(3.0, 7.0)
+                        self._active.append(_Spark(
+                            x=orb.x, y=orb.y,
+                            vx=math.cos(ang) * speed,
+                            vy=math.sin(ang) * speed,
+                            life_ms=random.randint(100, 220),
+                            color=orb.color))
+                continue  # don't re-add to alive_orbs
+            frac = orb.age_ms / max(1, orb.life_ms)
+            # Radius grows 2→12 px (×scale for ultimate)
+            min_r = max(1, int(2 * orb.scale))
+            max_r = max(2, int(12 * orb.scale))
+            radius = int(min_r + (max_r - min_r) * frac)
+            if radius < 1:
+                continue
+            d = (radius + 4) * 2
+            orb_surf = pygame.Surface((d, d), pygame.SRCALPHA)
+            cx, cy = radius + 4, radius + 4
+            # Outer glow: brand color, fading
+            outer_alpha = int(160 * (1.0 - frac * 0.3))
+            pygame.draw.circle(orb_surf, (*orb.color, outer_alpha), (cx, cy), radius)
+            # Inner core: white-hot
+            core_r = max(1, radius // 2)
+            pygame.draw.circle(orb_surf, (255, 255, 255, min(255, outer_alpha + 60)),
+                               (cx, cy), core_r)
+            surf.blit(orb_surf, (int(orb.x) - radius - 4, int(orb.y) - radius - 4))
+        self._charge_orbs = alive_orbs
+
+        # ── Speed lines (crit emphasis) ───────────────────────────────────────
+        alive_sl: List[_SpeedLine] = []
+        for sl in self._speed_lines:
+            sl.age_ms += dt_ms
+            if sl.age_ms >= sl.life_ms:
+                continue
+            alive_sl.append(sl)
+            frac = sl.age_ms / sl.life_ms
+            # Length grows fast then fades: peak at 40% lifetime
+            if frac < 0.4:
+                length = int(sl.length * frac / 0.4)
+            else:
+                length = sl.length
+            alpha = max(0, int(255 * (1.0 - frac)))
+            if length < 2 or alpha < 5:
+                continue
+            ang_r = math.radians(sl.angle_deg)
+            ex = int(sl.x + math.cos(ang_r) * length)
+            ey = int(sl.y + math.sin(ang_r) * length)
+            sl_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            pygame.draw.line(sl_surf, (*sl.color, alpha),
+                             (int(sl.x), int(sl.y)), (ex, ey), 3)
+            # White-hot core line
+            if length > 4:
+                pygame.draw.line(sl_surf, (255, 255, 255, min(255, alpha + 40)),
+                                 (int(sl.x), int(sl.y)),
+                                 (int(sl.x + math.cos(ang_r) * length // 2),
+                                  int(sl.y + math.sin(ang_r) * length // 2)), 2)
+            surf.blit(sl_surf, (0, 0))
+        self._speed_lines = alive_sl
 
         # Update and draw floating text
         alive_texts: List[_FloatingText] = []
