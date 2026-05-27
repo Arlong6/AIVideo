@@ -24,8 +24,10 @@ INTRO_MS = 2000
 CRIT_CHANCE = 0.10
 CRIT_MULT = 2
 STAGGER_MS = 300
-HITSTOP_MS = 30          # freeze on a normal hit — the "impact" pause
-HITSTOP_MS_HEAVY = 60    # freeze on a crit — heavier hits read weightier
+HITSTOP_MS = 12           # basic non-crit — just enough to register the impact frame
+HITSTOP_MS_BASIC_CRIT = 50  # basic crit — clear stutter
+HITSTOP_MS_HEAVY = 30    # non-basic non-crit — unchanged feel
+HITSTOP_MS_HEAVY_CRIT = 70  # non-basic crit — heaviest hits read weightiest
 SPECIAL_MP_GAIN_PER_HIT = 12
 MP_GAIN_ON_HIT_TAKEN = 6
 ULTIMATE_DURATION_MS = 6500  # gives cinematic ~6s + 0.5s buffer
@@ -49,7 +51,7 @@ _PROJECTILE_VFX = frozenset({"bolt", "multishot", "beam"})
 # of a static clinch. "dash" vfx skills lunge the caster forward; every hit
 # knocks the defender back by an amount that scales with the damage dealt.
 DASH_LUNGE_SPEED = 18.0
-KNOCKBACK_BASE = 4.0
+KNOCKBACK_BASE = 6.5
 KNOCKBACK_DMG_SCALE = 0.45
 
 # AI tuning
@@ -64,15 +66,24 @@ DEFENSIVE_RETREAT_HP = 15           # HP below which defensive retreat may trigg
 MIN_CHAR_DISTANCE = 70              # px; min horizontal distance between character centers
 
 
-def _hitstop_for(is_crit: bool) -> int:
-    """Freeze duration (ms) for a hit — longer for a crit."""
-    return HITSTOP_MS_HEAVY if is_crit else HITSTOP_MS
+def _hitstop_for(is_crit: bool, skill_type: SkillType = SkillType.BASIC) -> int:
+    """Freeze duration (ms) for a hit.
+
+    basic non-crit: 12 ms  — just enough to register the impact frame
+    basic crit:     50 ms  — clear stutter
+    non-basic non-crit: 30 ms — unchanged skill-hit feel
+    non-basic crit: 70 ms  — heaviest hits read weightiest
+    """
+    is_basic = skill_type is SkillType.BASIC
+    if is_basic:
+        return HITSTOP_MS_BASIC_CRIT if is_crit else HITSTOP_MS
+    return HITSTOP_MS_HEAVY_CRIT if is_crit else HITSTOP_MS_HEAVY
 
 
 def _hit_causes_hitstop(is_crit: bool, skill_type: SkillType) -> bool:
-    """Hitstop fires only on a crit or a non-basic skill hit. Plain basic
-    hits do not freeze the sim, so rapid basic trading renders smoothly."""
-    return is_crit or skill_type is not SkillType.BASIC
+    """Every hit now causes at least a brief hitstop so the defender's
+    flinch is always readable — even rapid basic trading."""
+    return True
 
 
 class BattleState(Enum):
@@ -386,7 +397,7 @@ class Battle:
 
         attacker.last_attack_ms = self.elapsed_ms
         if _hit_causes_hitstop(is_crit, skill.skill_type):
-            self._hitstop_remaining = _hitstop_for(is_crit)
+            self._hitstop_remaining = _hitstop_for(is_crit, skill.skill_type)
 
         # Apply opponent-targeted status effect from skill
         if skill.applies is not None and skill.applies.target == "opponent":

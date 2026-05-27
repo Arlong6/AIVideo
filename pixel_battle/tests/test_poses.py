@@ -200,6 +200,13 @@ _MAX_HALF_W = 260      # gross-error guard on horizontal splay from pos_x
 _MAX_HEIGHT = 400      # figure + weapon must stay under the camera's top edge
 
 
+def test_hit_react_pose_deeper_bend():
+    """HIT_REACT_POSE torso must lean back at least 20° (more negative = harder recoil)."""
+    assert HIT_REACT_POSE.torso_lean <= -20.0, (
+        f"HIT_REACT_POSE.torso_lean={HIT_REACT_POSE.torso_lean} should be ≤ -20°"
+    )
+
+
 def test_all_poses_keep_feet_planted_and_in_frame():
     from pixel_battle.rl.stick_renderer import get_style
     from pixel_battle.rl.weapons import get_weapon

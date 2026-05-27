@@ -129,13 +129,14 @@ HIT_POSE = FigurePose(
     front_leg=(120.0, 70.0), back_leg=(62.0, 58.0),
     weapon_deg=295.0)
 
-# Visible flinch: body bent backward, near arm raised in defensive guard,
-# head turned away from attacker.
+# Visible flinch: body bent HARD backward (torso -35°), near arm thrown up in
+# a defensive guard high in front of the face, back arm flung wide.
+# Wider foot stance reads as "staggered but planted."
 HIT_REACT_POSE = FigurePose(
-    torso_lean=-28.0,
-    front_arm=(290.0, -60.0), back_arm=(210.0, -45.0),
-    front_leg=(115.0, 55.0), back_leg=(65.0, 45.0),
-    weapon_deg=285.0)
+    torso_lean=-35.0,
+    front_arm=(300.0, -70.0), back_arm=(205.0, -50.0),
+    front_leg=(110.0, 60.0), back_leg=(68.0, 42.0),
+    weapon_deg=280.0)
 
 # Arms crossed in front, torso forward-tucked — active guard.
 BLOCK_POSE = FigurePose(
