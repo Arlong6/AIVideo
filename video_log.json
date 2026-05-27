@@ -11019,7 +11019,7 @@
         },
         {
           "date": "2026-05-27",
-          "views": 66,
+          "views": 67,
           "likes": 0,
           "comments": 1
         }
@@ -11665,7 +11665,7 @@
         },
         {
           "date": "2026-05-27",
-          "views": 65,
+          "views": 66,
           "likes": 0,
           "comments": 1
         }
@@ -15182,7 +15182,7 @@
         },
         {
           "date": "2026-05-27",
-          "views": 10,
+          "views": 14,
           "likes": 0,
           "comments": 1
         }
@@ -15283,6 +15283,22 @@
         }
       ],
       "series_tag": "political"
+    },
+    {
+      "video_id": "b8ySvyyss2A",
+      "topic": "台灣 - 彭婉如命案：台灣十大未破懸案之一，女權運動者離奇失蹤遇害，真相至今成謎",
+      "slot": 1,
+      "duration_s": 72,
+      "publish_at": "2026-05-28T10:00:00+08:00",
+      "uploaded_at": "2026-05-27T20:34:42.459170+00:00",
+      "stats": [
+        {
+          "date": "2026-05-27",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
