@@ -357,9 +357,13 @@ def _apply_pose_overrides(pose: FigurePose, overrides: dict,
     )
 
 
-def compute_figure(char, style: dict) -> FigureGeometry:
+def compute_figure(char, style: dict, time_ms: float = 0.0) -> FigureGeometry:
     """Resolve `char`'s pose, run FK, and position the figure with the
-    lower foot planted at `char.pos_y`."""
+    lower foot planted at `char.pos_y`.
+
+    `time_ms` is used for sub-pose oscillations (idle breathing bob).
+    It does NOT affect the pose key or trigger cross-state transitions.
+    """
     pose_id = select_pose_id(char)
     pose = resolve_pose(char)
 
@@ -405,6 +409,42 @@ def compute_figure(char, style: dict) -> FigureGeometry:
     ba_flex = _mirror_flex(clamp_elbow(pose.back_arm[1]), facing)
     front_elbow, front_hand = solve_limb(shoulder, fa_deg, fa_flex, upper, fore)
     back_elbow, back_hand = solve_limb(shoulder, ba_deg, ba_flex, upper, fore)
+
+    # 5. Idle breathing bob — sub-pose oscillation, does NOT trigger cross-state lerp.
+    # Shifts hip + torso + arms upward/downward; feet stay planted at cy.
+    # 2 px peak, 1.5 s cycle. Disabled during any active action state.
+    if pose_id == "idle":
+        bob_y = math.sin(time_ms / 1500.0 * 2.0 * math.pi) * 2.0
+        hip = (hip[0], hip[1] + bob_y)
+        shoulder = (hip[0] + tc * torso_len, hip[1] + ts * torso_len)
+        head_center = (shoulder[0] + tc * head_gap, shoulder[1] + ts * head_gap)
+        front_elbow, front_hand = solve_limb(shoulder, fa_deg, fa_flex, upper, fore)
+        back_elbow, back_hand = solve_limb(shoulder, ba_deg, ba_flex, upper, fore)
+
+        # Per-character idle quirk oscillations.
+        # overrides may contain an "idle_oscillations" list of dicts:
+        #   {field, amplitude, period_ms}
+        # Supported fields: weapon_deg, near_hand_y_offset, far_hand_x_offset
+        quirks = overrides.get("idle_oscillations") if overrides else None
+        if quirks:
+            for q in quirks:
+                field = q.get("field", "")
+                amp = float(q.get("amplitude", 0.0))
+                period = float(q.get("period_ms", 1000.0))
+                delta = math.sin(time_ms / period * 2.0 * math.pi) * amp
+                if field == "weapon_deg":
+                    pose = FigurePose(
+                        torso_lean=pose.torso_lean,
+                        front_arm=pose.front_arm,
+                        back_arm=pose.back_arm,
+                        front_leg=pose.front_leg,
+                        back_leg=pose.back_leg,
+                        weapon_deg=pose.weapon_deg + delta,
+                    )
+                elif field == "near_hand_y_offset":
+                    front_hand = (front_hand[0], front_hand[1] + delta)
+                elif field == "far_hand_x_offset":
+                    back_hand = (back_hand[0] + delta * facing, back_hand[1])
 
     return FigureGeometry(
         head_center=head_center, shoulder=shoulder, hip=hip,

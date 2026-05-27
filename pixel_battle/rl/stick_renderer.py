@@ -36,7 +36,10 @@ MOTION_GHOST_ALPHA_START = 100     # initial alpha (decays linearly to 0)
 
 # Cross-state transition: when action_state changes, lerp between the last
 # geometry snapshot and the new geometry over this many ms.
-STATE_TRANSITION_MS = 90
+STATE_TRANSITION_MS = 55
+
+# Default render tick interval for draw_stick_figure (120 fps)
+_RENDER_TICK_MS = 1000.0 / 120   # 8.333 ms
 
 # Weapon swing trail — tracked in RenderState, drawn during ACTIVE + early RECOVER
 TRAIL_N = 8          # max tip positions buffered
@@ -108,14 +111,19 @@ class RenderState:
         # spawned every N frames when |vel_x| > MOTION_GHOST_VEL_THRESHOLD
         self._motion_ghosts: list = []   # [(FigureGeometry, age_ms), ...]
         self._motion_ghost_frame_counter: int = 0
+        # Walk cycle phase — accumulated ms while pose_id == "walk"
+        self._walk_phase_t: float = 0.0
 
-    def resolve(self, char, style: dict, dt_ms: float = 16.0) -> FigureGeometry:
+    def resolve(self, char, style: dict, dt_ms: float = 16.0,
+                time_ms: float = 0.0) -> FigureGeometry:
         """Return the smoothed FigureGeometry for `char` this frame.
 
         Call exactly once per draw call.  `dt_ms` must match the render tick.
+        `time_ms` is forwarded to compute_figure for sub-pose oscillations
+        (e.g. idle breathing bob).
         """
         new_key = _pose_key(char)
-        new_geo = compute_figure(char, style)
+        new_geo = compute_figure(char, style, time_ms)
 
         # ── Bootstrap (first call) ────────────────────────────────────────────
         if self._last_pose_key is None:
@@ -124,6 +132,12 @@ class RenderState:
             self._last_geo = new_geo
             self._transition_t_ms = STATE_TRANSITION_MS
             return new_geo
+
+        # ── Walk phase accumulator ────────────────────────────────────────────
+        if new_key == "walk":
+            self._walk_phase_t += dt_ms
+        else:
+            self._walk_phase_t = 0.0
 
         # ── State changed? Start a fresh transition ───────────────────────────
         if new_key != self._last_pose_key:
@@ -138,20 +152,68 @@ class RenderState:
         self._transition_t_ms += dt_ms
 
         if self._transition_t_ms >= STATE_TRANSITION_MS:
-            # Transition complete.
-            self._last_geo = new_geo
-            return new_geo
+            # Transition complete — apply walk bob and return.
+            out = self._apply_walk_bob(new_geo, new_key)
+            self._last_geo = out
+            return out
 
         # ── Mid-transition: lerp _from_geo → new_geo ─────────────────────────
         frac = ease_in_out_cubic(self._transition_t_ms / STATE_TRANSITION_MS)
         blended = _lerp_geo(self._from_geo, new_geo, frac)
+        # Walk bob on the blended result (mid-transition walk keeps bobbing).
+        blended = self._apply_walk_bob(blended, new_key)
         self._last_geo = blended
         return blended
+
+    # ── Walk-cycle vertical bob + horizontal pelvis sway ─────────────────────
+    def _apply_walk_bob(self, geo: FigureGeometry, pose_key: str) -> FigureGeometry:
+        """Shift hip+torso+arms with a figure-8 walk sway; feet stay planted.
+
+        Only applied while ``pose_key == "walk"``.
+        - Vertical bob: 2 px amplitude, 400 ms period.
+        - Horizontal sway: 1 px amplitude, 90° out of phase with the bob.
+          Gives a natural hip figure-8 motion.
+        """
+        if pose_key != "walk":
+            return geo
+        phase = self._walk_phase_t / 400.0 * 2.0 * math.pi
+        bob_y = math.sin(phase) * 2.0
+        sway_x = math.cos(phase) * 1.0  # 90° out of phase
+        new_hip = (geo.hip[0] + sway_x, geo.hip[1] + bob_y)
+        # Preserve exact torso length/direction.
+        dx = geo.shoulder[0] - geo.hip[0]
+        dy = geo.shoulder[1] - geo.hip[1]
+        dist = max(0.001, math.hypot(dx, dy))
+        tc_w, ts_w = dx / dist, dy / dist
+        new_shoulder = (new_hip[0] + tc_w * dist, new_hip[1] + ts_w * dist)
+        head_offset_dx = geo.head_center[0] - geo.shoulder[0]
+        head_offset_dy = geo.head_center[1] - geo.shoulder[1]
+        new_head = (new_shoulder[0] + head_offset_dx, new_shoulder[1] + head_offset_dy)
+        return FigureGeometry(
+            head_center=new_head,
+            shoulder=new_shoulder,
+            hip=new_hip,
+            front_elbow=(geo.front_elbow[0] + sway_x, geo.front_elbow[1] + bob_y),
+            front_hand=(geo.front_hand[0] + sway_x, geo.front_hand[1] + bob_y),
+            back_elbow=(geo.back_elbow[0] + sway_x, geo.back_elbow[1] + bob_y),
+            back_hand=(geo.back_hand[0] + sway_x, geo.back_hand[1] + bob_y),
+            front_knee=geo.front_knee,   # feet stay planted
+            front_foot=geo.front_foot,
+            back_knee=geo.back_knee,
+            back_foot=geo.back_foot,
+            weapon_deg=geo.weapon_deg,
+            facing=geo.facing,
+        )
 
     @property
     def transition_active(self) -> bool:
         """True while a cross-state lerp is in progress."""
         return self._transition_t_ms < STATE_TRANSITION_MS
+
+    @property
+    def walk_phase_t(self) -> float:
+        """Accumulated ms since the character has been continuously walking."""
+        return self._walk_phase_t
 
     def update_trail(self, char, geo: FigureGeometry, weapon, dt_ms: float) -> None:
         """Update the weapon-tip trail buffer based on the current attack phase.
@@ -329,10 +391,6 @@ _STYLES = {
                     "torso_length": 104, "upper_arm": 31, "forearm": 31,
                     "thigh": 35, "shin": 35, "line_width": 5,
                     "hand_radius": 4, "foot_length": 14},
-    "garen":       {"head_shape": "square",   "head_size": 28,
-                    "torso_length": 86, "upper_arm": 32, "forearm": 31,
-                    "thigh": 31, "shin": 31, "line_width": 9,
-                    "hand_radius": 8, "foot_length": 22},
     "lux":         {"head_shape": "diamond",  "head_size": 30,
                     "torso_length": 108, "upper_arm": 30, "forearm": 30,
                     "thigh": 36, "shin": 36, "line_width": 5,
@@ -345,15 +403,41 @@ _STYLES = {
                         "idle_weapon_deg": 160.0,
                         "walk_weapon_deg": 140.0,
                         "idle_torso_lean": 5.0,
+                        # Staff micro-rotation: reads as "casting at the ready, staff alive".
+                        "idle_oscillations": [
+                            {"field": "weapon_deg", "amplitude": 8.0, "period_ms": 3000.0},
+                        ],
+                    }},
+    "garen":       {"head_shape": "square",   "head_size": 28,
+                    "torso_length": 86, "upper_arm": 32, "forearm": 31,
+                    "thigh": 31, "shin": 31, "line_width": 9,
+                    "hand_radius": 8, "foot_length": 22,
+                    # Stoic shoulder shift — not statuesque, just vigilant.
+                    "pose_overrides": {
+                        "idle_oscillations": [
+                            {"field": "weapon_deg", "amplitude": 2.0, "period_ms": 2500.0},
+                        ],
                     }},
     "yasuo":       {"head_shape": "circle",   "head_size": 27,
                     "torso_length": 94, "upper_arm": 33, "forearm": 32,
                     "thigh": 33, "shin": 33, "line_width": 6,
-                    "hand_radius": 5, "foot_length": 15},
+                    "hand_radius": 5, "foot_length": 15,
+                    # Sword-hand twitch — twitchy duelist, always ready to draw.
+                    "pose_overrides": {
+                        "idle_oscillations": [
+                            {"field": "near_hand_y_offset", "amplitude": 3.0, "period_ms": 800.0},
+                        ],
+                    }},
     "ashe":        {"head_shape": "triangle", "head_size": 27,
                     "torso_length": 96, "upper_arm": 34, "forearm": 33,
                     "thigh": 33, "shin": 33, "line_width": 5,
-                    "hand_radius": 4, "foot_length": 13},
+                    "hand_radius": 4, "foot_length": 13,
+                    # Bowstring tension test — subtle pull-back.
+                    "pose_overrides": {
+                        "idle_oscillations": [
+                            {"field": "far_hand_x_offset", "amplitude": 2.0, "period_ms": 1800.0},
+                        ],
+                    }},
 }
 
 _DEFAULT_STYLE = {"head_shape": "circle", "head_size": 22,
@@ -435,11 +519,13 @@ def _draw_ghost(surf, char, color, offset_x, alpha, style):
 
 # ── Main draw function ────────────────────────────────────────────────────────
 
-def draw_stick_figure(surf, char, color, dt_ms: float = 16.0):
+def draw_stick_figure(surf, char, color, dt_ms: float = _RENDER_TICK_MS,
+                      time_ms: float = 0.0):
     """Draw a jointed stick figure for `char` onto `surf` in `color`.
 
-    `dt_ms` should match the render tick interval (default 16 ms = 60 fps).
+    `dt_ms` should match the render tick interval (default 8.333 ms = 120 fps).
     It is forwarded to the per-character RenderState for transition timing.
+    `time_ms` is the current render time in ms, used for idle breathing bob.
     """
     style = get_style(char.id)
     lw = style["line_width"]
@@ -452,7 +538,7 @@ def draw_stick_figure(surf, char, color, dt_ms: float = 16.0):
     if char_key not in _RENDER_STATE_CACHE:
         _RENDER_STATE_CACHE[char_key] = RenderState()
     rs = _RENDER_STATE_CACHE[char_key]
-    geo = rs.resolve(char, style, dt_ms=dt_ms)
+    geo = rs.resolve(char, style, dt_ms=dt_ms, time_ms=time_ms)
 
     # Motion-afterimage ghosts: update snapshot queue, then draw behind figure
     rs.update_motion_ghosts(char, style, dt_ms=dt_ms)

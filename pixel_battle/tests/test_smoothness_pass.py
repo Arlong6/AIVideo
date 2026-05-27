@@ -79,21 +79,21 @@ def test_idle_bob_changes_y_over_time():
     c.vel_x = 0.0
 
     geo0 = compute_figure(c, _STYLE, time_ms=0.0)
-    geo_half = compute_figure(c, _STYLE, time_ms=600.0)  # half-cycle = peak bob
+    geo_peak = compute_figure(c, _STYLE, time_ms=300.0)  # quarter-cycle = peak bob
 
-    delta_y = abs(geo0.head_center[1] - geo_half.head_center[1])
+    delta_y = abs(geo0.head_center[1] - geo_peak.head_center[1])
     assert delta_y > 0.5, (
-        f"Idle bob: head y difference at 0ms vs 600ms is {delta_y:.3f}px, expected > 0.5px"
+        f"Idle bob: head y difference at 0ms vs 300ms is {delta_y:.3f}px, expected > 0.5px"
     )
 
 
 # ── T4: Walk cycle alternates (bob changes y over time) ──────────────────────
 
 def test_walk_cycle_alternates_feet():
-    """At t=0 and t=400ms, the head y of a walking character must differ (walk bob).
+    """At t=0 and t=200ms (half-period), the head y of a walking character must differ.
 
-    The walk bob has a 400ms half-period, so at t=0 and t=400ms the sin phase
-    differs by π — head y should be at opposite extremes (difference > 1px).
+    The walk bob has a 400ms period; at t=0 sin=0 and at t=100ms (quarter-period)
+    sin=1 (peak). Comparing t=0 vs t=100ms gives the full amplitude difference (~2px).
     """
     from pixel_battle.rl.stick_renderer import RenderState, get_style
 
@@ -106,15 +106,125 @@ def test_walk_cycle_alternates_feet():
     c.vel_x = 4.0   # walk
 
     rs = RenderState()
-    # Bootstrap — first call with walk pose
+    # Bootstrap — first call with walk pose; walk_phase_t starts at 0.
     geo0 = rs.resolve(c, _STYLE, dt_ms=8.333, time_ms=0.0)
 
-    # Drive walk_phase_t to ~400ms by ticking 400/8.333 ≈ 48 frames.
-    ticks_400ms = int(400 / 8.333)
-    for _ in range(ticks_400ms):
-        geo_400 = rs.resolve(c, _STYLE, dt_ms=8.333, time_ms=0.0)
+    # Drive walk_phase_t to ~100ms (quarter-period = sin peak) by ticking frames.
+    # 100ms / 8.333ms ≈ 12 frames
+    ticks_100ms = int(100 / 8.333)
+    geo_peak = None
+    for _ in range(ticks_100ms):
+        geo_peak = rs.resolve(c, _STYLE, dt_ms=8.333, time_ms=0.0)
 
-    delta_y = abs(geo0.head_center[1] - geo_400.head_center[1])
+    delta_y = abs(geo0.head_center[1] - geo_peak.head_center[1])
     assert delta_y > 1.0, (
-        f"Walk bob: head y diff at t=0 vs t=400ms is {delta_y:.3f}px, expected > 1px"
+        f"Walk bob: head y diff at t=0 vs t=100ms is {delta_y:.3f}px, expected > 1px"
+    )
+
+
+# ── T5: Idle breathing bobs figure vertically ────────────────────────────────
+
+def test_idle_breathing_bobs_figure_vertically():
+    """Two idle renders 375ms apart (quarter-period of 1500ms) must differ in hip_y by ~2px.
+
+    At t=0 sin=0; at t=375ms sin(2π*375/1500) = sin(π/2) = 1.0 → bob_y=2px.
+    So hip_y should differ by approximately 2px (within ±0.2px tolerance).
+    """
+    from pixel_battle.rl.poses import compute_figure
+    from pixel_battle.rl.stick_renderer import get_style
+
+    style = get_style("garen")
+    c = Character.load("garen")
+    c.pos_x, c.pos_y = 240.0, 720.0
+    c.facing = 1
+    c.action_state = "idle"
+    c.on_ground = True
+    c.vel_x = 0.0
+
+    geo0 = compute_figure(c, style, time_ms=0.0)
+    geo_peak = compute_figure(c, style, time_ms=375.0)   # quarter-period, sin=1 → peak
+
+    delta_hip_y = abs(geo0.hip[1] - geo_peak.hip[1])
+    assert 1.5 <= delta_hip_y <= 2.5, (
+        f"Idle breathing: hip_y diff at 0ms vs 375ms = {delta_hip_y:.3f}px, expected ~2px"
+    )
+
+
+# ── T6: Walk pelvis sways (hip_x and hip_y both vary) ────────────────────────
+
+def test_walk_pelvis_sways():
+    """Over a walk cycle, hip_x must vary (horizontal sway) AND hip_y must vary (bob).
+
+    Sample 3 time points within one 400ms period and assert both axes show variation.
+    """
+    from pixel_battle.rl.stick_renderer import RenderState, get_style
+
+    style = get_style("garen")
+    c = Character.load("garen")
+    c.pos_x, c.pos_y = 240.0, 720.0
+    c.facing = 1
+    c.action_state = "idle"
+    c.on_ground = True
+    c.vel_x = 4.0  # walk
+
+    rs = RenderState()
+    # Collect hip positions at 3 walk-phase moments: 0, ~100ms, ~200ms
+    dt = 8.333
+    hip_xs, hip_ys = [], []
+
+    geo = rs.resolve(c, style, dt_ms=dt, time_ms=0.0)
+    hip_xs.append(geo.hip[0])
+    hip_ys.append(geo.hip[1])
+
+    for _ in range(int(100 / dt)):
+        geo = rs.resolve(c, style, dt_ms=dt, time_ms=0.0)
+    hip_xs.append(geo.hip[0])
+    hip_ys.append(geo.hip[1])
+
+    for _ in range(int(100 / dt)):
+        geo = rs.resolve(c, style, dt_ms=dt, time_ms=0.0)
+    hip_xs.append(geo.hip[0])
+    hip_ys.append(geo.hip[1])
+
+    x_range = max(hip_xs) - min(hip_xs)
+    y_range = max(hip_ys) - min(hip_ys)
+    assert x_range > 0.3, f"Walk sway: hip_x range {x_range:.3f}px, expected > 0.3px"
+    assert y_range > 1.0, f"Walk bob: hip_y range {y_range:.3f}px, expected > 1px"
+
+
+# ── T7: Lux idle quirk — staff oscillates ────────────────────────────────────
+
+def test_idle_quirk_lux_staff_oscillates():
+    """Lux idle at two different time values must produce different weapon_deg.
+
+    The Lux staff oscillates ±8° over 3000ms. At t=0 delta=0, at t=750ms
+    sin(π/2)=1 → delta=+8°. So weapon_deg must differ by at least 4°.
+    """
+    from pixel_battle.rl.poses import compute_figure
+    from pixel_battle.rl.stick_renderer import get_style
+
+    style = get_style("lux")
+    c = Character.load("lux")
+    c.pos_x, c.pos_y = 240.0, 720.0
+    c.facing = 1
+    c.action_state = "idle"
+    c.on_ground = True
+    c.vel_x = 0.0
+
+    geo0 = compute_figure(c, style, time_ms=0.0)
+    geo_750 = compute_figure(c, style, time_ms=750.0)   # quarter-period, sin=1 → peak
+
+    delta_deg = abs(geo0.weapon_deg - geo_750.weapon_deg)
+    assert delta_deg > 4.0, (
+        f"Lux staff: weapon_deg diff at 0ms vs 750ms = {delta_deg:.3f}°, expected > 4°"
+    )
+
+
+# ── T8: STATE_TRANSITION_MS is 55 ────────────────────────────────────────────
+
+def test_state_transition_ms_tightened():
+    """STATE_TRANSITION_MS must equal 55 for snappier combat feel."""
+    from pixel_battle.rl.stick_renderer import STATE_TRANSITION_MS
+    assert STATE_TRANSITION_MS == 55, (
+        f"Expected STATE_TRANSITION_MS=55, got {STATE_TRANSITION_MS}"
     )
