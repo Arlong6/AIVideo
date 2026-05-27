@@ -1,8 +1,8 @@
 """2D physics primitives for melee battle."""
 
 # World — characters live in a horizontal arena 480 wide
-ARENA_LEFT = 20
-ARENA_RIGHT = 460
+ARENA_LEFT = 10
+ARENA_RIGHT = 470
 GROUND_Y = 530  # feet landing position; matches renderer HORIZON_Y
 
 # Engagement zone — kept at the original 60-420 range.

@@ -86,3 +86,15 @@ def test_walk_speed_positive():
 def test_jump_velocity_negative():
     # Negative means upward in screen-down coordinate system
     assert JUMP_VELOCITY < 0
+
+
+def test_arena_widened_to_10_470():
+    """Arena bounds must be 10 (left) and 470 (right) after the pacing pass.
+
+    The previous bounds were 20/460 (440 px usable); widening to 10/470
+    gives 460 px so mage kiting feels spacious at long range.
+    """
+    assert ARENA_LEFT == 10, (
+        f"Expected ARENA_LEFT=10, got {ARENA_LEFT}")
+    assert ARENA_RIGHT == 470, (
+        f"Expected ARENA_RIGHT=470, got {ARENA_RIGHT}")

@@ -29,9 +29,9 @@ def _pg():
 # ── 1. Arena bounds ────────────────────────────────────────────────────────────
 
 def test_arena_widened():
-    """Arena must span 20–460 (440 px usable width)."""
-    assert ARENA_LEFT == 20, f"Expected ARENA_LEFT=20, got {ARENA_LEFT}"
-    assert ARENA_RIGHT == 460, f"Expected ARENA_RIGHT=460, got {ARENA_RIGHT}"
+    """Arena must span 10–470 (460 px usable width, widened in pacing pass)."""
+    assert ARENA_LEFT == 10, f"Expected ARENA_LEFT=10, got {ARENA_LEFT}"
+    assert ARENA_RIGHT == 470, f"Expected ARENA_RIGHT=470, got {ARENA_RIGHT}"
 
 
 # ── 2. Shield pulsing ring ─────────────────────────────────────────────────────

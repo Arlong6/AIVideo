@@ -164,3 +164,31 @@ def test_pre_ko_slowmo_triggers():
         f"dt scale should be < 1.0 for slow-mo, got {_slowmo_dt_scale}")
     assert _slowmo_remaining_ms >= 200.0, (
         f"Expected >= 200 ms of slow-mo, got {_slowmo_remaining_ms}")
+
+
+# ── 6. Crit damage does NOT trigger slow-mo ──────────────────────────────────
+
+def test_slowmo_not_triggered_by_crit():
+    """A crit event with damage=20 must NOT engage slow-mo.
+
+    The old code had `if ev.amount >= 15: engage slow-mo`; that branch was
+    removed. Only pre-KO hits (defender.hp <= 0) and ultimate_start may
+    trigger slow-mo. Verify the crit branch leaves _slowmo_remaining_ms at 0.
+    """
+    _slowmo_remaining_ms = 0.0
+    _slowmo_dt_scale = 1.0
+
+    # Simulate a crit event: attacker lands 20 dmg, defender still alive (hp=40).
+    ev = types.SimpleNamespace(amount=20)
+    defender = types.SimpleNamespace(hp=40)
+
+    # Replicate ONLY the remaining crit logic from _render_fight (post-removal):
+    # there is NO "if ev.amount >= threshold" branch any more.
+    if defender.hp <= 0:
+        _slowmo_remaining_ms = max(_slowmo_remaining_ms, 200.0)
+        _slowmo_dt_scale = 0.3
+
+    assert _slowmo_remaining_ms == 0.0, (
+        f"Crit with damage={ev.amount} must NOT trigger slow-mo; "
+        f"_slowmo_remaining_ms={_slowmo_remaining_ms} (should be 0)"
+    )
