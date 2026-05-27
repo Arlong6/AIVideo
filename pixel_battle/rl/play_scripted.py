@@ -12,7 +12,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 import pygame  # noqa: E402
 
 from pixel_battle.rl.env import PixelBattleEnv  # noqa: E402
-from pixel_battle.rl.play import _render_fight, WIDTH, HEIGHT, FPS, ROOT  # noqa: E402
+from pixel_battle.rl.play import _render_fight, WIDTH, HEIGHT, RENDER_FPS, ROOT  # noqa: E402
 from pixel_battle.video.recorder import FrameRecorder  # noqa: E402
 from pixel_battle.script.loader import load_fight_file  # noqa: E402
 
@@ -44,7 +44,7 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
     env = PixelBattleEnv(**env_kwargs)
 
     raw = out_dir / f"{script_path.stem}_raw.mp4"
-    recorder = FrameRecorder(str(raw), fps=FPS, width=WIDTH, height=HEIGHT)
+    recorder = FrameRecorder(str(raw), fps=RENDER_FPS, width=WIDTH, height=HEIGHT)
     recorder.start()
     try:
         _render_fight(recorder, _driver_action_source(driver), env,

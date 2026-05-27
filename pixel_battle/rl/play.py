@@ -38,6 +38,10 @@ from pixel_battle.engine.physics import GROUND_Y  # noqa: E402
 WIDTH, HEIGHT = 480, 854
 FPS = 60
 FRAME_MS = 1000.0 / FPS
+RENDER_FPS = 120          # output frame rate (doubled for sub-frame smoothness)
+RENDER_MS = 1000.0 / RENDER_FPS   # 8.333 ms per render frame
+ENGINE_HZ = 60            # engine tick rate (unchanged)
+ENGINE_MS = 1000.0 / ENGINE_HZ    # 16.667 ms per engine tick
 HIT_FLASH = (255, 255, 255)   # color a fighter flashes to when struck
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
@@ -55,6 +59,7 @@ CAM_FOLLOW = 0.12                              # lerp factor for x tracking
 
 SHAKE_FRAMES = 8           # frames a crit screen-shake lasts
 SHAKE_MAG = 14             # peak shake offset, world px
+MOTION_BLUR_ALPHA = 89    # ~35 % of 255 — cinematic blur strength
 
 
 def camera_shake_offset(frames_remaining: int) -> tuple:
@@ -69,8 +74,8 @@ def camera_shake_offset(frames_remaining: int) -> tuple:
     return (random.randint(-mag, mag), random.randint(-mag, mag))
 
 
-INTRO_FRAMES = 108      # 1.8s VS intro
-RESULT_FRAMES = 180     # 3.0s K.O. + winner card
+INTRO_FRAMES = int(1.8 * RENDER_FPS)   # 216 frames at 120fps — same 1.8s duration
+RESULT_FRAMES = int(3.0 * RENDER_FPS)  # 360 frames at 120fps — same 3.0s duration
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CKPT = ROOT / "data" / "rl_checkpoints" / "ppo_final.zip"
@@ -437,10 +442,18 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
 
     surf = pygame.Surface((WIDTH, HEIGHT))
     world = pygame.Surface((WIDTH, HEIGHT))
-    total_frames = int(max_seconds * FPS)
+    total_frames = int(max_seconds * RENDER_FPS)
     event_video_ms: dict = {}
     terminated = False
     frame = 0
+    # ── Sub-frame interpolation state ─────────────────────────────────────────
+    _accum_ms: float = 0.0
+    _prev_left_x: float = env.left.pos_x
+    _prev_left_y: float = env.left.pos_y
+    _prev_right_x: float = env.right.pos_x
+    _prev_right_y: float = env.right.pos_y
+    _interp_frac: float = 0.0
+    _engine_this_frame: bool = True   # first render frame always ticks engine
 
     projectiles = ProjectileLayer()
     # Attacker-recoil cache: maps id(char) -> remaining_ms for the near-hand recoil nudge
@@ -468,9 +481,8 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     n_written = 0
 
     # ── Motion blur ───────────────────────────────────────────────────────────
-    # Blend the previous world surface at 20 % alpha onto the current frame.
-    # Adds perceived smoothness without muddying at 60 fps. Skipped during KO HOLD.
-    MOTION_BLUR_ALPHA = 51  # ~20 % of 255
+    # Blend the previous world surface at ~35 % alpha onto the current frame.
+    # MOTION_BLUR_ALPHA is defined at module scope for testability.
     prev_world: Optional[pygame.Surface] = None
 
     # ── Slow-mo controller ────────────────────────────────────────────────────
@@ -480,272 +492,296 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     _slowmo_dt_scale: float = 1.0       # dt multiplier (< 1 = slower)
 
     for frame in range(total_frames):
-        left_act, right_act = action_source(env, (obs_left, obs_right))
-
-        prev_ev_n = len(env.battle.events)
-        # Slow-mo: advance the engine at a reduced rate this frame.
-        # When _slowmo_remaining_ms > 0 we pass a scaled dt to the battle;
-        # the renderer still writes a full 60-fps frame so motion "holds."
-        if _slowmo_remaining_ms > 0:
-            _slowmo_remaining_ms -= FRAME_MS
-            effective_dt = int(FRAME_MS * _slowmo_dt_scale)
-            # Drive the battle engine directly with the scaled dt (skip_ai so
-            # the scripted driver's decisions are not second-guessed mid-effect).
-            env.battle.tick_ms(effective_dt, skip_ai=False)
-            # Re-derive observations from the existing env state
-            try:
-                obs_left, obs_right = env._obs_pair()
-            except Exception:
-                pass   # obs not critical for scripted renderer
-            terminated = env.battle.state is _BattleState.KO
-            truncated = False
+        # ── Sub-frame accumulator: engine ticks at ENGINE_HZ, render at RENDER_FPS ──
+        # Every other render frame (when accumulator crosses 16.67ms) we advance
+        # the engine once.  In-between frames draw with lerped positions for smoothness.
+        _accum_ms += RENDER_MS
+        _engine_this_frame = _accum_ms >= ENGINE_MS
+        if _engine_this_frame:
+            _accum_ms -= ENGINE_MS
+            _interp_frac = 0.0
+            # Snapshot previous character positions for position lerp
+            _prev_left_x = env.left.pos_x
+            _prev_left_y = env.left.pos_y
+            _prev_right_x = env.right.pos_x
+            _prev_right_y = env.right.pos_y
         else:
-            _slowmo_dt_scale = 1.0
-            (obs_left, obs_right), _, terminated, truncated, _ = env.step(
-                (left_act, right_act)
-            )
+            _interp_frac = _accum_ms / ENGINE_MS
 
-        for ev in env.battle.events[prev_ev_n:]:
-            event_video_ms[id(ev)] = int(frame * FRAME_MS)
-            et = ev.type.value
-            if et == "hit":
-                defender = env.right if ev.target == env.right.id else env.left
-                attacker = env.left if ev.actor == env.left.id else env.right
-                is_crit = bool((ev.extra or {}).get("crit", False))
-                burst_size = 78 if is_crit else 52
-                burst_color = lcol if attacker is env.left else rcol
-                active_bursts.append([
-                    int(defender.pos_x), int(defender.pos_y) - 90,
-                    burst_color, burst_size, 0,
-                ])
-                if defender is env.left:
-                    left_flash_frames = max(left_flash_frames, 4)
-                else:
-                    right_flash_frames = max(right_flash_frames, 4)
-                # ── Camera shake on hit ──
-                if is_crit:
-                    impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
-                else:
-                    impact_fx.camera_shake.trigger(magnitude_px=2.0, duration_ms=120.0)
-                # ── Hit-confirm ring at defender's hip ──
-                impact_fx.spawn_hit_ring(
-                    x=int(defender.pos_x),
-                    y=int(defender.pos_y) - 60,
-                    color=burst_color)
-                # ── Attacker recoil: mark near-hand kick-back for 100 ms ──
-                _attacker_recoil[id(attacker)] = 100
-                # ── Pre-KO slow-mo: final blow gives a "going down" beat ──
-                if defender.hp <= 0:
-                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 200.0)
-                    _slowmo_dt_scale = 0.3
-            elif et == "crit":
-                defender = env.right if ev.target == env.right.id else env.left
-                attacker = env.left if ev.actor == env.left.id else env.right
-                burst_color = lcol if attacker is env.left else rcol
-                brand_col_crit = getattr(attacker, "brand_color",
-                                         getattr(attacker, "color", burst_color))
-                active_bursts.append([
-                    int(defender.pos_x), int(defender.pos_y) - 90,
-                    burst_color, 88, 0,
-                ])
-                active_shockwaves.append([
-                    int(defender.pos_x), int(defender.pos_y) - 90,
-                    burst_color, 0, 14, 230,
-                ])
-                if defender is env.left:
-                    left_flash_frames = max(left_flash_frames, 5)
-                else:
-                    right_flash_frames = max(right_flash_frames, 5)
-                shake_frames = SHAKE_FRAMES
-                # ── Crit emphasis: full-screen white flash + speed lines + slow-mo ──
-                impact_fx.flash_screen(color=(255, 255, 255), alpha=200)
-                impact_fx.spawn_crit_speed_lines(
-                    x=int(defender.pos_x),
-                    y=int(defender.pos_y) - 90,
-                    color=brand_col_crit)
-                # Crit slow-mo: next ~100 ms of sim runs at 40% speed
-                _slowmo_remaining_ms = max(_slowmo_remaining_ms, 100.0)
-                _slowmo_dt_scale = 0.4
-                # Pre-KO slow-mo: if this crit drops the defender to 0 HP
-                if defender.hp <= 0:
-                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 200.0)
-                    _slowmo_dt_scale = 0.3
-            elif et == "attack_windup":
-                vfx = (ev.extra or {}).get("vfx", "melee")
-                skill_type_str = (ev.extra or {}).get("skill_type", "")
-                actor_obj = env.left if ev.actor == env.left.id else env.right
-                target_obj = env.right if actor_obj is env.left else env.left
-                a_color = lcol if actor_obj is env.left else rcol
-                brand_col = getattr(actor_obj, "brand_color",
-                                    getattr(actor_obj, "color", a_color))
-                ax, ay = int(actor_obj.pos_x), int(actor_obj.pos_y)
-                tx, ty = int(target_obj.pos_x), int(target_obj.pos_y)
-                now_ms = int(frame * FRAME_MS)
-                if vfx == "bolt":
-                    projectiles.spawn(start=(ax, ay - 130), end=(tx, ty - 90),
-                                       color=a_color, current_ms=now_ms,
-                                       duration_ms=280)
-                elif vfx == "multishot":
-                    for off in (-44, -22, 0, 22, 44):
-                        projectiles.spawn(start=(ax, ay - 110),
-                                           end=(tx, ty - 90 + off),
+        # Only advance AI + engine on engine-tick frames
+        if _engine_this_frame:
+            left_act, right_act = action_source(env, (obs_left, obs_right))
+            prev_ev_n = len(env.battle.events)
+            # Slow-mo: advance the engine at a reduced rate this frame.
+            # When _slowmo_remaining_ms > 0 we pass a scaled dt to the battle.
+            if _slowmo_remaining_ms > 0:
+                _slowmo_remaining_ms -= ENGINE_MS
+                effective_dt = int(ENGINE_MS * _slowmo_dt_scale)
+                # Drive the battle engine directly with the scaled dt
+                env.battle.tick_ms(effective_dt, skip_ai=False)
+                # Re-derive observations from the existing env state
+                try:
+                    obs_left, obs_right = env._obs_pair()
+                except Exception:
+                    pass   # obs not critical for scripted renderer
+                terminated = env.battle.state is _BattleState.KO
+                truncated = False
+            else:
+                _slowmo_dt_scale = 1.0
+                (obs_left, obs_right), _, terminated, truncated, _ = env.step(
+                    (left_act, right_act)
+                )
+        else:
+            prev_ev_n = len(env.battle.events)  # no new events on in-between frames
+
+        # Interpolated draw positions (lerp prev→current by _interp_frac)
+        _draw_left_x = _prev_left_x + (env.left.pos_x - _prev_left_x) * _interp_frac
+        _draw_left_y = _prev_left_y + (env.left.pos_y - _prev_left_y) * _interp_frac
+        _draw_right_x = _prev_right_x + (env.right.pos_x - _prev_right_x) * _interp_frac
+        _draw_right_y = _prev_right_y + (env.right.pos_y - _prev_right_y) * _interp_frac
+
+        if _engine_this_frame:
+            for ev in env.battle.events[prev_ev_n:]:
+                event_video_ms[id(ev)] = int(frame * RENDER_MS)
+                et = ev.type.value
+                if et == "hit":
+                    defender = env.right if ev.target == env.right.id else env.left
+                    attacker = env.left if ev.actor == env.left.id else env.right
+                    is_crit = bool((ev.extra or {}).get("crit", False))
+                    burst_size = 78 if is_crit else 52
+                    burst_color = lcol if attacker is env.left else rcol
+                    active_bursts.append([
+                        int(defender.pos_x), int(defender.pos_y) - 90,
+                        burst_color, burst_size, 0,
+                    ])
+                    if defender is env.left:
+                        left_flash_frames = max(left_flash_frames, 8)
+                    else:
+                        right_flash_frames = max(right_flash_frames, 8)
+                    # ── Camera shake on hit ──
+                    if is_crit:
+                        impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
+                    else:
+                        impact_fx.camera_shake.trigger(magnitude_px=2.0, duration_ms=120.0)
+                    # ── Hit-confirm ring at defender's hip ──
+                    impact_fx.spawn_hit_ring(
+                        x=int(defender.pos_x),
+                        y=int(defender.pos_y) - 60,
+                        color=burst_color)
+                    # ── Attacker recoil: mark near-hand kick-back for 100 ms ──
+                    _attacker_recoil[id(attacker)] = 100
+                    # ── Pre-KO slow-mo: final blow gives a "going down" beat ──
+                    if defender.hp <= 0:
+                        _slowmo_remaining_ms = max(_slowmo_remaining_ms, 200.0)
+                        _slowmo_dt_scale = 0.3
+                elif et == "crit":
+                    defender = env.right if ev.target == env.right.id else env.left
+                    attacker = env.left if ev.actor == env.left.id else env.right
+                    burst_color = lcol if attacker is env.left else rcol
+                    brand_col_crit = getattr(attacker, "brand_color",
+                                             getattr(attacker, "color", burst_color))
+                    active_bursts.append([
+                        int(defender.pos_x), int(defender.pos_y) - 90,
+                        burst_color, 88, 0,
+                    ])
+                    active_shockwaves.append([
+                        int(defender.pos_x), int(defender.pos_y) - 90,
+                        burst_color, 0, 14, 230,
+                    ])
+                    if defender is env.left:
+                        left_flash_frames = max(left_flash_frames, 10)
+                    else:
+                        right_flash_frames = max(right_flash_frames, 10)
+                    shake_frames = SHAKE_FRAMES * 2  # doubled for 120fps
+                    # ── Crit emphasis: full-screen white flash + speed lines + slow-mo ──
+                    impact_fx.flash_screen(color=(255, 255, 255), alpha=200)
+                    impact_fx.spawn_crit_speed_lines(
+                        x=int(defender.pos_x),
+                        y=int(defender.pos_y) - 90,
+                        color=brand_col_crit)
+                    # Crit slow-mo: next ~100 ms of sim runs at 40% speed
+                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 100.0)
+                    _slowmo_dt_scale = 0.4
+                    # Pre-KO slow-mo: if this crit drops the defender to 0 HP
+                    if defender.hp <= 0:
+                        _slowmo_remaining_ms = max(_slowmo_remaining_ms, 200.0)
+                        _slowmo_dt_scale = 0.3
+                elif et == "attack_windup":
+                    vfx = (ev.extra or {}).get("vfx", "melee")
+                    skill_type_str = (ev.extra or {}).get("skill_type", "")
+                    actor_obj = env.left if ev.actor == env.left.id else env.right
+                    target_obj = env.right if actor_obj is env.left else env.left
+                    a_color = lcol if actor_obj is env.left else rcol
+                    brand_col = getattr(actor_obj, "brand_color",
+                                        getattr(actor_obj, "color", a_color))
+                    ax, ay = int(actor_obj.pos_x), int(actor_obj.pos_y)
+                    tx, ty = int(target_obj.pos_x), int(target_obj.pos_y)
+                    now_ms = int(frame * RENDER_MS)
+                    if vfx == "bolt":
+                        projectiles.spawn(start=(ax, ay - 130), end=(tx, ty - 90),
                                            color=a_color, current_ms=now_ms,
-                                           duration_ms=300)
-                    # Multishot fan sparks from caster hand
-                    for off_deg in (-20, -10, 0, 10, 20):
-                        impact_fx.spawn_hit_spark(
-                            x=ax, y=ay - 110, damage=2, color=a_color)
-                elif vfx == "beam":
-                    bx = tx + (tx - ax) // 3
-                    active_beams.append([ax, ay - 95, bx, ty - 95, a_color, 0])
-                    # New: high-alpha beam overlay from ImpactFX
-                    impact_fx.spawn_beam_fx(x1=ax, x2=bx, y=ay - 95,
-                                             color=brand_col)
-                    screen_shake_frames_left = max(screen_shake_frames_left, 6)
-                    screen_shake_mag = max(screen_shake_mag, 5)
-                elif vfx == "spin":
-                    active_spins.append([ax, ay - 90, a_color, 0])
-                elif vfx == "aura":
-                    active_auras.append([ax, ay - 90, a_color, 0])
-                    # New: radial starburst from ImpactFX
-                    impact_fx.spawn_aura_starburst(x=ax, y=ay - 90,
-                                                    color=brand_col)
-                elif vfx == "shield":
-                    # New: buff pillar — bright vertical particles
-                    impact_fx.spawn_buff_pillar(x=ax, y=ay - 20, color=brand_col)
-                    active_auras.append([ax, ay - 90, a_color, 0])
-                elif vfx == "dash":
-                    active_bursts.append([ax, ay - 90, a_color, 40, 0])
-                    # New: dash afterimage from caster toward target
-                    impact_fx.spawn_dash_afterimage(
-                        sx=float(ax), sy=float(ay),
-                        ex=float(tx), ey=float(ty),
-                        color=a_color)
-                elif vfx == "slam":
-                    active_shockwaves.append([tx, ty - 90, a_color, 0, 16, 300])
-                kind = (ev.extra or {}).get("skill_type")
-                if kind in ("cooldown", "special"):
-                    skill_id = (ev.extra or {}).get("skill_id", "?")
-                    banner_text = str(skill_id).upper().replace("_", " ") + "!"
-                    banner_until_frame = frame + 36
-                    # Charge orb at caster's near-hand height (shoulder ~-130 px)
+                                           duration_ms=280)
+                    elif vfx == "multishot":
+                        for off in (-44, -22, 0, 22, 44):
+                            projectiles.spawn(start=(ax, ay - 110),
+                                               end=(tx, ty - 90 + off),
+                                               color=a_color, current_ms=now_ms,
+                                               duration_ms=300)
+                        # Multishot fan sparks from caster hand
+                        for off_deg in (-20, -10, 0, 10, 20):
+                            impact_fx.spawn_hit_spark(
+                                x=ax, y=ay - 110, damage=2, color=a_color)
+                    elif vfx == "beam":
+                        bx = tx + (tx - ax) // 3
+                        active_beams.append([ax, ay - 95, bx, ty - 95, a_color, 0])
+                        # New: high-alpha beam overlay from ImpactFX
+                        impact_fx.spawn_beam_fx(x1=ax, x2=bx, y=ay - 95,
+                                                 color=brand_col)
+                        screen_shake_frames_left = max(screen_shake_frames_left, 12)
+                        screen_shake_mag = max(screen_shake_mag, 5)
+                    elif vfx == "spin":
+                        active_spins.append([ax, ay - 90, a_color, 0])
+                    elif vfx == "aura":
+                        active_auras.append([ax, ay - 90, a_color, 0])
+                        # New: radial starburst from ImpactFX
+                        impact_fx.spawn_aura_starburst(x=ax, y=ay - 90,
+                                                        color=brand_col)
+                    elif vfx == "shield":
+                        # New: buff pillar — bright vertical particles
+                        impact_fx.spawn_buff_pillar(x=ax, y=ay - 20, color=brand_col)
+                        active_auras.append([ax, ay - 90, a_color, 0])
+                    elif vfx == "dash":
+                        active_bursts.append([ax, ay - 90, a_color, 40, 0])
+                        # New: dash afterimage from caster toward target
+                        impact_fx.spawn_dash_afterimage(
+                            sx=float(ax), sy=float(ay),
+                            ex=float(tx), ey=float(ty),
+                            color=a_color)
+                    elif vfx == "slam":
+                        active_shockwaves.append([tx, ty - 90, a_color, 0, 16, 300])
+                    kind = (ev.extra or {}).get("skill_type")
+                    if kind in ("cooldown", "special"):
+                        skill_id = (ev.extra or {}).get("skill_id", "?")
+                        banner_text = str(skill_id).upper().replace("_", " ") + "!"
+                        banner_until_frame = frame + 72   # doubled: was 36 @ 60fps
+                        # Charge orb at caster's near-hand height (shoulder ~-130 px)
+                        impact_fx.spawn_charge_orb(
+                            x=ax, y=ay - 130, color=brand_col,
+                            lifetime_ms=150, scale=1.0)
+                elif et == "ultimate_start":
+                    banner_text = "ULTIMATE!"
+                    banner_until_frame = frame + 156   # doubled: was 78 @ 60fps
+                    flash_frames_left = 20             # doubled: was 10 @ 60fps
+                    defender = env.right if ev.target == env.right.id else env.left
+                    actor_obj = env.left if ev.actor == env.left.id else env.right
+                    burst_color = lcol if actor_obj is env.left else rcol
+                    brand_col_ult = getattr(actor_obj, "brand_color",
+                                            getattr(actor_obj, "color", burst_color))
+                    active_bursts.append([
+                        int(defender.pos_x), int(defender.pos_y) - 90,
+                        burst_color, 120, 0,
+                    ])
+                    active_bursts.append([
+                        int(defender.pos_x), int(defender.pos_y) - 90,
+                        (255, 240, 120), 80, 0,
+                    ])
+                    # Two screen-filling shockwave rings — the ultimate's "炸裂"
+                    active_shockwaves.append([
+                        int(defender.pos_x), int(defender.pos_y) - 90,
+                        (255, 240, 150), 0, 20, 460,
+                    ])
+                    active_shockwaves.append([
+                        int(defender.pos_x), int(defender.pos_y) - 90,
+                        burst_color, 0, 24, 520,
+                    ])
+                    screen_shake_frames_left = max(screen_shake_frames_left, 32)  # doubled
+                    screen_shake_mag = max(screen_shake_mag, 11)
+                    if defender is env.left:
+                        left_flash_frames = max(left_flash_frames, 14)  # doubled
+                    else:
+                        right_flash_frames = max(right_flash_frames, 14)
+                    # ── NEW: ultimate burst (flash + 30 sparks + text) ──
+                    impact_fx.spawn_ultimate_burst(
+                        x=int(actor_obj.pos_x),
+                        y=int(actor_obj.pos_y) - 60,
+                        color=brand_col_ult,
+                        surf_size=(WIDTH, HEIGHT))
+                    # Larger camera shake via CameraShake helper
+                    impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
+                    # Ultimate charge orb — 2× scale with rising particle column
                     impact_fx.spawn_charge_orb(
-                        x=ax, y=ay - 130, color=brand_col,
-                        lifetime_ms=150, scale=1.0)
-            elif et == "ultimate_start":
-                banner_text = "ULTIMATE!"
-                banner_until_frame = frame + 78
-                flash_frames_left = 10
-                defender = env.right if ev.target == env.right.id else env.left
-                actor_obj = env.left if ev.actor == env.left.id else env.right
-                burst_color = lcol if actor_obj is env.left else rcol
-                brand_col_ult = getattr(actor_obj, "brand_color",
-                                        getattr(actor_obj, "color", burst_color))
-                active_bursts.append([
-                    int(defender.pos_x), int(defender.pos_y) - 90,
-                    burst_color, 120, 0,
-                ])
-                active_bursts.append([
-                    int(defender.pos_x), int(defender.pos_y) - 90,
-                    (255, 240, 120), 80, 0,
-                ])
-                # Two screen-filling shockwave rings — the ultimate's "炸裂"
-                active_shockwaves.append([
-                    int(defender.pos_x), int(defender.pos_y) - 90,
-                    (255, 240, 150), 0, 20, 460,
-                ])
-                active_shockwaves.append([
-                    int(defender.pos_x), int(defender.pos_y) - 90,
-                    burst_color, 0, 24, 520,
-                ])
-                screen_shake_frames_left = max(screen_shake_frames_left, 16)
-                screen_shake_mag = max(screen_shake_mag, 11)
-                if defender is env.left:
-                    left_flash_frames = max(left_flash_frames, 7)
-                else:
-                    right_flash_frames = max(right_flash_frames, 7)
-                # ── NEW: ultimate burst (flash + 30 sparks + text) ──
-                impact_fx.spawn_ultimate_burst(
-                    x=int(actor_obj.pos_x),
-                    y=int(actor_obj.pos_y) - 60,
-                    color=brand_col_ult,
-                    surf_size=(WIDTH, HEIGHT))
-                # Larger camera shake via CameraShake helper
-                impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
-                # Ultimate charge orb — 2× scale with rising particle column
-                impact_fx.spawn_charge_orb(
-                    x=int(actor_obj.pos_x), y=int(actor_obj.pos_y) - 130,
-                    color=brand_col_ult, lifetime_ms=300, scale=2.0)
-                ult_vfx = (ev.extra or {}).get("vfx", "slam")
-                u_ax, u_ay = int(actor_obj.pos_x), int(actor_obj.pos_y)
-                u_tx, u_ty = int(defender.pos_x), int(defender.pos_y)
-                if ult_vfx == "beam":
-                    bx = u_tx + (u_tx - u_ax) // 2
-                    active_beams.append([u_ax, u_ay - 95, bx, u_ty - 95,
-                                         (255, 255, 255), 0])
-                    active_beams.append([u_ax, u_ay - 95, bx, u_ty - 95,
-                                         burst_color, 0])
-                    impact_fx.spawn_beam_fx(x1=u_ax, x2=bx, y=u_ay - 95,
-                                             color=brand_col_ult)
-                elif ult_vfx == "bolt":
-                    projectiles.spawn(start=(u_ax, u_ay - 130),
-                                       end=(u_tx, u_ty - 90),
-                                       color=burst_color,
-                                       current_ms=int(frame * FRAME_MS),
-                                       duration_ms=240)
-            elif et == "flash":
-                fx = ev.extra or {}
-                ground_y = GROUND_Y
-                actor_obj_fl = env.left if ev.actor == env.left.id else env.right
-                actor_col = lcol if ev.actor == env.left.id else rcol
-                from_x_fl = fx.get("from_x", 0)
-                to_x_fl = fx.get("to_x", 0)
-                # Ghost streak between from_x and to_x at hip height
-                hip_y_fl = ground_y - 55   # approximate hip: ~55 px above feet
-                impact_fx.spawn_flash_streak(
-                    from_x=float(from_x_fl), to_x=float(to_x_fl),
-                    hip_y=float(hip_y_fl), color=actor_col, n_ghosts=5)
-                # Keep the original puffs at origin/destination for extra punch
-                spawn_flash_puff(world, from_x_fl, ground_y, actor_col)
-                spawn_flash_puff(world, to_x_fl, ground_y, actor_col)
+                        x=int(actor_obj.pos_x), y=int(actor_obj.pos_y) - 130,
+                        color=brand_col_ult, lifetime_ms=300, scale=2.0)
+                    ult_vfx = (ev.extra or {}).get("vfx", "slam")
+                    u_ax, u_ay = int(actor_obj.pos_x), int(actor_obj.pos_y)
+                    u_tx, u_ty = int(defender.pos_x), int(defender.pos_y)
+                    if ult_vfx == "beam":
+                        bx = u_tx + (u_tx - u_ax) // 2
+                        active_beams.append([u_ax, u_ay - 95, bx, u_ty - 95,
+                                             (255, 255, 255), 0])
+                        active_beams.append([u_ax, u_ay - 95, bx, u_ty - 95,
+                                             burst_color, 0])
+                        impact_fx.spawn_beam_fx(x1=u_ax, x2=bx, y=u_ay - 95,
+                                                 color=brand_col_ult)
+                    elif ult_vfx == "bolt":
+                        projectiles.spawn(start=(u_ax, u_ay - 130),
+                                           end=(u_tx, u_ty - 90),
+                                           color=burst_color,
+                                           current_ms=int(frame * RENDER_MS),
+                                           duration_ms=240)
+                elif et == "flash":
+                    fx = ev.extra or {}
+                    ground_y = GROUND_Y
+                    actor_obj_fl = env.left if ev.actor == env.left.id else env.right
+                    actor_col = lcol if ev.actor == env.left.id else rcol
+                    from_x_fl = fx.get("from_x", 0)
+                    to_x_fl = fx.get("to_x", 0)
+                    # Ghost streak between from_x and to_x at hip height
+                    hip_y_fl = ground_y - 55   # approximate hip: ~55 px above feet
+                    impact_fx.spawn_flash_streak(
+                        from_x=float(from_x_fl), to_x=float(to_x_fl),
+                        hip_y=float(hip_y_fl), color=actor_col, n_ghosts=5)
+                    # Keep the original puffs at origin/destination for extra punch
+                    spawn_flash_puff(world, from_x_fl, ground_y, actor_col)
+                    spawn_flash_puff(world, to_x_fl, ground_y, actor_col)
 
-        # Route new events to the impact FX layer (KOF-style sparks + text)
-        for ev in env.battle.events[prev_ev_n:]:
-            ev_t = ev.type.value
-            if ev_t in ("hit", "crit"):
-                target = env.right if ev.target == env.right.id else env.left
-                attacker_ev = env.left if ev.actor == env.left.id else env.right
-                col = hud_overlay._color(target.id)
-                burst_col_ev = lcol if attacker_ev is env.left else rcol
-                impact_fx.spawn_hit_spark(x=int(target.pos_x),
-                                          y=int(target.pos_y) - 20,
-                                          damage=ev.amount, color=col)
-                is_crit_ev = (ev_t == "crit") or bool((ev.extra or {}).get("crit"))
-                if is_crit_ev:
-                    impact_fx.flash_screen(color=(255, 240, 180), alpha=160)
-                    # Bigger (1.5×) brand-colored CRIT! text
-                    crit_brand = getattr(attacker_ev, "brand_color",
-                                         getattr(attacker_ev, "color", burst_col_ev))
-                    impact_fx.spawn_floating_text(x=int(target.pos_x),
-                                                  y=int(target.pos_y) - 40,
-                                                  text="CRIT!", color=crit_brand,
-                                                  font_size=66)  # ~1.5× of default 44
-                else:
-                    impact_fx.spawn_floating_text(x=int(target.pos_x),
-                                                  y=int(target.pos_y) - 40,
-                                                  text="HIT!", color=(255, 240, 200))
-                # Hit-confirm ring (also for crit — ring appears at defender hip)
-                impact_fx.spawn_hit_ring(x=int(target.pos_x),
-                                         y=int(target.pos_y) - 60,
-                                         color=burst_col_ev)
-            elif ev_t == "ultimate_start":
-                impact_fx.flash_screen(color=(255, 60, 60), alpha=200)
+            # Route new events to the impact FX layer (KOF-style sparks + text)
+            for ev in env.battle.events[prev_ev_n:]:
+                ev_t = ev.type.value
+                if ev_t in ("hit", "crit"):
+                    target = env.right if ev.target == env.right.id else env.left
+                    attacker_ev = env.left if ev.actor == env.left.id else env.right
+                    col = hud_overlay._color(target.id)
+                    burst_col_ev = lcol if attacker_ev is env.left else rcol
+                    impact_fx.spawn_hit_spark(x=int(target.pos_x),
+                                              y=int(target.pos_y) - 20,
+                                              damage=ev.amount, color=col)
+                    is_crit_ev = (ev_t == "crit") or bool((ev.extra or {}).get("crit"))
+                    if is_crit_ev:
+                        impact_fx.flash_screen(color=(255, 240, 180), alpha=160)
+                        # Bigger (1.5×) brand-colored CRIT! text
+                        crit_brand = getattr(attacker_ev, "brand_color",
+                                             getattr(attacker_ev, "color", burst_col_ev))
+                        impact_fx.spawn_floating_text(x=int(target.pos_x),
+                                                      y=int(target.pos_y) - 40,
+                                                      text="CRIT!", color=crit_brand,
+                                                      font_size=66)  # ~1.5× of default 44
+                    else:
+                        impact_fx.spawn_floating_text(x=int(target.pos_x),
+                                                      y=int(target.pos_y) - 40,
+                                                      text="HIT!", color=(255, 240, 200))
+                    # Hit-confirm ring (also for crit — ring appears at defender hip)
+                    impact_fx.spawn_hit_ring(x=int(target.pos_x),
+                                             y=int(target.pos_y) - 60,
+                                             color=burst_col_ev)
+                elif ev_t == "ultimate_start":
+                    impact_fx.flash_screen(color=(255, 60, 60), alpha=200)
 
         # KO sequence — drives slow-mo + zoom once battle.state == KO
         ko_active = env.battle.state == _BattleState.KO
         ko_loser_x = (int(env.battle.left.pos_x)
                       if env.battle.left.hp <= 0 else int(env.battle.right.pos_x))
-        ko_result = ko_seq.tick(ko_active=ko_active, ko_loser_x=ko_loser_x, dt_ms=16)
+        ko_result = ko_seq.tick(ko_active=ko_active, ko_loser_x=ko_loser_x, dt_ms=RENDER_MS)
         if ko_result.spawn_flash:
             impact_fx.flash_screen(color=(255, 255, 255), alpha=255)
         if ko_result.spawn_splash:
@@ -761,48 +797,63 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         prev_on_ground_left = env.left.on_ground
         prev_on_ground_right = env.right.on_ground
 
-        # World layer
+        # World layer — apply interpolated draw positions for the render frame
         world.fill(BG)
         _draw_back_wall(world)
         _draw_floor(world)
-        _draw_shadow(world, env.left)
-        _draw_shadow(world, env.right)
 
-        left_color = HIT_FLASH if left_flash_frames > 0 else lcol
-        right_color = HIT_FLASH if right_flash_frames > 0 else rcol
-        left_flash_frames = max(0, left_flash_frames - 1)
-        right_flash_frames = max(0, right_flash_frames - 1)
+        # Temporarily override pos_x/pos_y with interpolated values for drawing only
+        def _set_draw_pos(char, ix, iy):
+            char._orig_pos_x, char._orig_pos_y = char.pos_x, char.pos_y
+            char.pos_x, char.pos_y = ix, iy
 
-        # Attacker recoil: tick down timers and apply temporary pos nudge
-        # so the near-hand reads as "kicked back on contact."
-        # We store remaining_ms in _attacker_recoil keyed by id(char).
-        for char in (env.left, env.right):
-            cid = id(char)
-            if cid in _attacker_recoil:
-                _attacker_recoil[cid] = max(0, _attacker_recoil[cid] - int(FRAME_MS))
-                if _attacker_recoil[cid] == 0:
-                    del _attacker_recoil[cid]
-        # Apply the recoil nudge: temporarily shift pos_x toward defender so
-        # the figure's front arm extends slightly — reads as "punch recoil."
-        # We only nudge the pos_y by +4 px (downward shift = arm kick-back).
-        def _draw_with_recoil(surf, char, color):
-            cid = id(char)
-            if cid in _attacker_recoil:
-                orig_y = char.pos_y
-                char.pos_y = orig_y + 4
-                try:
-                    draw_stick_figure(surf, char, color)
-                finally:
-                    char.pos_y = orig_y
-            else:
-                draw_stick_figure(surf, char, color)
+        def _restore_draw_pos(char):
+            char.pos_x, char.pos_y = char._orig_pos_x, char._orig_pos_y
 
-        _draw_with_recoil(world, env.left, left_color)
-        _draw_with_recoil(world, env.right, right_color)
-        draw_effect_indicators(world, env.left, current_ms=int(frame * FRAME_MS))
-        draw_effect_indicators(world, env.right, current_ms=int(frame * FRAME_MS))
+        _set_draw_pos(env.left, _draw_left_x, _draw_left_y)
+        _set_draw_pos(env.right, _draw_right_x, _draw_right_y)
+        try:
+            _draw_shadow(world, env.left)
+            _draw_shadow(world, env.right)
 
-        projectiles.draw(world, int(frame * FRAME_MS))
+            left_color = HIT_FLASH if left_flash_frames > 0 else lcol
+            right_color = HIT_FLASH if right_flash_frames > 0 else rcol
+            left_flash_frames = max(0, left_flash_frames - 1)
+            right_flash_frames = max(0, right_flash_frames - 1)
+
+            # Attacker recoil: tick down timers and apply temporary pos nudge
+            # so the near-hand reads as "kicked back on contact."
+            # We store remaining_ms in _attacker_recoil keyed by id(char).
+            for char in (env.left, env.right):
+                cid = id(char)
+                if cid in _attacker_recoil:
+                    _attacker_recoil[cid] = max(0, _attacker_recoil[cid] - int(RENDER_MS))
+                    if _attacker_recoil[cid] == 0:
+                        del _attacker_recoil[cid]
+            # Apply the recoil nudge: temporarily shift pos_y by +4 px (downward = arm kick-back).
+            _cur_time_ms = frame * RENDER_MS
+
+            def _draw_with_recoil(surf, char, color):
+                cid = id(char)
+                if cid in _attacker_recoil:
+                    orig_y = char.pos_y
+                    char.pos_y = orig_y + 4
+                    try:
+                        draw_stick_figure(surf, char, color, time_ms=_cur_time_ms)
+                    finally:
+                        char.pos_y = orig_y
+                else:
+                    draw_stick_figure(surf, char, color, time_ms=_cur_time_ms)
+
+            _draw_with_recoil(world, env.left, left_color)
+            _draw_with_recoil(world, env.right, right_color)
+            draw_effect_indicators(world, env.left, current_ms=int(frame * RENDER_MS))
+            draw_effect_indicators(world, env.right, current_ms=int(frame * RENDER_MS))
+        finally:
+            _restore_draw_pos(env.left)
+            _restore_draw_pos(env.right)
+
+        projectiles.draw(world, int(frame * RENDER_MS))
 
         still_live = []
         for b in active_bursts:
@@ -861,14 +912,15 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         prev_world = world.copy()
 
         # Camera — follow midpoint (biased toward loser during KO), crop + upscale
-        mid_x = (env.left.pos_x + env.right.pos_x) / 2.0
+        # Use interpolated draw positions for smooth camera follow
+        mid_x = (_draw_left_x + _draw_right_x) / 2.0
         if ko_result.zoom > 1.0:
             # Bias camera center toward the loser for dramatic framing
             mid_x = mid_x * 0.4 + ko_result.zoom_focus_x * 0.6
         cam_x += (mid_x - cam_x) * CAM_FOLLOW
         # Combine old crit-shake with new per-hit ImpactFX CameraShake
         sx0, sy0 = camera_shake_offset(shake_frames)
-        sx1, sy1 = impact_fx.camera_shake.update(FRAME_MS)
+        sx1, sy1 = impact_fx.camera_shake.update(RENDER_MS)
         sx = sx0 + sx1
         sy = sy0 + sy1
         # KO zoom: tighter crop window so the loser fills more of the frame
@@ -896,8 +948,8 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         _draw_hud(surf, env)
 
         # New KOF-style HUD (top bars + name plates + timer) and impact FX
-        hud_overlay.draw(surf, env.battle, elapsed_ms=int(frame * FRAME_MS))
-        impact_fx.update_and_draw(surf, dt_ms=16)
+        hud_overlay.draw(surf, env.battle, elapsed_ms=int(frame * RENDER_MS))
+        impact_fx.update_and_draw(surf, dt_ms=RENDER_MS)
 
         # KO splash text held on screen during HOLD phase
         if ko_result.splash_alpha > 0 and not ko_result.spawn_splash:
@@ -932,10 +984,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             # then the standard whiteout that hands off to the result card.
             # The engine is already frozen (BattleState.KO → tick_ms no-ops).
             # We generate ~75 extra drama frames using the KO sequence controller.
-            ko_drama_frames = int(1.5 * FPS)   # ~1.5s of drama
-            ko_surf_base = surf.copy()          # snapshot of the last fight frame
+            ko_drama_frames = int(1.5 * RENDER_FPS)  # ~1.5s of drama at 120fps
+            ko_surf_base = surf.copy()               # snapshot of the last fight frame
             for _kf in range(ko_drama_frames):
-                _ko_r = ko_seq.tick(ko_active=True, ko_loser_x=ko_loser_x, dt_ms=16)
+                _ko_r = ko_seq.tick(ko_active=True, ko_loser_x=ko_loser_x, dt_ms=RENDER_MS)
                 if _ko_r.spawn_flash:
                     impact_fx.flash_screen(color=(255, 255, 255), alpha=255)
                 if _ko_r.spawn_splash:
@@ -956,16 +1008,16 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 except Exception:
                     surf.blit(ko_surf_base, (0, 0))
 
-                hud_overlay.draw(surf, env.battle, elapsed_ms=int(frame * FRAME_MS))
-                impact_fx.update_and_draw(surf, dt_ms=16)
+                hud_overlay.draw(surf, env.battle, elapsed_ms=int(frame * RENDER_MS))
+                impact_fx.update_and_draw(surf, dt_ms=RENDER_MS)
                 recorder.write_frame(surf)
                 n_written += 1
 
-            # Standard whiteout into the result card
+            # Standard whiteout into the result card (32 frames = 16 @ 60fps)
             final_frame = surf.copy()
-            for k in range(16):
+            for k in range(32):
                 ko_frame = final_frame.copy()
-                wa = int(215 * (k / 16) ** 1.4)
+                wa = int(215 * (k / 32) ** 1.4)
                 wl = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
                 wl.fill((255, 255, 255, wa))
                 ko_frame.blit(wl, (0, 0))
@@ -1011,7 +1063,7 @@ def run_one_match(model, seed: int, out_dir: Path,
     final_mp4 = out_dir / f"{match_name}.mp4"
 
     env = PixelBattleEnv(seed=seed)
-    recorder = FrameRecorder(str(raw_video), fps=FPS, width=WIDTH, height=HEIGHT)
+    recorder = FrameRecorder(str(raw_video), fps=RENDER_FPS, width=WIDTH, height=HEIGHT)
     recorder.start()
     mixer = AudioMixer(sample_rate=48000)
 
@@ -1020,7 +1072,7 @@ def run_one_match(model, seed: int, out_dir: Path,
 
     hit_count = sum(1 for ev in fight["events"] if ev.type.value == "hit")
 
-    total_duration_ms = int(fight["n_frames"] * FRAME_MS)
+    total_duration_ms = int(fight["n_frames"] * RENDER_MS)
     bgm_path = BGM_DIR / "battle_loop.mp3"
     if bgm_path.exists():
         bgm = _load_wav(bgm_path, mixer.sr)
@@ -1059,7 +1111,7 @@ def run_full_episode(model, out_dir: Path, left_id: str, right_id: str,
 
     env = PixelBattleEnv(seed=seed, left_id=left_id, right_id=right_id)
 
-    recorder = FrameRecorder(str(raw_video), fps=FPS, width=WIDTH, height=HEIGHT)
+    recorder = FrameRecorder(str(raw_video), fps=RENDER_FPS, width=WIDTH, height=HEIGHT)
     recorder.start()
     mixer = AudioMixer(sample_rate=48000)
     surf = pygame.Surface((WIDTH, HEIGHT))
@@ -1085,7 +1137,7 @@ def run_full_episode(model, out_dir: Path, left_id: str, right_id: str,
     recorder.stop()
 
     total_frames = INTRO_FRAMES + fight["n_frames"] + RESULT_FRAMES
-    total_duration_ms = int(total_frames * FRAME_MS)
+    total_duration_ms = int(total_frames * RENDER_MS)
 
     # ── AUDIO ────────────────────────────────────────────────────────────────
     bgm_path = BGM_DIR / "battle_loop.mp3"
@@ -1094,11 +1146,11 @@ def run_full_episode(model, out_dir: Path, left_id: str, right_id: str,
         looped = _loop_to_length(bgm, total_duration_ms, mixer.sr)
         mixer.bgm_bus.add(looped, t_ms=0)
     # Shift fight events past the intro
-    intro_offset_ms = int(INTRO_FRAMES * FRAME_MS)
+    intro_offset_ms = int(INTRO_FRAMES * RENDER_MS)
     shifted = {k: v + intro_offset_ms for k, v in fight["event_video_ms"].items()}
     _route_audio_for_events(fight["events"], shifted, mixer)
     # A KO stinger at the result-card boundary
-    ko_at = int((INTRO_FRAMES + fight["n_frames"]) * FRAME_MS)
+    ko_at = int((INTRO_FRAMES + fight["n_frames"]) * RENDER_MS)
     ko_samp = _load_sfx_samples_or_none("ko", mixer.sr)
     if ko_samp is not None:
         mixer.hit_bus.add(ko_samp, ko_at)
