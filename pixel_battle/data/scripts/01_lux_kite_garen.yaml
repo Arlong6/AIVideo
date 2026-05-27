@@ -1,113 +1,119 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# 蓋倫 vs 拉克絲 — VFX 原型精彩展示 + 全幅位移 + 跳躍
+# 蓋倫 vs 拉克絲 — 法師風箏 · 劍士防禦 · 大絕收場
+# KOF/SF style: swordsman flash-rushes in, mage roots + kites + ultimate climax
 # ──────────────────────────────────────────────────────────────────────────────
-# 【幕一 · 光之護障  0–7s】
-#   🛡 SHIELD VFX — 拉克絲「棱鏡護障」發動，光柱竄升，護盾光環浮現。
-#   ⚡ BOLT VFX   — 「光之鎖鏈」射出，軌跡殘影跟隨，蓋倫被束縛。
-#   💨 DASH VFX   — 蓋倫「決意一擊」衝刺殘影，三重鬼影掠過戰場。
-#   🦘 JUMP       — 拉克絲跳躍閃開蓋倫的平 A；蓋倫衝刺後空中衝撞。
 #
-# 【幕二 · 全幅位移風箏  7–15s】
-#   📍 WIDE ARENA — 拉克絲 flash:back 至 x≈420，蓋倫橫越 350 px 追殺。
-#   🌟 AURA VFX  — 「棱鏡護障」再次施放，八芒星光放射。
-#   🔵 BOLT VFX  — 「螢光奇點」連射，光彈噴湧，多段命中。
-#   💥 BEAM VFX  — 拉克絲「終極聖光」橫掃。
-#   🦘 JUMP       — 蓋倫跳躍接近 + 空中平 A；拉克絲跳躍閃開。
+# 【幕一 · 試探 + 固定 Probe & Root  0–4s】
+#   Lux fires light_binding at t=2.3s (root 1500ms on Garen).
+#   Garen BLOCKS the root hit (block fires t=2.2s, active until t=2.7s).
+#   Garen flash:in at t=2.7s (teleports to x≈280, Lux at x≈420, dist≈140).
+#   ROOT expires t≈3.96s. Garen decisive_strike at t=4.1s closes to ~80px.
 #
-# 【幕三 · 德瑪正義  15–24s】
-#   ☄ ULTIMATE VFX — 蓋倫「德瑪西亞的正義」降臨。
-#   勝者：蓋倫。踏過碎裂法杖。
+# 【幕二 · 貼身肉搏 Close Exchange  4–14s】
+#   Dense basics at 80-100px distance. Both take regular hits.
+#   Lux fires light_binding x2 more at CD windows (t≈6.5/10.5s, 固定).
+#   Garen BLOCKS light_binding #2 (block fires t=6.5s, active during hit).
+#   Light_binding #3 connects (Garen busy attacking at ~t=11s).
+#   By t=14s Lux should have ~90-96 MP from hits × 12 + taken × 6.
+#
+# 【幕三 · 大絕收場 Ultimate Climax  14–20s】
+#   final_spark fires when MP≥100 (~t=14.6s). Garen still has 8+ HP → KO!
+#   Slow-mo triggers on the pre-KO blow (final_spark deals 32 dmg).
 # ──────────────────────────────────────────────────────────────────────────────
-name: "Lux vs Garen — full-arena kiting, jumps, VFX showcase"
+name: "Lux vs Garen — mage kite + swordsman guard + ultimate climax"
 left: garen
 right: lux
-duration_ms: 26000
+duration_ms: 22000
 seed: 7
 left_timeline:
-  # ── Act 1: Flash in + decisive_strike DASH + jump-attack approach
-  - {t: 2100, do: "flash:in"}
-  - {t: 2150, do: "attack:cd"}        # decisive_strike → DASH VFX
-  - {t: 2700, do: "attack:basic"}
-  # Garen jumps toward Lux after she dodges (aerial approach)
-  - {t: 3200, do: jump}
-  - {t: 3350, do: "attack:basic"}     # jump-attack: aerial strike while descending
-  - {t: 3700, do: "attack:cd"}        # decisive_strike → DASH VFX
-  - {t: 4200, do: "attack:basic"}
-  - {t: 4700, do: "attack:cd"}        # decisive_strike → DASH VFX
+  # ── Act 1: Guard light_binding + advance to flash range
+  - {t: 400,  do: advance}
+  - {t: 800,  do: advance}
+  - {t: 1200, do: advance}
+  - {t: 1600, do: advance}
+  - {t: 2000, do: advance}
+  - {t: 2200, do: block}            # 防禦 light_binding #1 (hits t≈2.45s)
+  - {t: 2700, do: "flash:in"}       # teleport: x≈150 → x≈280 (root active, dist≈140)
+  # ── Fill idle gap between flash and decisive_strike ──
+  - {t: 3200, do: advance}          # press forward after flash
+  - {t: 3700, do: advance}          # keep closing distance
+  # ── Act 2: ROOT expires t≈3.96s — decisive_strike dash to close to 80px
+  - {t: 4100, do: "attack:cd"}      # decisive_strike DASH: 280 → ~340, Lux at ~420, dist≈80
+  - {t: 4600, do: "attack:basic"}   # first melee exchange
+  - {t: 5100, do: block}            # defensive guard
+  - {t: 5600, do: "attack:basic"}
+  - {t: 6100, do: advance}          # push in
+  - {t: 6400, do: "attack:cd"}      # decisive_strike DASH #2 (no-op: CD ready t=7600ms, engine drops)
+  - {t: 6500, do: block}            # 防禦 light_binding #2 (fires t≈6.72s, hits t≈6.86s) — block active!
+  - {t: 6900, do: block}            # hold guard
+  - {t: 7400, do: "attack:basic"}
+  - {t: 7900, do: advance}
+  - {t: 8200, do: "attack:basic"}
+  - {t: 8700, do: advance}
+  - {t: 9100, do: "attack:basic"}
+  - {t: 9600, do: block}
+  - {t: 10000, do: "attack:cd"}     # decisive_strike DASH #3 (CD ready ~7.6s, fires here)
+  - {t: 10500, do: "attack:basic"}
+  - {t: 11400, do: "attack:basic"}
+  - {t: 11900, do: advance}
+  - {t: 12200, do: "attack:basic"}
+  - {t: 12700, do: advance}
+  # ── Act 3: Final stretch — keep pressure to maintain melee range
+  - {t: 13000, do: "attack:basic"}
+  - {t: 13500, do: advance}
+  - {t: 13800, do: "attack:basic"}
+  - {t: 14300, do: advance}
+  - {t: 14600, do: "attack:basic"}
+  - {t: 15100, do: advance}
+  - {t: 15400, do: "attack:basic"}
+  - {t: 15900, do: advance}
+  - {t: 16200, do: "attack:basic"}
+  - {t: 16700, do: advance}
+  - {t: 17000, do: "attack:basic"}
+  - {t: 17500, do: advance}
+  - {t: 17800, do: "attack:basic"}
+  - {t: 18300, do: advance}
+  - {t: 18600, do: "attack:basic"}
+right_timeline:
+  # ── Act 1: Retreat a little, fire light_binding ROOT at t=2.3s
+  # (Garen at ~150px after intro, Lux at x=360, dist=210 < 280 range — hits!)
+  - {t: 2300, do: "cast:light_binding"}      # 固定 #1 — BOLT VFX + ROOT (Garen blocks it)
+  # ── Fill idle gap: Lux retreats as Garen flashes in ──
+  - {t: 2900, do: retreat}                   # back away from incoming flash
+  - {t: 3500, do: retreat}                   # keep distance
+  # ── Act 2: After root, dense basics (Garen dashes in ~t=4.1s)
+  # No retreats — stay at x≈420 for Garen to close into melee range
+  - {t: 4200, do: "attack:basic"}   # Garen just dashed in — jab back! (dist≈80px)
+  - {t: 4700, do: "attack:basic"}
   - {t: 5200, do: "attack:basic"}
   - {t: 5700, do: "attack:basic"}
-  # ── Act 2: Lux flashes far back — Garen pursues with flash:in across full arena
-  - {t: 6200, do: "attack:cd"}
-  # Garen jumps to cover ground while Lux kites to far side
-  - {t: 6800, do: jump}
-  - {t: 6900, do: "flash:in"}         # flash across 350+ px after jump apex
-  - {t: 7400, do: "attack:basic"}
-  - {t: 7800, do: "attack:cd"}        # decisive_strike → DASH VFX
-  - {t: 8300, do: "attack:basic"}
-  - {t: 8800, do: "attack:basic"}
-  # ── Garen CROUCHES under Lux's final_spark (~t=10400)
-  - {t: 9300, do: crouch}
-  - {t: 9900, do: "attack:basic"}
-  - {t: 10400, do: "attack:cd"}
-  # ── Act 3: Third flash-in — MP near 100, ultimate imminent
-  - {t: 10900, do: "flash:in"}
-  - {t: 10950, do: "attack:cd"}
-  - {t: 11500, do: "attack:basic"}
-  - {t: 12000, do: "attack:basic"}
-  - {t: 12500, do: "attack:cd"}
-  - {t: 13000, do: "attack:basic"}
-  - {t: 13400, do: "attack:cd"}
-  # ── ULTIMATE: demacian_justice fires when MP≥100
-  - {t: 13900, do: "cast:demacian_justice"}  # ULTIMATE VFX
-  - {t: 14500, do: "attack:basic"}
-  - {t: 15000, do: "attack:basic"}
-  - {t: 15500, do: "attack:cd"}
-  - {t: 16000, do: "attack:basic"}
-  - {t: 16500, do: "attack:basic"}
-  - {t: 17000, do: "attack:cd"}
-  - {t: 17500, do: "attack:basic"}
-  - {t: 18000, do: "attack:cd"}
-  - {t: 18500, do: "attack:basic"}
-  - {t: 19000, do: "attack:basic"}
-right_timeline:
-  # ── Act 1: Lux opens — SHIELD VFX first, then BOLT to bind
-  - {t: 2050, do: "cast:prismatic_barrier"}   # SHIELD VFX — pillar + base ring
-  - {t: 2300, do: "cast:light_binding"}       # BOLT VFX — projectile trail
-  - {t: 2900, do: "attack:basic"}
-  # Lux jumps to dodge Garen's incoming charge / aerial strike
-  - {t: 3150, do: jump}
-  - {t: 3600, do: "cast:lucent_singularity"}  # BOLT VFX
-  - {t: 4200, do: "attack:basic"}
-  - {t: 4800, do: "cast:light_binding"}       # BOLT VFX — roots Garen
-  - {t: 5400, do: "attack:basic"}
-  - {t: 6000, do: "cast:lucent_singularity"}  # BOLT VFX
-  - {t: 6400, do: "attack:basic"}             # filler — keeps Lux active
-  - {t: 6750, do: retreat}                    # back up before the flash
-  # ── Lux flash:back to far right edge for kiting (x≈420) at t=7000
-  - {t: 7000, do: "flash:back"}
-  # ── Act 2: kite from far right — AURA, BOLT, BEAM showcase
-  - {t: 7500, do: "cast:prismatic_barrier"}   # SHIELD VFX again (refresh shield)
+  - {t: 6200, do: "attack:basic"}
+  - {t: 6600, do: "cast:light_binding"}      # 固定 #2 (CD ready ~6.3s) — Garen blocks!
+  - {t: 7100, do: "attack:basic"}
+  - {t: 7600, do: "attack:basic"}
   - {t: 8100, do: "attack:basic"}
-  - {t: 8700, do: "cast:lucent_singularity"}  # BOLT VFX
-  - {t: 9300, do: "attack:basic"}
-  # Lux jumps to evade Garen's approach after he crouches
-  - {t: 9850, do: jump}
-  - {t: 10100, do: retreat}                   # short retreat right after landing
-  # Lux repositions + fires final_spark (beam) — Garen crouches to dodge
-  - {t: 10500, do: "cast:final_spark"}        # BEAM VFX — wide laser sweep
-  - {t: 11000, do: "attack:basic"}            # filler to keep action flowing
-  # ── Post-spark: Lux repositions
-  - {t: 11400, do: block}
-  - {t: 12100, do: "cast:light_binding"}      # BOLT VFX
-  - {t: 12700, do: "attack:basic"}
-  - {t: 13300, do: "cast:lucent_singularity"} # BOLT VFX
-  # ── Act 3 — desperate last stand; jump once to dodge ultimate blast
-  - {t: 14000, do: jump}                      # desperately evade demacian_justice
-  - {t: 14200, do: "attack:basic"}
-  - {t: 14800, do: "cast:light_binding"}      # BOLT VFX
-  - {t: 15400, do: "attack:basic"}
-  - {t: 16000, do: "cast:lucent_singularity"} # BOLT VFX
-  - {t: 16600, do: "attack:basic"}
-  - {t: 17200, do: "cast:light_binding"}      # BOLT VFX
-  - {t: 17800, do: "attack:basic"}
-  - {t: 18400, do: "cast:lucent_singularity"} # BOLT VFX
+  - {t: 8600, do: "attack:basic"}
+  - {t: 9100, do: "attack:basic"}
+  - {t: 9600, do: "attack:basic"}
+  - {t: 10100, do: "attack:basic"}
+  - {t: 10600, do: "cast:light_binding"}     # 固定 #3 (CD ready ~10.3s) — connects!
+  - {t: 11100, do: "attack:basic"}
+  - {t: 11600, do: "attack:basic"}
+  - {t: 12100, do: "attack:basic"}
+  - {t: 12600, do: "attack:basic"}
+  - {t: 13100, do: "attack:basic"}
+  - {t: 13500, do: "attack:basic"}
+  - {t: 13800, do: "attack:basic"}           # push MP toward 100
+  # ── Act 3: Ultimate climax — final_spark when MP≥100
+  # With 2 blocked light_bindings: Garen survives to ~10 HP when LuxMP=100
+  - {t: 14100, do: "cast:final_spark"}       # 大絕! attempt #1 — fires when MP≥100
+  - {t: 14700, do: "attack:basic"}
+  - {t: 15100, do: "cast:final_spark"}       # attempt #2
+  - {t: 15700, do: "attack:basic"}
+  - {t: 16100, do: "cast:final_spark"}       # attempt #3
+  - {t: 16700, do: "attack:basic"}
+  - {t: 17100, do: "cast:final_spark"}       # attempt #4
+  - {t: 17700, do: "attack:basic"}
+  - {t: 18100, do: "cast:final_spark"}       # attempt #5
+  - {t: 18700, do: "attack:basic"}
+  - {t: 19100, do: "cast:final_spark"}       # attempt #6
