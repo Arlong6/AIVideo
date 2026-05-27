@@ -696,9 +696,18 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             elif et == "flash":
                 fx = ev.extra or {}
                 ground_y = GROUND_Y
+                actor_obj_fl = env.left if ev.actor == env.left.id else env.right
                 actor_col = lcol if ev.actor == env.left.id else rcol
-                spawn_flash_puff(world, fx.get("from_x", 0), ground_y, actor_col)
-                spawn_flash_puff(world, fx.get("to_x", 0), ground_y, actor_col)
+                from_x_fl = fx.get("from_x", 0)
+                to_x_fl = fx.get("to_x", 0)
+                # Ghost streak between from_x and to_x at hip height
+                hip_y_fl = ground_y - 55   # approximate hip: ~55 px above feet
+                impact_fx.spawn_flash_streak(
+                    from_x=float(from_x_fl), to_x=float(to_x_fl),
+                    hip_y=float(hip_y_fl), color=actor_col, n_ghosts=5)
+                # Keep the original puffs at origin/destination for extra punch
+                spawn_flash_puff(world, from_x_fl, ground_y, actor_col)
+                spawn_flash_puff(world, to_x_fl, ground_y, actor_col)
 
         # Route new events to the impact FX layer (KOF-style sparks + text)
         for ev in env.battle.events[prev_ev_n:]:

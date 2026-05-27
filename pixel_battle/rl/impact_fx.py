@@ -28,6 +28,7 @@ DASH_AFTERIMAGE_MS = 350
 ULTIMATE_BURST_MS = 500
 HIT_RING_MS = 220           # hit-confirm ring duration
 CHARGE_ORB_MS = 150         # matches ATTACK_WINDUP_MS — orb fills the full windup
+FLASH_STREAK_MS = 250       # ghost trail left by a teleport
 
 ULTIMATE_FONT_SIZE = 32
 
@@ -113,6 +114,28 @@ class _ChargeOrb:
 
 
 @dataclass
+class _FlashStreak:
+    """Ghost figures + a streak line left by a Flash teleport.
+
+    n_ghost positions are evenly spaced between from_x and to_x.  Each ghost
+    is a minimal torso silhouette drawn at decreasing alpha (heaviest near
+    from_x, lightest near to_x).  A single horizontal streak line connects
+    from_x to to_x at hip height for extra emphasis.
+
+    `ghost_pts` is a list of (gx, gy) world positions for the ghost centroids.
+    `ghost_base_alphas` is the alpha for each ghost at age 0 (decays to 0).
+    """
+    from_x: float
+    to_x: float
+    hip_y: float
+    color: Tuple[int, int, int]
+    ghost_pts: list          # [(gx, gy), ...]
+    ghost_base_alphas: list  # [alpha_0, alpha_1, ...]
+    age_ms: int = 0
+    life_ms: int = FLASH_STREAK_MS
+
+
+@dataclass
 class _SpeedLine:
     """Single radial speed line radiating from a hit point."""
     x: float
@@ -194,6 +217,7 @@ class ImpactFX:
         self._hit_rings: List[_HitRing] = []
         self._charge_orbs: List[_ChargeOrb] = []
         self._speed_lines: List[_SpeedLine] = []
+        self._streaks: List[_FlashStreak] = []
         self.camera_shake: CameraShake = CameraShake()
 
     def spawn_hit_spark(self, x: int, y: int, damage: int,
@@ -311,6 +335,31 @@ class ImpactFX:
             self._speed_lines.append(
                 _SpeedLine(x=float(x), y=float(y),
                            angle_deg=angle, color=color))
+
+    def spawn_flash_streak(self, from_x: float, to_x: float,
+                            hip_y: float, color: Tuple[int, int, int],
+                            n_ghosts: int = 5) -> None:
+        """Flash teleport: n ghost torsos + a streak line between from_x and to_x.
+
+        Ghosts are evenly spaced along the path.  Alpha decays from 180 (closest
+        to from_x) to 30 (closest to to_x) so the trail reads left-to-right.
+        Each ghost fades to 0 over FLASH_STREAK_MS ms.
+        """
+        if n_ghosts < 1:
+            return
+        pts = []
+        alphas = []
+        for i in range(n_ghosts):
+            frac = i / max(1, n_ghosts - 1)   # 0.0 → 1.0
+            gx = from_x + (to_x - from_x) * frac
+            pts.append((gx, hip_y))
+            # alpha: 180 near from_x → 30 near to_x
+            alphas.append(int(180 - 150 * frac))
+        self._streaks.append(_FlashStreak(
+            from_x=from_x, to_x=to_x, hip_y=hip_y,
+            color=color,
+            ghost_pts=pts,
+            ghost_base_alphas=alphas))
 
     def spawn_ultimate_burst(self, x: int, y: int,
                               color: Tuple[int, int, int],
@@ -525,6 +574,47 @@ class ImpactFX:
                                (cx, cy), core_r)
             surf.blit(orb_surf, (int(orb.x) - radius - 4, int(orb.y) - radius - 4))
         self._charge_orbs = alive_orbs
+
+        # ── Flash streak + ghost trail ────────────────────────────────────────
+        alive_streaks: List[_FlashStreak] = []
+        for fs in self._streaks:
+            fs.age_ms += dt_ms
+            if fs.age_ms >= fs.life_ms:
+                continue
+            alive_streaks.append(fs)
+            frac = fs.age_ms / fs.life_ms
+            fade_mult = max(0.0, 1.0 - frac)
+
+            # Horizontal streak line from from_x to to_x at hip height (8 px wide)
+            streak_alpha = int(200 * fade_mult)
+            if streak_alpha > 0:
+                sl_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                pygame.draw.line(
+                    sl_surf,
+                    (*fs.color, streak_alpha),
+                    (int(fs.from_x), int(fs.hip_y)),
+                    (int(fs.to_x), int(fs.hip_y)),
+                    8)
+                surf.blit(sl_surf, (0, 0))
+
+            # Ghost torso silhouettes: minimal torso + arms cross at each ghost pt
+            for (gx, gy), base_alpha in zip(fs.ghost_pts, fs.ghost_base_alphas):
+                alpha = int(base_alpha * fade_mult)
+                if alpha <= 5:
+                    continue
+                ghost = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                gc = (*fs.color, alpha)
+                torso_top = (int(gx), int(gy) - 100)
+                torso_bot = (int(gx), int(gy) - 15)
+                pygame.draw.line(ghost, gc, torso_top, torso_bot, 5)
+                # Arms cross stroke
+                pygame.draw.line(ghost, gc,
+                                 (int(gx) - 18, int(gy) - 65),
+                                 (int(gx) + 18, int(gy) - 65), 4)
+                # Head dot
+                pygame.draw.circle(ghost, gc, (int(gx), int(gy) - 115), 8)
+                surf.blit(ghost, (0, 0))
+        self._streaks = alive_streaks
 
         # ── Speed lines (crit emphasis) ───────────────────────────────────────
         alive_sl: List[_SpeedLine] = []
