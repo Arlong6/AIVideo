@@ -504,11 +504,11 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     # ── Ultimate camera zoom controller ───────────────────────────────────────
     # On ULTIMATE_START: zoom 1.0 → 1.35 over 200 ms, hold 200 ms, back to 1.0
     # over 200 ms. Focus on the caster's x position.
-    _ULT_ZOOM_IN_MS = 200
-    _ULT_ZOOM_HOLD_MS = 200
-    _ULT_ZOOM_OUT_MS = 200
+    _ULT_ZOOM_IN_MS = 800       # zoom in over first 800ms of anticipation
+    _ULT_ZOOM_HOLD_MS = 700     # hold at max through rest of anticipation + release
+    _ULT_ZOOM_OUT_MS = 400      # pull back during aftermath
     _ULT_ZOOM_TOTAL_MS = _ULT_ZOOM_IN_MS + _ULT_ZOOM_HOLD_MS + _ULT_ZOOM_OUT_MS
-    _ULT_ZOOM_MAX = 1.35
+    _ULT_ZOOM_MAX = 1.5         # slightly tighter crop for drama
     _ult_zoom_age_ms: float = _ULT_ZOOM_TOTAL_MS   # starts "expired" (no zoom)
     _ult_zoom_focus_x: float = WIDTH / 2.0
 
