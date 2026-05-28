@@ -38,8 +38,8 @@ from pixel_battle.engine.physics import GROUND_Y  # noqa: E402
 WIDTH, HEIGHT = 480, 854
 FPS = 60
 FRAME_MS = 1000.0 / FPS
-RENDER_FPS = 120          # output frame rate (doubled for sub-frame smoothness)
-RENDER_MS = 1000.0 / RENDER_FPS   # 8.333 ms per render frame
+RENDER_FPS = 60           # output frame rate — match engine; 120fps mp4s confuse QuickTime into slow playback
+RENDER_MS = 1000.0 / RENDER_FPS   # 16.667 ms per render frame
 ENGINE_HZ = 60            # engine tick rate (unchanged)
 ENGINE_MS = 1000.0 / ENGINE_HZ    # 16.667 ms per engine tick
 HIT_FLASH = (255, 255, 255)   # color a fighter flashes to when struck

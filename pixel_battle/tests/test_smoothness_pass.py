@@ -30,10 +30,11 @@ def test_motion_blur_uses_higher_alpha():
 
 # ── T2a: Recorder is constructed at 120 fps ───────────────────────────────────
 
-def test_render_runs_at_120fps():
-    """RENDER_FPS constant must be 120."""
+def test_render_runs_at_60fps():
+    """RENDER_FPS = 60 — 120fps mp4s confuse QuickTime into slow playback.
+    Smoothness from sub-frame interpolation didn't justify the playback bug."""
     from pixel_battle.rl.play import RENDER_FPS
-    assert RENDER_FPS == 120, f"Expected RENDER_FPS=120, got {RENDER_FPS}"
+    assert RENDER_FPS == 60, f"Expected RENDER_FPS=60, got {RENDER_FPS}"
 
 
 # ── T2b: Engine ticks at 60 Hz during render ─────────────────────────────────
