@@ -429,6 +429,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     from pixel_battle.rl.hud import HUD as _HUD
     from pixel_battle.rl.impact_fx import ImpactFX as _ImpactFX
     from pixel_battle.rl.ko_sequence import KOSequence as _KOSequence
+    from pixel_battle.rl.ultimate_sequence import UltimateSequence as _UltSequence
     from pixel_battle.engine.battle import BattleState as _BattleState
     from pixel_battle.engine.skill import SkillType as _SkillType
 
@@ -439,6 +440,15 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     hud_overlay = _HUD()
     impact_fx = _ImpactFX()
     ko_seq = _KOSequence()
+    ult_seq = _UltSequence()
+    _ult_phase_particle_timer: int = 0  # ms since last converging-particle spawn batch
+    _ult_pending_vfx: str = ""
+    _ult_actor_x: float = 0.0
+    _ult_actor_y: float = 0.0
+    _ult_target_x: float = 0.0
+    _ult_target_y: float = 0.0
+    _ult_brand_col: tuple = (255, 240, 120)
+    _ult_burst_color: tuple = (255, 255, 255)
 
     surf = pygame.Surface((WIDTH, HEIGHT))
     world = pygame.Surface((WIDTH, HEIGHT))
@@ -677,56 +687,22 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                             x=ax, y=ay - 130, color=brand_col,
                             lifetime_ms=150, scale=1.0)
                 elif et == "ultimate_start":
-                    banner_text = "ULTIMATE!"
-                    banner_until_frame = frame + 156   # doubled: was 78 @ 60fps
-                    flash_frames_left = 20             # doubled: was 10 @ 60fps
-                    defender = env.right if ev.target == env.right.id else env.left
+                    # ── CINEMATIC ULTIMATE: trigger sequence, defer VFX to phases ──
                     actor_obj = env.left if ev.actor == env.left.id else env.right
+                    defender = env.right if ev.target == env.right.id else env.left
                     burst_color = lcol if actor_obj is env.left else rcol
                     brand_col_ult = getattr(actor_obj, "brand_color",
                                             getattr(actor_obj, "color", burst_color))
-                    active_bursts.append([
-                        int(defender.pos_x), int(defender.pos_y) - 90,
-                        burst_color, 120, 0,
-                    ])
-                    active_bursts.append([
-                        int(defender.pos_x), int(defender.pos_y) - 90,
-                        (255, 240, 120), 80, 0,
-                    ])
-                    # Two screen-filling shockwave rings — the ultimate's "炸裂"
-                    active_shockwaves.append([
-                        int(defender.pos_x), int(defender.pos_y) - 90,
-                        (255, 240, 150), 0, 20, 460,
-                    ])
-                    active_shockwaves.append([
-                        int(defender.pos_x), int(defender.pos_y) - 90,
-                        burst_color, 0, 24, 520,
-                    ])
-                    screen_shake_frames_left = max(screen_shake_frames_left, 32)  # doubled
-                    screen_shake_mag = max(screen_shake_mag, 11)
-                    if defender is env.left:
-                        left_flash_frames = max(left_flash_frames, 14)  # doubled
-                    else:
-                        right_flash_frames = max(right_flash_frames, 14)
-                    # ── NEW: ultimate burst (flash + 30 sparks + text) ──
-                    impact_fx.spawn_ultimate_burst(
-                        x=int(actor_obj.pos_x),
-                        y=int(actor_obj.pos_y) - 60,
+                    ult_seq.trigger(
+                        caster_x=float(actor_obj.pos_x),
+                        caster_y=float(actor_obj.pos_y),
+                        defender_x=float(defender.pos_x),
+                        defender_y=float(defender.pos_y),
                         color=brand_col_ult,
-                        surf_size=(WIDTH, HEIGHT))
-                    # Larger camera shake via CameraShake helper
-                    impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
-                    # ── Ultimate slow-mo: "the world stops" beat ──
-                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 350.0)
-                    _slowmo_dt_scale = 0.3
-                    # ── Ultimate camera zoom toward caster ──
-                    _ult_zoom_age_ms = 0.0
-                    _ult_zoom_focus_x = float(actor_obj.pos_x)
-                    # Ultimate charge orb — 2× scale with rising particle column
-                    impact_fx.spawn_charge_orb(
-                        x=int(actor_obj.pos_x), y=int(actor_obj.pos_y) - 130,
-                        color=brand_col_ult, lifetime_ms=300, scale=2.0)
-                    # ── Skill-name banner at screen centre ──
+                    )
+                    # Banner fires immediately (non-visual timing doesn't matter)
+                    banner_text = "ULTIMATE!"
+                    banner_until_frame = frame + 156
                     _SKILL_BANNER_MAP = {
                         "final_spark": "FINAL SPARK!",
                         "demacian_justice": "DEMACIAN JUSTICE!",
@@ -743,33 +719,22 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         name=banner_display,
                         color=brand_col_ult,
                         surf_size=(WIDTH, HEIGHT))
-                    ult_vfx = (ev.extra or {}).get("vfx", "slam")
-                    u_ax, u_ay = int(actor_obj.pos_x), int(actor_obj.pos_y)
-                    u_tx, u_ty = int(defender.pos_x), int(defender.pos_y)
-                    if ult_vfx == "beam":
-                        bx = u_tx + (u_tx - u_ax) // 2
-                        active_beams.append([u_ax, u_ay - 95, bx, u_ty - 95,
-                                             (255, 255, 255), 0])
-                        active_beams.append([u_ax, u_ay - 95, bx, u_ty - 95,
-                                             burst_color, 0])
-                        impact_fx.spawn_beam_fx(x1=u_ax, x2=bx, y=u_ay - 95,
-                                                 color=brand_col_ult)
-                        # ── EPIC: wide beam band + glow column + lens flare ──
-                        impact_fx.spawn_ultimate_beam(
-                            x1=float(u_ax), x2=float(bx), y=float(u_ay - 95),
-                            color=brand_col_ult, surf_size=(WIDTH, HEIGHT))
-                    elif ult_vfx in ("slam", "dash"):
-                        # ── EPIC: descending sword + shockwave ──
-                        impact_fx.spawn_ultimate_slam(
-                            impact_x=float(u_tx), impact_y=float(u_ty),
-                            color=brand_col_ult, surf_size=(WIDTH, HEIGHT))
-                    # (original bolt branch kept below)
-                    if ult_vfx == "bolt":
-                        projectiles.spawn(start=(u_ax, u_ay - 130),
-                                           end=(u_tx, u_ty - 90),
-                                           color=burst_color,
-                                           current_ms=int(frame * RENDER_MS),
-                                           duration_ms=240)
+                    # Store deferred VFX info for RELEASE phase
+                    _ult_pending_vfx = (ev.extra or {}).get("vfx", "slam")
+                    _ult_actor_x = float(actor_obj.pos_x)
+                    _ult_actor_y = float(actor_obj.pos_y)
+                    _ult_target_x = float(defender.pos_x)
+                    _ult_target_y = float(defender.pos_y)
+                    _ult_brand_col = brand_col_ult
+                    _ult_burst_color = burst_color
+                    # Reset camera zoom to track anticipation
+                    _ult_zoom_age_ms = 0.0
+                    _ult_zoom_focus_x = float(actor_obj.pos_x)
+                    # Flash the defender during anticipation startup
+                    if defender is env.left:
+                        left_flash_frames = max(left_flash_frames, 6)
+                    else:
+                        right_flash_frames = max(right_flash_frames, 6)
                 elif et == "flash":
                     fx = ev.extra or {}
                     ground_y = GROUND_Y
@@ -817,6 +782,101 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                                              color=burst_col_ev)
                 elif ev_t == "ultimate_start":
                     impact_fx.flash_screen(color=(255, 60, 60), alpha=200)
+
+        # ── Ultimate sequence — per-frame cinematic phase dispatch ────────────
+        ult_result = ult_seq.tick(triggered=False, dt_ms=RENDER_MS)
+        if ult_result.phase is not None:
+            # Vignette: request each frame during anticipation
+            if ult_result.vignette_alpha > 0:
+                impact_fx.spawn_vignette(
+                    alpha=ult_result.vignette_alpha,
+                    surf_size=(WIDTH, HEIGHT))
+            # Caster aura: replace each frame with growing radius
+            if ult_result.caster_aura_radius > 0:
+                impact_fx.spawn_caster_aura(
+                    cx=ult_result.caster_x,
+                    cy=ult_result.caster_y - 90,
+                    radius=ult_result.caster_aura_radius,
+                    color=ult_result.color,
+                    t=ult_result.magic_circle_t)
+            # Magic circle at caster feet
+            if ult_result.magic_circle_t > 0:
+                impact_fx.spawn_magic_circle(
+                    cx=ult_result.caster_x,
+                    ground_y=GROUND_Y,
+                    radius=40 + ult_result.magic_circle_t * 40,
+                    color=ult_result.color,
+                    rotation=ult_result.magic_circle_t * math.pi * 4)
+            # Converging particles: spawn every ~3 render frames
+            if ult_result.converging_particles_alpha > 0:
+                _ult_phase_particle_timer += int(RENDER_MS)
+                if _ult_phase_particle_timer >= 50:   # ~3 frames at 60fps
+                    _ult_phase_particle_timer = 0
+                    impact_fx.spawn_converging_particles(
+                        target_x=ult_result.caster_x,
+                        target_y=ult_result.caster_y - 90,
+                        color=ult_result.color,
+                        surf_w=WIDTH,
+                        surf_h=HEIGHT,
+                        n=3)
+            # Release phase one-shots
+            if ult_result.spawn_release_flash:
+                impact_fx.spawn_release_flash()
+            if ult_result.spawn_beam:
+                # Fire the beam VFX deferred from the event handler
+                if _ult_pending_vfx == "beam":
+                    bx = _ult_target_x + (_ult_target_x - _ult_actor_x) / 2
+                    active_beams.append([
+                        int(_ult_actor_x), int(_ult_actor_y) - 95,
+                        int(bx), int(_ult_target_y) - 95,
+                        (255, 255, 255), 0])
+                    active_beams.append([
+                        int(_ult_actor_x), int(_ult_actor_y) - 95,
+                        int(bx), int(_ult_target_y) - 95,
+                        _ult_burst_color, 0])
+                    impact_fx.spawn_beam_fx(
+                        x1=_ult_actor_x, x2=bx, y=_ult_actor_y - 95,
+                        color=_ult_brand_col)
+                    impact_fx.spawn_ultimate_beam(
+                        x1=float(_ult_actor_x), x2=float(bx),
+                        y=float(_ult_actor_y - 95),
+                        color=_ult_brand_col, surf_size=(WIDTH, HEIGHT))
+                elif _ult_pending_vfx in ("slam", "dash"):
+                    impact_fx.spawn_ultimate_slam(
+                        impact_x=float(_ult_target_x),
+                        impact_y=float(_ult_target_y),
+                        color=_ult_brand_col, surf_size=(WIDTH, HEIGHT))
+                    active_shockwaves.append([
+                        int(_ult_target_x), int(_ult_target_y) - 90,
+                        (255, 240, 150), 0, 20, 460])
+                    active_shockwaves.append([
+                        int(_ult_target_x), int(_ult_target_y) - 90,
+                        _ult_burst_color, 0, 24, 520])
+                elif _ult_pending_vfx == "bolt":
+                    projectiles.spawn(start=(int(_ult_actor_x), int(_ult_actor_y) - 130),
+                                       end=(int(_ult_target_x), int(_ult_target_y) - 90),
+                                       color=_ult_burst_color,
+                                       current_ms=int(frame * RENDER_MS),
+                                       duration_ms=240)
+                # Camera shake + flash on release
+                impact_fx.flash_screen(color=(255, 60, 60), alpha=200)
+                impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
+                screen_shake_frames_left = max(screen_shake_frames_left, 32)
+                screen_shake_mag = max(screen_shake_mag, 11)
+            # Aftermath one-shots
+            if ult_result.spawn_smoke:
+                impact_fx.spawn_smoke_cloud(
+                    x=_ult_target_x,
+                    y=_ult_target_y,
+                    color=_ult_brand_col)
+            if ult_result.spawn_defender_silhouette:
+                impact_fx.spawn_defender_silhouette(
+                    defender_x=_ult_target_x,
+                    defender_y=_ult_target_y)
+        # Override slow-mo dt during ultimate anticipation / release
+        if ult_result.phase is not None and ult_result.dt_scale < 1.0:
+            _slowmo_remaining_ms = max(_slowmo_remaining_ms, ENGINE_MS * 2)
+            _slowmo_dt_scale = ult_result.dt_scale
 
         # KO sequence — drives slow-mo + zoom once battle.state == KO
         ko_active = env.battle.state == _BattleState.KO
