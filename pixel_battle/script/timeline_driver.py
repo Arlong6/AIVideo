@@ -19,6 +19,11 @@ from pixel_battle.script.timeline_format import Timeline, TimelineEvent
 # Must match rl/env.py:TICK_MS. Update both together.
 ENGINE_TICK_MS = 16
 
+# Cumulative-delay cap: stuns and long animations would otherwise push a
+# character's whole timeline arbitrarily far into the future, causing huge
+# idle gaps later. 400ms is "two attack-phase animations" worth of slop.
+DELAY_CAP_MS = 400
+
 # Action int constants — kept in sync with DO_VERBS / engine `_apply_action`.
 _IDLE = 0
 _RETREAT = 1
@@ -109,7 +114,17 @@ class TimelineDriver:
         if elapsed_ms < scheduled_t:
             return _IDLE
         if not _can_act(char, ev.action_int):
-            cursor.delay_ms += ENGINE_TICK_MS
+            # Special case: rooted character with a movement event — root can
+            # last 1.5s+, which would otherwise jam the whole timeline behind
+            # one missed step. SKIP the movement event (advance cursor) rather
+            # than wait — its window has already passed.
+            if char.has_effect(ROOT) and ev.action_int in _MOVE_ACTIONS:
+                cursor.advance()
+                return _IDLE
+            # Cap cumulative delay so long stuns don't push the whole timeline
+            # arbitrarily far into the future.
+            if cursor.delay_ms < DELAY_CAP_MS:
+                cursor.delay_ms += ENGINE_TICK_MS
             return _IDLE
         # Fire — set the named-skill channel for cast: events, then advance cursor.
         if ev.skill_id is not None:

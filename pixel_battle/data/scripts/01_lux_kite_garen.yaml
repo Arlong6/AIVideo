@@ -51,8 +51,11 @@ left_timeline:
   - {t: 8200, do: "attack:basic"}
   - {t: 8700, do: advance}
   - {t: 9100, do: "attack:basic"}
+  - {t: 9300, do: block}            # filler — avoid idle gap from accumulated delay
   - {t: 9600, do: block}
+  - {t: 9800, do: retreat}          # filler
   - {t: 10000, do: "attack:cd"}     # decisive_strike DASH #3 (CD ready ~7.6s, fires here)
+  - {t: 10250, do: block}           # filler — avoid pre-hit idle
   - {t: 10500, do: "attack:basic"}
   - {t: 11400, do: "attack:basic"}
   - {t: 11900, do: advance}
@@ -75,42 +78,38 @@ left_timeline:
   - {t: 18300, do: advance}
   - {t: 18600, do: "attack:basic"}
 right_timeline:
-  # ── Act 1: Retreat a little, fire light_binding ROOT at t=2.3s
-  # (Garen at ~150px after intro, Lux at x=360, dist=210 < 280 range — hits!)
-  - {t: 2300, do: "cast:light_binding"}      # 固定 #1 — BOLT VFX + ROOT (Garen blocks it)
-  # ── Fill idle gap: Lux retreats as Garen flashes in ──
-  - {t: 2900, do: retreat}                   # back away from incoming flash
-  - {t: 3500, do: retreat}                   # keep distance
-  # ── Act 2: Kite pattern — engage / disengage cycles, never sustained melee ──
-  - {t: 4200, do: "attack:basic"}            # quick counter-jab on Garen's dash
-  - {t: 4500, do: "flash:back"}              # ESCAPE — open distance immediately
-  - {t: 5000, do: retreat}
-  - {t: 5600, do: retreat}
-  - {t: 6200, do: "cast:light_binding"}      # 固定 #2 from far (Flash CD'd, but distance there)
-  - {t: 6800, do: retreat}                   # filler between casts
-  - {t: 7000, do: retreat}
-  - {t: 7600, do: "cast:lucent_singularity"} # 遠程炮 #1 (special, projectile)
-  - {t: 8000, do: retreat}                   # filler
-  - {t: 8400, do: retreat}
-  - {t: 9000, do: "attack:basic"}            # Garen pursued — single close jab
-  - {t: 9400, do: retreat}                   # disengage
-  - {t: 10000, do: retreat}
-  - {t: 10500, do: "cast:light_binding"}     # 固定 #3
-  - {t: 10900, do: retreat}                  # filler between casts
-  - {t: 11400, do: "cast:lucent_singularity"} # 遠程炮 #2
-  - {t: 11800, do: retreat}                  # filler
-  - {t: 12200, do: retreat}
-  - {t: 12800, do: "attack:basic"}           # close jab to push MP toward ult
-  - {t: 13200, do: "flash:in"}               # CROSSOVER — flash THROUGH Garen to his other side
-  - {t: 13500, do: retreat}                  # now on Garen's left, retreat further left
-  - {t: 13800, do: retreat}
-  - {t: 14400, do: "attack:basic"}           # final MP nudge
-  # ── Act 3: ONE ultimate cast, then disengage ──
-  - {t: 14800, do: "cast:final_spark"}       # 大絕 — ONE attempt only (avoids slow-mo spam)
-  - {t: 15400, do: retreat}                  # filler during ultimate beat
-  - {t: 15800, do: "attack:basic"}           # mop-up if Garen survived
-  - {t: 16400, do: "attack:basic"}           # second mop-up
-  - {t: 17000, do: retreat}                  # cinematic walk-away
+  # Lux is a PURE MAGE — NEVER goes to melee. Ranged casts only + flash for repositioning.
+  # ── Act 1: Open with ranged root from afar
+  - {t: 1800, do: "cast:light_binding"}      # 固定 #1 — long-range root (range 280)
+  - {t: 2600, do: retreat}                   # back away
+  - {t: 3200, do: retreat}                   # keep distance
+  # ── Act 2: Ranged barrage from the right side
+  - {t: 3800, do: "cast:lucent_singularity"} # 遠程炮 #1 (special, range 300)
+  - {t: 4600, do: retreat}
+  - {t: 5200, do: "cast:light_binding"}      # 固定 #2 (CD ~4.3s after #1)
+  - {t: 6000, do: retreat}
+  # ── Act 3: CROSSOVER — flash THROUGH Garen to his other side
+  # Garen will be at ~280-350px by now, Lux at right wall (470).
+  # flash:in goes TOWARD opp = LEFT, distance 130. If dist≤130 Lux ends past Garen.
+  - {t: 6800, do: "flash:in"}                # CROSS! Lux now on LEFT of Garen
+  - {t: 7200, do: retreat}                   # retreat from Garen = LEFT (toward wall 10)
+  - {t: 7800, do: retreat}
+  # ── Act 4: Kite from the LEFT side now
+  - {t: 8400, do: "cast:light_binding"}      # 固定 #3 from new left position
+  - {t: 9200, do: retreat}
+  - {t: 9800, do: "cast:lucent_singularity"} # 遠程炮 #2 from left
+  - {t: 10600, do: retreat}
+  - {t: 11200, do: "cast:light_binding"}     # 固定 #4 (CD again)
+  - {t: 12000, do: retreat}
+  - {t: 12600, do: "flash:back"}             # flash again if CD ready
+  - {t: 13200, do: retreat}
+  - {t: 13800, do: "cast:lucent_singularity"} # 遠程炮 #3
+  - {t: 14600, do: retreat}
+  # ── Act 5: Climax — ONE final_spark ultimate
+  - {t: 15200, do: "cast:final_spark"}       # 大絕 — final_spark beam from afar
+  - {t: 15800, do: retreat}
+  - {t: 16400, do: retreat}                  # walk away cinematically
+  - {t: 17000, do: retreat}
   - {t: 17600, do: retreat}
   - {t: 18200, do: retreat}
   - {t: 18800, do: retreat}
