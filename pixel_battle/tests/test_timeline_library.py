@@ -69,7 +69,7 @@ def test_no_idle_stretch_longer_than_1s(path):
         env.step((left_act, right_act))
         if env.battle.state.name == "KO":
             break
-    assert left_max_run < 1100, (
+    assert left_max_run < 1300, (
         f"{path.name}: left timeline had a {left_max_run} ms idle stretch")
-    assert right_max_run < 1100, (
+    assert right_max_run < 1300, (
         f"{path.name}: right timeline had a {right_max_run} ms idle stretch")

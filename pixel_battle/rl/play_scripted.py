@@ -43,6 +43,17 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
         env_kwargs["seed"] = tl_seed
     env = PixelBattleEnv(**env_kwargs)
 
+    # Optional per-script starting MP override (lets a script's choreography
+    # rely on an ultimate firing at a specific moment without playing 8 setup
+    # casts to charge it). Only applies to the timeline (legacy ScriptDriver
+    # doesn't expose start MP).
+    tl = getattr(driver, "timeline", None)
+    if tl is not None:
+        if getattr(tl, "left_start_mp", None) is not None:
+            env.battle.left.mp = min(env.battle.left.mp_max, tl.left_start_mp)
+        if getattr(tl, "right_start_mp", None) is not None:
+            env.battle.right.mp = min(env.battle.right.mp_max, tl.right_start_mp)
+
     raw = out_dir / f"{script_path.stem}_raw.mp4"
     recorder = FrameRecorder(str(raw), fps=RENDER_FPS, width=WIDTH, height=HEIGHT)
     recorder.start()

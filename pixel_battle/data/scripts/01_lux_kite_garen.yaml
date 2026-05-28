@@ -25,6 +25,7 @@ left: garen
 right: lux
 duration_ms: 22000
 seed: 7
+right_start_mp: 100        # Lux starts with full MP — final_spark is the climax
 left_timeline:
   # ── Act 1: Guard light_binding + advance to flash range
   - {t: 400,  do: advance}
@@ -78,39 +79,25 @@ left_timeline:
   - {t: 18300, do: advance}
   - {t: 18600, do: "attack:basic"}
 right_timeline:
-  # Lux is a PURE MAGE — NEVER goes to melee. Ranged casts only + flash for repositioning.
-  # ── Act 1: Open with ranged root from afar
-  - {t: 1800, do: "cast:light_binding"}      # 固定 #1 — long-range root (range 280)
-  - {t: 2600, do: retreat}                   # back away
-  - {t: 3200, do: retreat}                   # keep distance
-  # ── Act 2: Ranged barrage from the right side
-  - {t: 3800, do: "cast:lucent_singularity"} # 遠程炮 #1 (special, range 300)
-  - {t: 4600, do: retreat}
-  - {t: 5200, do: "cast:light_binding"}      # 固定 #2 (CD ~4.3s after #1)
-  - {t: 6000, do: retreat}
-  # ── Act 3: CROSSOVER — flash THROUGH Garen to his other side
-  # Garen will be at ~280-350px by now, Lux at right wall (470).
-  # flash:in goes TOWARD opp = LEFT, distance 130. If dist≤130 Lux ends past Garen.
-  - {t: 6800, do: "flash:in"}                # CROSS! Lux now on LEFT of Garen
-  - {t: 7200, do: retreat}                   # retreat from Garen = LEFT (toward wall 10)
-  - {t: 7800, do: retreat}
-  # ── Act 4: Kite from the LEFT side now
-  - {t: 8400, do: "cast:light_binding"}      # 固定 #3 from new left position
-  - {t: 9200, do: retreat}
-  - {t: 9800, do: "cast:lucent_singularity"} # 遠程炮 #2 from left
-  - {t: 10600, do: retreat}
-  - {t: 11200, do: "cast:light_binding"}     # 固定 #4 (CD again)
-  - {t: 12000, do: retreat}
-  - {t: 12600, do: "flash:back"}             # flash again if CD ready
-  - {t: 13200, do: retreat}
-  - {t: 13800, do: "cast:lucent_singularity"} # 遠程炮 #3
-  - {t: 14600, do: retreat}
-  # ── Act 5: Climax — ONE final_spark ultimate
-  - {t: 15200, do: "cast:final_spark"}       # 大絕 — final_spark beam from afar
-  - {t: 15800, do: retreat}
-  - {t: 16400, do: retreat}                  # walk away cinematically
-  - {t: 17000, do: retreat}
-  - {t: 17600, do: retreat}
-  - {t: 18200, do: retreat}
-  - {t: 18800, do: retreat}
-  - {t: 19400, do: retreat}
+  # Lux starts at 100 MP (right_start_mp). The fight is built around the
+  # ultimate AS THE CLIMAX — minimal pre-damage so Garen survives until t=7500.
+  # ── Act 1: Tactical setup — flash, root, build tension
+  - {t: 1200, do: retreat}                   # back from Garen's opening rush
+  - {t: 2000, do: retreat}
+  - {t: 2800, do: "cast:light_binding"}      # 固定 — root Garen briefly (modest dmg)
+  - {t: 3800, do: "flash:back"}              # ESCAPE — open the distance for the ult
+  - {t: 4500, do: retreat}
+  - {t: 5200, do: retreat}
+  - {t: 6000, do: retreat}                   # holding range, building suspense
+  - {t: 6800, do: retreat}
+  # ── Act 2: CLIMAX — final_spark is the killing blow
+  # Engine freezes for 1.5s anticipation + 0.2s release + 1.0s aftermath = 2.7s of cinematic
+  - {t: 7500, do: "cast:final_spark"}        # 大絕 — the 3-phase cinematic + KO
+  - {t: 8500, do: retreat}                   # cinematic walk-away
+  - {t: 9500, do: retreat}
+  - {t: 10500, do: retreat}
+  - {t: 11500, do: retreat}
+  - {t: 12500, do: retreat}
+  - {t: 13500, do: retreat}
+  - {t: 14500, do: retreat}
+  - {t: 15500, do: retreat}

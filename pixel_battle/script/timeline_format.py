@@ -23,3 +23,5 @@ class Timeline:
     left_events: List[TimelineEvent]
     right_events: List[TimelineEvent]
     seed: Optional[int] = None      # optional RNG seed for deterministic render
+    left_start_mp: Optional[int] = None   # optional initial MP for left character
+    right_start_mp: Optional[int] = None  # optional initial MP for right character
