@@ -40,7 +40,18 @@ SKILL_BANNER_HOLD_MS = 350
 SKILL_BANNER_FADE_OUT_MS = 150
 SKILL_BANNER_RISE_PX = 10     # slight upward drift over lifetime
 
-ULTIMATE_BEAM_MS = 600        # wide-beam + glow band lifetime
+# LoL-tier Lux Final Spark — 8-layer composite beam lifetimes
+ULTIMATE_BEAM_MS = 1100          # Layer 1 outer halo lifetime (longest)
+ULTIMATE_BEAM_MID_MS = 1000      # Layer 2 mid band
+ULTIMATE_BEAM_CORE_MS = 800      # Layer 3 white-hot core
+ULTIMATE_BEAM_SPARKLE_WINDOW = 600  # Layer 4: star sparkles spawn during first 600ms
+ULTIMATE_BEAM_SPARKLE_LIFE = 400    # each individual sparkle lives 400ms
+ULTIMATE_BEAM_ENDPOINT_MS = 500  # Layer 5: endpoint impact stars
+ULTIMATE_BEAM_FLARE_MS = 500     # Layer 6: lens flare rotation
+ULTIMATE_BEAM_TINT_MS = 400      # Layer 7: screen color tint
+ULTIMATE_BEAM_SHAKE_MAG = 12.0   # Layer 8: camera shake magnitude px
+ULTIMATE_BEAM_SHAKE_DUR = 500.0  # Layer 8: camera shake duration ms
+
 ULTIMATE_SLAM_MS = 450        # sword descent + shockwave lifetime
 ULTIMATE_SLAM_DESCEND_MS = 150  # sword falls in first 150ms
 
@@ -176,6 +187,29 @@ class _UltimateBeam:
 
 
 @dataclass
+class _BeamSparkle:
+    """A single star-sparkle drifting along the beam length (Layer 4)."""
+    x: float
+    y: float
+    base_y: float    # original y — drift from here
+    color: Tuple[int, int, int]
+    drift_dir: float  # +1 or -1 for vertical drift direction
+    age_ms: int = 0
+    life_ms: int = ULTIMATE_BEAM_SPARKLE_LIFE
+
+
+@dataclass
+class _EndpointStar:
+    """5-point radial star at beam endpoint — caster hand or far edge (Layer 5)."""
+    x: float
+    y: float
+    color: Tuple[int, int, int]
+    age_ms: int = 0
+    life_ms: int = ULTIMATE_BEAM_ENDPOINT_MS
+    ray_len: int = 32
+
+
+@dataclass
 class _UltimateSlam:
     """Descending sword silhouette + impact shockwave for slam/dash ultimates."""
     impact_x: float
@@ -275,6 +309,20 @@ class ImpactFX:
         self._skill_banners: List[_SkillBanner] = []
         self._ultimate_beams: List[_UltimateBeam] = []
         self._ultimate_slams: List[_UltimateSlam] = []
+        # LoL-tier Lux beam sub-effects
+        self._beam_sparkles: List[_BeamSparkle] = []
+        self._endpoint_stars: List[_EndpointStar] = []
+        # Screen tint for beam (brand color, fades over ULTIMATE_BEAM_TINT_MS)
+        self._beam_tint_color: Optional[Tuple[int, int, int]] = None
+        self._beam_tint_alpha: int = 0
+        self._beam_tint_age: int = 0
+        # Sparkle spawn tracking: time since last sparkle batch
+        self._beam_sparkle_timer: int = 0
+        self._beam_sparkle_active: bool = False
+        self._beam_sparkle_x1: float = 0.0
+        self._beam_sparkle_x2: float = 0.0
+        self._beam_sparkle_y: float = 0.0
+        self._beam_sparkle_color: Tuple[int, int, int] = (255, 255, 255)
 
     def spawn_hit_spark(self, x: int, y: int, damage: int,
                         color: Tuple[int, int, int]) -> None:
@@ -467,28 +515,60 @@ class ImpactFX:
     def spawn_ultimate_beam(self, x1: float, x2: float, y: float,
                             color: Tuple[int, int, int],
                             surf_size: Tuple[int, int] = (480, 854)) -> None:
-        """Massive widened beam for beam-vfx ultimates.
+        """LoL-tier Lux Final Spark — 8-layer composite beam.
 
-        Draws:
-        - 60 px wide brand-color band with 6 px bright white core
-        - Full-width 80 px glow column centred on y
-        - 6 radial lens-flare rays from caster hand
-        Alpha fades from 240→0 over 600 ms.
+        Layers:
+          1. Outer halo: 160 px band, brand-color×0.6, 1100 ms fade
+          2. Mid band:   80 px band, full brand-color, 1000 ms fade
+          3. Core:       12 px white-hot line, 800 ms fade
+          4. Sparkles:   star particles drifting along beam for first 600 ms
+          5. Endpoints:  5-ray stars at caster hand + far edge, 500 ms
+          6. Lens flare: rotating 4-ray cross at caster hand, 500 ms
+          7. Screen tint: translucent brand overlay alpha 25→0 over 400 ms
+          8. Camera shake: 12 px magnitude, 500 ms duration
         """
+        sw, sh = surf_size
+        # Beam extends to the far screen edge (beam shoots THROUGH and beyond)
+        # Determine far edge based on which side caster is on
+        direction = 1.0 if x2 >= x1 else -1.0
+        far_edge = float(sw - 1) if direction > 0 else 0.0
+
+        # Register the beam (drives layers 1-3 and 6 in update_and_draw)
         self._ultimate_beams.append(_UltimateBeam(
-            x1=x1, x2=x2, y=y, color=color,
-            surf_w=surf_size[0], surf_h=surf_size[1]))
-        # Immediate: massive camera shake
-        self.camera_shake.trigger(magnitude_px=8.0, duration_ms=400.0)
-        # Immediate: extra sparks radiating from caster hand
-        for _ in range(20):
-            ang = random.uniform(-math.pi / 3, math.pi / 3)  # forward fan
-            speed = random.uniform(5.0, 12.0)
+            x1=x1, x2=far_edge, y=y, color=color,
+            surf_w=sw, surf_h=sh))
+
+        # Layer 7 — screen tint
+        self._beam_tint_color = color
+        self._beam_tint_alpha = 25
+        self._beam_tint_age = 0
+
+        # Layer 4 — sparkle spawning state (handled in update_and_draw)
+        self._beam_sparkle_active = True
+        self._beam_sparkle_timer = 0
+        self._beam_sparkle_x1 = min(x1, far_edge)
+        self._beam_sparkle_x2 = max(x1, far_edge)
+        self._beam_sparkle_y = y
+        self._beam_sparkle_color = color
+
+        # Layer 5 — endpoint impact stars: caster hand + far edge
+        self._endpoint_stars.append(_EndpointStar(x=x1, y=y, color=color))
+        self._endpoint_stars.append(_EndpointStar(x=far_edge, y=y, color=color))
+
+        # Layer 8 — camera shake (upgraded from 8px/400ms)
+        self.camera_shake.trigger(
+            magnitude_px=ULTIMATE_BEAM_SHAKE_MAG,
+            duration_ms=ULTIMATE_BEAM_SHAKE_DUR)
+
+        # Extra sparks radiating from caster hand (legacy — keep for feel)
+        for _ in range(24):
+            ang = random.uniform(-math.pi / 2.5, math.pi / 2.5)  # forward fan
+            speed = random.uniform(5.0, 14.0)
             self._active.append(_Spark(
                 x=float(x1), y=float(y),
-                vx=math.cos(ang) * speed,
+                vx=math.cos(ang) * speed * direction,
                 vy=math.sin(ang) * speed,
-                life_ms=random.randint(200, 450),
+                life_ms=random.randint(200, 500),
                 color=color))
 
     def spawn_ultimate_slam(self, impact_x: float, impact_y: float,
@@ -797,60 +877,191 @@ class ImpactFX:
                 pass
         self._skill_banners = alive_banners
 
-        # ── Ultimate beam (wide band + glow + lens flare) ─────────────────────
+        # ── Ultimate beam — LoL-tier 8-layer composite ───────────────────────
+        # Layer 7: screen tint (advance first so it's under the beam)
+        if self._beam_tint_alpha > 0 and self._beam_tint_color is not None:
+            self._beam_tint_age += dt_ms
+            tint_frac = min(1.0, self._beam_tint_age / max(1, ULTIMATE_BEAM_TINT_MS))
+            tint_a = max(0, int(self._beam_tint_alpha * (1.0 - tint_frac)))
+            if tint_a > 0:
+                try:
+                    tint_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                    tint_surf.fill((*self._beam_tint_color, tint_a))
+                    surf.blit(tint_surf, (0, 0))
+                except Exception:
+                    pass
+            if tint_frac >= 1.0:
+                self._beam_tint_alpha = 0
+
+        # Layer 4: sparkle batch spawning (every ~80 ms in the first 600 ms)
+        if self._beam_sparkle_active:
+            self._beam_sparkle_timer += dt_ms
+            # check if we should spawn a new batch
+            if self._beam_sparkle_timer >= 80:
+                self._beam_sparkle_timer = 0
+                # figure out total beam age from active beam objects
+                oldest_beam_age = max(
+                    (ub.age_ms for ub in self._ultimate_beams), default=9999)
+                if oldest_beam_age < ULTIMATE_BEAM_SPARKLE_WINDOW:
+                    n_sp = random.randint(5, 8)
+                    beam_span = self._beam_sparkle_x2 - self._beam_sparkle_x1
+                    for _ in range(n_sp):
+                        sx = self._beam_sparkle_x1 + random.uniform(0, beam_span)
+                        sy = self._beam_sparkle_y + random.uniform(-8, 8)
+                        drift = random.choice([-1.0, 1.0])
+                        self._beam_sparkles.append(_BeamSparkle(
+                            x=sx, y=sy, base_y=sy,
+                            color=self._beam_sparkle_color,
+                            drift_dir=drift))
+                else:
+                    self._beam_sparkle_active = False
+
+        # Layer 1+2+3: glow halo, mid band, white core — driven by _UltimateBeam
         alive_ub: List[_UltimateBeam] = []
         for ub in self._ultimate_beams:
             ub.age_ms += dt_ms
             if ub.age_ms >= ub.life_ms:
                 continue
             alive_ub.append(ub)
-            frac = ub.age_ms / ub.life_ms
-            alpha = max(0, int(240 * (1.0 - frac)))
-            if alpha < 2:
-                continue
-            ub_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-            # 1. Full-width 80-px glow column at beam height
-            glow_h = 80
-            glow_top = int(ub.y) - glow_h // 2
-            glow_surf = pygame.Surface((ub.surf_w, glow_h), pygame.SRCALPHA)
-            for row in range(glow_h):
-                # Gaussian-like alpha falloff from centre
-                dist_from_center = abs(row - glow_h // 2)
-                row_alpha = int(alpha * 0.5 * max(0.0, 1.0 - dist_from_center / (glow_h / 2)))
-                if row_alpha > 0:
-                    glow_surf.fill((*ub.color, row_alpha), (0, row, ub.surf_w, 1))
-            ub_surf.blit(glow_surf, (0, max(0, glow_top)))
-            # 2. Wide beam band (60 px) from x1 to x2
-            bx1, bx2 = int(min(ub.x1, ub.x2)), int(max(ub.x1, ub.x2))
-            beam_w = max(1, bx2 - bx1)
-            beam_band = pygame.Surface((beam_w, 60), pygame.SRCALPHA)
-            for row in range(60):
-                dist = abs(row - 30)
-                row_a = int(alpha * max(0.0, 1.0 - dist / 30))
-                if row_a > 0:
-                    beam_band.fill((*ub.color, row_a), (0, row, beam_w, 1))
-            ub_surf.blit(beam_band, (bx1, int(ub.y) - 30))
-            # 3. White-hot 6-px core
-            pygame.draw.line(ub_surf, (255, 255, 255, min(255, alpha + 15)),
-                             (bx1, int(ub.y)), (bx2, int(ub.y)), 6)
-            surf.blit(ub_surf, (0, 0))
-            # 4. Lens flare: 6 radial rays from caster hand position
-            n_rays = 6
-            for i in range(n_rays):
-                ang = (math.tau * i) / n_rays
-                ray_len = int(50 + 70 * (1.0 - frac))
-                ex = int(ub.x1 + math.cos(ang) * ray_len)
-                ey = int(ub.y + math.sin(ang) * ray_len)
-                ray_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-                pygame.draw.line(ray_surf, (*ub.color, max(0, alpha - 40)),
-                                 (int(ub.x1), int(ub.y)), (ex, ey), 3)
-                # White core ray
-                mid_ex = int(ub.x1 + math.cos(ang) * ray_len * 0.5)
-                mid_ey = int(ub.y + math.sin(ang) * ray_len * 0.5)
-                pygame.draw.line(ray_surf, (255, 255, 255, max(0, alpha - 80)),
-                                 (int(ub.x1), int(ub.y)), (mid_ex, mid_ey), 2)
-                surf.blit(ray_surf, (0, 0))
+            bx1 = int(min(ub.x1, ub.x2))
+            bx2 = int(max(ub.x1, ub.x2))
+            beam_span = max(1, bx2 - bx1)
+            iy = int(ub.y)
+
+            # --- Layer 1: outer halo glow — 160 px, brand×0.6, alpha 80→0 over 1100ms
+            halo_alpha = max(0, int(80 * (1.0 - ub.age_ms / ULTIMATE_BEAM_MS)))
+            if halo_alpha > 1:
+                halo_h = 160
+                halo_top = max(0, iy - halo_h // 2)
+                halo_bot = min(ub.surf_h, iy + halo_h // 2)
+                actual_h = halo_bot - halo_top
+                if actual_h > 0:
+                    halo_surf = pygame.Surface((ub.surf_w, actual_h), pygame.SRCALPHA)
+                    dim_col = tuple(max(0, int(c * 0.6)) for c in ub.color)
+                    for row in range(actual_h):
+                        world_row = halo_top + row
+                        dist = abs(world_row - iy)
+                        row_a = int(halo_alpha * max(0.0, 1.0 - dist / (halo_h / 2)))
+                        if row_a > 0:
+                            halo_surf.fill((*dim_col, row_a), (0, row, ub.surf_w, 1))
+                    surf.blit(halo_surf, (0, halo_top))
+
+            # --- Layer 2: mid beam band — 80 px, full brand color, alpha 200→0 over 1000ms
+            mid_alpha = max(0, int(200 * (1.0 - ub.age_ms / ULTIMATE_BEAM_MID_MS)))
+            if mid_alpha > 1 and ub.age_ms < ULTIMATE_BEAM_MID_MS:
+                mid_h = 80
+                mid_surf = pygame.Surface((beam_span, mid_h), pygame.SRCALPHA)
+                for row in range(mid_h):
+                    dist = abs(row - mid_h // 2)
+                    row_a = int(mid_alpha * max(0.0, 1.0 - dist / (mid_h / 2)))
+                    if row_a > 0:
+                        mid_surf.fill((*ub.color, row_a), (0, row, beam_span, 1))
+                surf.blit(mid_surf, (bx1, iy - mid_h // 2))
+
+            # --- Layer 3: white-hot core — 12 px, alpha 255→0 over 800ms
+            core_alpha = max(0, int(255 * (1.0 - ub.age_ms / ULTIMATE_BEAM_CORE_MS)))
+            if core_alpha > 1 and ub.age_ms < ULTIMATE_BEAM_CORE_MS:
+                core_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                pygame.draw.line(core_surf, (255, 255, 255, core_alpha),
+                                 (bx1, iy), (bx2, iy), 12)
+                surf.blit(core_surf, (0, 0))
+
+            # --- Layer 6: rotating lens-flare cross at caster hand
+            flare_alpha = max(0, int(220 * (1.0 - ub.age_ms / ULTIMATE_BEAM_FLARE_MS)))
+            if flare_alpha > 1 and ub.age_ms < ULTIMATE_BEAM_FLARE_MS:
+                flare_frac = ub.age_ms / ULTIMATE_BEAM_FLARE_MS
+                # rotation: 0 → 45 degrees over lifetime
+                base_rotation = math.radians(45.0 * flare_frac)
+                ray_len_outer = int(70 + 10 * (1.0 - flare_frac))
+                # 4 rays at 0, 90, 180, 270 + 4 diagonal at 45, 135, 225, 315
+                flare_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                for k in range(8):
+                    ang = base_rotation + (math.tau * k) / 8
+                    rl = ray_len_outer if k % 2 == 0 else ray_len_outer // 2
+                    ex2 = int(ub.x1 + math.cos(ang) * rl)
+                    ey2 = int(ub.y + math.sin(ang) * rl)
+                    pygame.draw.line(flare_surf, (*ub.color, flare_alpha),
+                                     (int(ub.x1), int(ub.y)), (ex2, ey2), 3)
+                    # White-hot inner half
+                    mid_ex2 = int(ub.x1 + math.cos(ang) * rl * 0.45)
+                    mid_ey2 = int(ub.y + math.sin(ang) * rl * 0.45)
+                    pygame.draw.line(flare_surf,
+                                     (255, 255, 255, min(255, flare_alpha + 20)),
+                                     (int(ub.x1), int(ub.y)), (mid_ex2, mid_ey2), 2)
+                surf.blit(flare_surf, (0, 0))
         self._ultimate_beams = alive_ub
+
+        # Layer 4: draw beam sparkles
+        alive_sparkles: List[_BeamSparkle] = []
+        for sp in self._beam_sparkles:
+            sp.age_ms += dt_ms
+            if sp.age_ms >= sp.life_ms:
+                continue
+            alive_sparkles.append(sp)
+            sp_frac = sp.age_ms / sp.life_ms
+            sp_alpha = max(0, int(255 * (1.0 - sp_frac)))
+            # vertical drift: ±15 px over lifetime
+            sp.y = sp.base_y + sp.drift_dir * 15.0 * sp_frac
+            if sp_alpha < 4:
+                continue
+            # Draw sparkle as + and × cross (4+4 lines = 8-point sparkle)
+            sp_size = 5  # half arm length
+            cx_sp, cy_sp = int(sp.x), int(sp.y)
+            sp_col = (*sp.color, sp_alpha)
+            sp_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            # + cross
+            pygame.draw.line(sp_surf, sp_col,
+                             (cx_sp - sp_size, cy_sp), (cx_sp + sp_size, cy_sp), 2)
+            pygame.draw.line(sp_surf, sp_col,
+                             (cx_sp, cy_sp - sp_size), (cx_sp, cy_sp + sp_size), 2)
+            # × cross (diagonal)
+            d = max(1, sp_size * 2 // 3)
+            pygame.draw.line(sp_surf, sp_col,
+                             (cx_sp - d, cy_sp - d), (cx_sp + d, cy_sp + d), 1)
+            pygame.draw.line(sp_surf, sp_col,
+                             (cx_sp + d, cy_sp - d), (cx_sp - d, cy_sp + d), 1)
+            # White core dot
+            pygame.draw.circle(sp_surf, (255, 255, 255, min(255, sp_alpha + 40)),
+                               (cx_sp, cy_sp), 2)
+            surf.blit(sp_surf, (0, 0))
+        self._beam_sparkles = alive_sparkles
+
+        # Layer 5: endpoint impact stars
+        alive_ep: List[_EndpointStar] = []
+        for ep in self._endpoint_stars:
+            ep.age_ms += dt_ms
+            if ep.age_ms >= ep.life_ms:
+                continue
+            alive_ep.append(ep)
+            ep_frac = ep.age_ms / ep.life_ms
+            ep_alpha = max(0, int(255 * (1.0 - ep_frac)))
+            if ep_alpha < 4:
+                continue
+            # 5-pointed star: 5 radial rays at 72° increments + slight rotation
+            rotation_offset = math.radians(90.0 * ep_frac)  # rotates ~90° over lifetime
+            ep_ray = int(ep.ray_len * (1.0 + 0.3 * (1.0 - ep_frac)))  # starts bigger
+            ep_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            cx_ep, cy_ep = int(ep.x), int(ep.y)
+            for k in range(5):
+                ang = rotation_offset + (math.tau * k) / 5 - math.pi / 2
+                ex3 = int(cx_ep + math.cos(ang) * ep_ray)
+                ey3 = int(cy_ep + math.sin(ang) * ep_ray)
+                # Brand-color halo ray
+                pygame.draw.line(ep_surf, (*ep.color, ep_alpha),
+                                 (cx_ep, cy_ep), (ex3, ey3), 3)
+                # White core ray (inner 60%)
+                ix3 = int(cx_ep + math.cos(ang) * ep_ray * 0.6)
+                iy3 = int(cy_ep + math.sin(ang) * ep_ray * 0.6)
+                pygame.draw.line(ep_surf, (255, 255, 255, min(255, ep_alpha + 30)),
+                                 (cx_ep, cy_ep), (ix3, iy3), 2)
+            # Bright white-hot core dot
+            core_r = max(3, int(8 * (1.0 - ep_frac)))
+            pygame.draw.circle(ep_surf, (255, 255, 255, min(255, ep_alpha + 60)),
+                               (cx_ep, cy_ep), core_r)
+            pygame.draw.circle(ep_surf, (*ep.color, ep_alpha),
+                               (cx_ep, cy_ep), core_r + 4, 2)
+            surf.blit(ep_surf, (0, 0))
+        self._endpoint_stars = alive_ep
 
         # ── Ultimate slam (descending sword + shockwave) ──────────────────────
         alive_us: List[_UltimateSlam] = []

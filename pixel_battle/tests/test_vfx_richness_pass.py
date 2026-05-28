@@ -258,3 +258,89 @@ def test_ultimate_extends_slowmo():
     assert slowmo_remaining == 400.0, (
         "max() must not shorten a pre-existing longer slowmo"
     )
+
+
+# ── 10. LoL-tier beam: lasts ≥ 1 second ──────────────────────────────────────
+
+def test_ultimate_beam_lasts_1_second():
+    """The ultimate beam should still have visible alpha after 900 ms."""
+    from pixel_battle.rl.impact_fx import ImpactFX
+    fx = ImpactFX()
+    surf = pygame.Surface((480, 854))
+    surf.fill((0, 0, 0))
+
+    beam_y = 400
+    fx.spawn_ultimate_beam(x1=50.0, x2=430.0, y=float(beam_y),
+                           color=(255, 200, 50), surf_size=(480, 854))
+
+    # Advance 900 ms in 16ms ticks
+    for _ in range(56):
+        surf.fill((0, 0, 0))
+        fx.update_and_draw(surf, dt_ms=16)
+
+    arr = pygame.surfarray.array3d(surf)
+    # The outer halo (1100ms) should still be painting something near beam_y
+    band = arr[:, max(0, beam_y - 85):min(854, beam_y + 85)]
+    bright = (band.max(axis=2) > 10).sum()
+    assert bright > 0, (
+        f"beam outer halo should still be visible at ~900ms, got {bright} bright pixels"
+    )
+
+
+# ── 11. LoL-tier beam: endpoint stars render at both ends ────────────────────
+
+def test_ultimate_beam_endpoint_stars_render():
+    """Endpoint stars should paint pixels at both the caster hand and the far edge."""
+    from pixel_battle.rl.impact_fx import ImpactFX
+    fx = ImpactFX()
+
+    caster_x = 80
+    beam_y = 400
+    surf_w, surf_h = 480, 854
+    fx.spawn_ultimate_beam(x1=float(caster_x), x2=400.0, y=float(beam_y),
+                           color=(255, 200, 50), surf_size=(surf_w, surf_h))
+
+    # Render first frame
+    surf = pygame.Surface((surf_w, surf_h))
+    surf.fill((0, 0, 0))
+    fx.update_and_draw(surf, dt_ms=16)
+
+    arr = pygame.surfarray.array3d(surf)
+    # Near-caster region: x ±40 around caster_x
+    near_caster = arr[max(0, caster_x - 40):min(surf_w, caster_x + 40),
+                      max(0, beam_y - 40):min(surf_h, beam_y + 40)]
+    assert (near_caster.max(axis=2) > 30).any(), (
+        "endpoint star should paint pixels near caster hand"
+    )
+    # Far-edge region: last 50 px column
+    near_far = arr[surf_w - 50:, max(0, beam_y - 40):min(surf_h, beam_y + 40)]
+    assert (near_far.max(axis=2) > 30).any(), (
+        "endpoint star should paint pixels at far screen edge"
+    )
+
+
+# ── 12. LoL-tier beam: screen tint detectable in brand color ─────────────────
+
+def test_ultimate_beam_screen_tint_brand_color():
+    """During the first 200 ms the brand color should be detectable across the whole frame."""
+    from pixel_battle.rl.impact_fx import ImpactFX
+    fx = ImpactFX()
+
+    # Use a very distinct cyan brand color so it's easy to detect
+    brand = (0, 220, 220)
+    surf = pygame.Surface((480, 854))
+    surf.fill((0, 0, 0))
+
+    fx.spawn_ultimate_beam(x1=50.0, x2=430.0, y=400.0,
+                           color=brand, surf_size=(480, 854))
+
+    # Advance just 100 ms (still in tint window)
+    for _ in range(7):
+        fx.update_and_draw(surf, dt_ms=16)
+
+    arr = pygame.surfarray.array3d(surf)
+    # Check that some pixels have non-zero green+blue (the tint's signature)
+    gb_pixels = ((arr[:, :, 1] > 5) & (arr[:, :, 2] > 5)).sum()
+    assert gb_pixels > 100, (
+        f"brand-color screen tint should tint many pixels, got only {gb_pixels}"
+    )
