@@ -878,8 +878,13 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             _slowmo_remaining_ms = max(_slowmo_remaining_ms, ENGINE_MS * 2)
             _slowmo_dt_scale = ult_result.dt_scale
 
-        # KO sequence — drives slow-mo + zoom once battle.state == KO
-        ko_active = env.battle.state == _BattleState.KO
+        # KO sequence — drives slow-mo + zoom once battle.state == KO.
+        # If the ultimate cinematic is mid-anticipation (engine frozen), DEFER
+        # the KO sequence so the audience sees the full ult buildup before
+        # the KO splash + zoom takes over.
+        _ult_blocking_ko = (ult_result.phase is not None
+                            and ult_result.phase != "aftermath")
+        ko_active = (env.battle.state == _BattleState.KO) and not _ult_blocking_ko
         ko_loser_x = (int(env.battle.left.pos_x)
                       if env.battle.left.hp <= 0 else int(env.battle.right.pos_x))
         ko_result = ko_seq.tick(ko_active=ko_active, ko_loser_x=ko_loser_x, dt_ms=RENDER_MS)
