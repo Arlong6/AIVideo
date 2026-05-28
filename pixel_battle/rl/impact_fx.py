@@ -538,9 +538,9 @@ class ImpactFX:
             x1=x1, x2=far_edge, y=y, color=color,
             surf_w=sw, surf_h=sh))
 
-        # Layer 7 — screen tint
+        # Layer 7 — screen tint (heavy gold flash — the whole world turns gold)
         self._beam_tint_color = color
-        self._beam_tint_alpha = 25
+        self._beam_tint_alpha = 100
         self._beam_tint_age = 0
 
         # Layer 4 — sparkle spawning state (handled in update_and_draw)
@@ -928,10 +928,10 @@ class ImpactFX:
             beam_span = max(1, bx2 - bx1)
             iy = int(ub.y)
 
-            # --- Layer 1: outer halo glow — 160 px, brand×0.6, alpha 80→0 over 1100ms
-            halo_alpha = max(0, int(80 * (1.0 - ub.age_ms / ULTIMATE_BEAM_MS)))
+            # --- Layer 1: outer halo glow — 320 px, brand×0.6, alpha 140→0 over 1100ms
+            halo_alpha = max(0, int(140 * (1.0 - ub.age_ms / ULTIMATE_BEAM_MS)))
             if halo_alpha > 1:
-                halo_h = 160
+                halo_h = 320
                 halo_top = max(0, iy - halo_h // 2)
                 halo_bot = min(ub.surf_h, iy + halo_h // 2)
                 actual_h = halo_bot - halo_top
@@ -946,10 +946,10 @@ class ImpactFX:
                             halo_surf.fill((*dim_col, row_a), (0, row, ub.surf_w, 1))
                     surf.blit(halo_surf, (0, halo_top))
 
-            # --- Layer 2: mid beam band — 80 px, full brand color, alpha 200→0 over 1000ms
-            mid_alpha = max(0, int(200 * (1.0 - ub.age_ms / ULTIMATE_BEAM_MID_MS)))
+            # --- Layer 2: mid beam band — 220 px, full brand color, alpha 230→0 over 1000ms
+            mid_alpha = max(0, int(230 * (1.0 - ub.age_ms / ULTIMATE_BEAM_MID_MS)))
             if mid_alpha > 1 and ub.age_ms < ULTIMATE_BEAM_MID_MS:
-                mid_h = 80
+                mid_h = 220
                 mid_surf = pygame.Surface((beam_span, mid_h), pygame.SRCALPHA)
                 for row in range(mid_h):
                     dist = abs(row - mid_h // 2)
@@ -958,12 +958,12 @@ class ImpactFX:
                         mid_surf.fill((*ub.color, row_a), (0, row, beam_span, 1))
                 surf.blit(mid_surf, (bx1, iy - mid_h // 2))
 
-            # --- Layer 3: white-hot core — 12 px, alpha 255→0 over 800ms
+            # --- Layer 3: white-hot core — 32 px, alpha 255→0 over 800ms
             core_alpha = max(0, int(255 * (1.0 - ub.age_ms / ULTIMATE_BEAM_CORE_MS)))
             if core_alpha > 1 and ub.age_ms < ULTIMATE_BEAM_CORE_MS:
                 core_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
                 pygame.draw.line(core_surf, (255, 255, 255, core_alpha),
-                                 (bx1, iy), (bx2, iy), 12)
+                                 (bx1, iy), (bx2, iy), 32)
                 surf.blit(core_surf, (0, 0))
 
             # --- Layer 6: rotating lens-flare cross at caster hand
