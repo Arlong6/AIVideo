@@ -101,7 +101,8 @@ right_timeline:
   - {t: 11800, do: retreat}                  # filler
   - {t: 12200, do: retreat}
   - {t: 12800, do: "attack:basic"}           # close jab to push MP toward ult
-  - {t: 13200, do: "flash:back"}             # ESCAPE again (Flash CD reset ~8000 → ready by 13200)
+  - {t: 13200, do: "flash:in"}               # CROSSOVER — flash THROUGH Garen to his other side
+  - {t: 13500, do: retreat}                  # now on Garen's left, retreat further left
   - {t: 13800, do: retreat}
   - {t: 14400, do: "attack:basic"}           # final MP nudge
   # ── Act 3: ONE ultimate cast, then disengage ──

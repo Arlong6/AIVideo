@@ -81,9 +81,11 @@ def _hitstop_for(is_crit: bool, skill_type: SkillType = SkillType.BASIC) -> int:
 
 
 def _hit_causes_hitstop(is_crit: bool, skill_type: SkillType) -> bool:
-    """Every hit now causes at least a brief hitstop so the defender's
-    flinch is always readable — even rapid basic trading."""
-    return True
+    """Hitstop only on crits or skill hits. Plain basic hits stack too often
+    in close exchanges — the cumulative freeze reads as 'middle-slow-motion'
+    and breaks pacing. Defender flinch is still visible via hit_react pose +
+    knockback + impact sparks even without the freeze."""
+    return is_crit or (skill_type is not SkillType.BASIC)
 
 
 class BattleState(Enum):
