@@ -491,6 +491,17 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     _slowmo_remaining_ms: float = 0.0   # wall-clock ms of slow-mo left
     _slowmo_dt_scale: float = 1.0       # dt multiplier (< 1 = slower)
 
+    # ── Ultimate camera zoom controller ───────────────────────────────────────
+    # On ULTIMATE_START: zoom 1.0 → 1.35 over 200 ms, hold 200 ms, back to 1.0
+    # over 200 ms. Focus on the caster's x position.
+    _ULT_ZOOM_IN_MS = 200
+    _ULT_ZOOM_HOLD_MS = 200
+    _ULT_ZOOM_OUT_MS = 200
+    _ULT_ZOOM_TOTAL_MS = _ULT_ZOOM_IN_MS + _ULT_ZOOM_HOLD_MS + _ULT_ZOOM_OUT_MS
+    _ULT_ZOOM_MAX = 1.35
+    _ult_zoom_age_ms: float = _ULT_ZOOM_TOTAL_MS   # starts "expired" (no zoom)
+    _ult_zoom_focus_x: float = WIDTH / 2.0
+
     for frame in range(total_frames):
         # ── Sub-frame accumulator: engine ticks at ENGINE_HZ, render at RENDER_FPS ──
         # Every other render frame (when accumulator crosses 16.67ms) we advance
@@ -705,13 +716,33 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         surf_size=(WIDTH, HEIGHT))
                     # Larger camera shake via CameraShake helper
                     impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
-                    # ── Ultimate slow-mo: short, single beat (no stack from spam) ──
-                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 80.0)
-                    _slowmo_dt_scale = 0.4
+                    # ── Ultimate slow-mo: "the world stops" beat ──
+                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 350.0)
+                    _slowmo_dt_scale = 0.3
+                    # ── Ultimate camera zoom toward caster ──
+                    _ult_zoom_age_ms = 0.0
+                    _ult_zoom_focus_x = float(actor_obj.pos_x)
                     # Ultimate charge orb — 2× scale with rising particle column
                     impact_fx.spawn_charge_orb(
                         x=int(actor_obj.pos_x), y=int(actor_obj.pos_y) - 130,
                         color=brand_col_ult, lifetime_ms=300, scale=2.0)
+                    # ── Skill-name banner at screen centre ──
+                    _SKILL_BANNER_MAP = {
+                        "final_spark": "FINAL SPARK!",
+                        "demacian_justice": "DEMACIAN JUSTICE!",
+                        "last_breath": "LAST BREATH!",
+                        "enchanted_crystal_arrow": "ENCHANTED ARROW!",
+                        "force_update": "FORCE UPDATE!",
+                        "indestructible_throw": "INDESTRUCTIBLE!",
+                    }
+                    ult_skill_id = (ev.extra or {}).get("skill_id", "")
+                    banner_display = _SKILL_BANNER_MAP.get(
+                        ult_skill_id,
+                        str(ult_skill_id).upper().replace("_", " ") + "!")
+                    impact_fx.spawn_skill_banner(
+                        name=banner_display,
+                        color=brand_col_ult,
+                        surf_size=(WIDTH, HEIGHT))
                     ult_vfx = (ev.extra or {}).get("vfx", "slam")
                     u_ax, u_ay = int(actor_obj.pos_x), int(actor_obj.pos_y)
                     u_tx, u_ty = int(defender.pos_x), int(defender.pos_y)
@@ -723,7 +754,17 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                                              burst_color, 0])
                         impact_fx.spawn_beam_fx(x1=u_ax, x2=bx, y=u_ay - 95,
                                                  color=brand_col_ult)
-                    elif ult_vfx == "bolt":
+                        # ── EPIC: wide beam band + glow column + lens flare ──
+                        impact_fx.spawn_ultimate_beam(
+                            x1=float(u_ax), x2=float(bx), y=float(u_ay - 95),
+                            color=brand_col_ult, surf_size=(WIDTH, HEIGHT))
+                    elif ult_vfx in ("slam", "dash"):
+                        # ── EPIC: descending sword + shockwave ──
+                        impact_fx.spawn_ultimate_slam(
+                            impact_x=float(u_tx), impact_y=float(u_ty),
+                            color=brand_col_ult, surf_size=(WIDTH, HEIGHT))
+                    # (original bolt branch kept below)
+                    if ult_vfx == "bolt":
                         projectiles.spawn(start=(u_ax, u_ay - 130),
                                            end=(u_tx, u_ty - 90),
                                            color=burst_color,
@@ -915,20 +956,37 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             world.blit(blur_overlay, (0, 0))
         prev_world = world.copy()
 
+        # ── Ultimate zoom: advance age and compute zoom factor ───────────────
+        _ult_zoom_age_ms += RENDER_MS
+        if _ult_zoom_age_ms < _ULT_ZOOM_TOTAL_MS:
+            if _ult_zoom_age_ms < _ULT_ZOOM_IN_MS:
+                _uz_frac = _ult_zoom_age_ms / _ULT_ZOOM_IN_MS
+                _uz_factor = 1.0 + (_ULT_ZOOM_MAX - 1.0) * _uz_frac
+            elif _ult_zoom_age_ms < _ULT_ZOOM_IN_MS + _ULT_ZOOM_HOLD_MS:
+                _uz_factor = _ULT_ZOOM_MAX
+            else:
+                _uz_out_frac = (_ult_zoom_age_ms - _ULT_ZOOM_IN_MS - _ULT_ZOOM_HOLD_MS) / _ULT_ZOOM_OUT_MS
+                _uz_factor = _ULT_ZOOM_MAX - (_ULT_ZOOM_MAX - 1.0) * min(1.0, _uz_out_frac)
+        else:
+            _uz_factor = 1.0
+
         # Camera — follow midpoint (biased toward loser during KO), crop + upscale
         # Use interpolated draw positions for smooth camera follow
         mid_x = (_draw_left_x + _draw_right_x) / 2.0
         if ko_result.zoom > 1.0:
             # Bias camera center toward the loser for dramatic framing
             mid_x = mid_x * 0.4 + ko_result.zoom_focus_x * 0.6
+        elif _uz_factor > 1.0:
+            # Ultimate zoom: bias camera toward caster
+            mid_x = mid_x * 0.4 + _ult_zoom_focus_x * 0.6
         cam_x += (mid_x - cam_x) * CAM_FOLLOW
         # Combine old crit-shake with new per-hit ImpactFX CameraShake
         sx0, sy0 = camera_shake_offset(shake_frames)
         sx1, sy1 = impact_fx.camera_shake.update(RENDER_MS)
         sx = sx0 + sx1
         sy = sy0 + sy1
-        # KO zoom: tighter crop window so the loser fills more of the frame
-        frame_zoom = ko_result.zoom * CAM_ZOOM
+        # KO zoom takes priority over ultimate zoom; both compound with CAM_ZOOM
+        frame_zoom = ko_result.zoom * _uz_factor * CAM_ZOOM
         view_w = int(WIDTH / frame_zoom)
         view_h = int(HEIGHT / frame_zoom)
         view_w = max(1, min(WIDTH, view_w))

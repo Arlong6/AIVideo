@@ -32,6 +32,18 @@ FLASH_STREAK_MS = 250       # ghost trail left by a teleport
 
 ULTIMATE_FONT_SIZE = 32
 
+# ── Epic ultimate VFX constants ───────────────────────────────────────────────
+SKILL_BANNER_MS = 600         # total lifetime for skill-name banner
+SKILL_BANNER_FONT_SIZE = 48   # big font for the banner
+SKILL_BANNER_FADE_IN_MS = 100
+SKILL_BANNER_HOLD_MS = 350
+SKILL_BANNER_FADE_OUT_MS = 150
+SKILL_BANNER_RISE_PX = 10     # slight upward drift over lifetime
+
+ULTIMATE_BEAM_MS = 600        # wide-beam + glow band lifetime
+ULTIMATE_SLAM_MS = 450        # sword descent + shockwave lifetime
+ULTIMATE_SLAM_DESCEND_MS = 150  # sword falls in first 150ms
+
 
 @dataclass
 class _Spark:
@@ -136,6 +148,46 @@ class _FlashStreak:
 
 
 @dataclass
+class _SkillBanner:
+    """Giant centered skill-name banner during ultimate cast.
+
+    Fades in over SKILL_BANNER_FADE_IN_MS, holds, fades out.
+    Drifts slightly upward over its lifetime.
+    """
+    text: str
+    color: Tuple[int, int, int]
+    screen_cx: int   # center x on screen (surf width // 2)
+    screen_cy: int   # center y (~30% from top of surf height)
+    age_ms: int = 0
+    life_ms: int = SKILL_BANNER_MS
+
+
+@dataclass
+class _UltimateBeam:
+    """Wide horizontal beam band + glow column + lens-flare rays for beam ultimates."""
+    x1: float       # caster hand x
+    x2: float       # target x
+    y: float        # beam height
+    color: Tuple[int, int, int]
+    surf_w: int     # surface width (for full-span glow)
+    surf_h: int     # surface height
+    age_ms: int = 0
+    life_ms: int = ULTIMATE_BEAM_MS
+
+
+@dataclass
+class _UltimateSlam:
+    """Descending sword silhouette + impact shockwave for slam/dash ultimates."""
+    impact_x: float
+    impact_y: float
+    color: Tuple[int, int, int]
+    surf_h: int     # surface height so sword can start from top
+    age_ms: int = 0
+    life_ms: int = ULTIMATE_SLAM_MS
+    impact_spawned: bool = False   # radial debris / shockwave fires once
+
+
+@dataclass
 class _SpeedLine:
     """Single radial speed line radiating from a hit point."""
     x: float
@@ -219,6 +271,10 @@ class ImpactFX:
         self._speed_lines: List[_SpeedLine] = []
         self._streaks: List[_FlashStreak] = []
         self.camera_shake: CameraShake = CameraShake()
+        # Epic ultimate VFX queues
+        self._skill_banners: List[_SkillBanner] = []
+        self._ultimate_beams: List[_UltimateBeam] = []
+        self._ultimate_slams: List[_UltimateSlam] = []
 
     def spawn_hit_spark(self, x: int, y: int, damage: int,
                         color: Tuple[int, int, int]) -> None:
@@ -393,6 +449,62 @@ class ImpactFX:
             text="ULTIMATE!",
             color=color,
             font_size=ULTIMATE_FONT_SIZE * 2))
+
+    # ── Epic ultimate VFX spawners ────────────────────────────────────────────
+
+    def spawn_skill_banner(self, name: str, color: Tuple[int, int, int],
+                           surf_size: Tuple[int, int] = (480, 854)) -> None:
+        """Display HUGE skill-name text at screen center for ~600 ms.
+
+        Font ~48 pt; fades in 100ms, holds 350ms, fades out 150ms.
+        Slight upward drift (SKILL_BANNER_RISE_PX px over lifetime).
+        """
+        cx = surf_size[0] // 2
+        cy = int(surf_size[1] * 0.30)
+        self._skill_banners.append(_SkillBanner(
+            text=name, color=color, screen_cx=cx, screen_cy=cy))
+
+    def spawn_ultimate_beam(self, x1: float, x2: float, y: float,
+                            color: Tuple[int, int, int],
+                            surf_size: Tuple[int, int] = (480, 854)) -> None:
+        """Massive widened beam for beam-vfx ultimates.
+
+        Draws:
+        - 60 px wide brand-color band with 6 px bright white core
+        - Full-width 80 px glow column centred on y
+        - 6 radial lens-flare rays from caster hand
+        Alpha fades from 240→0 over 600 ms.
+        """
+        self._ultimate_beams.append(_UltimateBeam(
+            x1=x1, x2=x2, y=y, color=color,
+            surf_w=surf_size[0], surf_h=surf_size[1]))
+        # Immediate: massive camera shake
+        self.camera_shake.trigger(magnitude_px=8.0, duration_ms=400.0)
+        # Immediate: extra sparks radiating from caster hand
+        for _ in range(20):
+            ang = random.uniform(-math.pi / 3, math.pi / 3)  # forward fan
+            speed = random.uniform(5.0, 12.0)
+            self._active.append(_Spark(
+                x=float(x1), y=float(y),
+                vx=math.cos(ang) * speed,
+                vy=math.sin(ang) * speed,
+                life_ms=random.randint(200, 450),
+                color=color))
+
+    def spawn_ultimate_slam(self, impact_x: float, impact_y: float,
+                            color: Tuple[int, int, int],
+                            surf_size: Tuple[int, int] = (480, 854)) -> None:
+        """Descending sword silhouette for slam/dash-vfx ultimates.
+
+        Sword (16 × 200 px) falls from top of frame to impact_y over 150 ms
+        with slow-in/fast-out easing. On contact: 8 debris particles + radial
+        shockwave (radius 8→80 px over 300 ms).
+        """
+        self._ultimate_slams.append(_UltimateSlam(
+            impact_x=float(impact_x), impact_y=float(impact_y),
+            color=color, surf_h=surf_size[1]))
+        # Immediate camera shake for the slam
+        self.camera_shake.trigger(magnitude_px=9.0, duration_ms=350.0)
 
     def update_and_draw(self, surf: pygame.Surface, dt_ms: int) -> None:
         """Advance all effects by dt_ms and draw onto surf."""
@@ -646,6 +758,164 @@ class ImpactFX:
                                   int(sl.y + math.sin(ang_r) * length // 2)), 2)
             surf.blit(sl_surf, (0, 0))
         self._speed_lines = alive_sl
+
+        # ── Skill banners (ultimate cast name) ───────────────────────────────────
+        alive_banners: List[_SkillBanner] = []
+        for bn in self._skill_banners:
+            bn.age_ms += dt_ms
+            if bn.age_ms >= bn.life_ms:
+                continue
+            alive_banners.append(bn)
+            # Compute alpha: fade-in, hold, fade-out
+            age = bn.age_ms
+            if age < SKILL_BANNER_FADE_IN_MS:
+                alpha = int(255 * age / SKILL_BANNER_FADE_IN_MS)
+            elif age < SKILL_BANNER_FADE_IN_MS + SKILL_BANNER_HOLD_MS:
+                alpha = 255
+            else:
+                remaining = bn.life_ms - age
+                alpha = max(0, int(255 * remaining / SKILL_BANNER_FADE_OUT_MS))
+            if alpha < 2:
+                continue
+            # Upward drift
+            drift_y = int(SKILL_BANNER_RISE_PX * bn.age_ms / max(1, bn.life_ms))
+            try:
+                font = pygame.font.SysFont(None, SKILL_BANNER_FONT_SIZE * 2)
+                # Outline: draw text in dark offset for readability
+                outline_col = tuple(max(0, c - 160) for c in bn.color)
+                rendered = font.render(bn.text, True, bn.color)
+                rendered.set_alpha(alpha)
+                rx = bn.screen_cx - rendered.get_width() // 2
+                ry = bn.screen_cy - drift_y - rendered.get_height() // 2
+                # 4-direction outline for contrast
+                outline_surf = font.render(bn.text, True, outline_col)
+                outline_surf.set_alpha(min(255, alpha + 60))
+                for ox, oy in ((-3, 0), (3, 0), (0, -3), (0, 3)):
+                    surf.blit(outline_surf, (rx + ox, ry + oy))
+                surf.blit(rendered, (rx, ry))
+            except Exception:
+                pass
+        self._skill_banners = alive_banners
+
+        # ── Ultimate beam (wide band + glow + lens flare) ─────────────────────
+        alive_ub: List[_UltimateBeam] = []
+        for ub in self._ultimate_beams:
+            ub.age_ms += dt_ms
+            if ub.age_ms >= ub.life_ms:
+                continue
+            alive_ub.append(ub)
+            frac = ub.age_ms / ub.life_ms
+            alpha = max(0, int(240 * (1.0 - frac)))
+            if alpha < 2:
+                continue
+            ub_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            # 1. Full-width 80-px glow column at beam height
+            glow_h = 80
+            glow_top = int(ub.y) - glow_h // 2
+            glow_surf = pygame.Surface((ub.surf_w, glow_h), pygame.SRCALPHA)
+            for row in range(glow_h):
+                # Gaussian-like alpha falloff from centre
+                dist_from_center = abs(row - glow_h // 2)
+                row_alpha = int(alpha * 0.5 * max(0.0, 1.0 - dist_from_center / (glow_h / 2)))
+                if row_alpha > 0:
+                    glow_surf.fill((*ub.color, row_alpha), (0, row, ub.surf_w, 1))
+            ub_surf.blit(glow_surf, (0, max(0, glow_top)))
+            # 2. Wide beam band (60 px) from x1 to x2
+            bx1, bx2 = int(min(ub.x1, ub.x2)), int(max(ub.x1, ub.x2))
+            beam_w = max(1, bx2 - bx1)
+            beam_band = pygame.Surface((beam_w, 60), pygame.SRCALPHA)
+            for row in range(60):
+                dist = abs(row - 30)
+                row_a = int(alpha * max(0.0, 1.0 - dist / 30))
+                if row_a > 0:
+                    beam_band.fill((*ub.color, row_a), (0, row, beam_w, 1))
+            ub_surf.blit(beam_band, (bx1, int(ub.y) - 30))
+            # 3. White-hot 6-px core
+            pygame.draw.line(ub_surf, (255, 255, 255, min(255, alpha + 15)),
+                             (bx1, int(ub.y)), (bx2, int(ub.y)), 6)
+            surf.blit(ub_surf, (0, 0))
+            # 4. Lens flare: 6 radial rays from caster hand position
+            n_rays = 6
+            for i in range(n_rays):
+                ang = (math.tau * i) / n_rays
+                ray_len = int(50 + 70 * (1.0 - frac))
+                ex = int(ub.x1 + math.cos(ang) * ray_len)
+                ey = int(ub.y + math.sin(ang) * ray_len)
+                ray_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                pygame.draw.line(ray_surf, (*ub.color, max(0, alpha - 40)),
+                                 (int(ub.x1), int(ub.y)), (ex, ey), 3)
+                # White core ray
+                mid_ex = int(ub.x1 + math.cos(ang) * ray_len * 0.5)
+                mid_ey = int(ub.y + math.sin(ang) * ray_len * 0.5)
+                pygame.draw.line(ray_surf, (255, 255, 255, max(0, alpha - 80)),
+                                 (int(ub.x1), int(ub.y)), (mid_ex, mid_ey), 2)
+                surf.blit(ray_surf, (0, 0))
+        self._ultimate_beams = alive_ub
+
+        # ── Ultimate slam (descending sword + shockwave) ──────────────────────
+        alive_us: List[_UltimateSlam] = []
+        for us in self._ultimate_slams:
+            us.age_ms += dt_ms
+            if us.age_ms >= us.life_ms:
+                continue
+            alive_us.append(us)
+            # Phase 1: sword descends (0 → ULTIMATE_SLAM_DESCEND_MS)
+            if us.age_ms <= ULTIMATE_SLAM_DESCEND_MS:
+                # Slow-in fast-out easing (ease-in cubic then linear)
+                t_frac = us.age_ms / ULTIMATE_SLAM_DESCEND_MS
+                eased = t_frac * t_frac * (3.0 - 2.0 * t_frac)  # smoothstep
+                sword_start_y = 0
+                sword_end_y = int(us.impact_y) - 100  # stop at chest height
+                sword_y = int(sword_start_y + (sword_end_y - sword_start_y) * eased)
+                # Draw sword silhouette: 16×200 white-and-brand-color rectangle
+                sword_surf = pygame.Surface((16, 200), pygame.SRCALPHA)
+                sword_surf.fill((*us.color, 220))
+                # White core strip
+                core_rect = pygame.Rect(5, 0, 6, 200)
+                pygame.draw.rect(sword_surf, (255, 255, 255, 240), core_rect)
+                sx = int(us.impact_x) - 8
+                surf.blit(sword_surf, (sx, sword_y))
+            else:
+                # Phase 2: impact effects
+                if not us.impact_spawned:
+                    us.impact_spawned = True
+                    # 8 radial debris particles
+                    for i in range(8):
+                        ang = (math.tau * i) / 8
+                        speed = random.uniform(4.0, 9.0)
+                        # Large dark-grey debris sparks
+                        self._active.append(_Spark(
+                            x=us.impact_x, y=us.impact_y - 100,
+                            vx=math.cos(ang) * speed,
+                            vy=math.sin(ang) * speed - 2.0,
+                            life_ms=random.randint(200, 400),
+                            color=(80, 80, 90)))
+                        # Brand-color sparks too
+                        self._active.append(_Spark(
+                            x=us.impact_x, y=us.impact_y - 100,
+                            vx=math.cos(ang) * speed * 0.7,
+                            vy=math.sin(ang) * speed * 0.7,
+                            life_ms=random.randint(150, 320),
+                            color=us.color))
+                # Phase 2 render: expanding shockwave ring
+                phase2_age = us.age_ms - ULTIMATE_SLAM_DESCEND_MS
+                phase2_life = us.life_ms - ULTIMATE_SLAM_DESCEND_MS
+                ring_frac = phase2_age / max(1, phase2_life)
+                ring_r = int(8 + (80 - 8) * ring_frac)
+                ring_alpha = max(0, int(220 * (1.0 - ring_frac)))
+                if ring_r > 2 and ring_alpha > 5:
+                    ring_d = ring_r * 2 + 8
+                    ring_surf = pygame.Surface((ring_d, ring_d), pygame.SRCALPHA)
+                    pygame.draw.circle(ring_surf, (*us.color, ring_alpha),
+                                       (ring_r + 4, ring_r + 4), ring_r, 4)
+                    # Outer white ring
+                    if ring_r > 8:
+                        pygame.draw.circle(ring_surf,
+                                           (255, 255, 255, ring_alpha // 2),
+                                           (ring_r + 4, ring_r + 4), ring_r - 3, 2)
+                    surf.blit(ring_surf, (int(us.impact_x) - ring_r - 4,
+                                          int(us.impact_y) - 100 - ring_r - 4))
+        self._ultimate_slams = alive_us
 
         # Update and draw floating text
         alive_texts: List[_FloatingText] = []
