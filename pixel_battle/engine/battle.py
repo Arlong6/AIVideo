@@ -198,12 +198,14 @@ class Battle:
         if skip_ai:
             return
 
-        # Ultimate check — before AI so it fires immediately when ready
+        # Ultimate check — before AI so it fires immediately when ready.
+        # cinematic_pause=False: scripted renders have their own KO sequence;
+        # the 6.5s freeze creates dead air. Auto-trigger fires instantly now.
         if self.left.ultimate_ready() and self.left.action_state not in ("attacking", "hit_stagger", "ko"):
-            self._trigger_ultimate(self.left, self.right)
+            self._trigger_ultimate(self.left, self.right, cinematic_pause=False)
             return
         if self.right.ultimate_ready() and self.right.action_state not in ("attacking", "hit_stagger", "ko"):
-            self._trigger_ultimate(self.right, self.left)
+            self._trigger_ultimate(self.right, self.left, cinematic_pause=False)
             return
 
         # AI decisions

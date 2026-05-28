@@ -705,9 +705,9 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         surf_size=(WIDTH, HEIGHT))
                     # Larger camera shake via CameraShake helper
                     impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
-                    # ── Ultimate slow-mo: every ultimate earns a dramatic beat ──
-                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 160.0)
-                    _slowmo_dt_scale = 0.35
+                    # ── Ultimate slow-mo: short, single beat (no stack from spam) ──
+                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 80.0)
+                    _slowmo_dt_scale = 0.4
                     # Ultimate charge orb — 2× scale with rising particle column
                     impact_fx.spawn_charge_orb(
                         x=int(actor_obj.pos_x), y=int(actor_obj.pos_y) - 130,

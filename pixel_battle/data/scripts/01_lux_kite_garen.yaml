@@ -81,39 +81,36 @@ right_timeline:
   # ── Fill idle gap: Lux retreats as Garen flashes in ──
   - {t: 2900, do: retreat}                   # back away from incoming flash
   - {t: 3500, do: retreat}                   # keep distance
-  # ── Act 2: After root, dense basics (Garen dashes in ~t=4.1s)
-  # No retreats — stay at x≈420 for Garen to close into melee range
-  - {t: 4200, do: "attack:basic"}   # Garen just dashed in — jab back! (dist≈80px)
-  - {t: 4700, do: "attack:basic"}
-  - {t: 5200, do: "attack:basic"}
-  - {t: 5700, do: "attack:basic"}
-  - {t: 6200, do: "attack:basic"}
-  - {t: 6600, do: "cast:light_binding"}      # 固定 #2 (CD ready ~6.3s) — Garen blocks!
-  - {t: 7100, do: "attack:basic"}
-  - {t: 7600, do: "attack:basic"}
-  - {t: 8100, do: "attack:basic"}
-  - {t: 8600, do: "attack:basic"}
-  - {t: 9100, do: "attack:basic"}
-  - {t: 9600, do: "attack:basic"}
-  - {t: 10100, do: "attack:basic"}
-  - {t: 10600, do: "cast:light_binding"}     # 固定 #3 (CD ready ~10.3s) — connects!
-  - {t: 11100, do: "attack:basic"}
-  - {t: 11600, do: "attack:basic"}
-  - {t: 12100, do: "attack:basic"}
-  - {t: 12600, do: "attack:basic"}
-  - {t: 13100, do: "attack:basic"}
-  - {t: 13500, do: "attack:basic"}
-  - {t: 13800, do: "attack:basic"}           # push MP toward 100
-  # ── Act 3: Ultimate climax — final_spark when MP≥100
-  # With 2 blocked light_bindings: Garen survives to ~10 HP when LuxMP=100
-  - {t: 14100, do: "cast:final_spark"}       # 大絕! attempt #1 — fires when MP≥100
-  - {t: 14700, do: "attack:basic"}
-  - {t: 15100, do: "cast:final_spark"}       # attempt #2
-  - {t: 15700, do: "attack:basic"}
-  - {t: 16100, do: "cast:final_spark"}       # attempt #3
-  - {t: 16700, do: "attack:basic"}
-  - {t: 17100, do: "cast:final_spark"}       # attempt #4
-  - {t: 17700, do: "attack:basic"}
-  - {t: 18100, do: "cast:final_spark"}       # attempt #5
-  - {t: 18700, do: "attack:basic"}
-  - {t: 19100, do: "cast:final_spark"}       # attempt #6
+  # ── Act 2: Kite pattern — engage / disengage cycles, never sustained melee ──
+  - {t: 4200, do: "attack:basic"}            # quick counter-jab on Garen's dash
+  - {t: 4500, do: "flash:back"}              # ESCAPE — open distance immediately
+  - {t: 5000, do: retreat}
+  - {t: 5600, do: retreat}
+  - {t: 6200, do: "cast:light_binding"}      # 固定 #2 from far (Flash CD'd, but distance there)
+  - {t: 6800, do: retreat}                   # filler between casts
+  - {t: 7000, do: retreat}
+  - {t: 7600, do: "cast:lucent_singularity"} # 遠程炮 #1 (special, projectile)
+  - {t: 8000, do: retreat}                   # filler
+  - {t: 8400, do: retreat}
+  - {t: 9000, do: "attack:basic"}            # Garen pursued — single close jab
+  - {t: 9400, do: retreat}                   # disengage
+  - {t: 10000, do: retreat}
+  - {t: 10500, do: "cast:light_binding"}     # 固定 #3
+  - {t: 10900, do: retreat}                  # filler between casts
+  - {t: 11400, do: "cast:lucent_singularity"} # 遠程炮 #2
+  - {t: 11800, do: retreat}                  # filler
+  - {t: 12200, do: retreat}
+  - {t: 12800, do: "attack:basic"}           # close jab to push MP toward ult
+  - {t: 13200, do: "flash:back"}             # ESCAPE again (Flash CD reset ~8000 → ready by 13200)
+  - {t: 13800, do: retreat}
+  - {t: 14400, do: "attack:basic"}           # final MP nudge
+  # ── Act 3: ONE ultimate cast, then disengage ──
+  - {t: 14800, do: "cast:final_spark"}       # 大絕 — ONE attempt only (avoids slow-mo spam)
+  - {t: 15400, do: retreat}                  # filler during ultimate beat
+  - {t: 15800, do: "attack:basic"}           # mop-up if Garen survived
+  - {t: 16400, do: "attack:basic"}           # second mop-up
+  - {t: 17000, do: retreat}                  # cinematic walk-away
+  - {t: 17600, do: retreat}
+  - {t: 18200, do: retreat}
+  - {t: 18800, do: retreat}
+  - {t: 19400, do: retreat}
