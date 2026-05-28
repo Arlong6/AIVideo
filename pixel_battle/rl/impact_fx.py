@@ -221,6 +221,81 @@ class _UltimateSlam:
     impact_spawned: bool = False   # radial debris / shockwave fires once
 
 
+# ── Cinematic ultimate VFX constants ─────────────────────────────────────────
+VIGNETTE_SURFACE_CACHE: dict = {}     # cache keyed by (w, h) — reuse alpha surface
+SMOKE_CLOUD_MS = 1000
+DEFENDER_SILHOUETTE_MS = 600
+CONVERGING_PARTICLE_MS = 600         # each homing particle lives up to 600 ms
+CONVERGING_PARTICLE_SPEED = 12.0     # px/tick toward target (accelerating)
+
+
+@dataclass
+class _SmokeParticle:
+    """A single smoke puff drifting upward and fading."""
+    x: float
+    y: float
+    vx: float           # slow horizontal drift
+    vy: float           # upward velocity (negative = up)
+    radius: float       # current radius (grows slightly)
+    color: Tuple[int, int, int]
+    age_ms: int = 0
+    life_ms: int = SMOKE_CLOUD_MS
+
+
+@dataclass
+class _DefenderSilhouette:
+    """Defender ghost outline rendered in stark white, fading over 600 ms."""
+    x: float
+    y: float
+    age_ms: int = 0
+    life_ms: int = DEFENDER_SILHOUETTE_MS
+
+
+@dataclass
+class _MagicCircle:
+    """Flat ellipse 'magic circle' at the caster's feet, rotating over its lifetime."""
+    cx: float         # world x center
+    ground_y: float   # world y feet
+    radius: float     # semi-major axis (px)
+    color: Tuple[int, int, int]
+    rotation: float   # radians, advances each tick
+    age_ms: int = 0
+    life_ms: int = 1500   # matches ANTICIPATION_MS
+
+
+@dataclass
+class _CasterAura:
+    """Pulsing ring(s) around the caster during anticipation."""
+    cx: float
+    cy: float
+    radius: float     # current peak radius (grows each tick via UltSeqResult)
+    color: Tuple[int, int, int]
+    t: float          # 0.0→1.0 phase progress (drives sin pulse)
+    age_ms: int = 0
+    life_ms: int = 1500
+
+
+@dataclass
+class _ReleaseFlash:
+    """Full-screen white flash that decays over RELEASE_MS (200 ms)."""
+    age_ms: int = 0
+    life_ms: int = 200
+    peak_alpha: int = 255
+
+
+@dataclass
+class _HomingParticle:
+    """A particle that accelerates toward a target point."""
+    x: float
+    y: float
+    target_x: float
+    target_y: float
+    color: Tuple[int, int, int]
+    age_ms: int = 0
+    life_ms: int = CONVERGING_PARTICLE_MS
+    speed: float = CONVERGING_PARTICLE_SPEED
+
+
 @dataclass
 class _SpeedLine:
     """Single radial speed line radiating from a hit point."""
@@ -305,6 +380,9 @@ class ImpactFX:
         self._speed_lines: List[_SpeedLine] = []
         self._streaks: List[_FlashStreak] = []
         self.camera_shake: CameraShake = CameraShake()
+        # Cinematic vignette state (driven by UltimateSequence each frame)
+        self._vignette_alpha: int = 0
+        self._vignette_surf_size: Tuple[int, int] = (480, 854)
         # Epic ultimate VFX queues
         self._skill_banners: List[_SkillBanner] = []
         self._ultimate_beams: List[_UltimateBeam] = []
@@ -323,6 +401,13 @@ class ImpactFX:
         self._beam_sparkle_x2: float = 0.0
         self._beam_sparkle_y: float = 0.0
         self._beam_sparkle_color: Tuple[int, int, int] = (255, 255, 255)
+        # Cinematic ultimate VFX queues
+        self._smoke_clouds: List[_SmokeParticle] = []
+        self._defender_silhouettes: List[_DefenderSilhouette] = []
+        self._magic_circles: List[_MagicCircle] = []
+        self._caster_auras: List[_CasterAura] = []
+        self._release_flashes: List[_ReleaseFlash] = []
+        self._homing_particles: List[_HomingParticle] = []
 
     def spawn_hit_spark(self, x: int, y: int, damage: int,
                         color: Tuple[int, int, int]) -> None:
@@ -585,6 +670,99 @@ class ImpactFX:
             color=color, surf_h=surf_size[1]))
         # Immediate camera shake for the slam
         self.camera_shake.trigger(magnitude_px=9.0, duration_ms=350.0)
+
+    # ── Cinematic ultimate VFX ─────────────────────────────────────────────────
+
+    def spawn_vignette(self, alpha: int, surf_size: Tuple[int, int]) -> None:
+        """Store the desired vignette alpha; drawn in update_and_draw this frame."""
+        self._vignette_alpha = min(255, max(0, alpha))
+        self._vignette_surf_size = surf_size
+
+    def spawn_caster_aura(
+        self,
+        cx: float,
+        cy: float,
+        radius: float,
+        color: Tuple[int, int, int],
+        t: float,
+    ) -> None:
+        """Per-frame pulsing rings at (cx, cy). Replaces current entry each frame."""
+        self._caster_auras = [_CasterAura(cx=cx, cy=cy, radius=radius, color=color, t=t)]
+
+    def spawn_magic_circle(
+        self,
+        cx: float,
+        ground_y: float,
+        radius: float,
+        color: Tuple[int, int, int],
+        rotation: float,
+    ) -> None:
+        """Per-frame flat rotating ellipse at caster feet. Replaces current entry."""
+        self._magic_circles = [
+            _MagicCircle(cx=cx, ground_y=ground_y, radius=radius,
+                         color=color, rotation=rotation)
+        ]
+
+    def spawn_converging_particles(
+        self,
+        target_x: float,
+        target_y: float,
+        color: Tuple[int, int, int],
+        surf_w: int,
+        surf_h: int,
+        n: int = 3,
+    ) -> None:
+        """Spawn n particles at random screen edges homing toward (target_x, target_y)."""
+        for _ in range(n):
+            edge = random.randint(0, 3)   # 0=top, 1=right, 2=bottom, 3=left
+            if edge == 0:
+                x, y = random.uniform(0, surf_w), 0.0
+            elif edge == 1:
+                x, y = float(surf_w), random.uniform(0, surf_h)
+            elif edge == 2:
+                x, y = random.uniform(0, surf_w), float(surf_h)
+            else:
+                x, y = 0.0, random.uniform(0, surf_h)
+            self._homing_particles.append(_HomingParticle(
+                x=x, y=y, target_x=target_x, target_y=target_y, color=color))
+
+    def spawn_release_flash(self) -> None:
+        """Trigger the 200 ms full-screen white flash for the RELEASE phase."""
+        self._release_flashes.append(_ReleaseFlash())
+
+    def spawn_smoke_cloud(
+        self,
+        x: float,
+        y: float,
+        color: Tuple[int, int, int],
+        n: int = 12,
+    ) -> None:
+        """Spawn n smoke puffs at (x, y) drifting upward and outward over 1 s."""
+        for i in range(n):
+            angle = random.uniform(-math.pi, 0.0)  # upward hemisphere
+            speed = random.uniform(0.8, 2.5)
+            vx = math.cos(angle) * speed * random.uniform(0.5, 1.5)
+            vy = math.sin(angle) * speed - random.uniform(0.5, 1.0)  # upward bias
+            radius = random.uniform(8.0, 22.0)
+            # Mix brand color + grey for smoke feel
+            smoke_col = (
+                int(color[0] * 0.35 + 140),
+                int(color[1] * 0.35 + 140),
+                int(color[2] * 0.35 + 140),
+            )
+            self._smoke_clouds.append(_SmokeParticle(
+                x=x + random.uniform(-20, 20),
+                y=y - 80 + random.uniform(-20, 20),
+                vx=vx, vy=vy, radius=radius, color=smoke_col))
+
+    def spawn_defender_silhouette(
+        self,
+        defender_x: float,
+        defender_y: float,
+    ) -> None:
+        """Render a stark white ghost outline of the defender that fades over 600 ms."""
+        self._defender_silhouettes.append(
+            _DefenderSilhouette(x=defender_x, y=defender_y))
 
     def update_and_draw(self, surf: pygame.Surface, dt_ms: int) -> None:
         """Advance all effects by dt_ms and draw onto surf."""
@@ -1146,6 +1324,168 @@ class ImpactFX:
                 except Exception:
                     pass  # graceful no-op if font unavailable
         self._texts = alive_texts
+
+        # ── Vignette overlay (cinematic ultimate anticipation) ─────────────────
+        if self._vignette_alpha > 0:
+            try:
+                vw, vh = self._vignette_surf_size
+                vig = pygame.Surface((vw, vh), pygame.SRCALPHA)
+                vig.fill((0, 0, 0, self._vignette_alpha))
+                # Punch out a transparent ellipse in center (40% of screen width)
+                center_x, center_y = vw // 2, vh // 2
+                punch_rx = int(vw * 0.40)
+                punch_ry = int(vh * 0.30)
+                pygame.draw.ellipse(vig, (0, 0, 0, 0),
+                                    (center_x - punch_rx, center_y - punch_ry,
+                                     punch_rx * 2, punch_ry * 2))
+                surf.blit(vig, (0, 0))
+            except Exception:
+                pass
+            self._vignette_alpha = 0   # reset each frame; caller sets it again next tick
+
+        # ── Magic circles (caster feet ring) ─────────────────────────────────
+        alive_mc: List[_MagicCircle] = []
+        for mc in self._magic_circles:
+            mc.age_ms += dt_ms
+            if mc.age_ms >= mc.life_ms:
+                continue
+            alive_mc.append(mc)
+            frac = mc.age_ms / mc.life_ms
+            alpha = max(0, int(200 * (1.0 - frac * 0.3)))
+            if alpha < 4:
+                continue
+            try:
+                rx = int(mc.radius)
+                ry = max(2, int(mc.radius * 0.25))
+                d = rx * 2 + 8
+                mc_surf = pygame.Surface((d, int(ry * 2 + 8)), pygame.SRCALPHA)
+                cx_mc, cy_mc = rx + 4, ry + 4
+                pygame.draw.ellipse(mc_surf, (*mc.color, alpha),
+                                    (0, 0, d, ry * 2 + 8), 3)
+                for k in range(3):
+                    ang = mc.rotation + (math.tau * k) / 3
+                    nx = cx_mc + int(math.cos(ang) * rx)
+                    ny = cy_mc + int(math.sin(ang) * ry * 0.8)
+                    pygame.draw.line(mc_surf, (*mc.color, min(255, alpha + 40)),
+                                     (cx_mc, cy_mc), (nx, ny), 2)
+                surf.blit(mc_surf, (int(mc.cx) - rx - 4,
+                                    int(mc.ground_y) - ry - 4))
+            except Exception:
+                pass
+        self._magic_circles = alive_mc
+
+        # ── Caster aura rings ─────────────────────────────────────────────────
+        alive_ca: List[_CasterAura] = []
+        for ca in self._caster_auras:
+            ca.age_ms += dt_ms
+            if ca.age_ms >= ca.life_ms:
+                continue
+            alive_ca.append(ca)
+            frac = ca.age_ms / ca.life_ms
+            for k in range(3):
+                phase_offset = k * (math.tau / 3)
+                pulse = 0.5 + 0.5 * math.sin(ca.t * math.tau * 2 + phase_offset)
+                ring_r = int(ca.radius * (0.7 + k * 0.12))
+                alpha = max(0, int(180 * pulse * (1.0 - frac * 0.2)))
+                if ring_r < 2 or alpha < 4:
+                    continue
+                d = ring_r * 2 + 8
+                ring_surf = pygame.Surface((d, d), pygame.SRCALPHA)
+                pygame.draw.circle(ring_surf, (*ca.color, alpha),
+                                   (ring_r + 4, ring_r + 4), ring_r, 3)
+                surf.blit(ring_surf, (int(ca.cx) - ring_r - 4,
+                                      int(ca.cy) - ring_r - 4))
+        self._caster_auras = alive_ca
+
+        # ── Homing (converging) particles ─────────────────────────────────────
+        alive_hp: List[_HomingParticle] = []
+        for hp in self._homing_particles:
+            hp.age_ms += dt_ms
+            if hp.age_ms >= hp.life_ms:
+                continue
+            alive_hp.append(hp)
+            dx = hp.target_x - hp.x
+            dy = hp.target_y - hp.y
+            dist = math.hypot(dx, dy)
+            if dist > 1.0:
+                speed_now = hp.speed * (1.0 + hp.age_ms / max(1, hp.life_ms) * 3.0)
+                step = min(dist, speed_now)
+                hp.x += (dx / dist) * step
+                hp.y += (dy / dist) * step
+            frac = hp.age_ms / hp.life_ms
+            alpha = max(0, int(180 * (1.0 - frac)))
+            if alpha < 4:
+                continue
+            p_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            pygame.draw.circle(p_surf, (*hp.color, alpha),
+                               (int(hp.x), int(hp.y)), 3)
+            surf.blit(p_surf, (0, 0))
+        self._homing_particles = alive_hp
+
+        # ── Release flash ─────────────────────────────────────────────────────
+        alive_rf: List[_ReleaseFlash] = []
+        for rf in self._release_flashes:
+            rf.age_ms += dt_ms
+            if rf.age_ms >= rf.life_ms:
+                continue
+            alive_rf.append(rf)
+            frac = rf.age_ms / rf.life_ms
+            alpha = max(0, int(rf.peak_alpha * (1.0 - frac)))
+            if alpha < 4:
+                continue
+            try:
+                fl_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                fl_surf.fill((255, 255, 255, alpha))
+                surf.blit(fl_surf, (0, 0))
+            except Exception:
+                pass
+        self._release_flashes = alive_rf
+
+        # ── Smoke clouds ──────────────────────────────────────────────────────
+        alive_sc: List[_SmokeParticle] = []
+        for sc in self._smoke_clouds:
+            sc.age_ms += dt_ms
+            if sc.age_ms >= sc.life_ms:
+                continue
+            alive_sc.append(sc)
+            sc.x += sc.vx
+            sc.y += sc.vy
+            sc.vy *= 0.98
+            sc.radius = min(sc.radius + 0.15, 32.0)
+            frac = sc.age_ms / sc.life_ms
+            alpha = max(0, int(140 * (1.0 - frac)))
+            if alpha < 4 or sc.radius < 2:
+                continue
+            r = int(sc.radius)
+            d = r * 2 + 4
+            sc_surf = pygame.Surface((d, d), pygame.SRCALPHA)
+            pygame.draw.circle(sc_surf, (*sc.color, alpha), (r + 2, r + 2), r)
+            surf.blit(sc_surf, (int(sc.x) - r - 2, int(sc.y) - r - 2))
+        self._smoke_clouds = alive_sc
+
+        # ── Defender silhouette ───────────────────────────────────────────────
+        alive_ds: List[_DefenderSilhouette] = []
+        for ds in self._defender_silhouettes:
+            ds.age_ms += dt_ms
+            if ds.age_ms >= ds.life_ms:
+                continue
+            alive_ds.append(ds)
+            frac = ds.age_ms / ds.life_ms
+            alpha = max(0, int(220 * (1.0 - frac)))
+            if alpha < 4:
+                continue
+            cx_ds = int(ds.x)
+            fy_ds = int(ds.y)
+            sil = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            col = (255, 255, 255, alpha)
+            pygame.draw.circle(sil, col, (cx_ds, fy_ds - 120), 10, 2)
+            pygame.draw.line(sil, col, (cx_ds, fy_ds - 110), (cx_ds, fy_ds - 50), 3)
+            pygame.draw.line(sil, col, (cx_ds - 20, fy_ds - 90),
+                             (cx_ds + 20, fy_ds - 90), 3)
+            pygame.draw.line(sil, col, (cx_ds, fy_ds - 50), (cx_ds - 18, fy_ds), 3)
+            pygame.draw.line(sil, col, (cx_ds, fy_ds - 50), (cx_ds + 18, fy_ds), 3)
+            surf.blit(sil, (0, 0))
+        self._defender_silhouettes = alive_ds
 
         # Draw screen flash overlay (on top of everything)
         if self._flash_alpha > 0:
