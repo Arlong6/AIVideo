@@ -41,12 +41,15 @@ left_timeline:
   # ── Act 2: ROOT expires t≈3.96s — decisive_strike dash to close to 80px
   - {t: 4100, do: "attack:cd"}      # decisive_strike DASH: 280 → ~340, Lux at ~420, dist≈80
   - {t: 4600, do: "attack:basic"}   # first melee exchange
-  - {t: 5100, do: block}            # defensive guard
-  - {t: 5600, do: "attack:basic"}
-  - {t: 6100, do: advance}          # push in
-  - {t: 6400, do: "attack:cd"}      # decisive_strike DASH #2 (no-op: CD ready t=7600ms, engine drops)
-  - {t: 6500, do: block}            # 防禦 light_binding #2 (fires t≈6.72s, hits t≈6.86s) — block active!
-  - {t: 6900, do: block}            # hold guard
+  # ── SEPARATION BEAT #2: Garen kited to the far left, holds → wide gap that
+  #    carries straight into the climax (beam crosses the whole arena) ──
+  - {t: 5000, do: retreat}          # Garen disengages, backs left
+  - {t: 5300, do: retreat}
+  - {t: 5600, do: retreat}
+  - {t: 5900, do: retreat}          # kited to the left side — full-arena gap
+  - {t: 6300, do: block}            # brace at range instead of re-closing
+  - {t: 6500, do: block}            # 防禦 light_binding #2 (fires t≈6.72s)
+  - {t: 6900, do: block}            # hold guard — stay apart for the beam climax
   - {t: 7400, do: "attack:basic"}
   - {t: 7900, do: advance}
   - {t: 8200, do: "attack:basic"}
