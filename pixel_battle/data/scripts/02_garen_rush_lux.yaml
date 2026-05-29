@@ -1,117 +1,66 @@
-# ──────────────────────────────────────────────────────────
-# 蓋倫 vs 拉克絲 — 鐵衛突進，無處可逃
-# ──────────────────────────────────────────────────────────
-# 【第一幕 · 開場  0.0–6.0s】
-#   蓋倫不廢話，開場即閃現壓進拉克絲；她施展束縛，但蓋倫頂著傷繼續猛壓。
-#   拉克絲閃現逃至右端邊界，連發螢光奇點試圖製造距離。
-#   鋼鐵意志 vs 光之智慧——戰場瞬間蔓延整個競技場。
+# ──────────────────────────────────────────────────────────────────────────────
+# 蓋倫 vs 拉克絲 — 鐵衛的逆襲 · 劍從天降的處決
+# KOF/SF style: mage opens with total control, juggernaut shrugs it off and executes
+# ──────────────────────────────────────────────────────────────────────────────
 #
-# 【第二幕 · 蓄勢  6.0–15.0s】
-#   蓋倫決定性突刺劃出銀弧，再一次閃現強行貼臉；拉克絲失去閃現慌忙後撤。
-#   審判旋轉將拉克絲逼至左側牆角，光之束縛的最後嘗試被突刺打斷。
-#   兩人的HP都在交換傷害中跌落，但蓋倫的勢頭更猛。
+# 【幕一 · 法師壓制 Mage Dominates  0–4s】
+#   Lux 開場就掌控節奏:光之束縛固定蓋倫,螢光奇點消耗,閃現拉開風箏。
+#   蓋倫被束縛、挨了幾下,血條開始掉——看起來法師完全壓著打。
 #
-# 【第三幕 · 衝突  15.0–22.0s】
-#   拉克絲閃現重置距離，但蓋倫幾乎同步閃現追上；兩道閃光在戰場交錯。
-#   連續三段突刺讓拉克絲的防線徹底潰散，HP條見底。
-#   蓋倫最後的旋轉如山崩——勝負已定。
+# 【幕二 · 鐵衛不退 The Juggernaut Won't Stop  4–7s】
+#   束縛擋不住閃現——蓋倫無視控制,一次次閃現+突刺強行貼臉。
+#   Lux 的閃現燒完了,被逼到角落,最後的束縛被突刺打斷。
 #
-# 【終幕 · KO  22.0s+】
-#   勝者：蓋倫。他插劍入地，沉默地望向倒下的法師。
-# ──────────────────────────────────────────────────────────
-name: "Garen rushes down Lux"
+# 【幕三 · 大絕收場 Ultimate Climax  7–11s】
+#   蓋倫滿能量(start_mp=100)。貼身瞬間,DEMACIAN JUSTICE 巨劍從天而降——
+#   slam 處決(30 傷害,一發致命)。鐵衛插劍入地,法師倒下。
+#
+#   注意:蓋倫大絕前「絕不放耗魔 special」(judgment/courage 會把 MP 打到 100 以下,
+#   demacian_justice 需滿 MP 才放得出來)。只用 basic / cd / flash / advance / block。
+#   slam 需貼身才命中 → 突進貼臉正好。Lux 滿血 30 HP 被 30 傷害大絕一發處決。
+# ──────────────────────────────────────────────────────────────────────────────
+name: "Garen's comeback — juggernaut executes the mage"
 left: garen
 right: lux
-duration_ms: 26000
+duration_ms: 13000
+left_start_mp: 100        # 蓋倫滿能量 — demacian_justice 是收場,不靠中途累積
+
 left_timeline:
-  # Garen opens with immediate flash-in and decisive strike
-  - {t: 800, do: "flash:in"}
-  - {t: 1400, do: "attack:cd"}
-  - {t: 2000, do: "attack:basic"}
-  - {t: 2500, do: "attack:basic"}
-  - {t: 2900, do: "attack:special"}
-  - {t: 3500, do: "attack:basic"}
-  # Lux flashed — advance to cut her off
-  - {t: 4000, do: advance}
-  - {t: 4500, do: "attack:cd"}
-  - {t: 5100, do: "attack:basic"}
-  - {t: 5600, do: "attack:special"}
-  - {t: 6200, do: "attack:basic"}
-  # Second flash-in — deny kiting space
-  - {t: 6700, do: "flash:in"}
-  - {t: 7300, do: "attack:cd"}
-  - {t: 7800, do: "attack:basic"}
-  - {t: 8400, do: "attack:special"}
-  - {t: 9000, do: "attack:basic"}
-  - {t: 9500, do: "attack:cd"}
-  # Push to far right corner
-  - {t: 10100, do: "flash:in"}
-  - {t: 10700, do: "attack:basic"}
-  - {t: 11200, do: "attack:cd"}
-  - {t: 11800, do: "attack:special"}
-  - {t: 12400, do: "attack:basic"}
-  - {t: 12900, do: advance}
-  # Traverse left across arena
-  - {t: 13500, do: "attack:cd"}
-  - {t: 14100, do: "attack:basic"}
-  - {t: 14600, do: "attack:special"}
-  - {t: 15200, do: "attack:basic"}
-  # Third flash — relentless
-  - {t: 15800, do: "flash:in"}
-  - {t: 16400, do: "attack:cd"}
-  - {t: 16900, do: "attack:special"}
-  - {t: 17500, do: "attack:basic"}
-  - {t: 18100, do: "attack:cd"}
-  - {t: 18700, do: "attack:basic"}
-  # Final press
-  - {t: 19300, do: "flash:in"}
-  - {t: 19900, do: "attack:special"}
-  - {t: 20500, do: "attack:cd"}
-  - {t: 21100, do: "attack:basic"}
-  - {t: 21700, do: "attack:special"}
-  - {t: 22300, do: "attack:cd"}
+  # ── 幕一:被壓制 — 頂著束縛與消耗前進 ──
+  - {t: 600,  do: advance}            # 開場直壓
+  - {t: 1100, do: advance}
+  - {t: 1600, do: block}              # 防一手 light_binding #1 (hits ~1.0s 後)
+  - {t: 2100, do: advance}            # 被束縛也要前進(root 擋移動 → 引擎吃掉,但意圖明確)
+  - {t: 2700, do: "flash:in"}         # 無視束縛 — 閃現貼臉 (flash 無視 root)
+  - {t: 3300, do: "attack:basic"}     # 第一次還手
+  - {t: 3800, do: advance}
+  # ── 幕二:鐵衛不退 — 燒掉 Lux 的閃現、逼進角落 ──
+  - {t: 4300, do: "attack:cd"}        # decisive_strike 突刺 DASH 拉近 (cooldown, 免費)
+  - {t: 4900, do: advance}
+  - {t: 5400, do: block}              # 防 light_binding #2
+  - {t: 5900, do: advance}
+  - {t: 6300, do: "flash:in"}         # 第二次閃現 — Lux 閃現已燒完,逼到牆角
+  - {t: 6900, do: advance}            # 確保貼身(slam 需 melee 射程)
+  - {t: 7200, do: advance}
+  # ── 幕三:大絕 — 劍從天降的處決 ──
+  - {t: 7500, do: "cast:demacian_justice"}   # 大絕 — slam 三階段電影感 + KO
+  - {t: 8600, do: idle}               # 插劍入地,沉默佇立
+  - {t: 9600, do: idle}
+
 right_timeline:
-  # Lux opens at range with light_binding before Garen reaches
-  - {t: 700, do: "cast:light_binding"}
-  - {t: 1300, do: "attack:basic"}
-  - {t: 1800, do: "flash:back"}
-  - {t: 2400, do: "attack:basic"}
-  - {t: 2900, do: "cast:lucent_singularity"}
-  - {t: 3500, do: "attack:basic"}
-  # Garen still coming — shield then flash
-  - {t: 4000, do: "cast:prismatic_barrier"}
-  - {t: 4500, do: "attack:basic"}
-  - {t: 5000, do: "flash:back"}
-  - {t: 5600, do: "attack:basic"}
-  - {t: 6100, do: "cast:light_binding"}
-  - {t: 6700, do: "attack:basic"}
-  # Second flash burned — kite without it
-  - {t: 7200, do: retreat}
-  - {t: 7800, do: "cast:lucent_singularity"}
-  - {t: 8400, do: "attack:basic"}
-  - {t: 8900, do: "cast:light_binding"}
-  - {t: 9500, do: retreat}
-  - {t: 10000, do: "attack:basic"}
-  - {t: 10600, do: "cast:lucent_singularity"}
-  # Last desperate escape — flash to far left
-  - {t: 11200, do: "flash:back"}
-  - {t: 11800, do: "attack:basic"}
-  - {t: 12300, do: "cast:light_binding"}
-  - {t: 12900, do: "attack:basic"}
-  - {t: 13400, do: "cast:lucent_singularity"}
-  - {t: 14000, do: retreat}
-  - {t: 14600, do: "attack:basic"}
-  - {t: 15100, do: "cast:light_binding"}
-  # Running out of options — fight back
-  - {t: 15700, do: "attack:basic"}
-  - {t: 16200, do: "cast:lucent_singularity"}
-  - {t: 16800, do: "attack:basic"}
-  - {t: 17300, do: "cast:light_binding"}
-  - {t: 17900, do: "attack:basic"}
-  - {t: 18500, do: "cast:lucent_singularity"}
-  - {t: 19000, do: "attack:basic"}
-  - {t: 19600, do: "cast:light_binding"}
-  - {t: 20200, do: "attack:basic"}
-  - {t: 20700, do: "cast:lucent_singularity"}
-  - {t: 21300, do: "attack:basic"}
-  - {t: 21900, do: "cast:light_binding"}
+  # ── 幕一:法師壓制 — 束縛 + 風箏 + 消耗(只用免費 light_binding,保留戲份;
+  #    lucent_singularity 耗魔但 Lux 不需要大絕,可自由使用)──
+  - {t: 700,  do: "cast:light_binding"}      # 固定蓋倫 (免費 cooldown, root 1.5s)
+  - {t: 1300, do: "cast:lucent_singularity"} # 螢光奇點消耗 (poke)
+  - {t: 1900, do: "flash:back"}              # 拉開距離風箏
+  - {t: 2500, do: retreat}
+  - {t: 3100, do: "attack:basic"}            # 反手戳一下
+  - {t: 3700, do: retreat}
+  # ── 幕二:閃現燒完 — 還想控,但擋不住 ──
+  - {t: 4200, do: "cast:light_binding"}      # 第二次束縛 (CD 好了)
+  - {t: 4800, do: retreat}
+  - {t: 5300, do: "cast:lucent_singularity"} # 最後的消耗
+  - {t: 5900, do: retreat}
+  - {t: 6500, do: retreat}                   # 被逼到角落,無處可逃
+  - {t: 7100, do: "cast:light_binding"}      # 最後的束縛嘗試(被貼臉打斷)
+  # 7.5s — 蓋倫大絕落下,處決

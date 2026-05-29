@@ -1330,21 +1330,26 @@ class ImpactFX:
                 sword_start_y = 0
                 sword_end_y = int(us.impact_y) - 100  # stop at chest height
                 sword_y = int(sword_start_y + (sword_end_y - sword_start_y) * eased)
-                # Draw sword silhouette: 16×200 white-and-brand-color rectangle
-                sword_surf = pygame.Surface((16, 200), pygame.SRCALPHA)
-                sword_surf.fill((*us.color, 220))
-                # White core strip
-                core_rect = pygame.Rect(5, 0, 6, 200)
-                pygame.draw.rect(sword_surf, (255, 255, 255, 240), core_rect)
-                sx = int(us.impact_x) - 8
+                # Soft glow trailing the falling blade (light_burst stretched along it)
+                self._blit_vfx(surf, "light_burst",
+                               cx=us.impact_x, cy=sword_y + 110,
+                               w=130, h=300, tint=us.color,
+                               brightness=0.5 + 0.4 * eased)
+                # Draw sword silhouette: wider 26×230 white-and-brand-color blade
+                sword_surf = pygame.Surface((26, 230), pygame.SRCALPHA)
+                sword_surf.fill((*us.color, 230))
+                # Bright white core strip
+                core_rect = pygame.Rect(9, 0, 8, 230)
+                pygame.draw.rect(sword_surf, (255, 255, 255, 245), core_rect)
+                sx = int(us.impact_x) - 13
                 surf.blit(sword_surf, (sx, sword_y))
             else:
                 # Phase 2: impact effects
                 if not us.impact_spawned:
                     us.impact_spawned = True
-                    # 8 radial debris particles
-                    for i in range(8):
-                        ang = (math.tau * i) / 8
+                    # 14 radial debris particles
+                    for i in range(14):
+                        ang = (math.tau * i) / 14
                         speed = random.uniform(4.0, 9.0)
                         # Large dark-grey debris sparks
                         self._active.append(_Spark(
@@ -1364,6 +1369,13 @@ class ImpactFX:
                 phase2_age = us.age_ms - ULTIMATE_SLAM_DESCEND_MS
                 phase2_life = us.life_ms - ULTIMATE_SLAM_DESCEND_MS
                 ring_frac = phase2_age / max(1, phase2_life)
+                # Execution flash — bright radial light burst at the impact point,
+                # brightest on contact and fading as the shockwave expands.
+                self._blit_vfx(surf, "light_burst",
+                               cx=us.impact_x, cy=us.impact_y - 100,
+                               w=300 + 320 * ring_frac, h=300 + 320 * ring_frac,
+                               tint=(255, 246, 224),
+                               brightness=(1.0 - ring_frac) ** 0.6)
                 ring_r = int(8 + (80 - 8) * ring_frac)
                 ring_alpha = max(0, int(220 * (1.0 - ring_frac)))
                 if ring_r > 2 and ring_alpha > 5:
