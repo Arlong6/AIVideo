@@ -9,9 +9,14 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 import pygame
+
+# Directory holding the AI-generated VFX glow textures (monochrome-white on black,
+# composited with BLEND_RGB_ADD and tinted to each caster's brand color).
+_VFX_TEX_DIR = Path(__file__).resolve().parents[1] / "assets" / "vfx"
 
 TEXT_FONT_SIZE = 22
 TEXT_LIFETIME_MS = 400
@@ -277,10 +282,17 @@ class _CasterAura:
 
 @dataclass
 class _ReleaseFlash:
-    """Full-screen white flash that decays over RELEASE_MS (200 ms)."""
+    """Full-screen white flash that decays over RELEASE_MS (200 ms).
+
+    cx/cy locate the radial light-burst texture (caster/impact point); the
+    full-screen white fill is centered regardless.
+    """
     age_ms: int = 0
     life_ms: int = 200
     peak_alpha: int = 255
+    cx: float = -1.0   # < 0 → fall back to screen center
+    cy: float = -1.0
+    color: Tuple[int, int, int] = (255, 255, 255)
 
 
 @dataclass
@@ -408,6 +420,63 @@ class ImpactFX:
         self._caster_auras: List[_CasterAura] = []
         self._release_flashes: List[_ReleaseFlash] = []
         self._homing_particles: List[_HomingParticle] = []
+        # AI-generated glow textures (lazily loaded, cached as raw RGB Surfaces)
+        self._vfx_tex_cache: Dict[str, Optional[pygame.Surface]] = {}
+
+    # ── AI glow-texture compositing ────────────────────────────────────────────
+
+    def _vfx_texture(self, name: str) -> Optional[pygame.Surface]:
+        """Load and cache a VFX glow texture by name (no extension).
+
+        Returns None if the file is missing — callers degrade gracefully to
+        their procedural fallback. Textures are monochrome-white on black so a
+        BLEND_RGB_MULT tint pass recolors them to any brand color.
+        """
+        if name in self._vfx_tex_cache:
+            return self._vfx_tex_cache[name]
+        path = _VFX_TEX_DIR / f"{name}.png"
+        surf: Optional[pygame.Surface] = None
+        if path.exists():
+            try:
+                loaded = pygame.image.load(str(path))
+                # convert() needs an initialized display; fall back to raw surface
+                try:
+                    surf = loaded.convert()
+                except (pygame.error, ValueError):
+                    surf = loaded
+            except Exception:
+                surf = None
+        self._vfx_tex_cache[name] = surf
+        return surf
+
+    def _blit_vfx(self, surf: "pygame.Surface", name: str, cx: float, cy: float,
+                  w: float, h: float, tint: Tuple[int, int, int] = (255, 255, 255),
+                  brightness: float = 1.0, rotation: float = 0.0) -> bool:
+        """Additively composite a glow texture, scaled/tinted/rotated, at (cx, cy).
+
+        `brightness` (0..1) fades the whole texture; `tint` recolors the white
+        source via channel multiply; `rotation` (radians) spins the square
+        source before it is squashed to (w, h) — giving a true top-down spin
+        when h < w (perspective ground circles). Returns False if no texture.
+        """
+        tex = self._vfx_texture(name)
+        if tex is None or w < 2 or h < 2 or brightness <= 0.01:
+            return False
+        try:
+            src = tex
+            if rotation:
+                src = pygame.transform.rotate(src, -math.degrees(rotation))
+            scaled = pygame.transform.smoothscale(src, (max(2, int(w)), max(2, int(h))))
+            b = max(0.0, min(1.0, brightness))
+            mult = (int(tint[0] * b), int(tint[1] * b), int(tint[2] * b))
+            if mult != (255, 255, 255):
+                scaled = scaled.copy()
+                scaled.fill(mult, special_flags=pygame.BLEND_RGB_MULT)
+            rect = scaled.get_rect(center=(int(cx), int(cy)))
+            surf.blit(scaled, rect, special_flags=pygame.BLEND_RGB_ADD)
+            return True
+        except Exception:
+            return False
 
     def spawn_hit_spark(self, x: int, y: int, damage: int,
                         color: Tuple[int, int, int]) -> None:
@@ -726,9 +795,14 @@ class ImpactFX:
             self._homing_particles.append(_HomingParticle(
                 x=x, y=y, target_x=target_x, target_y=target_y, color=color))
 
-    def spawn_release_flash(self) -> None:
-        """Trigger the 200 ms full-screen white flash for the RELEASE phase."""
-        self._release_flashes.append(_ReleaseFlash())
+    def spawn_release_flash(self, cx: float = -1.0, cy: float = -1.0,
+                            color: Tuple[int, int, int] = (255, 255, 255)) -> None:
+        """Trigger the 200 ms full-screen white flash for the RELEASE phase.
+
+        cx/cy position the radial light-burst glow (defaults to screen center);
+        color tints it toward the caster's brand color.
+        """
+        self._release_flashes.append(_ReleaseFlash(cx=cx, cy=cy, color=color))
 
     def spawn_smoke_cloud(
         self,
@@ -1372,6 +1446,13 @@ class ImpactFX:
                                     int(mc.ground_y) - ry - 4))
             except Exception:
                 pass
+            # AI glow texture: spinning runed circle, perspective-flattened at feet
+            self._blit_vfx(
+                surf, "magic_circle",
+                cx=mc.cx, cy=mc.ground_y,
+                w=mc.radius * 2.8, h=mc.radius * 2.8 * 0.42,
+                tint=mc.color, brightness=(alpha / 255.0) * 0.95,
+                rotation=mc.rotation)
         self._magic_circles = alive_mc
 
         # ── Caster aura rings ─────────────────────────────────────────────────
@@ -1395,6 +1476,14 @@ class ImpactFX:
                                    (ring_r + 4, ring_r + 4), ring_r, 3)
                 surf.blit(ring_surf, (int(ca.cx) - ring_r - 4,
                                       int(ca.cy) - ring_r - 4))
+            # AI glow texture: pulsing energy core gathering at the caster
+            core_pulse = 0.55 + 0.45 * math.sin(ca.t * math.tau * 2)
+            self._blit_vfx(
+                surf, "energy_core",
+                cx=ca.cx, cy=ca.cy,
+                w=ca.radius * 2.2, h=ca.radius * 2.2,
+                tint=ca.color,
+                brightness=core_pulse * (1.0 - frac * 0.2) * 0.9)
         self._caster_auras = alive_ca
 
         # ── Homing (converging) particles ─────────────────────────────────────
@@ -1439,6 +1528,18 @@ class ImpactFX:
                 surf.blit(fl_surf, (0, 0))
             except Exception:
                 pass
+            # AI glow texture: expanding radial light burst at the impact point
+            sw, sh = surf.get_size()
+            bx = rf.cx if rf.cx >= 0 else sw / 2
+            by = rf.cy if rf.cy >= 0 else sh / 2
+            warm = ((255 + rf.color[0]) // 2,
+                    (255 + rf.color[1]) // 2,
+                    (255 + rf.color[2]) // 2)
+            burst_w = sw * (1.3 + 0.9 * frac)
+            self._blit_vfx(
+                surf, "light_burst",
+                cx=bx, cy=by, w=burst_w, h=burst_w,
+                tint=warm, brightness=(1.0 - frac) * 0.95)
         self._release_flashes = alive_rf
 
         # ── Smoke clouds ──────────────────────────────────────────────────────

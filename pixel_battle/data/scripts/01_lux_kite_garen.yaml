@@ -90,6 +90,9 @@ right_timeline:
   - {t: 5200, do: retreat}
   - {t: 6000, do: retreat}                   # holding range, building suspense
   - {t: 6800, do: retreat}
+  - {t: 7350, do: "flash:back"}              # RE-OPEN distance right before the ult
+                                             # (flash CD ready at 7300ms) so the beam
+                                             # crosses the arena instead of point-blank
   # ── Act 2: CLIMAX — final_spark is the killing blow
   # Engine freezes for 1.5s anticipation + 0.2s release + 1.0s aftermath = 2.7s of cinematic
   - {t: 7500, do: "cast:final_spark"}        # 大絕 — the 3-phase cinematic + KO

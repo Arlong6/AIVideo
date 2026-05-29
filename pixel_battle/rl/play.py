@@ -418,7 +418,9 @@ def _rl_action_source(model):
 
 
 def _render_fight(recorder: FrameRecorder, action_source, env,
-                   max_seconds: float, end_hold_frames: int = 0) -> dict:
+                   max_seconds: float, end_hold_frames: int = 0,
+                   left_start_mp: Optional[int] = None,
+                   right_start_mp: Optional[int] = None) -> dict:
     """Run the fight, writing frames to `recorder`. Returns:
         {n_frames, events, event_video_ms, winner, terminated}
     `event_video_ms` maps event id -> ms relative to the FIRST fight frame.
@@ -434,6 +436,13 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     from pixel_battle.engine.skill import SkillType as _SkillType
 
     (obs_left, obs_right), _ = env.reset()
+    # Per-script starting-MP override MUST be applied *after* env.reset() — reset
+    # zeroes MP, so applying it before this call (as the caller naturally would)
+    # is silently clobbered. This is what let scripted ultimates fail to charge.
+    if left_start_mp is not None:
+        env.battle.left.mp = min(env.battle.left.mp_max, left_start_mp)
+    if right_start_mp is not None:
+        env.battle.right.mp = min(env.battle.right.mp_max, right_start_mp)
     lcol = _char_color(env.left)
     rcol = _char_color(env.right)
 
@@ -538,8 +547,15 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             if _slowmo_remaining_ms > 0:
                 _slowmo_remaining_ms -= ENGINE_MS
                 effective_dt = int(ENGINE_MS * _slowmo_dt_scale)
-                # Drive the battle engine directly with the scaled dt
-                env.battle.tick_ms(effective_dt, skip_ai=False)
+                # Apply the caller-provided actions ourselves (scripted driver OR
+                # RL model) and tick with skip_ai=True — exactly like env.step,
+                # just at the scaled dt. Previously this ran the engine's INTERNAL
+                # AI (skip_ai=False), which hijacked scripted choreography and drained
+                # the caster's MP, so the scripted ultimate would silently fail to
+                # fire. Honoring the provided actions keeps slow-mo faithful.
+                env._apply_action(env.left, env.right, int(left_act))
+                env._apply_action(env.right, env.left, int(right_act))
+                env.battle.tick_ms(effective_dt, skip_ai=True)
                 # Re-derive observations from the existing env state
                 try:
                     obs_left, obs_right = env._obs_pair()
@@ -785,6 +801,11 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
 
         # ── Ultimate sequence — per-frame cinematic phase dispatch ────────────
         ult_result = ult_seq.tick(triggered=False, dt_ms=RENDER_MS)
+        # True while ANY ultimate phase (anticipation/release/aftermath) is playing.
+        # The ultimate KOs instantly on the engine side, so without this guard the
+        # KO-drama break (below) would fire mid-anticipation and the cinematic
+        # release + aftermath would never render.
+        _ult_active = ult_result.phase is not None
         if ult_result.phase is not None:
             # Vignette: request each frame during anticipation
             if ult_result.vignette_alpha > 0:
@@ -821,7 +842,9 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         n=3)
             # Release phase one-shots
             if ult_result.spawn_release_flash:
-                impact_fx.spawn_release_flash()
+                impact_fx.spawn_release_flash(
+                    cx=_ult_actor_x, cy=_ult_actor_y - 90,
+                    color=ult_result.color)
             if ult_result.spawn_beam:
                 # Fire the beam VFX deferred from the event handler
                 if _ult_pending_vfx == "beam":
@@ -841,6 +864,20 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         x1=float(_ult_actor_x), x2=float(bx),
                         y=float(_ult_actor_y - 95),
                         color=_ult_brand_col, surf_size=(WIDTH, HEIGHT))
+                    # Impact punch where the beam strikes the defender — expanding
+                    # shockwave rings + a spark burst so the hit reads as the climax.
+                    active_shockwaves.append([
+                        int(_ult_target_x), int(_ult_target_y) - 95,
+                        (255, 255, 255), 0, 18, 380])
+                    active_shockwaves.append([
+                        int(_ult_target_x), int(_ult_target_y) - 95,
+                        _ult_brand_col, 0, 22, 440])
+                    impact_fx.spawn_hit_spark(
+                        int(_ult_target_x), int(_ult_target_y) - 95, 30, _ult_brand_col)
+                    impact_fx.spawn_ultimate_slam(
+                        impact_x=float(_ult_target_x),
+                        impact_y=float(_ult_target_y),
+                        color=_ult_brand_col, surf_size=(WIDTH, HEIGHT))
                 elif _ult_pending_vfx in ("slam", "dash"):
                     impact_fx.spawn_ultimate_slam(
                         impact_x=float(_ult_target_x),
@@ -858,8 +895,9 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                                        color=_ult_burst_color,
                                        current_ms=int(frame * RENDER_MS),
                                        duration_ms=240)
-                # Camera shake + flash on release
-                impact_fx.flash_screen(color=(255, 60, 60), alpha=200)
+                # Camera shake + flash on release — clean white-gold (an ultimate
+                # discharge), NOT the red hit-flash that read as "getting punched".
+                impact_fx.flash_screen(color=(255, 244, 210), alpha=210)
                 impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
                 screen_shake_frames_left = max(screen_shake_frames_left, 32)
                 screen_shake_mag = max(screen_shake_mag, 11)
@@ -882,9 +920,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         # If the ultimate cinematic is mid-anticipation (engine frozen), DEFER
         # the KO sequence so the audience sees the full ult buildup before
         # the KO splash + zoom takes over.
-        _ult_blocking_ko = (ult_result.phase is not None
-                            and ult_result.phase != "aftermath")
-        ko_active = (env.battle.state == _BattleState.KO) and not _ult_blocking_ko
+        ko_active = (env.battle.state == _BattleState.KO) and not _ult_active
         ko_loser_x = (int(env.battle.left.pos_x)
                       if env.battle.left.hp <= 0 else int(env.battle.right.pos_x))
         ko_result = ko_seq.tick(ko_active=ko_active, ko_loser_x=ko_loser_x, dt_ms=RENDER_MS)
@@ -1106,7 +1142,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             recorder.write_frame(surf)
         n_written += 1
 
-        if terminated:
+        if terminated and not _ult_active:
             # KO drama: first run KO sequence frames (slow-mo zoom + splash),
             # then the standard whiteout that hands off to the result card.
             # The engine is already frozen (BattleState.KO → tick_ms no-ops).
