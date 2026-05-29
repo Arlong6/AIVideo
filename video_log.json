@@ -3219,7 +3219,7 @@
         },
         {
           "date": "2026-05-29",
-          "views": 51,
+          "views": 52,
           "likes": 0,
           "comments": 1
         }
@@ -12479,7 +12479,7 @@
         },
         {
           "date": "2026-05-29",
-          "views": 50,
+          "views": 51,
           "likes": 1,
           "comments": 0
         }
@@ -15395,7 +15395,7 @@
         },
         {
           "date": "2026-05-29",
-          "views": 263,
+          "views": 264,
           "likes": 1,
           "comments": 1
         }
@@ -16023,7 +16023,7 @@
         },
         {
           "date": "2026-05-29",
-          "views": 203,
+          "views": 204,
           "likes": 0,
           "comments": 1
         }
@@ -16140,7 +16140,7 @@
         },
         {
           "date": "2026-05-29",
-          "views": 25,
+          "views": 28,
           "likes": 1,
           "comments": 1
         }
@@ -16192,8 +16192,8 @@
         },
         {
           "date": "2026-05-29",
-          "views": 0,
-          "likes": 0,
+          "views": 2,
+          "likes": 1,
           "comments": 1
         }
       ]
@@ -16353,7 +16353,7 @@
         },
         {
           "date": "2026-05-29",
-          "views": 35,
+          "views": 40,
           "likes": 0,
           "comments": 1
         }
@@ -16410,7 +16410,7 @@
         },
         {
           "date": "2026-05-29",
-          "views": 1,
+          "views": 23,
           "likes": 0,
           "comments": 1
         }
@@ -16432,7 +16432,7 @@
         },
         {
           "date": "2026-05-29",
-          "views": 8,
+          "views": 9,
           "likes": 0,
           "comments": 1
         }
@@ -16454,6 +16454,22 @@
         }
       ],
       "series_tag": "political"
+    },
+    {
+      "video_id": "IK8di-OJwgE",
+      "topic": "江子翠分屍案：出租公寓裡的離奇分屍案，真兇至今未明的台灣十大懸案之一",
+      "slot": 1,
+      "duration_s": 80,
+      "publish_at": "2026-05-30T10:00:00+08:00",
+      "uploaded_at": "2026-05-29T20:46:03.493460+00:00",
+      "stats": [
+        {
+          "date": "2026-05-29",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
