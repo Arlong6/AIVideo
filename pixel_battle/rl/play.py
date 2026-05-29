@@ -32,7 +32,7 @@ from pixel_battle.video.compose import (  # noqa: E402
     _load_wav, _loop_to_length, _load_sfx_samples_or_none,
     mux_audio_video, BGM_DIR,
 )
-from pixel_battle.engine.physics import GROUND_Y  # noqa: E402
+from pixel_battle.engine.physics import GROUND_Y, ARENA_LEFT, ARENA_RIGHT  # noqa: E402
 
 
 WIDTH, HEIGHT = 480, 854
@@ -51,11 +51,29 @@ BG = (18, 22, 40)
 # Camera — zoom + horizontal follow so fighters fill the vertical frame
 # instead of sitting tiny in the bottom strip. The world is drawn at native
 # size, then a sub-region is cropped + upscaled to the output resolution.
-CAM_ZOOM = 1.0             # whole arena in frame — best for reading long-range kiting
+CAM_ZOOM = 1.0             # base zoom; the live camera zoom is now DYNAMIC (see below)
 CAM_VIEW_W = int(WIDTH / CAM_ZOOM)            # 480 — horizontal world span shown
 CAM_VIEW_H = int(HEIGHT / CAM_ZOOM)           # 854 — vertical world span shown
 CAM_VIEW_Y = GROUND_Y - int(CAM_VIEW_H * 0.82)  # frame the floor ~82% down
 CAM_FOLLOW = 0.12                              # lerp factor for x tracking
+# Dynamic framing: zoom to FIT both fighters. Close quarters -> tighter crop
+# (melee reads big and punchy); far apart -> pull back to reveal the whole arena
+# (kiting/separation reads as real space). Fixes the "everything clumped in the
+# middle" look of a static wide shot.
+CAM_MIN_VIEW_W = 300       # tightest crop ⇒ max zoom-in (480/300 = 1.6×) when on top of each other
+CAM_FRAME_MARGIN = 145     # px of breathing room kept beyond each fighter
+CAM_ZOOM_LERP = 0.045      # ease the dynamic zoom so it glides, never snaps
+
+# ── Ultimate knockback ───────────────────────────────────────────────────────
+# When the ultimate connects, the renderer blasts the DEFENDER away from the
+# caster on a ballistic arc — into the arena wall, then gravity drops them. The
+# engine freezes on KO, so this launch is a purely renderer-side draw-position
+# override during the cinematic aftermath (no engine change, no regression risk).
+ULT_LAUNCH_VX = 13.0       # initial horizontal blast speed (px / 60fps frame)
+ULT_LAUNCH_VY = 17.0       # initial upward pop
+ULT_LAUNCH_GRAVITY = 1.15  # downward accel per frame
+ULT_LAUNCH_WALL_BOUNCE = 0.38   # velocity retained (reversed) on wall impact
+ULT_LAUNCH_EDGE_PAD = 26   # keep the body this far off the very edge
 
 SHAKE_FRAMES = 8           # frames a crit screen-shake lasts
 SHAKE_MAG = 14             # peak shake offset, world px
@@ -458,6 +476,13 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     _ult_target_y: float = 0.0
     _ult_brand_col: tuple = (255, 240, 120)
     _ult_burst_color: tuple = (255, 255, 255)
+    # Ultimate knockback launch state (renderer-side ballistic override)
+    _ult_def_is_left: bool = False
+    _launch_active: bool = False
+    _launch_x: float = 0.0
+    _launch_y: float = 0.0
+    _launch_vx: float = 0.0
+    _launch_vy: float = 0.0
 
     surf = pygame.Surface((WIDTH, HEIGHT))
     world = pygame.Surface((WIDTH, HEIGHT))
@@ -496,6 +521,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     prev_on_ground_left = env.left.on_ground
     prev_on_ground_right = env.right.on_ground
     cam_x = (env.left.pos_x + env.right.pos_x) / 2.0
+    _cam_zoom_smooth = 1.0     # eased dynamic zoom (fit both fighters)
     shake_frames = 0
     n_written = 0
 
@@ -743,6 +769,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     _ult_target_y = float(defender.pos_y)
                     _ult_brand_col = brand_col_ult
                     _ult_burst_color = burst_color
+                    _ult_def_is_left = (defender is env.left)
                     # Reset camera zoom to track anticipation
                     _ult_zoom_age_ms = 0.0
                     _ult_zoom_focus_x = float(actor_obj.pos_x)
@@ -901,6 +928,13 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
                 screen_shake_frames_left = max(screen_shake_frames_left, 32)
                 screen_shake_mag = max(screen_shake_mag, 11)
+                # Blast the defender off their feet — away from the caster, up,
+                # then gravity + wall collision carry them down over the aftermath.
+                _launch_active = True
+                _launch_x = float(_ult_target_x)
+                _launch_y = float(_ult_target_y)
+                _launch_vx = ULT_LAUNCH_VX * (1.0 if _ult_target_x >= _ult_actor_x else -1.0)
+                _launch_vy = -ULT_LAUNCH_VY
             # Aftermath one-shots
             if ult_result.spawn_smoke:
                 impact_fx.spawn_smoke_cloud(
@@ -951,6 +985,37 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
 
         def _restore_draw_pos(char):
             char.pos_x, char.pos_y = char._orig_pos_x, char._orig_pos_y
+
+        # ── Ultimate knockback: ballistic launch of the defender (renderer-only) ──
+        if _launch_active:
+            _launch_vy += ULT_LAUNCH_GRAVITY
+            _launch_x += _launch_vx
+            _launch_y += _launch_vy
+            # Wall thud — bounce off the arena edges, shedding most of the speed
+            if _launch_x <= ARENA_LEFT + ULT_LAUNCH_EDGE_PAD:
+                _launch_x = ARENA_LEFT + ULT_LAUNCH_EDGE_PAD
+                _launch_vx = -_launch_vx * ULT_LAUNCH_WALL_BOUNCE
+            elif _launch_x >= ARENA_RIGHT - ULT_LAUNCH_EDGE_PAD:
+                _launch_x = ARENA_RIGHT - ULT_LAUNCH_EDGE_PAD
+                _launch_vx = -_launch_vx * ULT_LAUNCH_WALL_BOUNCE
+            # Ground landing — settle with skid friction
+            if _launch_y >= GROUND_Y:
+                _launch_y = GROUND_Y
+                _launch_vy = 0.0
+                _launch_vx *= 0.6
+            # Force a knocked-out look: airborne -> tucked "jump" pose (reads as a
+            # body flung through the air); grounded -> "hit_react" slumped recoil.
+            _def_obj = env.left if _ult_def_is_left else env.right
+            if _launch_y < GROUND_Y - 1:
+                _def_obj.on_ground = False
+                _def_obj.action_state = "ko"
+            else:
+                _def_obj.on_ground = True
+                _def_obj.action_state = "hit_stagger"
+            if _ult_def_is_left:
+                _draw_left_x, _draw_left_y = _launch_x, _launch_y
+            else:
+                _draw_right_x, _draw_right_y = _launch_x, _launch_y
 
         _set_draw_pos(env.left, _draw_left_x, _draw_left_y)
         _set_draw_pos(env.right, _draw_right_x, _draw_right_y)
@@ -1086,8 +1151,19 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         sx1, sy1 = impact_fx.camera_shake.update(RENDER_MS)
         sx = sx0 + sx1
         sy = sy0 + sy1
-        # KO zoom takes priority over ultimate zoom; both compound with CAM_ZOOM
-        frame_zoom = ko_result.zoom * _uz_factor * CAM_ZOOM
+        # Dynamic framing: ease a base zoom that fits both fighters + margin.
+        _span = abs(_draw_left_x - _draw_right_x)
+        _target_w = max(CAM_MIN_VIEW_W, min(WIDTH, _span + CAM_FRAME_MARGIN * 2))
+        _dyn_zoom = WIDTH / _target_w
+        _cam_zoom_smooth += (_dyn_zoom - _cam_zoom_smooth) * CAM_ZOOM_LERP
+        # KO zoom and ultimate zoom keep their dramatic FIXED framing (override the
+        # dynamic base); normal play uses the eased fit-to-fighters zoom.
+        if ko_result.zoom > 1.0:
+            frame_zoom = ko_result.zoom * CAM_ZOOM
+        elif _uz_factor > 1.0:
+            frame_zoom = _uz_factor * CAM_ZOOM
+        else:
+            frame_zoom = _cam_zoom_smooth
         view_w = int(WIDTH / frame_zoom)
         view_h = int(HEIGHT / frame_zoom)
         view_w = max(1, min(WIDTH, view_w))
@@ -1108,9 +1184,9 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             surf.blit(flash, (0, 0))
             flash_frames_left -= 1
 
-        _draw_hud(surf, env)
-
-        # New KOF-style HUD (top bars + name plates + timer) and impact FX
+        # Single KOF-style HUD (HP green->red + thin blue MP + names + timer).
+        # The old two-corner _draw_hud was removed — drawing both stacked their
+        # near-overlapping bars and duplicated the names (the "ghost text").
         hud_overlay.draw(surf, env.battle, elapsed_ms=int(frame * RENDER_MS))
         impact_fx.update_and_draw(surf, dt_ms=RENDER_MS)
 

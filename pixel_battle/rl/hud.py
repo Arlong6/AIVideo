@@ -10,16 +10,34 @@ from pixel_battle.engine.character import DATA_PATH
 
 HUD_HEIGHT = 70                # px from top reserved for HUD
 BAR_WIDTH = 180
-BAR_HEIGHT = 16
+BAR_HEIGHT = 14
 BAR_Y = 28
+MP_BAR_HEIGHT = 5              # thin mana bar tucked under the HP bar
+MP_BAR_GAP = 3                 # gap between HP and MP bars
 NAME_FONT_SIZE = 14
 TIMER_FONT_SIZE = 14
 BAR_DRAIN_LERP_RATE = 0.18     # per-frame towards target HP fraction (faster for test stability)
 BAR_BG = (40, 40, 50)
+MP_BAR_BG = (28, 30, 42)
 BAR_BORDER = (220, 220, 220)
 NAME_COLOR = (230, 230, 230)
 NAME_SHADOW = (10, 10, 14)
 TIMER_COLOR = (180, 180, 180)
+# Universal HP / MP colors — HP reads as health (green->yellow->red by amount),
+# MP as mana (blue). Character identity comes from name + stick-figure color, NOT
+# the bar color, so the two bars are never the same hue (the old confusion).
+HP_HIGH = (90, 210, 100)
+HP_MID = (235, 200, 60)
+HP_LOW = (228, 72, 60)
+MP_COLOR = (80, 175, 255)
+
+
+def _hp_color(frac: float) -> tuple:
+    if frac > 0.5:
+        return HP_HIGH
+    if frac > 0.25:
+        return HP_MID
+    return HP_LOW
 
 
 def _load_char_color(char_id: str) -> tuple:
@@ -60,16 +78,21 @@ class HUD:
         hud_bg.fill((0, 0, 0, 140))
         surf.blit(hud_bg, (0, 0))
 
+        left_mp = max(0.0, battle.left.mp / max(1, getattr(battle.left, "mp_max", 100)))
+        right_mp = max(0.0, battle.right.mp / max(1, getattr(battle.right, "mp_max", 100)))
+
         # left bar: x_right = W//2 - 30, drains right-to-left
         left_bar_right = W // 2 - 30
         left_bar_left = left_bar_right - BAR_WIDTH
         self._draw_bar(surf, x=left_bar_left, width=BAR_WIDTH, frac=self._left_lerp,
-                       color=self._color(battle.left.id), direction=-1)
+                       color=_hp_color(self._left_lerp), direction=-1)
+        self._draw_mp_bar(surf, x=left_bar_left, width=BAR_WIDTH, frac=left_mp, direction=-1)
 
         # right bar: x_left = W//2 + 30, drains left-to-right
         right_bar_left = W // 2 + 30
         self._draw_bar(surf, x=right_bar_left, width=BAR_WIDTH, frac=self._right_lerp,
-                       color=self._color(battle.right.id), direction=+1)
+                       color=_hp_color(self._right_lerp), direction=+1)
+        self._draw_mp_bar(surf, x=right_bar_left, width=BAR_WIDTH, frac=right_mp, direction=+1)
 
         # Name plates
         self._draw_name(surf, battle.left.id, x=left_bar_left, align="left")
@@ -80,8 +103,9 @@ class HUD:
         pygame.draw.line(surf, BAR_BORDER, (cx - 2, BAR_Y - 4), (cx - 2, BAR_Y + BAR_HEIGHT + 4), 2)
         pygame.draw.line(surf, BAR_BORDER, (cx + 2, BAR_Y - 4), (cx + 2, BAR_Y + BAR_HEIGHT + 4), 2)
 
-        # Timer
-        self._draw_timer(surf, elapsed_ms, x=cx, y=BAR_Y + BAR_HEIGHT + 4)
+        # Timer — below the MP bar so they don't overlap
+        self._draw_timer(surf, elapsed_ms, x=cx,
+                         y=BAR_Y + BAR_HEIGHT + MP_BAR_GAP + MP_BAR_HEIGHT + 3)
 
     def _draw_bar(self, surf, x, width, frac, color, direction):
         """Draw a health bar at (x, BAR_Y) of given width.
@@ -99,6 +123,16 @@ class HUD:
         if fill_w > 0:
             pygame.draw.rect(surf, color, (fill_x, BAR_Y, fill_w, BAR_HEIGHT))
         pygame.draw.rect(surf, BAR_BORDER, (x, BAR_Y, width, BAR_HEIGHT), width=1)
+
+    def _draw_mp_bar(self, surf, x, width, frac, direction):
+        """Thin blue mana bar tucked just under the HP bar, same drain direction."""
+        my = BAR_Y + BAR_HEIGHT + MP_BAR_GAP
+        pygame.draw.rect(surf, MP_BAR_BG, (x, my, width, MP_BAR_HEIGHT))
+        fill_w = max(0, int(width * frac))
+        fill_x = x + (width - fill_w) if direction == -1 else x
+        if fill_w > 0:
+            pygame.draw.rect(surf, MP_COLOR, (fill_x, my, fill_w, MP_BAR_HEIGHT))
+        pygame.draw.rect(surf, (110, 130, 170), (x, my, width, MP_BAR_HEIGHT), width=1)
 
     def _draw_name(self, surf, name, x, align):
         text = name.replace("_", " ").upper()
