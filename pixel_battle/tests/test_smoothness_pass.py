@@ -221,11 +221,13 @@ def test_idle_quirk_lux_staff_oscillates():
     )
 
 
-# ── T8: STATE_TRANSITION_MS is 55 ────────────────────────────────────────────
+# ── T8: STATE_TRANSITION_MS softened to 90 (2026-05-30, per user) ────────────
 
-def test_state_transition_ms_tightened():
-    """STATE_TRANSITION_MS must equal 55 for snappier combat feel."""
+def test_state_transition_ms_softened():
+    """STATE_TRANSITION_MS softened 55 -> 90 so casts/attacks ease in/out
+    instead of popping (the old 55 read as stiff). Still short enough to stay
+    responsive."""
     from pixel_battle.rl.stick_renderer import STATE_TRANSITION_MS
-    assert STATE_TRANSITION_MS == 55, (
-        f"Expected STATE_TRANSITION_MS=55, got {STATE_TRANSITION_MS}"
+    assert STATE_TRANSITION_MS == 90, (
+        f"Expected STATE_TRANSITION_MS=90, got {STATE_TRANSITION_MS}"
     )

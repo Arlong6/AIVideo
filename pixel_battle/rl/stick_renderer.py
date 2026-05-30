@@ -35,13 +35,15 @@ MOTION_GHOST_MAX = 4               # max ghosts per character in flight at once
 MOTION_GHOST_ALPHA_START = 100     # initial alpha (decays linearly to 0)
 
 # Cross-state transition: when action_state changes, lerp between the last
-# geometry snapshot and the new geometry over this many ms.
-STATE_TRANSITION_MS = 55
+# geometry snapshot and the new geometry over this many ms. Softened from the
+# old snappy 55 → 90 per user direction (2026-05-30): casts/attacks were reading
+# as stiff "pops"; 90 eases entry/exit while still landing strikes responsively.
+STATE_TRANSITION_MS = 90
 
 # Idle visual feint — renderer-only horizontal drift when a character has been
 # idle for > FEINT_ONSET_MS and is within FEINT_ENGAGE_RANGE px of the opponent.
-FEINT_ONSET_MS = 400        # ms of idle before feint starts
-FEINT_AMPLITUDE = 6.0       # ± px of horizontal offset
+FEINT_ONSET_MS = 240        # ms of idle before feint starts (sooner = fewer dead, frozen holds)
+FEINT_AMPLITUDE = 7.5       # ± px of horizontal offset
 FEINT_PERIOD_MS = 1200.0    # full oscillation period (ms)
 FEINT_ENGAGE_RANGE = 320.0  # px; beyond this, no feint (out-of-fight fringe)
 
