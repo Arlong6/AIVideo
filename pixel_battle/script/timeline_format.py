@@ -25,3 +25,5 @@ class Timeline:
     seed: Optional[int] = None      # optional RNG seed for deterministic render
     left_start_mp: Optional[int] = None   # optional initial MP for left character
     right_start_mp: Optional[int] = None  # optional initial MP for right character
+    left_start_hp: Optional[int] = None   # optional initial+max HP for left (longer cinematic fights)
+    right_start_hp: Optional[int] = None  # optional initial+max HP for right

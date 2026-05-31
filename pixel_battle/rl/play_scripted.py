@@ -51,6 +51,8 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
     tl = getattr(driver, "timeline", None)
     left_start_mp = getattr(tl, "left_start_mp", None) if tl is not None else None
     right_start_mp = getattr(tl, "right_start_mp", None) if tl is not None else None
+    left_start_hp = getattr(tl, "left_start_hp", None) if tl is not None else None
+    right_start_hp = getattr(tl, "right_start_hp", None) if tl is not None else None
 
     raw = out_dir / f"{script_path.stem}_raw.mp4"
     recorder = FrameRecorder(str(raw), fps=RENDER_FPS, width=WIDTH, height=HEIGHT)
@@ -58,7 +60,8 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
     try:
         _render_fight(recorder, _driver_action_source(driver), env,
                       max_seconds=60.0, end_hold_frames=120,
-                      left_start_mp=left_start_mp, right_start_mp=right_start_mp)
+                      left_start_mp=left_start_mp, right_start_mp=right_start_mp,
+                      left_start_hp=left_start_hp, right_start_hp=right_start_hp)
     finally:
         recorder.stop()
     print(f"Scripted render: {raw}")

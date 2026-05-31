@@ -108,7 +108,10 @@ def load_timeline_text(text: str) -> Timeline:
         raise TimelineLoadError(f"'seed' must be an integer, got {seed!r}")
     left_smp = data.get("left_start_mp")
     right_smp = data.get("right_start_mp")
-    for label, val in (("left_start_mp", left_smp), ("right_start_mp", right_smp)):
+    left_shp = data.get("left_start_hp")
+    right_shp = data.get("right_start_hp")
+    for label, val in (("left_start_mp", left_smp), ("right_start_mp", right_smp),
+                       ("left_start_hp", left_shp), ("right_start_hp", right_shp)):
         if val is not None and not isinstance(val, int):
             raise TimelineLoadError(f"'{label}' must be an integer, got {val!r}")
     return Timeline(
@@ -122,6 +125,8 @@ def load_timeline_text(text: str) -> Timeline:
         seed=int(seed) if seed is not None else None,
         left_start_mp=int(left_smp) if left_smp is not None else None,
         right_start_mp=int(right_smp) if right_smp is not None else None,
+        left_start_hp=int(left_shp) if left_shp is not None else None,
+        right_start_hp=int(right_shp) if right_shp is not None else None,
     )
 
 

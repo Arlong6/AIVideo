@@ -60,8 +60,8 @@ CAM_FOLLOW = 0.12                              # lerp factor for x tracking
 # (melee reads big and punchy); far apart -> pull back to reveal the whole arena
 # (kiting/separation reads as real space). Fixes the "everything clumped in the
 # middle" look of a static wide shot.
-CAM_MIN_VIEW_W = 300       # tightest crop ⇒ max zoom-in (480/300 = 1.6×) when on top of each other
-CAM_FRAME_MARGIN = 145     # px of breathing room kept beyond each fighter
+CAM_MIN_VIEW_W = 430       # tightest crop ⇒ max zoom-in only 480/430 = 1.12× (stay wide; small fighters)
+CAM_FRAME_MARGIN = 185     # px of breathing room kept beyond each fighter (frames wider)
 CAM_ZOOM_LERP = 0.045      # ease the dynamic zoom so it glides, never snaps
 
 # ── Ultimate knockback ───────────────────────────────────────────────────────
@@ -202,41 +202,92 @@ def _draw_beam(surf: pygame.Surface, sx: int, sy: int, ex: int, ey: int,
 
 def _draw_spin(surf: pygame.Surface, cx: int, cy: int, color: tuple,
                 age: int, life: int) -> None:
-    """Whirling blades around the caster — Garen's Judgment, etc."""
+    """Whirling BLADE STORM around the caster — Garen's Judgment.
+
+    A bright additive glow disc, 8 white-cored sweeping blades with motion-blur
+    echoes, and two luminous rings — reads as a real spinning ultimate, not a flick.
+    """
     t = age / max(1, life)
     if t >= 1.0:
         return
-    radius = int(46 + 28 * t)
-    n = 6
+    fade = 1.0 - t
+    radius = int(58 + 50 * t)            # grows 58 → 108
+    # The CHARACTER itself now visibly spins, so this is a supporting whirlwind
+    # halo with a SEE-THROUGH centre — perimeter streaks + rings only, no filled
+    # disc (which used to cover the spinning figure).
+    n = 10
     for i in range(n):
-        ang = age * 0.55 + i * (2 * math.pi / n)
-        ix = cx + math.cos(ang) * radius * 0.35
-        iy = cy + math.sin(ang) * radius * 0.35
-        ox = cx + math.cos(ang) * radius
-        oy = cy + math.sin(ang) * radius
-        pygame.draw.line(surf, color, (int(ix), int(iy)), (int(ox), int(oy)), 5)
-    ring = pygame.Surface((radius * 2 + 8, radius * 2 + 8), pygame.SRCALPHA)
-    pygame.draw.circle(ring, (*color, int(95 * (1.0 - t))),
-                       (radius + 4, radius + 4), radius, 3)
-    surf.blit(ring, (cx - radius - 4, cy - radius - 4))
+        base = age * 0.62 + i * (2 * math.pi / n)
+        for e, (lw, a) in enumerate(((5, 200), (3, 90))):
+            ang = base - e * 0.20
+            # streaks only on the OUTER band so the middle stays clear
+            ix = cx + math.cos(ang) * radius * 0.72
+            iy = cy + math.sin(ang) * radius * 0.72
+            ox = cx + math.cos(ang) * radius
+            oy = cy + math.sin(ang) * radius
+            blade = pygame.Surface((surf.get_width(), surf.get_height()), pygame.SRCALPHA)
+            pygame.draw.line(blade, (*color, int(a * fade)),
+                             (int(ix), int(iy)), (int(ox), int(oy)), lw)
+            if e == 0:
+                pygame.draw.line(blade, (255, 255, 255, int(200 * fade)),
+                                 (int(ix), int(iy)), (int(ox), int(oy)), 1)
+            surf.blit(blade, (0, 0))
+    # Luminous rings frame the whirlwind (outline only — centre stays open)
+    for rr, a in ((radius, 170), (int(radius * 0.78), 95)):
+        ring = pygame.Surface((rr * 2 + 8, rr * 2 + 8), pygame.SRCALPHA)
+        pygame.draw.circle(ring, (255, 255, 255, int(a * fade)),
+                           (rr + 4, rr + 4), rr, 3)
+        pygame.draw.circle(ring, (*color, int(a * 0.7 * fade)),
+                           (rr + 4, rr + 4), rr, 6)
+        surf.blit(ring, (cx - rr - 4, cy - rr - 4), special_flags=pygame.BLEND_RGB_ADD)
 
 
 def _draw_aura(surf: pygame.Surface, cx: int, cy: int, color: tuple,
                 age: int, life: int) -> None:
-    """A pulsing buff aura on the caster — concentric expanding rings."""
+    """A POWER-SURGE buff aura on the caster — Garen's Courage.
+
+    Bright additive body glow + multiple expanding rings + rising energy motes,
+    so it clearly reads as "powering up", not a faint flicker.
+    """
     t = age / max(1, life)
     if t >= 1.0:
         return
-    for k in range(3):
-        rt = (t * 1.4 + k * 0.33) % 1.0
-        radius = int(18 + 64 * rt)
-        alpha = int(170 * (1.0 - rt) * (1.0 - t))
+    fade = 1.0 - t
+    # Additive body glow that pulses (sine) around the caster
+    pulse = 0.6 + 0.4 * math.sin(age * 0.5)
+    gr = int(58 * (0.8 + 0.4 * t))
+    gd = gr * 2 + 8
+    glow = pygame.Surface((gd, gd), pygame.SRCALPHA)
+    for rr, ga in ((gr, 55), (int(gr * 0.6), 85), (int(gr * 0.3), 120)):
+        pygame.draw.circle(glow, (*color, int(ga * fade * pulse)),
+                           (gd // 2, gd // 2), rr)
+    surf.blit(glow, (cx - gd // 2, cy - gd // 2), special_flags=pygame.BLEND_RGB_ADD)
+    # Expanding bright rings
+    for k in range(4):
+        rt = (t * 1.5 + k * 0.25) % 1.0
+        radius = int(20 + 78 * rt)
+        alpha = int(190 * (1.0 - rt) * fade)
         if alpha <= 0:
             continue
         ring = pygame.Surface((radius * 2 + 8, radius * 2 + 8), pygame.SRCALPHA)
-        pygame.draw.circle(ring, (*color, alpha),
-                           (radius + 4, radius + 4), radius, 4)
+        pygame.draw.circle(ring, (*color, alpha), (radius + 4, radius + 4), radius, 4)
+        if radius > 14:
+            pygame.draw.circle(ring, (255, 255, 255, alpha // 2),
+                               (radius + 4, radius + 4), radius - 3, 2)
         surf.blit(ring, (cx - radius - 4, cy - radius - 4))
+    # Rising energy motes (additive) — sell the "charging up" feel
+    for i in range(7):
+        ph = (age * 0.06 + i * 0.9)
+        rise = (ph % 1.0)
+        mx = cx + int(math.cos(i * 1.7) * 34 * (1.0 - rise))
+        my = cy + 20 - int(rise * 96)
+        ma = int(200 * (1.0 - rise) * fade)
+        if ma <= 0:
+            continue
+        mote = pygame.Surface((10, 10), pygame.SRCALPHA)
+        pygame.draw.circle(mote, (*color, ma), (5, 5), 4)
+        pygame.draw.circle(mote, (255, 255, 255, ma), (5, 5), 2)
+        surf.blit(mote, (mx - 5, my - 5), special_flags=pygame.BLEND_RGB_ADD)
 
 
 # ── HUD ───────────────────────────────────────────────────────────────────────
@@ -438,7 +489,9 @@ def _rl_action_source(model):
 def _render_fight(recorder: FrameRecorder, action_source, env,
                    max_seconds: float, end_hold_frames: int = 0,
                    left_start_mp: Optional[int] = None,
-                   right_start_mp: Optional[int] = None) -> dict:
+                   right_start_mp: Optional[int] = None,
+                   left_start_hp: Optional[int] = None,
+                   right_start_hp: Optional[int] = None) -> dict:
     """Run the fight, writing frames to `recorder`. Returns:
         {n_frames, events, event_video_ms, winner, terminated}
     `event_video_ms` maps event id -> ms relative to the FIRST fight frame.
@@ -450,6 +503,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     from pixel_battle.rl.impact_fx import ImpactFX as _ImpactFX
     from pixel_battle.rl.ko_sequence import KOSequence as _KOSequence
     from pixel_battle.rl.ultimate_sequence import UltimateSequence as _UltSequence
+    from pixel_battle.rl.poses import select_pose_id as _select_pose_id
     from pixel_battle.engine.battle import BattleState as _BattleState
     from pixel_battle.engine.skill import SkillType as _SkillType
 
@@ -461,6 +515,13 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         env.battle.left.mp = min(env.battle.left.mp_max, left_start_mp)
     if right_start_mp is not None:
         env.battle.right.mp = min(env.battle.right.mp_max, right_start_mp)
+    # Per-script HP override (also after reset). Higher HP lets a long cinematic
+    # fight trade REAL hits over 40s without someone dying early — the engine's
+    # default 30 HP forces a hit-starved, dull footsie dance. Sets hp and hp_max.
+    if left_start_hp is not None:
+        env.battle.left.hp = env.battle.left.hp_max = left_start_hp
+    if right_start_hp is not None:
+        env.battle.right.hp = env.battle.right.hp_max = right_start_hp
     lcol = _char_color(env.left)
     rcol = _char_color(env.right)
 
@@ -517,7 +578,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     active_beams: list = []           # [sx, sy, ex, ey, color, age]
     active_spins: list = []           # [cx, cy, color, age]
     active_auras: list = []           # [cx, cy, color, age]
-    BEAM_LIFE, SPIN_LIFE, AURA_LIFE = 10, 16, 18
+    BEAM_LIFE, SPIN_LIFE, AURA_LIFE = 10, 34, 46   # spin/aura linger longer to read
     prev_on_ground_left = env.left.on_ground
     prev_on_ground_right = env.right.on_ground
     cam_x = (env.left.pos_x + env.right.pos_x) / 2.0
@@ -611,7 +672,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     defender = env.right if ev.target == env.right.id else env.left
                     attacker = env.left if ev.actor == env.left.id else env.right
                     is_crit = bool((ev.extra or {}).get("crit", False))
-                    burst_size = 78 if is_crit else 52
+                    burst_size = 84 if is_crit else 62
                     burst_color = lcol if attacker is env.left else rcol
                     active_bursts.append([
                         int(defender.pos_x), int(defender.pos_y) - 90,
@@ -621,11 +682,19 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         left_flash_frames = max(left_flash_frames, 8)
                     else:
                         right_flash_frames = max(right_flash_frames, 8)
-                    # ── Camera shake on hit ──
+                    # ── Spark SPRAY at the contact point — the missing "it connected!"
+                    #    feedback. Without this a clean hit read as a whiff. ──
+                    impact_fx.spawn_hit_spark(
+                        x=int(defender.pos_x), y=int(defender.pos_y) - 78,
+                        damage=(10 if is_crit else 7), color=burst_color)
+                    # quick white impact pop
+                    impact_fx.flash_screen(color=(255, 255, 255),
+                                           alpha=(150 if is_crit else 70))
+                    # ── Camera shake on hit (punchier) ──
                     if is_crit:
-                        impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
+                        impact_fx.camera_shake.trigger(magnitude_px=6.0, duration_ms=220.0)
                     else:
-                        impact_fx.camera_shake.trigger(magnitude_px=2.0, duration_ms=120.0)
+                        impact_fx.camera_shake.trigger(magnitude_px=3.5, duration_ms=140.0)
                     # ── Hit-confirm ring at defender's hip ──
                     impact_fx.spawn_hit_ring(
                         x=int(defender.pos_x),
@@ -633,6 +702,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         color=burst_color)
                     # ── Attacker recoil: mark near-hand kick-back for 100 ms ──
                     _attacker_recoil[id(attacker)] = 100
+                    # ── Brief HITSTOP — a ~45ms near-freeze on contact gives the
+                    #    "thunk" of a real hit (short, so it stays punchy not sluggish). ──
+                    _slowmo_remaining_ms = max(_slowmo_remaining_ms, 45.0)
+                    _slowmo_dt_scale = min(_slowmo_dt_scale, 0.12) if _slowmo_remaining_ms > 0 else 0.12
                     # ── Pre-KO slow-mo: final blow gives a "going down" beat ──
                     if defender.hp <= 0:
                         _slowmo_remaining_ms = max(_slowmo_remaining_ms, 200.0)
@@ -1054,10 +1127,33 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     draw_stick_figure(surf, char, color, time_ms=_cur_time_ms,
                                       opponent_x=opp_x)
 
-            _draw_with_recoil(world, env.left, left_color,
-                               opp_x=float(env.right.pos_x))
-            _draw_with_recoil(world, env.right, right_color,
-                               opp_x=float(env.left.pos_x))
+            def _draw_char(surf, char, color, opp_x):
+                # JUDGMENT whirlwind: render the WHOLE figure (body + blade) to a
+                # temp layer and rotate it around the mid-body, so the character
+                # literally spins — not just a VFX overlay on a static pose.
+                if _select_pose_id(char) == "spin":
+                    TS = 240
+                    tmp = pygame.Surface((TS, TS), pygame.SRCALPHA)
+                    ox, oy = char.pos_x, char.pos_y
+                    # Place the mid-body near the temp-surface centre so rotation
+                    # pivots about the torso (feet sit ~30px below centre).
+                    char.pos_x, char.pos_y = TS / 2.0, TS / 2.0 + 30
+                    try:
+                        draw_stick_figure(tmp, char, color, time_ms=_cur_time_ms,
+                                          opponent_x=ox + (1 if opp_x >= ox else -1) * 100)
+                    finally:
+                        char.pos_x, char.pos_y = ox, oy
+                    ang = (_cur_time_ms * 1.15) % 360.0   # ~1 turn / 0.3s
+                    rot = pygame.transform.rotate(tmp, ang)
+                    rect = rot.get_rect(center=(int(ox), int(oy) - 30))
+                    surf.blit(rot, rect)
+                else:
+                    _draw_with_recoil(surf, char, color, opp_x)
+
+            _draw_char(world, env.left, left_color,
+                       opp_x=float(env.right.pos_x))
+            _draw_char(world, env.right, right_color,
+                       opp_x=float(env.left.pos_x))
             draw_effect_indicators(world, env.left, current_ms=int(frame * RENDER_MS))
             draw_effect_indicators(world, env.right, current_ms=int(frame * RENDER_MS))
         finally:

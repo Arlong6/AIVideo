@@ -1,109 +1,142 @@
-# ──────────────────────────────────────────────────────────────────────────────
-# 蓋倫 vs 拉克絲 — 法師風箏 · 劍士防禦 · 大絕收場
-# KOF/SF style: swordsman flash-rushes in, mage roots + kites + ultimate climax
-# ──────────────────────────────────────────────────────────────────────────────
-#
-# 【幕一 · 試探 + 固定 Probe & Root  0–4s】
-#   Lux fires light_binding at t=2.3s (root 1500ms on Garen).
-#   Garen BLOCKS the root hit (block fires t=2.2s, active until t=2.7s).
-#   Garen flash:in at t=2.7s (teleports to x≈280, Lux at x≈420, dist≈140).
-#   ROOT expires t≈3.96s. Garen decisive_strike at t=4.1s closes to ~80px.
-#
-# 【幕二 · 貼身肉搏 Close Exchange  4–14s】
-#   Dense basics at 80-100px distance. Both take regular hits.
-#   Lux fires light_binding x2 more at CD windows (t≈6.5/10.5s, 固定).
-#   Garen BLOCKS light_binding #2 (block fires t=6.5s, active during hit).
-#   Light_binding #3 connects (Garen busy attacking at ~t=11s).
-#   By t=14s Lux should have ~90-96 MP from hits × 12 + taken × 6.
-#
-# 【幕三 · 大絕收場 Ultimate Climax  14–20s】
-#   final_spark fires when MP≥100 (~t=14.6s). Garen still has 8+ HP → KO!
-#   Slow-mo triggers on the pre-KO blow (final_spark deals 32 dmg).
-# ──────────────────────────────────────────────────────────────────────────────
-name: "Lux vs Garen — mage kite + swordsman guard + ultimate climax"
+# 蓋倫 vs 拉克絲 — 長版密集攻防 ~40s · 大絕收場 (auto-generated, then hand-tuned)
+name: "Lux vs Garen — dense 40s kite + ultimate climax"
 left: garen
 right: lux
-duration_ms: 22000
+duration_ms: 40000
 seed: 7
-right_start_mp: 100        # Lux starts with full MP — final_spark is the climax
+right_start_mp: 100
+left_start_mp: 90
+left_start_hp: 60
+right_start_hp: 95
 left_timeline:
-  # ── Act 1: Guard light_binding + advance to flash range
-  - {t: 400,  do: advance}
-  - {t: 800,  do: advance}
-  - {t: 1200, do: advance}
-  - {t: 1600, do: advance}
-  - {t: 2000, do: advance}
-  - {t: 2200, do: block}            # 防禦 light_binding #1 (hits t≈2.45s)
-  - {t: 2700, do: "flash:in"}       # teleport: x≈150 → x≈280 (root active, dist≈140)
-  # ── Fill idle gap between flash and decisive_strike ──
-  - {t: 3200, do: advance}          # press forward after flash
-  - {t: 3700, do: advance}          # keep closing distance
-  # ── Act 2: ROOT expires t≈3.96s — decisive_strike dash to close to 80px
-  - {t: 4100, do: "attack:cd"}      # decisive_strike DASH: 280 → ~340, Lux at ~420, dist≈80
-  - {t: 4600, do: "attack:basic"}   # first melee exchange
-  # ── SEPARATION BEAT #2: Garen kited to the far left, holds → wide gap that
-  #    carries straight into the climax (beam crosses the whole arena) ──
-  - {t: 5000, do: retreat}          # Garen disengages, backs left
-  - {t: 5300, do: retreat}
-  - {t: 5600, do: retreat}
-  - {t: 5900, do: retreat}          # kited to the left side — full-arena gap
-  - {t: 6300, do: block}            # brace at range instead of re-closing
-  - {t: 6500, do: block}            # 防禦 light_binding #2 (fires t≈6.72s)
-  - {t: 6900, do: block}            # hold guard — stay apart for the beam climax
-  - {t: 7400, do: "attack:basic"}
-  - {t: 7900, do: advance}
-  - {t: 8200, do: "attack:basic"}
-  - {t: 8700, do: advance}
-  - {t: 9100, do: "attack:basic"}
-  - {t: 9300, do: block}            # filler — avoid idle gap from accumulated delay
-  - {t: 9600, do: block}
-  - {t: 9800, do: retreat}          # filler
-  - {t: 10000, do: "attack:cd"}     # decisive_strike DASH #3 (CD ready ~7.6s, fires here)
-  - {t: 10250, do: block}           # filler — avoid pre-hit idle
-  - {t: 10500, do: "attack:basic"}
-  - {t: 11400, do: "attack:basic"}
-  - {t: 11900, do: advance}
-  - {t: 12200, do: "attack:basic"}
-  - {t: 12700, do: advance}
-  # ── Act 3: Final stretch — keep pressure to maintain melee range
-  - {t: 13000, do: "attack:basic"}
-  - {t: 13500, do: advance}
-  - {t: 13800, do: "attack:basic"}
-  - {t: 14300, do: advance}
-  - {t: 14600, do: "attack:basic"}
-  - {t: 15100, do: advance}
-  - {t: 15400, do: "attack:basic"}
-  - {t: 15900, do: advance}
-  - {t: 16200, do: "attack:basic"}
-  - {t: 16700, do: advance}
-  - {t: 17000, do: "attack:basic"}
-  - {t: 17500, do: advance}
-  - {t: 17800, do: "attack:basic"}
-  - {t: 18300, do: advance}
-  - {t: 18600, do: "attack:basic"}
+  - {t: 400, do: advance}
+  - {t: 870, do: "attack:basic"}
+  - {t: 1340, do: "attack:cd"}
+  - {t: 1810, do: advance}
+  - {t: 2280, do: "attack:basic"}
+  - {t: 3000, do: "flash:in"}
+  - {t: 3500, do: "cast:judgment"}
+  - {t: 4000, do: jump}
+  - {t: 4470, do: advance}
+  - {t: 4940, do: "attack:basic"}
+  - {t: 5410, do: retreat}
+  - {t: 5880, do: "attack:cd"}
+  - {t: 6500, do: "cast:judgment"}
+  - {t: 7100, do: "attack:basic"}
+  - {t: 7570, do: advance}
+  - {t: 8040, do: advance}
+  - {t: 9000, do: "flash:in"}
+  - {t: 9500, do: "cast:judgment"}
+  - {t: 10000, do: "attack:basic"}
+  - {t: 10470, do: "attack:cd"}
+  - {t: 10940, do: advance}
+  - {t: 11410, do: "attack:basic"}
+  - {t: 11880, do: jump}
+  - {t: 12350, do: advance}
+  - {t: 12820, do: "attack:basic"}
+  - {t: 13290, do: retreat}
+  - {t: 13760, do: "attack:cd"}
+  - {t: 14230, do: "attack:basic"}
+  - {t: 15000, do: "flash:in"}
+  - {t: 15500, do: "cast:judgment"}
+  - {t: 16000, do: advance}
+  - {t: 16470, do: advance}
+  - {t: 16940, do: "attack:basic"}
+  - {t: 17410, do: "attack:cd"}
+  - {t: 17880, do: advance}
+  - {t: 18500, do: "cast:judgment"}
+  - {t: 19100, do: "attack:basic"}
+  - {t: 19570, do: jump}
+  - {t: 20040, do: advance}
+  - {t: 21000, do: "flash:in"}
+  - {t: 21500, do: "cast:judgment"}
+  - {t: 22000, do: "attack:basic"}
+  - {t: 22470, do: retreat}
+  - {t: 22940, do: "attack:cd"}
+  - {t: 23410, do: "attack:basic"}
+  - {t: 23880, do: advance}
+  - {t: 24500, do: "cast:judgment"}
+  - {t: 25100, do: advance}
+  - {t: 25570, do: "attack:basic"}
+  - {t: 26040, do: "attack:cd"}
+  - {t: 27000, do: "flash:in"}
+  - {t: 27500, do: "cast:judgment"}
+  - {t: 28000, do: advance}
+  - {t: 28470, do: "attack:basic"}
+  - {t: 28940, do: jump}
+  - {t: 29410, do: advance}
+  - {t: 29880, do: "attack:basic"}
+  - {t: 30350, do: retreat}
+  - {t: 30820, do: "attack:cd"}
+  - {t: 31290, do: "attack:basic"}
+  - {t: 31760, do: advance}
+  - {t: 32230, do: advance}
+  - {t: 33200, do: advance}
 right_timeline:
-  # Lux starts at 100 MP (right_start_mp). The fight is built around the
-  # ultimate AS THE CLIMAX — minimal pre-damage so Garen survives until t=7500.
-  # ── Act 1: Tactical setup — flash, root, build tension
-  - {t: 1200, do: retreat}                   # back from Garen's opening rush
-  - {t: 2000, do: retreat}
-  - {t: 2800, do: "cast:light_binding"}      # 固定 — root Garen briefly (modest dmg)
-  - {t: 3800, do: "flash:back"}              # ESCAPE — open the distance for the ult
-  - {t: 4500, do: retreat}
-  - {t: 5200, do: retreat}
-  - {t: 6000, do: retreat}                   # holding range, building suspense
-  - {t: 6800, do: retreat}
-  - {t: 7350, do: "flash:back"}              # RE-OPEN distance right before the ult
-                                             # (flash CD ready at 7300ms) so the beam
-                                             # crosses the arena instead of point-blank
-  # ── Act 2: CLIMAX — final_spark is the killing blow
-  # Engine freezes for 1.5s anticipation + 0.2s release + 1.0s aftermath = 2.7s of cinematic
-  - {t: 7500, do: "cast:final_spark"}        # 大絕 — the 3-phase cinematic + KO
-  - {t: 8500, do: retreat}                   # cinematic walk-away
-  - {t: 9500, do: retreat}
-  - {t: 10500, do: retreat}
-  - {t: 11500, do: retreat}
-  - {t: 12500, do: retreat}
-  - {t: 13500, do: retreat}
-  - {t: 14500, do: retreat}
-  - {t: 15500, do: retreat}
+  - {t: 700, do: "cast:light_binding"}
+  - {t: 1220, do: retreat}
+  - {t: 1900, do: "flash:back"}
+  - {t: 2420, do: jump}
+  - {t: 2890, do: retreat}
+  - {t: 3360, do: advance}
+  - {t: 3830, do: retreat}
+  - {t: 4300, do: jump}
+  - {t: 4700, do: "cast:light_binding"}
+  - {t: 5220, do: retreat}
+  - {t: 5690, do: advance}
+  - {t: 6000, do: "cast:lucent_singularity"}
+  - {t: 6520, do: jump}
+  - {t: 6990, do: retreat}
+  - {t: 7460, do: retreat}
+  - {t: 7930, do: jump}
+  - {t: 8400, do: retreat}
+  - {t: 8700, do: "cast:light_binding"}
+  - {t: 9220, do: jump}
+  - {t: 9690, do: retreat}
+  - {t: 10160, do: advance}
+  - {t: 10630, do: retreat}
+  - {t: 11100, do: jump}
+  - {t: 11570, do: retreat}
+  - {t: 12040, do: advance}
+  - {t: 12700, do: "cast:light_binding"}
+  - {t: 13000, do: "flash:back"}
+  - {t: 13520, do: jump}
+  - {t: 13990, do: retreat}
+  - {t: 14460, do: retreat}
+  - {t: 15000, do: "cast:lucent_singularity"}
+  - {t: 15520, do: jump}
+  - {t: 15990, do: retreat}
+  - {t: 16700, do: "cast:light_binding"}
+  - {t: 17220, do: jump}
+  - {t: 17690, do: retreat}
+  - {t: 18160, do: advance}
+  - {t: 18630, do: retreat}
+  - {t: 19100, do: jump}
+  - {t: 19570, do: retreat}
+  - {t: 20040, do: advance}
+  - {t: 20700, do: "cast:light_binding"}
+  - {t: 21220, do: jump}
+  - {t: 21690, do: retreat}
+  - {t: 22160, do: retreat}
+  - {t: 22630, do: jump}
+  - {t: 23100, do: retreat}
+  - {t: 23570, do: jump}
+  - {t: 24040, do: retreat}
+  - {t: 24700, do: "cast:light_binding"}
+  - {t: 25000, do: "flash:back"}
+  - {t: 25520, do: advance}
+  - {t: 25990, do: retreat}
+  - {t: 26460, do: jump}
+  - {t: 26930, do: retreat}
+  - {t: 27400, do: advance}
+  - {t: 27870, do: jump}
+  - {t: 28340, do: retreat}
+  - {t: 28700, do: "cast:light_binding"}
+  - {t: 29220, do: retreat}
+  - {t: 29690, do: jump}
+  - {t: 30160, do: retreat}
+  - {t: 30630, do: jump}
+  - {t: 31100, do: retreat}
+  - {t: 31900, do: retreat}
+  - {t: 32400, do: retreat}
+  - {t: 33000, do: "cast:final_spark"}

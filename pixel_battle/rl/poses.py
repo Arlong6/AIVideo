@@ -109,19 +109,20 @@ IDLE_POSE = FigurePose(
     torso_lean=0.0,
     front_arm=(88.0, -26.0), back_arm=(100.0, -32.0),
     front_leg=(96.0, 14.0), back_leg=(84.0, 14.0),
-    weapon_deg=25.0)   # was 45; lowered to clear ground at 0.65× figure scale (garen's long blade)
+    weapon_deg=-60.0)   # held UP-forward (negative = up on screen) — a ready guard,
+                        # not the old droop; pointing up also clears the ground entirely
 
 WALK_POSE = FigurePose(
     torso_lean=8.0,
     front_arm=(60.0, -40.0), back_arm=(130.0, -40.0),
     front_leg=(120.0, 26.0), back_leg=(60.0, 30.0),
-    weapon_deg=35.0)   # was 55; lowered to clear ground at 0.65× figure scale
+    weapon_deg=-50.0)   # carried up-forward while advancing
 
 JUMP_POSE = FigurePose(
     torso_lean=6.0,
     front_arm=(40.0, -70.0), back_arm=(150.0, -70.0),
     front_leg=(120.0, 70.0), back_leg=(70.0, 70.0),
-    weapon_deg=40.0)
+    weapon_deg=-62.0)   # raised through the leap
 
 HIT_POSE = FigurePose(
     torso_lean=-38.0,
@@ -150,7 +151,7 @@ CROUCH_POSE = FigurePose(
     torso_lean=0.0,
     front_arm=(20.0, -35.0), back_arm=(160.0, -35.0),
     front_leg=(130.0, 80.0), back_leg=(50.0, 80.0),
-    weapon_deg=10.0)
+    weapon_deg=-42.0)   # held up even while ducking
 
 
 @dataclass

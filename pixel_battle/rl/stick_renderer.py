@@ -449,12 +449,12 @@ _STYLES = {
                     "thigh": 36, "shin": 36, "line_width": 5,
                     "hand_radius": 4, "foot_length": 13,
                     # Pose overrides — make Lux read as a mage, not a brawler.
-                    # idle_weapon_deg: staff angled back/down (at-ease casting stance).
-                    # walk_weapon_deg: staff carried forward-ready.
+                    # idle_weapon_deg: staff raised UP-back (held high, mage at the ready).
+                    # walk_weapon_deg: staff carried up-forward.
                     # idle_torso_lean: slight forward lean, she's always leaning into magic.
                     "pose_overrides": {
-                        "idle_weapon_deg": 160.0,
-                        "walk_weapon_deg": 140.0,
+                        "idle_weapon_deg": -118.0,
+                        "walk_weapon_deg": -70.0,
                         "idle_torso_lean": 5.0,
                         # Staff micro-rotation: reads as "casting at the ready, staff alive".
                         "idle_oscillations": [
@@ -499,7 +499,7 @@ _DEFAULT_STYLE = {"head_shape": "circle", "head_size": 22,
                   "hand_radius": 4, "foot_length": 12}
 
 
-_FIGURE_SCALE = 0.65       # shrink every figure ~35% — characters read smaller, arena feels wider
+_FIGURE_SCALE = 0.54       # shrink every figure ~46% — small fighters, wide arena (ranged-kite feel)
 _SCALED_KEYS = frozenset({"head_size", "torso_length", "upper_arm", "forearm",
                           "thigh", "shin", "line_width", "hand_radius", "foot_length"})
 
@@ -855,18 +855,27 @@ class ProjectileLayer:
             live.append(item)
             cx = sx + (ex - sx) * t
             cy = sy + (ey - sy) * t
-            # Tail — 4 trailing segments, fatter and longer for visibility
-            for offset, alpha, rad in ((0.06, 210, 8), (0.12, 150, 6),
-                                       (0.18, 95, 5), (0.24, 50, 4)):
+            # Comet trail — 7 trailing glow segments (additive) for a bright streak
+            for offset, ga, rad in ((0.05, 150, 16), (0.10, 120, 14), (0.15, 95, 12),
+                                    (0.20, 70, 10), (0.26, 48, 8), (0.32, 30, 6),
+                                    (0.40, 18, 5)):
                 tt = max(0.0, t - offset)
                 tx = sx + (ex - sx) * tt
                 ty = sy + (ey - sy) * tt
                 d = rad * 2 + 2
-                tail_surf = pygame.Surface((d, d), pygame.SRCALPHA)
-                pygame.draw.circle(tail_surf, (*color, alpha), (d // 2, d // 2), rad)
-                surf.blit(tail_surf, (int(tx) - d // 2, int(ty) - d // 2))
-            # Bright core: white-hot center + colored body + dark outline
-            pygame.draw.circle(surf, color, (int(cx), int(cy)), 9)
-            pygame.draw.circle(surf, (255, 255, 255), (int(cx), int(cy)), 4)
-            pygame.draw.circle(surf, (0, 0, 0), (int(cx), int(cy)), 9, 1)
+                tail = pygame.Surface((d, d), pygame.SRCALPHA)
+                pygame.draw.circle(tail, (*color, ga), (d // 2, d // 2), rad)
+                surf.blit(tail, (int(tx) - d // 2, int(ty) - d // 2),
+                          special_flags=pygame.BLEND_RGB_ADD)
+            # Luminous orb: soft additive halo (3 rings) → glows like real magic,
+            # not a flat dot. Readable even when the camera is pulled way back.
+            gr = 30
+            glow = pygame.Surface((gr * 2, gr * 2), pygame.SRCALPHA)
+            for rr, ga in ((gr, 45), (int(gr * 0.62), 80), (int(gr * 0.32), 140)):
+                pygame.draw.circle(glow, (*color, ga), (gr, gr), rr)
+            surf.blit(glow, (int(cx) - gr, int(cy) - gr),
+                      special_flags=pygame.BLEND_RGB_ADD)
+            # White-hot core on top
+            pygame.draw.circle(surf, color, (int(cx), int(cy)), 11)
+            pygame.draw.circle(surf, (255, 255, 255), (int(cx), int(cy)), 6)
         self._items = live
