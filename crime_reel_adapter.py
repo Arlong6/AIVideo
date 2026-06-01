@@ -1,7 +1,7 @@
 """
 Crime Reel Adapter — bridges AIvideo's Case-shaped script dict to the
-external Remotion renderer at /Users/arlong/Projects/japanese-learner/
-nihongo-reels/.
+self-contained Remotion renderer at AIVideo/remotion-crime/ (extracted from
+the nihongo-reels project so this pipeline no longer depends on that repo).
 
 Flow:
   1. Validate case shape
@@ -30,7 +30,7 @@ from tts_generator import generate_voiceover
 
 REMOTION_PROJECT_DIR = os.getenv(
     "REMOTION_PROJECT_DIR",
-    "/Users/arlong/Projects/japanese-learner/nihongo-reels",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "remotion-crime"),
 )
 REMOTION_SCRIPT = os.path.join(REMOTION_PROJECT_DIR, "scripts", "render-crime.sh")
 PEXELS_PHOTOS_ENDPOINT = "https://api.pexels.com/v1/search"
