@@ -17688,7 +17688,7 @@
         },
         {
           "date": "2026-06-01",
-          "views": 29,
+          "views": 30,
           "likes": 1,
           "comments": 1
         }
@@ -17880,7 +17880,7 @@
         },
         {
           "date": "2026-06-01",
-          "views": 0,
+          "views": 1,
           "likes": 0,
           "comments": 0
         }
@@ -18243,7 +18243,7 @@
         },
         {
           "date": "2026-06-01",
-          "views": 63,
+          "views": 65,
           "likes": 0,
           "comments": 1
         }
@@ -18265,6 +18265,38 @@
         }
       ],
       "series_tag": "political"
+    },
+    {
+      "video_id": "u4kN6VOYUy8",
+      "topic": "鄭南奎連環殺人案：南韓「快樂殺人犯」的恐怖日記",
+      "slot": 1,
+      "duration_s": 73,
+      "publish_at": "2026-06-02T10:00:00+08:00",
+      "uploaded_at": "2026-06-01T15:42:34.946758+00:00",
+      "stats": [
+        {
+          "date": "2026-06-01",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
+    },
+    {
+      "video_id": "DBg76DFdhCg",
+      "topic": "林宅血案：台灣政治受難者家庭的滅門慘案與未解真相",
+      "slot": 3,
+      "duration_s": 83,
+      "publish_at": "2026-06-02T18:00:00+08:00",
+      "uploaded_at": "2026-06-01T15:49:47.378961+00:00",
+      "stats": [
+        {
+          "date": "2026-06-01",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
