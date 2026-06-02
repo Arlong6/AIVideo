@@ -434,13 +434,16 @@ def get_background_music(output_dir: str, sections: list[dict] = None,
     Get background music for the video.
 
     style:
-      - "dark" (default): crime channel — synthesized dark ambient drone
+      - "dark" (default): crime channel — section-based real music when
+        `sections` is given; otherwise NO background music (just voiceover)
       - "contemplative": books channel — picks a random track from
         music_cache/books_library/ (user-managed local MP3 library)
 
-    Synthesized music is explicitly avoided for books because sustained
-    pure-sine pads cause an ear-ringing sensation for the user. See
-    memory/feedback_no_synth_music.md.
+    The old non-section synth FALLBACK was removed (it caused ear-ringing —
+    see memory/feedback_no_synth_music.md): with no sections and no library
+    track we now return None and play voiceover only.
+    NOTE: section-based music (_get_section_music, the longform path) STILL
+    synthesizes — replacing it with real recorded tracks is a separate task.
 
     Returns the destination path, or None if no music is available (the
     video assembler handles None as "no background music, just voiceover").
@@ -451,7 +454,8 @@ def get_background_music(output_dir: str, sections: list[dict] = None,
     if style == "contemplative":
         return _get_books_library_music(output_dir)
 
-    return _get_synth_music(output_dir, style=style)
+    # No sections + no library track → no music (NOT synth — it causes ear-ringing).
+    return None
 
 
 def _get_books_library_music(output_dir: str) -> str | None:
