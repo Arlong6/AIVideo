@@ -439,11 +439,10 @@ def get_background_music(output_dir: str, sections: list[dict] = None,
       - "contemplative": books channel — picks a random track from
         music_cache/books_library/ (user-managed local MP3 library)
 
-    The old non-section synth FALLBACK was removed (it caused ear-ringing —
-    see memory/feedback_no_synth_music.md): with no sections and no library
-    track we now return None and play voiceover only.
-    NOTE: section-based music (_get_section_music, the longform path) STILL
-    synthesizes — replacing it with real recorded tracks is a separate task.
+    Synthesized music is NO LONGER used anywhere (it caused ear-ringing — see
+    memory/feedback_no_synth_music.md). The section/longform path uses real
+    YouTube-safe audio (Pixabay or bundled crime BGM); the non-section path
+    returns None (voiceover only) when no real track is available.
 
     Returns the destination path, or None if no music is available (the
     video assembler handles None as "no background music, just voiceover").
@@ -485,36 +484,52 @@ def _get_books_library_music(output_dir: str) -> str | None:
     return dest
 
 
+_BUNDLED_CRIME_BGM = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "remotion-crime", "public", "music", "crime-bgm.mp3",
+)
+
+
 def _get_section_music(output_dir: str, sections: list[dict],
                        total_duration: float) -> str | None:
-    """Generate section-based music (different mood per section)."""
+    """Background music for the long-form crime video — REAL recorded audio.
+
+    Root-fixed away from synthesis: sustained pure-sine synth pads caused an
+    ear-ringing sensation (memory/feedback_no_synth_music.md). We now use a real,
+    YouTube-safe track — Pixabay (varied) if an API key is set, otherwise the
+    bundled crime BGM committed in the repo — looped/trimmed to total_duration.
+    (`sections` is no longer used for per-mood synthesis; one cohesive bed plays
+    under the whole video.)
+    """
     os.makedirs(MUSIC_CACHE_DIR, exist_ok=True)
     dest = os.path.join(output_dir, "background_music.mp3")
 
-    print(f"  Generating section-based music ({len(sections)} sections)...")
-    for s in sections:
-        mood = SECTION_MOODS.get(s.get("name", ""), {})
-        print(f"    {s.get('name', '?'):15s} → {mood.get('style', '?')} "
-              f"(intensity {mood.get('intensity', 0):.1f})")
+    # 1) pick a real source track (Pixabay first for variety, else bundled).
+    tmp_src = None
+    pix = _get_pixabay_music(output_dir, PIXABAY_QUERIES)
+    if pix and os.path.exists(pix):
+        # _get_pixabay_music wrote to dest; move it aside so we can loop into dest.
+        tmp_src = os.path.join(output_dir, "_bgm_src.mp3")
+        os.replace(pix, tmp_src)
+        source, label = tmp_src, "Pixabay"
+    elif os.path.exists(_BUNDLED_CRIME_BGM):
+        source, label = _BUNDLED_CRIME_BGM, "bundled crime BGM"
+    else:
+        print("  [WARN] no real music source available → voiceover only")
+        return None
 
-    wav_bytes = _synth_section_based_music(sections, total_duration)
-
-    # Save as WAV then convert to MP3
-    cache_wav = os.path.join(MUSIC_CACHE_DIR, "section_music.wav")
-    with open(cache_wav, "wb") as f:
-        f.write(wav_bytes)
-
+    # 2) loop/trim the real track to the exact video length.
     result = subprocess.run(
-        ["ffmpeg", "-y", "-i", cache_wav, "-q:a", "4", dest],
+        ["ffmpeg", "-y", "-stream_loop", "-1", "-i", source,
+         "-t", str(int(total_duration)), "-q:a", "4", dest],
         capture_output=True,
     )
-    os.remove(cache_wav)
+    if tmp_src and os.path.exists(tmp_src):
+        os.remove(tmp_src)
 
     if result.returncode != 0:
-        print("  [WARN] MP3 conversion failed, using WAV")
-        dest = dest.replace(".mp3", ".wav")
-        with open(dest, "wb") as f:
-            f.write(wav_bytes)
+        print("  [WARN] music loop/trim failed → voiceover only")
+        return None
 
-    print(f"  Music ready (section-based, {len(sections)} moods)")
+    print(f"  Music ready (real {label}, looped to {int(total_duration)}s)")
     return dest
