@@ -32,29 +32,42 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 VIDEO_LOG = os.path.join(PROJECT_DIR, "video_log.json")
 
 
-def _git_pull_quiet() -> tuple[bool, str]:
-    """Pull latest state files from GH Actions before reading video_log.json.
+def _git_fetch_quiet() -> tuple[bool, str]:
+    """Fetch latest origin/main so we can read GH-Actions-committed state files.
 
-    Since crime pipeline runs on GH Actions (not local), video_log.json is
-    updated by GH Actions commits, not local writes. Without this pull, the
-    audit reads stale local data and falsely reports 0 uploads.
-
-    Returns (ok, msg). Audit 2026-04-30 worth-knowing #4: previously this
-    silently swallowed every failure, so a stale audit (e.g. dirty tree
-    blocking rebase, network down) looked identical to a healthy one.
-    Now the caller can warn instead of pretending sync succeeded.
+    Crime runs on GH Actions (not local), so video_log.json is updated by GH
+    Actions commits. We FETCH (not pull --rebase): the old rebase failed whenever
+    the working tree was dirty (e.g. uncommitted sprite edits), leaving the audit
+    reading stale local data and falsely reporting 0 uploads twice a day. fetch
+    never touches the working tree; crime_audit then reads origin/main directly.
     """
     import subprocess
     try:
         result = subprocess.run(
-            ["git", "-C", PROJECT_DIR, "pull", "--rebase", "--quiet"],
-            capture_output=True, timeout=30, text=True,
+            ["git", "-C", PROJECT_DIR, "fetch", "origin", "main", "--quiet"],
+            capture_output=True, timeout=60, text=True,
         )
         if result.returncode == 0:
             return True, "ok"
         return False, (result.stderr or result.stdout or "non-zero exit").strip()[:200]
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"[:200]
+
+
+def _load_json_from_remote(rel_path: str, default):
+    """Read a repo file from origin/main (the GH-Actions-committed state) without
+    needing a clean working tree. Returns `default` on any failure."""
+    import subprocess
+    try:
+        r = subprocess.run(
+            ["git", "-C", PROJECT_DIR, "show", f"origin/main:{rel_path}"],
+            capture_output=True, timeout=30, text=True,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return json.loads(r.stdout)
+    except Exception:
+        pass
+    return default
 BOOKS_USED_TOPICS = os.path.join(PROJECT_DIR, "data", "books", "used_topics.json")
 IMAGEN_QUOTA_FILE = os.path.join(PROJECT_DIR, "data", "imagen_quota.json")
 
@@ -73,7 +86,11 @@ def _load_json(path: str, default):
 
 def crime_audit(window_hours: int, min_count: int) -> dict:
     """Returns {ok, count, recent (list of (dt, video))}."""
-    data = _load_json(VIDEO_LOG, {"videos": []})
+    # Prefer the GH-Actions-committed video_log.json on origin/main (the live
+    # source of truth); fall back to the local copy if the remote read fails.
+    data = _load_json_from_remote("video_log.json", None)
+    if data is None:
+        data = _load_json(VIDEO_LOG, {"videos": []})
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=window_hours)
 
@@ -403,11 +420,11 @@ def main():
                         help="Skip Telegram send (for local testing)")
     args = parser.parse_args()
 
-    # Sync latest GH Actions state before reading local files. Surface
+    # Fetch latest GH Actions state (working-tree-safe) before reading. Surface
     # failures so a stale audit doesn't silently report 0 uploads.
-    git_ok, git_msg = _git_pull_quiet()
+    git_ok, git_msg = _git_fetch_quiet()
     if not git_ok:
-        print(f"  [WARN] git pull failed — audit may show stale data: {git_msg}")
+        print(f"  [WARN] git fetch failed — audit may show stale data: {git_msg}")
 
     crime = crime_audit(args.window_hours, args.min_count)
     books = books_today_status()
