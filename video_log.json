@@ -16337,7 +16337,7 @@
         },
         {
           "date": "2026-06-03",
-          "views": 53,
+          "views": 54,
           "likes": 0,
           "comments": 0
         }
@@ -18720,7 +18720,7 @@
         },
         {
           "date": "2026-06-03",
-          "views": 35,
+          "views": 37,
           "likes": 1,
           "comments": 1
         }
@@ -19419,7 +19419,7 @@
         },
         {
           "date": "2026-06-03",
-          "views": 68,
+          "views": 69,
           "likes": 0,
           "comments": 1
         }
@@ -19476,7 +19476,7 @@
         },
         {
           "date": "2026-06-03",
-          "views": 206,
+          "views": 219,
           "likes": 0,
           "comments": 1
         }
@@ -19504,7 +19504,7 @@
         },
         {
           "date": "2026-06-03",
-          "views": 982,
+          "views": 978,
           "likes": 14,
           "comments": 2
         }
@@ -19532,7 +19532,7 @@
         },
         {
           "date": "2026-06-03",
-          "views": 15,
+          "views": 17,
           "likes": 0,
           "comments": 1
         }
@@ -19577,9 +19577,25 @@
         },
         {
           "date": "2026-06-03",
-          "views": 5,
+          "views": 7,
           "likes": 0,
           "comments": 1
+        }
+      ]
+    },
+    {
+      "video_id": "1irfXRlQj0Y",
+      "topic": "嘉義醃頭案：震驚全台的母女斷頭命案，究竟是誰痛下毒手？",
+      "slot": 1,
+      "duration_s": 79,
+      "publish_at": "2026-06-04T10:00:00+08:00",
+      "uploaded_at": "2026-06-03T21:33:06.528673+00:00",
+      "stats": [
+        {
+          "date": "2026-06-03",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
         }
       ]
     }
