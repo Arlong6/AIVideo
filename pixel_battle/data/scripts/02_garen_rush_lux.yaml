@@ -1,66 +1,145 @@
-# ──────────────────────────────────────────────────────────────────────────────
-# 蓋倫 vs 拉克絲 — 鐵衛的逆襲 · 劍從天降的處決
-# KOF/SF style: mage opens with total control, juggernaut shrugs it off and executes
-# ──────────────────────────────────────────────────────────────────────────────
-#
-# 【幕一 · 法師壓制 Mage Dominates  0–4s】
-#   Lux 開場就掌控節奏:光之束縛固定蓋倫,螢光奇點消耗,閃現拉開風箏。
-#   蓋倫被束縛、挨了幾下,血條開始掉——看起來法師完全壓著打。
-#
-# 【幕二 · 鐵衛不退 The Juggernaut Won't Stop  4–7s】
-#   束縛擋不住閃現——蓋倫無視控制,一次次閃現+突刺強行貼臉。
-#   Lux 的閃現燒完了,被逼到角落,最後的束縛被突刺打斷。
-#
-# 【幕三 · 大絕收場 Ultimate Climax  7–11s】
-#   蓋倫滿能量(start_mp=100)。貼身瞬間,DEMACIAN JUSTICE 巨劍從天而降——
-#   slam 處決(30 傷害,一發致命)。鐵衛插劍入地,法師倒下。
-#
-#   注意:蓋倫大絕前「絕不放耗魔 special」(judgment/courage 會把 MP 打到 100 以下,
-#   demacian_justice 需滿 MP 才放得出來)。只用 basic / cd / flash / advance / block。
-#   slam 需貼身才命中 → 突進貼臉正好。Lux 滿血 30 HP 被 30 傷害大絕一發處決。
-# ──────────────────────────────────────────────────────────────────────────────
-name: "Garen's comeback — juggernaut executes the mage"
+# 蓋倫 vs 拉克絲 — 鐵衛逆襲處決 (長版密集 ~40s) · demacian_justice slam 收場
+name: "Garen rushdown — 40s, demacian_justice slam climax"
 left: garen
 right: lux
-duration_ms: 13000
-left_start_mp: 100        # 蓋倫滿能量 — demacian_justice 是收場,不靠中途累積
-
+duration_ms: 46000
+seed: 7
+left_start_mp: 100
+left_start_hp: 95
+right_start_hp: 70
 left_timeline:
-  # ── 幕一:被壓制 — 頂著束縛與消耗前進 ──
-  - {t: 600,  do: advance}            # 開場直壓
-  - {t: 1100, do: advance}
-  - {t: 1600, do: block}              # 防一手 light_binding #1 (hits ~1.0s 後)
-  - {t: 2100, do: advance}            # 被束縛也要前進(root 擋移動 → 引擎吃掉,但意圖明確)
-  - {t: 2700, do: "flash:in"}         # 無視束縛 — 閃現貼臉 (flash 無視 root)
-  - {t: 3300, do: "attack:basic"}     # 第一次還手
-  - {t: 3800, do: advance}
-  # ── 幕二:鐵衛不退 — 燒掉 Lux 的閃現、逼進角落 ──
-  - {t: 4300, do: "attack:cd"}        # decisive_strike 突刺 DASH 拉近 (cooldown, 免費)
-  - {t: 4900, do: advance}
-  - {t: 5400, do: block}              # 防 light_binding #2
-  - {t: 5900, do: advance}
-  - {t: 6300, do: "flash:in"}         # 第二次閃現 — Lux 閃現已燒完,逼到牆角
-  - {t: 6900, do: advance}            # 確保貼身(slam 需 melee 射程)
-  - {t: 7200, do: advance}
-  # ── 幕三:大絕 — 劍從天降的處決 ──
-  - {t: 7500, do: "cast:demacian_justice"}   # 大絕 — slam 三階段電影感 + KO
-  - {t: 8600, do: idle}               # 插劍入地,沉默佇立
-  - {t: 9600, do: idle}
-
+  - {t: 400, do: advance}
+  - {t: 870, do: "attack:basic"}
+  - {t: 1340, do: "attack:cd"}
+  - {t: 1810, do: advance}
+  - {t: 2280, do: "attack:basic"}
+  - {t: 3000, do: "flash:in"}
+  - {t: 3500, do: "attack:basic"}
+  - {t: 4000, do: jump}
+  - {t: 4470, do: advance}
+  - {t: 4940, do: "attack:basic"}
+  - {t: 5410, do: advance}
+  - {t: 5880, do: "attack:cd"}
+  - {t: 6350, do: "attack:basic"}
+  - {t: 6820, do: advance}
+  - {t: 7290, do: advance}
+  - {t: 7760, do: "attack:basic"}
+  - {t: 8230, do: "attack:cd"}
+  - {t: 9000, do: "flash:in"}
+  - {t: 9500, do: "attack:basic"}
+  - {t: 10000, do: advance}
+  - {t: 10470, do: "attack:basic"}
+  - {t: 10940, do: jump}
+  - {t: 11410, do: advance}
+  - {t: 11880, do: "attack:basic"}
+  - {t: 12350, do: advance}
+  - {t: 12820, do: "attack:cd"}
+  - {t: 13290, do: "attack:basic"}
+  - {t: 13760, do: advance}
+  - {t: 14230, do: advance}
+  - {t: 15000, do: "flash:in"}
+  - {t: 15500, do: "attack:basic"}
+  - {t: 16000, do: "attack:basic"}
+  - {t: 16470, do: "attack:cd"}
+  - {t: 16940, do: advance}
+  - {t: 17410, do: "attack:basic"}
+  - {t: 17880, do: jump}
+  - {t: 18350, do: advance}
+  - {t: 18820, do: "attack:basic"}
+  - {t: 19290, do: advance}
+  - {t: 19760, do: "attack:cd"}
+  - {t: 20230, do: "attack:basic"}
+  - {t: 21000, do: "flash:in"}
+  - {t: 21500, do: "attack:basic"}
+  - {t: 22000, do: advance}
+  - {t: 22470, do: advance}
+  - {t: 22940, do: "attack:basic"}
+  - {t: 23410, do: "attack:cd"}
+  - {t: 23880, do: advance}
+  - {t: 24350, do: "attack:basic"}
+  - {t: 24820, do: jump}
+  - {t: 25290, do: advance}
+  - {t: 25760, do: "attack:basic"}
+  - {t: 26230, do: advance}
+  - {t: 27000, do: "flash:in"}
+  - {t: 27500, do: "attack:basic"}
+  - {t: 28000, do: "attack:cd"}
+  - {t: 28470, do: "attack:basic"}
+  - {t: 28940, do: advance}
+  - {t: 29410, do: advance}
+  - {t: 29880, do: "attack:basic"}
+  - {t: 30350, do: "attack:cd"}
+  - {t: 30820, do: advance}
+  - {t: 31290, do: "attack:basic"}
+  - {t: 31760, do: jump}
+  - {t: 32230, do: advance}
+  - {t: 32300, do: "flash:in"}
+  - {t: 32800, do: advance}
+  - {t: 33000, do: "cast:demacian_justice"}
 right_timeline:
-  # ── 幕一:法師壓制 — 束縛 + 風箏 + 消耗(只用免費 light_binding,保留戲份;
-  #    lucent_singularity 耗魔但 Lux 不需要大絕,可自由使用)──
-  - {t: 700,  do: "cast:light_binding"}      # 固定蓋倫 (免費 cooldown, root 1.5s)
-  - {t: 1300, do: "cast:lucent_singularity"} # 螢光奇點消耗 (poke)
-  - {t: 1900, do: "flash:back"}              # 拉開距離風箏
-  - {t: 2500, do: retreat}
-  - {t: 3100, do: "attack:basic"}            # 反手戳一下
-  - {t: 3700, do: retreat}
-  # ── 幕二:閃現燒完 — 還想控,但擋不住 ──
-  - {t: 4200, do: "cast:light_binding"}      # 第二次束縛 (CD 好了)
-  - {t: 4800, do: retreat}
-  - {t: 5300, do: "cast:lucent_singularity"} # 最後的消耗
-  - {t: 5900, do: retreat}
-  - {t: 6500, do: retreat}                   # 被逼到角落,無處可逃
-  - {t: 7100, do: "cast:light_binding"}      # 最後的束縛嘗試(被貼臉打斷)
-  # 7.5s — 蓋倫大絕落下,處決
+  - {t: 700, do: "cast:light_binding"}
+  - {t: 1220, do: retreat}
+  - {t: 1900, do: "flash:back"}
+  - {t: 2420, do: jump}
+  - {t: 2890, do: advance}
+  - {t: 3360, do: retreat}
+  - {t: 3830, do: jump}
+  - {t: 4300, do: advance}
+  - {t: 4700, do: "cast:light_binding"}
+  - {t: 5220, do: retreat}
+  - {t: 5690, do: jump}
+  - {t: 6000, do: "cast:lucent_singularity"}
+  - {t: 6520, do: retreat}
+  - {t: 6990, do: advance}
+  - {t: 7460, do: retreat}
+  - {t: 7930, do: jump}
+  - {t: 8400, do: retreat}
+  - {t: 8700, do: "cast:light_binding"}
+  - {t: 9220, do: jump}
+  - {t: 9690, do: advance}
+  - {t: 10160, do: retreat}
+  - {t: 10630, do: jump}
+  - {t: 11000, do: "flash:back"}
+  - {t: 11520, do: advance}
+  - {t: 11990, do: retreat}
+  - {t: 12700, do: "cast:light_binding"}
+  - {t: 13000, do: "cast:lucent_singularity"}
+  - {t: 13520, do: jump}
+  - {t: 13990, do: retreat}
+  - {t: 14460, do: advance}
+  - {t: 14930, do: retreat}
+  - {t: 15400, do: jump}
+  - {t: 15870, do: retreat}
+  - {t: 16340, do: jump}
+  - {t: 16700, do: "cast:light_binding"}
+  - {t: 17220, do: advance}
+  - {t: 17690, do: retreat}
+  - {t: 18160, do: jump}
+  - {t: 18630, do: advance}
+  - {t: 19100, do: retreat}
+  - {t: 19570, do: jump}
+  - {t: 20000, do: "cast:lucent_singularity"}
+  - {t: 20700, do: "cast:light_binding"}
+  - {t: 21220, do: retreat}
+  - {t: 21690, do: advance}
+  - {t: 22160, do: retreat}
+  - {t: 22630, do: jump}
+  - {t: 23000, do: "flash:back"}
+  - {t: 23520, do: retreat}
+  - {t: 23990, do: jump}
+  - {t: 24700, do: "cast:light_binding"}
+  - {t: 25220, do: advance}
+  - {t: 25690, do: retreat}
+  - {t: 26160, do: jump}
+  - {t: 26630, do: advance}
+  - {t: 27000, do: "cast:lucent_singularity"}
+  - {t: 27520, do: retreat}
+  - {t: 27990, do: jump}
+  - {t: 28700, do: "cast:light_binding"}
+  - {t: 29220, do: retreat}
+  - {t: 29690, do: advance}
+  - {t: 30160, do: retreat}
+  - {t: 30630, do: jump}
+  - {t: 31100, do: retreat}
+  - {t: 31570, do: jump}
+  - {t: 32400, do: "attack:basic"}
