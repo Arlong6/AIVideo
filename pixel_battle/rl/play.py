@@ -60,8 +60,8 @@ CAM_FOLLOW = 0.12                              # lerp factor for x tracking
 # (melee reads big and punchy); far apart -> pull back to reveal the whole arena
 # (kiting/separation reads as real space). Fixes the "everything clumped in the
 # middle" look of a static wide shot.
-CAM_MIN_VIEW_W = 430       # tightest crop ⇒ max zoom-in only 480/430 = 1.12× (stay wide; small fighters)
-CAM_FRAME_MARGIN = 185     # px of breathing room kept beyond each fighter (frames wider)
+CAM_MIN_VIEW_W = 465       # near-never zoom in (480/465 = 1.03×) — fighters stay small, arena stays wide
+CAM_FRAME_MARGIN = 220     # more breathing room beyond each fighter ⇒ more visible separation
 CAM_ZOOM_LERP = 0.045      # ease the dynamic zoom so it glides, never snaps
 
 # ── Ultimate knockback ───────────────────────────────────────────────────────

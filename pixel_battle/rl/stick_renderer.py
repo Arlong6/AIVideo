@@ -436,7 +436,7 @@ def _swing_smear_start_angle(pose_id: str, facing: int) -> float:
 # Per-character visual style. Limb lengths are split into two segments
 # (upper_arm + forearm, thigh + shin) for the jointed skeleton.
 _STYLES = {
-    "brick_phone": {"head_shape": "square",   "head_size": 26,
+    "brick_phone": {"head_shape": "square",   "head_size": 26, "crest": "antenna",
                     "torso_length": 88, "upper_arm": 30, "forearm": 30,
                     "thigh": 32, "shin": 32, "line_width": 8,
                     "hand_radius": 7, "foot_length": 22},
@@ -461,7 +461,7 @@ _STYLES = {
                             {"field": "weapon_deg", "amplitude": 8.0, "period_ms": 3000.0},
                         ],
                     }},
-    "garen":       {"head_shape": "square",   "head_size": 28,
+    "garen":       {"head_shape": "square",   "head_size": 28, "crest": "plume",
                     "torso_length": 86, "upper_arm": 32, "forearm": 31,
                     "thigh": 31, "shin": 31, "line_width": 9,
                     "hand_radius": 8, "foot_length": 22,
@@ -471,7 +471,7 @@ _STYLES = {
                             {"field": "weapon_deg", "amplitude": 2.0, "period_ms": 2500.0},
                         ],
                     }},
-    "yasuo":       {"head_shape": "circle",   "head_size": 27,
+    "yasuo":       {"head_shape": "circle",   "head_size": 27, "crest": "topknot",
                     "torso_length": 94, "upper_arm": 33, "forearm": 32,
                     "thigh": 33, "shin": 33, "line_width": 6,
                     "hand_radius": 5, "foot_length": 15,
@@ -481,7 +481,7 @@ _STYLES = {
                             {"field": "near_hand_y_offset", "amplitude": 3.0, "period_ms": 800.0},
                         ],
                     }},
-    "ashe":        {"head_shape": "triangle", "head_size": 27,
+    "ashe":        {"head_shape": "triangle", "head_size": 27, "crest": "hood",
                     "torso_length": 96, "upper_arm": 34, "forearm": 33,
                     "thigh": 33, "shin": 33, "line_width": 5,
                     "hand_radius": 4, "foot_length": 13,
@@ -491,6 +491,33 @@ _STYLES = {
                             {"field": "far_hand_x_offset", "amplitude": 2.0, "period_ms": 1800.0},
                         ],
                     }},
+    # ── New roster: pushed-apart builds so silhouette alone separates them ──
+    "mordekaiser": {"head_shape": "square",   "head_size": 34, "crest": "horns",
+                    "torso_length": 100, "upper_arm": 34, "forearm": 33,
+                    "thigh": 36, "shin": 36, "line_width": 13,   # brute: thickest limbs
+                    "hand_radius": 10, "foot_length": 28,
+                    "pose_overrides": {
+                        "idle_oscillations": [
+                            {"field": "weapon_deg", "amplitude": 1.5, "period_ms": 2600.0},
+                        ],
+                    }},
+    "pantheon":    {"head_shape": "circle",   "head_size": 28, "crest": "mohawk_helm",
+                    "torso_length": 92, "upper_arm": 33, "forearm": 32,
+                    "thigh": 34, "shin": 34, "line_width": 8,
+                    "hand_radius": 6, "foot_length": 19},
+    "katarina":    {"head_shape": "circle",   "head_size": 23, "crest": "ponytail",
+                    "torso_length": 104, "upper_arm": 32, "forearm": 33,
+                    "thigh": 37, "shin": 37, "line_width": 4,    # slim assassin, tall
+                    "hand_radius": 3, "foot_length": 12,
+                    "pose_overrides": {
+                        "idle_oscillations": [
+                            {"field": "near_hand_y_offset", "amplitude": 3.0, "period_ms": 700.0},
+                        ],
+                    }},
+    "jinx":        {"head_shape": "circle",   "head_size": 25, "crest": "twin_tails",
+                    "torso_length": 106, "upper_arm": 35, "forearm": 35,  # lanky, long arms
+                    "thigh": 37, "shin": 37, "line_width": 4,
+                    "hand_radius": 3, "foot_length": 12},
 }
 
 _DEFAULT_STYLE = {"head_shape": "circle", "head_size": 22,
@@ -548,6 +575,66 @@ def _draw_head(surf, color, geo, style):
     else:
         pygame.draw.circle(surf, color, (cx, cy), hs)
         pygame.draw.circle(surf, (0, 0, 0), (cx, cy), hs, 2)
+
+
+def _draw_crest(surf, color, accent, geo, style):
+    """Draw a per-champion headgear/hair crest on top of the head. This is the
+    single strongest 'who is this' cue at small figure scale — far more legible
+    than body build. `style['crest']` selects the shape; `facing` orients the
+    asymmetric ones (hair/hoods trail BEHIND the head)."""
+    crest = style.get("crest")
+    if not crest:
+        return
+    cx, cy = int(geo.head_center[0]), int(geo.head_center[1])
+    hs = style["head_size"]
+    f = geo.facing
+    back = -f                      # +x is the way the figure faces; hair trails back
+    blk = (0, 0, 0)
+
+    def poly(pts, fill, outline=blk, ow=1):
+        ipts = [(int(x), int(y)) for x, y in pts]
+        pygame.draw.polygon(surf, fill, ipts)
+        if ow:
+            pygame.draw.polygon(surf, outline, ipts, ow)
+
+    if crest == "horns":           # demon brute — two curved horns up-out
+        for s in (-1, 1):
+            base = (cx + s * hs * 0.7, cy - hs * 0.6)
+            poly([base, (base[0] + s * hs * 0.5, cy - hs * 1.9),
+                  (base[0] + s * hs * 1.05, cy - hs * 1.2),
+                  (base[0] + s * hs * 0.3, cy - hs * 0.3)], accent)
+    elif crest == "mohawk_helm":   # spartan — a front-to-back crest plume
+        top = cy - hs
+        poly([(cx - hs * 0.9, top), (cx + hs * 0.9, top),
+              (cx + hs * 0.5, top - hs * 1.3), (cx - hs * 0.5, top - hs * 1.3)],
+             accent)
+    elif crest == "plume":         # knight — single feather plume off the top
+        top = (cx - back * hs * 0.2, cy - hs)
+        poly([top, (top[0] - back * hs * 1.4, top[1] - hs * 1.5),
+              (top[0] - back * hs * 0.5, top[1] - hs * 0.4)], accent)
+    elif crest == "topknot":       # samurai bun + short tail behind
+        knot = (cx - back * hs * 0.2, cy - hs * 1.15)
+        pygame.draw.circle(surf, color, (int(knot[0]), int(knot[1])), max(2, int(hs * 0.45)))
+        pygame.draw.circle(surf, blk, (int(knot[0]), int(knot[1])), max(2, int(hs * 0.45)), 1)
+    elif crest == "ponytail":      # assassin — high tail whipping back
+        root = (cx + back * hs * 0.5, cy - hs * 0.7)
+        poly([root, (root[0] + back * hs * 1.7, root[1] - hs * 0.5),
+              (root[0] + back * hs * 1.5, root[1] + hs * 0.6),
+              (root[0] + back * hs * 0.2, root[1] + hs * 0.2)], color)
+    elif crest == "twin_tails":    # gunner — two long tails out the sides
+        for s in (-1, 1):
+            root = (cx + s * hs * 0.8, cy)
+            poly([root, (root[0] + s * hs * 0.6, cy + hs * 1.9),
+                  (root[0] + s * hs * 1.2, cy + hs * 1.7),
+                  (root[0] + s * hs * 0.4, cy - hs * 0.2)], color)
+    elif crest == "hood":          # ranger — a peaked hood over+behind the head
+        poly([(cx + back * hs * 1.3, cy - hs * 0.2), (cx - back * hs * 0.2, cy - hs * 1.5),
+              (cx - back * hs * 0.9, cy - hs * 0.3), (cx + back * hs * 0.6, cy + hs * 0.4)],
+             accent)
+    elif crest == "antenna":       # brick phone — stubby antenna
+        ax = cx - back * hs * 0.4
+        pygame.draw.line(surf, accent, (ax, cy - hs), (ax, cy - hs * 1.9), 3)
+        pygame.draw.circle(surf, accent, (int(ax), int(cy - hs * 1.9)), 3)
 
 
 # ── Ghost (smear) drawing ─────────────────────────────────────────────────────
@@ -635,6 +722,7 @@ def draw_stick_figure(surf, char, color, dt_ms: float = _RENDER_TICK_MS,
     # Torso + head + front leg.
     pygame.draw.line(surf, color, geo.hip, geo.shoulder, lw)
     _draw_head(surf, color, geo, style)
+    _draw_crest(surf, color, char.accent_color, geo, style)
     _draw_foot(surf, color, geo.front_knee, geo.front_foot, lw,
                style["foot_length"])
     pygame.draw.line(surf, color, geo.hip, geo.front_knee, lw)

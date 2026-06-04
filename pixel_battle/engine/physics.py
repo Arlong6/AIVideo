@@ -10,8 +10,8 @@ GROUND_Y = 530  # feet landing position; matches renderer HORIZON_Y
 # turns around at the same absolute positions it did before the arena widened,
 # and (2) Flash teleport clamping so scripted flash:back calls don't push
 # characters further than the scripts were tuned for.
-AI_ENGAGE_LEFT = 60
-AI_ENGAGE_RIGHT = 420
+AI_ENGAGE_LEFT = 44
+AI_ENGAGE_RIGHT = 436
 FLASH_ARENA_LEFT = AI_ENGAGE_LEFT
 FLASH_ARENA_RIGHT = AI_ENGAGE_RIGHT
 

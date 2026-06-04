@@ -128,11 +128,10 @@ class Battle:
         self.events: List[Event] = []
         self._ultimate_resume_at: Optional[int] = None
 
-        # Initialize physics positions — keep the same 240 px starting gap
-        # regardless of arena width, so existing scripts don't need re-tuning.
-        # Characters start at 120 / 360 (midpoints of old bounds).
-        _START_LEFT = 120
-        _START_RIGHT = 360
+        # Initialize physics positions — wider 280 px starting gap so ranged
+        # match-ups read as real spacing (kiting), not a clump in the middle.
+        _START_LEFT = 100
+        _START_RIGHT = 380
         left.reset_physics(initial_x=_START_LEFT, facing=1)
         right.reset_physics(initial_x=_START_RIGHT, facing=-1)
 

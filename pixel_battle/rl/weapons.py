@@ -16,18 +16,23 @@ Vec = Tuple[float, float]
 
 @dataclass
 class Weapon:
-    kind: str          # "greatsword" | "staff" | "katana" | "bow"
+    kind: str          # greatsword|staff|katana|bow|hammer|spear|daggers|cannon
     length: float      # tip distance from the grip, px
     grip: str          # "one_hand" | "two_hand"
     width: float       # blade/shaft thickness multiplier (x line_width)
 
 
-# Renderer-side registry — only the 4 LoL champions are armed.
+# Renderer-side registry. Each champion's silhouette is dominated by its weapon,
+# so distinct kinds matter more for "who is this" than body build does.
 _WEAPONS = {
-    "garen":  Weapon("greatsword", length=104, grip="two_hand", width=1.7),
-    "lux":    Weapon("staff",      length=110, grip="one_hand", width=0.8),
-    "yasuo":  Weapon("katana",     length=92,  grip="one_hand", width=0.7),
-    "ashe":   Weapon("bow",        length=84,  grip="one_hand", width=0.7),
+    "garen":       Weapon("greatsword", length=104, grip="two_hand", width=1.7),
+    "lux":         Weapon("staff",      length=110, grip="one_hand", width=0.8),
+    "yasuo":       Weapon("katana",     length=92,  grip="one_hand", width=0.7),
+    "ashe":        Weapon("bow",        length=84,  grip="one_hand", width=0.7),
+    "mordekaiser": Weapon("hammer",     length=98,  grip="two_hand", width=2.3),
+    "pantheon":    Weapon("spear",      length=134, grip="one_hand", width=0.9),
+    "katarina":    Weapon("daggers",    length=44,  grip="one_hand", width=0.9),
+    "jinx":        Weapon("cannon",     length=78,  grip="two_hand", width=2.2),
 }
 
 
@@ -100,6 +105,52 @@ def draw_weapon(surf: pygame.Surface, weapon: Weapon, grip_xy: Vec, angle_deg: f
             _pt(grip_xy, angle_deg + 90, 0)
         pygame.draw.line(surf, (235, 235, 235), pts[0], string_anchor, 1)
         pygame.draw.line(surf, (235, 235, 235), pts[-1], string_anchor, 1)
+
+    elif weapon.kind == "hammer":
+        # Long haft + a heavy blocky head near the tip — reads as a brute maul.
+        neck = _pt(grip_xy, angle_deg, weapon.length * 0.74)
+        pygame.draw.line(surf, color, (gx, gy), neck, max(2, w - 2))
+        perp = angle_deg + 90
+        hw, hl = w * 1.7, weapon.length * 0.18      # head half-width / half-length
+        c1 = _pt(_pt(neck, angle_deg, -hl), perp, hw)
+        c2 = _pt(_pt(neck, angle_deg, hl + weapon.length * 0.16), perp, hw)
+        c3 = _pt(_pt(neck, angle_deg, hl + weapon.length * 0.16), perp, -hw)
+        c4 = _pt(_pt(neck, angle_deg, -hl), perp, -hw)
+        pygame.draw.polygon(surf, accent, [c1, c2, c3, c4])
+        pygame.draw.polygon(surf, color, [c1, c2, c3, c4], 2)
+
+    elif weapon.kind == "spear":
+        # Long thin shaft, small leaf tip, short butt — a reaching polearm.
+        butt = _pt(grip_xy, angle_deg + 180, weapon.length * 0.16)
+        neck = _pt(grip_xy, angle_deg, weapon.length * 0.86)
+        pygame.draw.line(surf, color, butt, neck, max(2, w))
+        perp = angle_deg + 90
+        t1 = _pt(neck, perp, w * 1.5)
+        t2 = _pt(neck, perp, -w * 1.5)
+        pygame.draw.polygon(surf, accent, [t1, t2, tip_i])
+        pygame.draw.polygon(surf, color, [t1, t2, tip_i], 1)
+
+    elif weapon.kind == "daggers":
+        # Dual short blades — one per hand, the off-hand reversed for an X read.
+        for origin, ang in ((grip_xy, angle_deg),
+                            (off_hand_xy or grip_xy, angle_deg + 18)):
+            bt = _pt(origin, ang, weapon.length)
+            perp = ang + 90
+            b1 = _pt(origin, perp, w)
+            b2 = _pt(origin, perp, -w)
+            pygame.draw.polygon(surf, accent, [b1, b2, (int(bt[0]), int(bt[1]))])
+            pygame.draw.polygon(surf, color, [b1, b2, (int(bt[0]), int(bt[1]))], 1)
+
+    elif weapon.kind == "cannon":
+        # Chunky barrel block + muzzle ring — a hip-fired rocket gun.
+        perp = angle_deg + 90
+        bw = w * 1.4
+        base = _pt(grip_xy, angle_deg + 180, weapon.length * 0.12)
+        b1 = _pt(base, perp, bw); b2 = _pt(base, perp, -bw)
+        m1 = _pt(tip, perp, bw * 1.25); m2 = _pt(tip, perp, -bw * 1.25)
+        pygame.draw.polygon(surf, color, [b1, b2, m2, m1])
+        pygame.draw.polygon(surf, accent, [b1, b2, m2, m1], 2)
+        pygame.draw.circle(surf, accent, tip_i, int(bw * 1.3), 2)
 
 
 def _smear_delta(angle_from: float, angle_to: float) -> float:
