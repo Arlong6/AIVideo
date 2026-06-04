@@ -1,12 +1,12 @@
-# lux vs garen — LONG (~51s), final_spark climax · auto-tuned HP
-name: "lux vs garen — long (final_spark)"
-left: lux
-right: garen
+# pantheon vs katarina — LONG (~51s), grand_starfall climax · auto-tuned HP
+name: "pantheon vs katarina — long (grand_starfall)"
+left: pantheon
+right: katarina
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 116
-right_start_hp: 107
+left_start_hp: 92
+right_start_hp: 134
 left_timeline:
   - {t: 400, do: retreat}
   - {t: 870, do: "attack:basic"}
@@ -103,7 +103,7 @@ left_timeline:
   - {t: 43430, do: advance}
   - {t: 43900, do: "attack:basic"}
   - {t: 44350, do: retreat}
-  - {t: 45000, do: "cast:final_spark"}
+  - {t: 45000, do: "cast:grand_starfall"}
 right_timeline:
   - {t: 700, do: advance}
   - {t: 1170, do: "attack:basic"}

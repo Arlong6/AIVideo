@@ -1,12 +1,12 @@
-# garen vs ashe — LONG (~51s), demacian_justice climax · auto-tuned HP
-name: "garen vs ashe — long (demacian_justice)"
-left: garen
-right: ashe
+# katarina vs yasuo — LONG (~51s), death_lotus climax · auto-tuned HP
+name: "katarina vs yasuo — long (death_lotus)"
+left: katarina
+right: yasuo
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 104
-right_start_hp: 132
+left_start_hp: 97
+right_start_hp: 107
 left_timeline:
   - {t: 400, do: advance}
   - {t: 870, do: "attack:basic"}
@@ -105,7 +105,7 @@ left_timeline:
   - {t: 44190, do: "attack:basic"}
   - {t: 44350, do: "flash:in"}
   - {t: 44840, do: advance}
-  - {t: 45000, do: "cast:demacian_justice"}
+  - {t: 45000, do: "cast:death_lotus"}
 right_timeline:
   - {t: 700, do: advance}
   - {t: 1170, do: "attack:basic"}

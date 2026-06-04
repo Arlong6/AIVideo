@@ -1,12 +1,12 @@
-# yasuo vs garen — LONG (~51s), last_breath climax · auto-tuned HP
-name: "yasuo vs garen — long (last_breath)"
-left: yasuo
-right: garen
+# garen vs jinx — LONG (~51s), demacian_justice climax · auto-tuned HP
+name: "garen vs jinx — long (demacian_justice)"
+left: garen
+right: jinx
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 104
-right_start_hp: 114
+left_start_hp: 122
+right_start_hp: 131
 left_timeline:
   - {t: 400, do: advance}
   - {t: 870, do: "attack:basic"}
@@ -105,7 +105,7 @@ left_timeline:
   - {t: 44190, do: "attack:basic"}
   - {t: 44350, do: "flash:in"}
   - {t: 44840, do: advance}
-  - {t: 45000, do: "cast:last_breath"}
+  - {t: 45000, do: "cast:demacian_justice"}
 right_timeline:
   - {t: 700, do: advance}
   - {t: 1170, do: "attack:basic"}

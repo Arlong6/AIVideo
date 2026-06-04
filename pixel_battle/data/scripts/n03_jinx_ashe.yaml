@@ -1,12 +1,12 @@
-# ashe vs garen — LONG (~51s), enchanted_crystal_arrow climax · auto-tuned HP
-name: "ashe vs garen — long (enchanted_crystal_arrow)"
-left: ashe
-right: garen
+# jinx vs ashe — LONG (~51s), super_mega_rocket climax · auto-tuned HP
+name: "jinx vs ashe — long (super_mega_rocket)"
+left: jinx
+right: ashe
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 92
-right_start_hp: 124
+left_start_hp: 88
+right_start_hp: 120
 left_timeline:
   - {t: 400, do: retreat}
   - {t: 870, do: "attack:basic"}
@@ -103,7 +103,7 @@ left_timeline:
   - {t: 43430, do: advance}
   - {t: 43900, do: "attack:basic"}
   - {t: 44350, do: retreat}
-  - {t: 45000, do: "cast:enchanted_crystal_arrow"}
+  - {t: 45000, do: "cast:super_mega_rocket"}
 right_timeline:
   - {t: 700, do: advance}
   - {t: 1170, do: "attack:basic"}
