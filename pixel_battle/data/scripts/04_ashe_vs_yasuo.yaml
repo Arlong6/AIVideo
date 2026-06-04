@@ -1,0 +1,44 @@
+# ashe vs yasuo — SHORT (~14s) test-water short, enchanted_crystal_arrow climax
+name: "ashe vs yasuo — short (enchanted_crystal_arrow)"
+left: ashe
+right: yasuo
+duration_ms: 15000
+seed: 7
+left_start_mp: 100
+left_timeline:
+  - {t: 400, do: retreat}
+  - {t: 880, do: "attack:basic"}
+  - {t: 1360, do: jump}
+  - {t: 1840, do: retreat}
+  - {t: 2500, do: "flash:back"}
+  - {t: 3000, do: "attack:cd"}
+  - {t: 3480, do: advance}
+  - {t: 3960, do: "attack:basic"}
+  - {t: 4440, do: retreat}
+  - {t: 4920, do: retreat}
+  - {t: 5400, do: "attack:basic"}
+  - {t: 5880, do: jump}
+  - {t: 6500, do: "flash:back"}
+  - {t: 7000, do: retreat}
+  - {t: 7480, do: "attack:cd"}
+  - {t: 7960, do: advance}
+  - {t: 8400, do: retreat}
+  - {t: 9000, do: "cast:enchanted_crystal_arrow"}
+right_timeline:
+  - {t: 700, do: advance}
+  - {t: 1180, do: "attack:basic"}
+  - {t: 1660, do: "attack:cd"}
+  - {t: 2140, do: jump}
+  - {t: 2620, do: "attack:basic"}
+  - {t: 3100, do: advance}
+  - {t: 3580, do: retreat}
+  - {t: 4060, do: "attack:basic"}
+  - {t: 4540, do: jump}
+  - {t: 5020, do: "attack:cd"}
+  - {t: 5500, do: advance}
+  - {t: 5980, do: "attack:basic"}
+  - {t: 6460, do: "attack:cd"}
+  - {t: 6940, do: jump}
+  - {t: 7420, do: "attack:basic"}
+  - {t: 7900, do: advance}
+  - {t: 8380, do: retreat}
