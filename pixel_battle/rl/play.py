@@ -995,6 +995,20 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                                        color=_ult_burst_color,
                                        current_ms=int(frame * RENDER_MS),
                                        duration_ms=240)
+                elif _ult_pending_vfx == "spin":
+                    # Assassin blade-storm: whirling rings on the caster + a
+                    # shockwave burst where the blades shred the defender.
+                    impact_fx.spawn_ultimate_slam(
+                        impact_x=float(_ult_target_x),
+                        impact_y=float(_ult_target_y),
+                        color=_ult_brand_col, surf_size=(WIDTH, HEIGHT))
+                    active_spins.append([int(_ult_actor_x), int(_ult_actor_y) - 90,
+                                         _ult_burst_color, 0])
+                    active_spins.append([int(_ult_target_x), int(_ult_target_y) - 90,
+                                         _ult_brand_col, 0])
+                    active_shockwaves.append([
+                        int(_ult_target_x), int(_ult_target_y) - 90,
+                        (255, 240, 150), 0, 22, 480])
                 # Camera shake + flash on release — clean white-gold (an ultimate
                 # discharge), NOT the red hit-flash that read as "getting punched".
                 impact_fx.flash_screen(color=(255, 244, 210), alpha=210)

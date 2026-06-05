@@ -391,8 +391,13 @@ class Battle:
         defender._stagger_remaining_ms = stagger_ms
         knockback_dir = 1 if attacker.pos_x < defender.pos_x else -1
         # Knockback scales with damage — a heavy skill flings the defender
-        # away, forcing a re-approach (the fight's back-and-forth).
-        defender.vel_x = knockback_dir * (KNOCKBACK_BASE + dmg * KNOCKBACK_DMG_SCALE)
+        # away, forcing a re-approach (the fight's back-and-forth). Projectile
+        # hits stagger but DON'T shove: an accumulating outward push would drift
+        # two ranged fighters out of range and stall a ranged duel.
+        if skill.vfx in _PROJECTILE_VFX:
+            defender.vel_x = 0.0
+        else:
+            defender.vel_x = knockback_dir * (KNOCKBACK_BASE + dmg * KNOCKBACK_DMG_SCALE)
         # Cancel defender's attack if mid-swing
         if defender.attack_phase != "none":
             defender.attack_phase = "none"
@@ -406,9 +411,11 @@ class Battle:
         if skill.applies is not None and skill.applies.target == "opponent":
             self._apply_effect(defender, skill.applies)
 
-        # Punch recoil — attacker gets a small backward velocity reading as reaction force
-        recoil_dir = -1 if attacker.pos_x < defender.pos_x else 1
-        attacker.vel_x = recoil_dir * 1.5
+        # Punch recoil — attacker gets a small backward velocity reading as reaction
+        # force. Skipped for projectiles (firing a bolt shouldn't shove the shooter).
+        if skill.vfx not in _PROJECTILE_VFX:
+            recoil_dir = -1 if attacker.pos_x < defender.pos_x else 1
+            attacker.vel_x = recoil_dir * 1.5
 
         self._emit(
             EventType.HIT,
@@ -564,8 +571,13 @@ class Battle:
         char.attack_phase_t = 0
         char.action_state = "attacking"
         char.vel_x = 0.0  # plant feet during attack
-        # Emit windup event for non-basic skills so the renderer can show charge FX
-        if skill.skill_type in (SkillType.COOLDOWN, SkillType.SPECIAL):
+        # Emit windup so the renderer can show charge FX / spawn projectiles.
+        # Non-basic skills always emit; a BASIC emits too when it is a ranged
+        # (projectile-vfx) attack, so mages/marksmen fire a visible bolt on their
+        # free basic instead of a silent melee-range hit.
+        ranged_basic = (skill.skill_type is SkillType.BASIC
+                        and skill.vfx in _PROJECTILE_VFX)
+        if skill.skill_type in (SkillType.COOLDOWN, SkillType.SPECIAL) or ranged_basic:
             self._emit(
                 EventType.ATTACK_WINDUP,
                 actor=char.id,
@@ -573,6 +585,7 @@ class Battle:
                        "skill_type": skill.skill_type.value,
                        "vfx": skill.vfx},
             )
+        if skill.skill_type in (SkillType.COOLDOWN, SkillType.SPECIAL):
             self._apply_cast_movement(char, opp, skill)
 
     def _start_attack_with_kind(self, char: Character, opp: Character,
@@ -636,7 +649,9 @@ class Battle:
         if skill.applies is not None and skill.applies.target == "self":
             self._apply_effect(char, skill.applies)
 
-        if skill.skill_type in (SkillType.COOLDOWN, SkillType.SPECIAL):
+        ranged_basic = (skill.skill_type is SkillType.BASIC
+                        and skill.vfx in _PROJECTILE_VFX)
+        if skill.skill_type in (SkillType.COOLDOWN, SkillType.SPECIAL) or ranged_basic:
             self._emit(
                 EventType.ATTACK_WINDUP,
                 actor=char.id,
@@ -644,6 +659,7 @@ class Battle:
                        "skill_type": skill.skill_type.value,
                        "vfx": skill.vfx},
             )
+        if skill.skill_type in (SkillType.COOLDOWN, SkillType.SPECIAL):
             self._apply_cast_movement(char, opp, skill)
 
     def _apply_cast_movement(self, char: Character, opp: Character,
@@ -657,6 +673,11 @@ class Battle:
         if skill.vfx == "dash":
             char.facing = 1 if opp.pos_x > char.pos_x else -1
             char.vel_x = DASH_LUNGE_SPEED * char.facing
+        elif skill.vfx in _PROJECTILE_VFX:
+            # Ranged casters plant their feet and fire — no spacing hop-back.
+            # Two ranged fighters otherwise hop-back each other into opposite
+            # walls (gap > range) and every projectile whiffs.
+            pass
         else:
             char.vel_x = -7.0 * char.facing       # attacker hops back
             opp.vel_x += 5.0 * char.facing        # defender drifts away
