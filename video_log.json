@@ -13279,7 +13279,7 @@
         },
         {
           "date": "2026-06-05",
-          "views": 30,
+          "views": 31,
           "likes": 0,
           "comments": 0
         }
@@ -20875,7 +20875,7 @@
         },
         {
           "date": "2026-06-05",
-          "views": 141,
+          "views": 180,
           "likes": 1,
           "comments": 1
         }
@@ -20897,6 +20897,22 @@
         }
       ],
       "series_tag": "political"
+    },
+    {
+      "video_id": "rYKZqQGfCCQ",
+      "topic": "劉邦友血案：1996年桃園縣長官邸，震驚台灣的滅門血案與政治懸案",
+      "slot": 1,
+      "duration_s": 84,
+      "publish_at": "2026-06-06T10:00:00+08:00",
+      "uploaded_at": "2026-06-05T20:12:53.972298+00:00",
+      "stats": [
+        {
+          "date": "2026-06-05",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
