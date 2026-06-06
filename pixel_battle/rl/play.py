@@ -314,35 +314,25 @@ def _draw_spin(surf: pygame.Surface, cx: int, cy: int, color: tuple,
     if t >= 1.0:
         return
     fade = 1.0 - t
-    radius = int(58 + 50 * t)            # grows 58 → 108
-    # The CHARACTER itself now visibly spins, so this is a supporting whirlwind
-    # halo with a SEE-THROUGH centre — perimeter streaks + rings only, no filled
-    # disc (which used to cover the spinning figure).
-    n = 10
-    for i in range(n):
-        base = age * 0.62 + i * (2 * math.pi / n)
-        for e, (lw, a) in enumerate(((5, 200), (3, 90))):
-            ang = base - e * 0.20
-            # streaks only on the OUTER band so the middle stays clear
-            ix = cx + math.cos(ang) * radius * 0.72
-            iy = cy + math.sin(ang) * radius * 0.72
-            ox = cx + math.cos(ang) * radius
-            oy = cy + math.sin(ang) * radius
-            blade = pygame.Surface((surf.get_width(), surf.get_height()), pygame.SRCALPHA)
-            pygame.draw.line(blade, (*color, int(a * fade)),
-                             (int(ix), int(iy)), (int(ox), int(oy)), lw)
-            if e == 0:
-                pygame.draw.line(blade, (255, 255, 255, int(200 * fade)),
-                                 (int(ix), int(iy)), (int(ox), int(oy)), 1)
-            surf.blit(blade, (0, 0))
-    # Luminous rings frame the whirlwind (outline only — centre stays open)
-    for rr, a in ((radius, 170), (int(radius * 0.78), 95)):
-        ring = pygame.Surface((rr * 2 + 8, rr * 2 + 8), pygame.SRCALPHA)
-        pygame.draw.circle(ring, (255, 255, 255, int(a * fade)),
-                           (rr + 4, rr + 4), rr, 3)
-        pygame.draw.circle(ring, (*color, int(a * 0.7 * fade)),
-                           (rr + 4, rr + 4), rr, 6)
-        surf.blit(ring, (cx - rr - 4, cy - rr - 4), special_flags=pygame.BLEND_RGB_ADD)
+    radius = int(54 + 40 * t)
+    # Two sharp crescent blade-arcs sweeping opposite sides — whirling STEEL, not
+    # a glowing magic nova. Each arc has a white leading edge over a colour body;
+    # no additive rings (those are what made a spin read as a spell).
+    spin = age * 0.9
+    for k in range(2):
+        base = spin + k * math.pi
+        body, edge = [], []
+        for j in range(9):
+            a = base + (j / 8.0) * 1.6           # ~92° crescent sweep
+            body.append((cx + math.cos(a) * radius, cy + math.sin(a) * radius))
+            edge.append((cx + math.cos(a) * radius * 0.9,
+                         cy + math.sin(a) * radius * 0.9))
+        layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        pygame.draw.lines(layer, (*color, int(165 * fade)), False,
+                          [(int(x), int(y)) for x, y in body], 5)
+        pygame.draw.lines(layer, (255, 255, 255, int(235 * fade)), False,
+                          [(int(x), int(y)) for x, y in edge], 2)
+        surf.blit(layer, (0, 0))
 
 
 def _draw_aura(surf: pygame.Surface, cx: int, cy: int, color: tuple,
@@ -887,12 +877,19 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         impact_fx.spawn_buff_pillar(x=ax, y=ay - 20, color=brand_col)
                         active_auras.append([ax, ay - 90, a_color, 0])
                     elif vfx == "dash":
-                        active_bursts.append([ax, ay - 90, a_color, 40, 0])
-                        # New: dash afterimage from caster toward target
+                        # Blink-strike: afterimage trail + a flash streak + speed
+                        # lines at the landing — reads as a fast physical lunge.
                         impact_fx.spawn_dash_afterimage(
                             sx=float(ax), sy=float(ay),
                             ex=float(tx), ey=float(ty),
                             color=a_color)
+                        impact_fx.spawn_flash_streak(
+                            from_x=float(ax), to_x=float(tx), hip_y=float(ay - 70),
+                            color=a_color, n_ghosts=4)
+                        impact_fx.spawn_crit_speed_lines(
+                            x=int(tx), y=int(ty - 95), color=(255, 255, 255))
+                        impact_fx.spawn_hit_spark(x=int(tx), y=int(ty - 95),
+                                                  damage=3, color=a_color)
                     elif vfx == "slam":
                         active_shockwaves.append([tx, ty - 90, a_color, 0, 16, 300])
                     kind = (ev.extra or {}).get("skill_type")
@@ -900,10 +897,17 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         skill_id = (ev.extra or {}).get("skill_id", "?")
                         banner_text = str(skill_id).upper().replace("_", " ") + "!"
                         banner_until_frame = frame + 72   # doubled: was 36 @ 60fps
-                        # Charge orb at caster's near-hand height (shoulder ~-130 px)
-                        impact_fx.spawn_charge_orb(
-                            x=ax, y=ay - 130, color=brand_col,
-                            lifetime_ms=150, scale=1.0)
+                        if vfx in ("bolt", "multishot", "beam", "aura", "shield"):
+                            # Real caster channel — a glowing charge orb reads as magic.
+                            impact_fx.spawn_charge_orb(
+                                x=ax, y=ay - 130, color=brand_col,
+                                lifetime_ms=150, scale=1.0)
+                        else:
+                            # Physical cast (melee/dash/spin): a steel spark at the
+                            # strike point, NOT a magic glow orb — the glow orb is
+                            # what made assassins/warriors read like mages.
+                            hx = ax + (44 if tx >= ax else -44)
+                            impact_fx.spawn_hit_spark(x=hx, y=ay - 95, damage=3, color=a_color)
                 elif et == "ultimate_start":
                     # ── CINEMATIC ULTIMATE: trigger sequence, defer VFX to phases ──
                     actor_obj = env.left if ev.actor == env.left.id else env.right
