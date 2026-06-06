@@ -65,13 +65,22 @@ _PHRASES = {
         ("attack:basic", 360), ("attack:cd", 380), ("jump", 640),
         ("attack:basic", 360), ("attack:basic", 380), ("attack:cd", 660),
     ],
-    # assassin: STACCATO — flash in, a fast cluster of cuts, brief reset, repeat.
-    # Stays engaged (only short hops) so it keeps damaging the defender.
+    # assassin: an ASSASSINATION ROTATION — blink onto the target, blade flurry,
+    # dash-strike reposition, aerial mix-up, vanish out, re-engage. Dense and
+    # darting (a Zed/Katarina-style dive) rather than a static trade.
     "assassin": [
-        ("flash:in", 240), ("attack:basic", 300), ("attack:cd", 300),
-        ("attack:basic", 300), ("attack:basic", 460),
-        ("flash:in", 240), ("attack:basic", 300), ("attack:cd", 320),
-        ("jump", 520),
+        ("flash:in", 200),       # blink onto the target
+        ("attack:basic", 250),   # ↘ dagger flurry
+        ("attack:basic", 250),
+        ("attack:cd", 280),      # shadow-step dash-strike (reposition + cut)
+        ("attack:basic", 250),
+        ("jump", 320),           # aerial mix-up
+        ("attack:cd", 300),      # dash-strike on the way down
+        ("attack:basic", 250),
+        ("flash:back", 280),     # vanish out
+        ("advance", 240),        # dart back in
+        ("attack:basic", 250),
+        ("attack:cd", 460),      # dash-strike, then a brief breath
     ],
     # melee: PONDEROUS but engaged — march, a heavy cluster, brief recover, repeat
     "melee": [

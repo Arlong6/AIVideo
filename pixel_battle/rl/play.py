@@ -970,6 +970,13 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     impact_fx.spawn_flash_streak(
                         from_x=float(from_x_fl), to_x=float(to_x_fl),
                         hip_y=float(hip_y_fl), color=actor_col, n_ghosts=5)
+                    # After-shadow torsos along the blink path + a steel spark at
+                    # the landing — the teleport reads as a STRIKE, not just a hop.
+                    impact_fx.spawn_dash_afterimage(
+                        sx=float(from_x_fl), sy=float(ground_y),
+                        ex=float(to_x_fl), ey=float(ground_y), color=actor_col)
+                    impact_fx.spawn_hit_spark(
+                        x=int(to_x_fl), y=int(ground_y - 95), damage=3, color=actor_col)
                     # Keep the original puffs at origin/destination for extra punch
                     spawn_flash_puff(world, from_x_fl, ground_y, actor_col)
                     spawn_flash_puff(world, to_x_fl, ground_y, actor_col)

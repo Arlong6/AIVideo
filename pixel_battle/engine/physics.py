@@ -22,7 +22,7 @@ GRAVITY = 0.85              # px/frame²
 MAX_FALL_SPEED = 18.0
 GROUND_FRICTION = 0.85      # vel_x decay per frame when on ground and no input
 FLASH_DISTANCE = 130        # px a Flash teleports
-FLASH_COOLDOWN_MS = 3500    # Flash recharge time
+FLASH_COOLDOWN_MS = 2400    # Flash recharge time (shorter → assassins blink more)
 
 # Combat
 MELEE_RANGE = 110           # horizontal distance for basic attack to connect
