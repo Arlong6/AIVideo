@@ -94,9 +94,11 @@ class HUD:
                        color=_hp_color(self._right_lerp), direction=+1)
         self._draw_mp_bar(surf, x=right_bar_left, width=BAR_WIDTH, frac=right_mp, direction=+1)
 
-        # Name plates
-        self._draw_name(surf, battle.left.id, x=left_bar_left, align="left")
-        self._draw_name(surf, battle.right.id, x=right_bar_left + BAR_WIDTH, align="right")
+        # Name plates — use the display name (weapon codename), NOT the internal
+        # id (which is still the original champ id, e.g. "mordekaiser").
+        self._draw_name(surf, battle.left.display_name, x=left_bar_left, align="left")
+        self._draw_name(surf, battle.right.display_name,
+                        x=right_bar_left + BAR_WIDTH, align="right")
 
         # Center separator ticks
         cx = W // 2
