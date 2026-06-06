@@ -24,8 +24,12 @@ LEFT, RIGHT, ULT_ID, VFX, _MEL, OUT = (
     sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6])
 ULT_T = int(sys.argv[7]) if len(sys.argv) > 7 else 45000
 SEED = 7
-DEF_REMAIN = 26
-ATK_REMAIN = 24
+# Comfortable buffers: both fighters are still alive (visibly drained, ~40 HP)
+# when the ultimate lands. The ult is a 70-dmg FINISHER, so it KOs the defender
+# from anywhere in this band — which frees the combat to vary its rhythm without
+# the old "must hit exactly 26 HP at 45.0s" balance breaking.
+DEF_REMAIN = 40
+ATK_REMAIN = 40
 
 # Champion → movement archetype (mage+marksman collapse to "ranged";
 # warrior/tank/duelist to "melee"; assassin is its own hit-and-run profile).
@@ -52,40 +56,46 @@ def _specials(cid):
             if s["type"] == "special" and s.get("dmg", 0) > 0]
 
 
+# Per-archetype PHRASES: (action, gap_after_ms). Tight attack clusters punctuated
+# by longer "breath" beats (movement/jump) give each class its own rhythm instead
+# of one metronomic 470ms pulse. Phrases loop until the ult approach.
+_PHRASES = {
+    # archer/mage: quick double-tap, breathe, single shot, reposition
+    "ranged": [
+        ("attack:basic", 360), ("attack:cd", 380), ("jump", 640),
+        ("attack:basic", 360), ("attack:basic", 380), ("attack:cd", 660),
+    ],
+    # assassin: STACCATO — flash in, a fast cluster of cuts, brief reset, repeat.
+    # Stays engaged (only short hops) so it keeps damaging the defender.
+    "assassin": [
+        ("flash:in", 240), ("attack:basic", 300), ("attack:cd", 300),
+        ("attack:basic", 300), ("attack:basic", 460),
+        ("flash:in", 240), ("attack:basic", 300), ("attack:cd", 320),
+        ("jump", 520),
+    ],
+    # melee: PONDEROUS but engaged — march, a heavy cluster, brief recover, repeat
+    "melee": [
+        ("advance", 280), ("attack:basic", 360), ("attack:cd", 460),
+        ("advance", 260), ("attack:basic", 360), ("attack:basic", 480),
+        ("advance", 260), ("attack:cd", 420), ("jump", 520),
+    ],
+}
+
+
 def side_actions(arch, is_caster, cid):
-    """Build (t, action) rows for one fighter, in its archetype's idiom."""
+    """Rhythmic choreography — the archetype's phrase looped. Defenders spend MP
+    on real specials for class flavour; casters stay on free actions so MP holds
+    at 100 for the ultimate finisher."""
     rows = []
     sp = _specials(cid)
-    cast = (lambda i: f"cast:{sp[i % len(sp)]}") if sp else (lambda i: "attack:cd")
-
-    if arch == "ranged":
-        # Stand and trade ranged basics/cooldowns from the spawn spacing (~280px,
-        # inside the 300px ranged-basic reach). NO retreat/flash — two retreating
-        # casters wall off to opposite sides and every shot whiffs.
-        base = ["attack:basic", "attack:cd", "attack:basic", "jump",
-                "attack:basic", "attack:cd", "attack:basic", "jump"]
-        flash, fperiod = "", 0
-    elif arch == "assassin":
-        base = ["flash:in", "attack:basic", "attack:cd", "attack:basic", "retreat",
-                "advance", "attack:basic", "jump", "attack:cd", "retreat"]
-        flash, fperiod = "flash:in", 3600
-    else:  # melee
-        base = ["advance", "attack:basic", "attack:cd", "advance", "attack:basic",
-                "jump", "advance", "attack:basic", "advance", "attack:cd"]
-        flash, fperiod = "flash:in", 5200
-
-    flashes = list(range(2200, ULT_T - 1500, fperiod)) if flash else []
-    t, pi, used = (400 if is_caster else 700), 0, set()
+    phrase = _PHRASES.get(arch, _PHRASES["melee"])
+    t, pi = (400 if is_caster else 700), 0
     end = ULT_T - 700 if is_caster else ULT_T - 500
     while t < end:
-        ff = next((f for f in flashes if f not in used and abs(f - t) < 320), None)
-        if ff is not None:
-            rows.append((ff, flash)); used.add(ff); t = ff + 520; continue
-        act = base[pi % len(base)]
-        # Defender (MP-free) sprinkles real specials for class flavor.
-        if (not is_caster) and act == "attack:basic" and pi % 3 == 2:
-            act = cast(pi)
-        rows.append((t, act)); pi += 1; t += 470
+        act, gap = phrase[pi % len(phrase)]
+        if (not is_caster) and sp and act == "attack:basic" and pi % 4 == 3:
+            act = f"cast:{sp[pi % len(sp)]}"
+        rows.append((t, act)); t += gap; pi += 1
     return rows
 
 
