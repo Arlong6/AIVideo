@@ -1,12 +1,12 @@
-# ashe(ranged) vs katarina(assassin) — LONG ~51s · enchanted_crystal_arrow climax · auto-tuned
-name: "ashe vs katarina — long (enchanted_crystal_arrow)"
+# ashe(ranged) vs katarina(assassin) — LONG ~51s · crystal_arrow climax · auto-tuned
+name: "ashe vs katarina — long (crystal_arrow)"
 left: ashe
 right: katarina
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 135
-right_start_hp: 121
+left_start_hp: 118
+right_start_hp: 185
 left_timeline:
   - {t: 400, do: "attack:basic"}
   - {t: 870, do: "attack:cd"}
@@ -103,7 +103,7 @@ left_timeline:
   - {t: 43640, do: "attack:basic"}
   - {t: 44110, do: "attack:cd"}
   - {t: 44400, do: "attack:basic"}
-  - {t: 45000, do: "cast:enchanted_crystal_arrow"}
+  - {t: 45000, do: "cast:crystal_arrow"}
 right_timeline:
   - {t: 700, do: "flash:in"}
   - {t: 1170, do: "attack:basic"}
@@ -118,7 +118,7 @@ right_timeline:
   - {t: 5800, do: "flash:in"}
   - {t: 6320, do: retreat}
   - {t: 6790, do: "flash:in"}
-  - {t: 7260, do: "cast:sinister_steel"}
+  - {t: 7260, do: "cast:steel_fan"}
   - {t: 7730, do: "attack:cd"}
   - {t: 8200, do: "attack:basic"}
   - {t: 8670, do: retreat}
@@ -132,10 +132,10 @@ right_timeline:
   - {t: 13000, do: "flash:in"}
   - {t: 13520, do: "attack:basic"}
   - {t: 13990, do: "attack:cd"}
-  - {t: 14460, do: "cast:sinister_steel"}
+  - {t: 14460, do: "cast:steel_fan"}
   - {t: 14930, do: retreat}
   - {t: 15400, do: advance}
-  - {t: 15870, do: "cast:shunpo"}
+  - {t: 15870, do: "cast:blink"}
   - {t: 16600, do: "flash:in"}
   - {t: 17120, do: jump}
   - {t: 17590, do: "attack:cd"}
@@ -153,7 +153,7 @@ right_timeline:
   - {t: 23800, do: "flash:in"}
   - {t: 24320, do: retreat}
   - {t: 24790, do: "flash:in"}
-  - {t: 25260, do: "cast:sinister_steel"}
+  - {t: 25260, do: "cast:steel_fan"}
   - {t: 25730, do: "attack:cd"}
   - {t: 26200, do: "attack:basic"}
   - {t: 26670, do: retreat}
@@ -167,10 +167,10 @@ right_timeline:
   - {t: 31000, do: "flash:in"}
   - {t: 31520, do: "attack:basic"}
   - {t: 31990, do: "attack:cd"}
-  - {t: 32460, do: "cast:sinister_steel"}
+  - {t: 32460, do: "cast:steel_fan"}
   - {t: 32930, do: retreat}
   - {t: 33400, do: advance}
-  - {t: 33870, do: "cast:shunpo"}
+  - {t: 33870, do: "cast:blink"}
   - {t: 34600, do: "flash:in"}
   - {t: 35120, do: jump}
   - {t: 35590, do: "attack:cd"}
@@ -188,6 +188,6 @@ right_timeline:
   - {t: 41800, do: "flash:in"}
   - {t: 42320, do: retreat}
   - {t: 42790, do: "flash:in"}
-  - {t: 43260, do: "cast:sinister_steel"}
+  - {t: 43260, do: "cast:steel_fan"}
   - {t: 43730, do: "attack:cd"}
   - {t: 44200, do: "attack:basic"}

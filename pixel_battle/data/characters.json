@@ -140,7 +140,7 @@
     ]
   },
   "garen": {
-    "display_name": "Garen",
+    "display_name": "Vanguard",
     "color": [
       90,
       205,
@@ -164,32 +164,32 @@
     ],
     "skills": [
       {
-        "id": "strike",
+        "id": "cleave",
         "type": "basic",
-        "anim": "strike",
+        "anim": "slash",
         "vfx": "melee"
       },
       {
-        "id": "decisive_strike",
+        "id": "lunge",
         "type": "cooldown",
-        "anim": "decisive_strike",
+        "anim": "dash",
         "vfx": "dash",
         "cooldown_ms": 3000,
         "dmg": 6,
         "range": "melee"
       },
       {
-        "id": "judgment",
+        "id": "whirl_cut",
         "type": "special",
-        "anim": "judgment",
+        "anim": "spin",
         "vfx": "spin",
         "mp_cost": 24,
         "dmg": 8
       },
       {
-        "id": "courage",
+        "id": "war_cry",
         "type": "special",
-        "anim": "courage",
+        "anim": "cast",
         "vfx": "aura",
         "mp_cost": 20,
         "applies": {
@@ -200,9 +200,9 @@
         }
       },
       {
-        "id": "demacian_justice",
+        "id": "skybreaker",
         "type": "ultimate",
-        "anim": "demacian_justice",
+        "anim": "slam",
         "vfx": "slam",
         "mp_cost": 100,
         "dmg": 30
@@ -210,7 +210,7 @@
     ]
   },
   "lux": {
-    "display_name": "Lux",
+    "display_name": "Lumen",
     "color": [
       255,
       215,
@@ -236,32 +236,32 @@
       {
         "id": "light_orb",
         "type": "basic",
-        "anim": "light_orb",
+        "anim": "cast",
         "vfx": "bolt",
         "range": 300
       },
       {
-        "id": "light_binding",
+        "id": "light_lance",
         "type": "cooldown",
-        "anim": "light_binding",
+        "anim": "cast",
         "vfx": "bolt",
         "cooldown_ms": 2600,
         "dmg": 5,
         "range": 300
       },
       {
-        "id": "lucent_singularity",
+        "id": "nova_core",
         "type": "special",
-        "anim": "lucent_singularity",
+        "anim": "cast",
         "vfx": "bolt",
         "mp_cost": 20,
         "dmg": 7,
         "range": 320
       },
       {
-        "id": "prismatic_barrier",
+        "id": "prism_guard",
         "type": "special",
-        "anim": "prismatic_barrier",
+        "anim": "cast",
         "vfx": "shield",
         "mp_cost": 18,
         "applies": {
@@ -272,9 +272,9 @@
         }
       },
       {
-        "id": "final_spark",
+        "id": "radiant_beam",
         "type": "ultimate",
-        "anim": "final_spark",
+        "anim": "cast",
         "vfx": "beam",
         "mp_cost": 100,
         "dmg": 32,
@@ -283,7 +283,7 @@
     ]
   },
   "yasuo": {
-    "display_name": "Yasuo",
+    "display_name": "Ronin",
     "color": [
       95,
       170,
@@ -299,40 +299,40 @@
       30,
       60
     ],
-    "attack_interval_ms": 850,
+    "attack_interval_ms": 820,
     "accuracy": 0.78,
     "damage": [
       2,
-      4
+      3
     ],
     "skills": [
       {
-        "id": "slash",
+        "id": "quick_slash",
         "type": "basic",
         "anim": "slash",
         "vfx": "melee"
       },
       {
-        "id": "steel_tempest",
+        "id": "gale_cut",
         "type": "cooldown",
-        "anim": "steel_tempest",
+        "anim": "slash",
         "vfx": "melee",
-        "cooldown_ms": 2600,
-        "dmg": 5,
+        "cooldown_ms": 2200,
+        "dmg": 4,
         "range": "melee"
       },
       {
-        "id": "sweeping_blade",
+        "id": "wind_dash",
         "type": "special",
-        "anim": "sweeping_blade",
+        "anim": "dash",
         "vfx": "dash",
         "mp_cost": 16,
         "dmg": 6
       },
       {
-        "id": "gathering_storm",
+        "id": "flow_state",
         "type": "special",
-        "anim": "gathering_storm",
+        "anim": "cast",
         "vfx": "aura",
         "mp_cost": 22,
         "applies": {
@@ -343,17 +343,17 @@
         }
       },
       {
-        "id": "last_breath",
+        "id": "iaido",
         "type": "ultimate",
-        "anim": "last_breath",
-        "vfx": "slam",
+        "anim": "dash",
+        "vfx": "dash",
         "mp_cost": 100,
         "dmg": 30
       }
     ]
   },
   "ashe": {
-    "display_name": "Ashe",
+    "display_name": "Frostbow",
     "color": [
       150,
       228,
@@ -369,55 +369,55 @@
       200,
       255
     ],
-    "attack_interval_ms": 1000,
-    "accuracy": 0.82,
+    "attack_interval_ms": 1200,
+    "accuracy": 0.84,
     "damage": [
-      2,
-      3
+      3,
+      5
     ],
     "skills": [
       {
-        "id": "frost_shot",
+        "id": "frost_arrow",
         "type": "basic",
-        "anim": "frost_shot",
+        "anim": "cast",
         "vfx": "bolt",
         "range": 300
       },
       {
-        "id": "volley",
+        "id": "pierce_shot",
         "type": "cooldown",
-        "anim": "volley",
-        "vfx": "multishot",
-        "cooldown_ms": 2600,
-        "dmg": 5,
-        "range": 300
-      },
-      {
-        "id": "hawkshot",
-        "type": "special",
-        "anim": "hawkshot",
+        "anim": "cast",
         "vfx": "bolt",
-        "mp_cost": 18,
+        "cooldown_ms": 2800,
         "dmg": 6,
         "range": 320
       },
       {
-        "id": "ranger_focus",
+        "id": "hawk_volley",
         "type": "special",
-        "anim": "ranger_focus",
+        "anim": "cast",
+        "vfx": "multishot",
+        "mp_cost": 18,
+        "dmg": 5,
+        "range": 300
+      },
+      {
+        "id": "glacial_mark",
+        "type": "special",
+        "anim": "cast",
         "vfx": "aura",
         "mp_cost": 22,
         "applies": {
-          "effect": "tenacity",
-          "duration_ms": 5000,
+          "effect": "slow",
+          "duration_ms": 3000,
           "magnitude": 0.5,
-          "target": "self"
+          "target": "opponent"
         }
       },
       {
-        "id": "enchanted_crystal_arrow",
+        "id": "crystal_arrow",
         "type": "ultimate",
-        "anim": "enchanted_crystal_arrow",
+        "anim": "cast",
         "vfx": "bolt",
         "mp_cost": 100,
         "dmg": 32,
@@ -426,7 +426,7 @@
     ]
   },
   "mordekaiser": {
-    "display_name": "Mordekaiser",
+    "display_name": "Juggernaut",
     "color": [
       150,
       60,
@@ -442,61 +442,61 @@
       40,
       50
     ],
-    "attack_interval_ms": 1150,
-    "accuracy": 0.84,
+    "attack_interval_ms": 1400,
+    "accuracy": 0.85,
     "damage": [
-      3,
-      5
+      4,
+      6
     ],
     "skills": [
       {
-        "id": "mace_swing",
+        "id": "maul",
         "type": "basic",
-        "anim": "mace_swing",
+        "anim": "slash",
         "vfx": "melee"
       },
       {
-        "id": "obliterate",
+        "id": "crush",
         "type": "cooldown",
-        "anim": "obliterate",
+        "anim": "dash",
         "vfx": "dash",
-        "cooldown_ms": 3200,
-        "dmg": 7,
+        "cooldown_ms": 3400,
+        "dmg": 8,
         "range": "melee"
       },
       {
-        "id": "death_siphon",
+        "id": "quake",
         "type": "special",
-        "anim": "death_siphon",
+        "anim": "spin",
+        "vfx": "spin",
+        "mp_cost": 22,
+        "dmg": 9
+      },
+      {
+        "id": "iron_skin",
+        "type": "special",
+        "anim": "cast",
         "vfx": "aura",
-        "mp_cost": 24,
+        "mp_cost": 20,
         "applies": {
-          "effect": "shield",
-          "duration_ms": 4000,
+          "effect": "tenacity",
+          "duration_ms": 6000,
           "magnitude": 0.4,
           "target": "self"
         }
       },
       {
-        "id": "soul_crush",
-        "type": "special",
-        "anim": "soul_crush",
-        "vfx": "spin",
-        "mp_cost": 22,
-        "dmg": 8
-      },
-      {
-        "id": "realm_of_death",
+        "id": "cataclysm",
         "type": "ultimate",
-        "anim": "realm_of_death",
+        "anim": "slam",
         "vfx": "slam",
         "mp_cost": 100,
-        "dmg": 30
+        "dmg": 32
       }
     ]
   },
   "pantheon": {
-    "display_name": "Pantheon",
+    "display_name": "Skylance",
     "color": [
       200,
       140,
@@ -512,41 +512,42 @@
       170,
       60
     ],
-    "attack_interval_ms": 950,
+    "attack_interval_ms": 1000,
     "accuracy": 0.82,
     "damage": [
-      2,
+      3,
       4
     ],
     "skills": [
       {
-        "id": "spear_thrust",
+        "id": "thrust",
         "type": "basic",
-        "anim": "spear_thrust",
-        "vfx": "melee"
+        "anim": "slash",
+        "vfx": "melee",
+        "range": 150
       },
       {
-        "id": "aegis_assault",
+        "id": "skewer",
         "type": "cooldown",
-        "anim": "aegis_assault",
+        "anim": "dash",
         "vfx": "dash",
         "cooldown_ms": 2800,
         "dmg": 6,
-        "range": "melee"
+        "range": 150
       },
       {
-        "id": "shield_vault",
+        "id": "pike_sweep",
         "type": "special",
-        "anim": "shield_vault",
-        "vfx": "dash",
-        "mp_cost": 18,
-        "dmg": 6
+        "anim": "spin",
+        "vfx": "spin",
+        "mp_cost": 20,
+        "dmg": 7
       },
       {
-        "id": "aegis_stance",
+        "id": "phalanx",
         "type": "special",
-        "anim": "aegis_stance",
-        "vfx": "aura",
+        "anim": "cast",
+        "vfx": "shield",
         "mp_cost": 22,
         "applies": {
           "effect": "shield",
@@ -556,9 +557,9 @@
         }
       },
       {
-        "id": "grand_starfall",
+        "id": "skyfall",
         "type": "ultimate",
-        "anim": "grand_starfall",
+        "anim": "slam",
         "vfx": "slam",
         "mp_cost": 100,
         "dmg": 32
@@ -566,7 +567,7 @@
     ]
   },
   "katarina": {
-    "display_name": "Katarina",
+    "display_name": "Shade",
     "color": [
       220,
       70,
@@ -590,40 +591,40 @@
     ],
     "skills": [
       {
-        "id": "bouncing_blade",
+        "id": "blade_flick",
         "type": "basic",
-        "anim": "bouncing_blade",
+        "anim": "slash",
         "vfx": "melee"
       },
       {
-        "id": "preparation",
+        "id": "shadow_step",
         "type": "cooldown",
-        "anim": "preparation",
+        "anim": "dash",
         "vfx": "dash",
         "cooldown_ms": 2800,
         "dmg": 5,
         "range": "melee"
       },
       {
-        "id": "shunpo",
+        "id": "blink",
         "type": "special",
-        "anim": "shunpo",
+        "anim": "dash",
         "vfx": "dash",
         "mp_cost": 16,
         "dmg": 6
       },
       {
-        "id": "sinister_steel",
+        "id": "steel_fan",
         "type": "special",
-        "anim": "sinister_steel",
+        "anim": "spin",
         "vfx": "spin",
         "mp_cost": 20,
         "dmg": 7
       },
       {
-        "id": "death_lotus",
+        "id": "blade_storm",
         "type": "ultimate",
-        "anim": "death_lotus",
+        "anim": "spin",
         "vfx": "spin",
         "mp_cost": 100,
         "dmg": 30
@@ -631,7 +632,7 @@
     ]
   },
   "jinx": {
-    "display_name": "Jinx",
+    "display_name": "Wildfire",
     "color": [
       230,
       110,
@@ -647,7 +648,7 @@
       90,
       180
     ],
-    "attack_interval_ms": 900,
+    "attack_interval_ms": 950,
     "accuracy": 0.81,
     "damage": [
       2,
@@ -655,34 +656,34 @@
     ],
     "skills": [
       {
-        "id": "pow_pow",
+        "id": "pow_blast",
         "type": "basic",
-        "anim": "pow_pow",
+        "anim": "cast",
         "vfx": "bolt",
         "range": 300
       },
       {
-        "id": "switcheroo",
+        "id": "spray",
         "type": "cooldown",
-        "anim": "switcheroo",
+        "anim": "cast",
         "vfx": "multishot",
-        "cooldown_ms": 2600,
+        "cooldown_ms": 2400,
         "dmg": 6,
         "range": 300
       },
       {
-        "id": "zap",
+        "id": "zap_shot",
         "type": "special",
-        "anim": "zap",
+        "anim": "cast",
         "vfx": "bolt",
         "mp_cost": 18,
         "dmg": 6,
         "range": 320
       },
       {
-        "id": "flame_chompers",
+        "id": "snare_traps",
         "type": "special",
-        "anim": "flame_chompers",
+        "anim": "cast",
         "vfx": "aura",
         "mp_cost": 20,
         "applies": {
@@ -693,13 +694,739 @@
         }
       },
       {
-        "id": "super_mega_rocket",
+        "id": "mega_rocket",
         "type": "ultimate",
-        "anim": "super_mega_rocket",
+        "anim": "cast",
         "vfx": "beam",
         "mp_cost": 100,
         "dmg": 32,
         "range": 340
+      }
+    ]
+  },
+  "bulwark": {
+    "display_name": "Bulwark",
+    "color": [
+      110,
+      140,
+      180
+    ],
+    "accent_color": [
+      220,
+      230,
+      240
+    ],
+    "brand_color": [
+      90,
+      150,
+      220
+    ],
+    "attack_interval_ms": 1150,
+    "accuracy": 0.85,
+    "damage": [
+      3,
+      4
+    ],
+    "skills": [
+      {
+        "id": "shield_jab",
+        "type": "basic",
+        "anim": "slash",
+        "vfx": "melee"
+      },
+      {
+        "id": "bash",
+        "type": "cooldown",
+        "anim": "dash",
+        "vfx": "dash",
+        "cooldown_ms": 3000,
+        "dmg": 6,
+        "range": "melee"
+      },
+      {
+        "id": "guard_break",
+        "type": "special",
+        "anim": "spin",
+        "vfx": "spin",
+        "mp_cost": 22,
+        "dmg": 8
+      },
+      {
+        "id": "aegis",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "shield",
+        "mp_cost": 20,
+        "applies": {
+          "effect": "shield",
+          "duration_ms": 4500,
+          "magnitude": 0.5,
+          "target": "self"
+        }
+      },
+      {
+        "id": "shield_charge",
+        "type": "ultimate",
+        "anim": "slam",
+        "vfx": "slam",
+        "mp_cost": 100,
+        "dmg": 30
+      }
+    ]
+  },
+  "ironfist": {
+    "display_name": "Ironfist",
+    "color": [
+      235,
+      140,
+      60
+    ],
+    "accent_color": [
+      255,
+      225,
+      190
+    ],
+    "brand_color": [
+      255,
+      120,
+      30
+    ],
+    "attack_interval_ms": 700,
+    "accuracy": 0.8,
+    "damage": [
+      2,
+      3
+    ],
+    "skills": [
+      {
+        "id": "jab",
+        "type": "basic",
+        "anim": "slash",
+        "vfx": "melee"
+      },
+      {
+        "id": "combo_rush",
+        "type": "cooldown",
+        "anim": "dash",
+        "vfx": "dash",
+        "cooldown_ms": 2000,
+        "dmg": 4,
+        "range": "melee"
+      },
+      {
+        "id": "uppercut",
+        "type": "special",
+        "anim": "spin",
+        "vfx": "spin",
+        "mp_cost": 18,
+        "dmg": 6
+      },
+      {
+        "id": "adrenaline",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "aura",
+        "mp_cost": 18,
+        "applies": {
+          "effect": "tenacity",
+          "duration_ms": 5000,
+          "magnitude": 0.5,
+          "target": "self"
+        }
+      },
+      {
+        "id": "hundred_fists",
+        "type": "ultimate",
+        "anim": "spin",
+        "vfx": "spin",
+        "mp_cost": 100,
+        "dmg": 30
+      }
+    ]
+  },
+  "reaver": {
+    "display_name": "Reaver",
+    "color": [
+      150,
+      100,
+      200
+    ],
+    "accent_color": [
+      225,
+      210,
+      245
+    ],
+    "brand_color": [
+      130,
+      70,
+      210
+    ],
+    "attack_interval_ms": 1150,
+    "accuracy": 0.82,
+    "damage": [
+      3,
+      4
+    ],
+    "skills": [
+      {
+        "id": "reap",
+        "type": "basic",
+        "anim": "slash",
+        "vfx": "melee",
+        "range": 150
+      },
+      {
+        "id": "harvest",
+        "type": "cooldown",
+        "anim": "dash",
+        "vfx": "dash",
+        "cooldown_ms": 3000,
+        "dmg": 6,
+        "range": 150
+      },
+      {
+        "id": "soul_drain",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "aura",
+        "mp_cost": 22,
+        "applies": {
+          "effect": "shield",
+          "duration_ms": 4000,
+          "magnitude": 0.4,
+          "target": "self"
+        }
+      },
+      {
+        "id": "wide_arc",
+        "type": "special",
+        "anim": "spin",
+        "vfx": "spin",
+        "mp_cost": 20,
+        "dmg": 8
+      },
+      {
+        "id": "death_spiral",
+        "type": "ultimate",
+        "anim": "spin",
+        "vfx": "spin",
+        "mp_cost": 100,
+        "dmg": 32
+      }
+    ]
+  },
+  "deadeye": {
+    "display_name": "Deadeye",
+    "color": [
+      70,
+      190,
+      180
+    ],
+    "accent_color": [
+      225,
+      245,
+      240
+    ],
+    "brand_color": [
+      40,
+      200,
+      180
+    ],
+    "attack_interval_ms": 750,
+    "accuracy": 0.8,
+    "damage": [
+      2,
+      3
+    ],
+    "skills": [
+      {
+        "id": "quickdraw",
+        "type": "basic",
+        "anim": "cast",
+        "vfx": "bolt",
+        "range": 290
+      },
+      {
+        "id": "fan_fire",
+        "type": "cooldown",
+        "anim": "cast",
+        "vfx": "multishot",
+        "cooldown_ms": 2400,
+        "dmg": 5,
+        "range": 290
+      },
+      {
+        "id": "deadshot",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "bolt",
+        "mp_cost": 18,
+        "dmg": 7,
+        "range": 300
+      },
+      {
+        "id": "roll_dodge",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "shield",
+        "mp_cost": 16,
+        "applies": {
+          "effect": "shield",
+          "duration_ms": 3500,
+          "magnitude": 0.4,
+          "target": "self"
+        }
+      },
+      {
+        "id": "bullet_hell",
+        "type": "ultimate",
+        "anim": "cast",
+        "vfx": "multishot",
+        "mp_cost": 100,
+        "dmg": 30,
+        "range": 300
+      }
+    ]
+  },
+  "cyclone": {
+    "display_name": "Cyclone",
+    "color": [
+      150,
+      200,
+      120
+    ],
+    "accent_color": [
+      230,
+      245,
+      215
+    ],
+    "brand_color": [
+      110,
+      220,
+      130
+    ],
+    "attack_interval_ms": 900,
+    "accuracy": 0.82,
+    "damage": [
+      2,
+      3
+    ],
+    "skills": [
+      {
+        "id": "staff_jab",
+        "type": "basic",
+        "anim": "slash",
+        "vfx": "melee",
+        "range": 140
+      },
+      {
+        "id": "sweep",
+        "type": "cooldown",
+        "anim": "spin",
+        "vfx": "spin",
+        "cooldown_ms": 2600,
+        "dmg": 5
+      },
+      {
+        "id": "deflect",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "shield",
+        "mp_cost": 18,
+        "applies": {
+          "effect": "shield",
+          "duration_ms": 4000,
+          "magnitude": 0.4,
+          "target": "self"
+        }
+      },
+      {
+        "id": "whirl_staff",
+        "type": "special",
+        "anim": "spin",
+        "vfx": "spin",
+        "mp_cost": 20,
+        "dmg": 7
+      },
+      {
+        "id": "cyclone_kick",
+        "type": "ultimate",
+        "anim": "spin",
+        "vfx": "spin",
+        "mp_cost": 100,
+        "dmg": 30
+      }
+    ]
+  },
+  "wrecker": {
+    "display_name": "Wrecker",
+    "color": [
+      135,
+      135,
+      148
+    ],
+    "accent_color": [
+      225,
+      205,
+      195
+    ],
+    "brand_color": [
+      200,
+      80,
+      40
+    ],
+    "attack_interval_ms": 1250,
+    "accuracy": 0.8,
+    "damage": [
+      3,
+      5
+    ],
+    "skills": [
+      {
+        "id": "swing",
+        "type": "basic",
+        "anim": "slash",
+        "vfx": "melee",
+        "range": 140
+      },
+      {
+        "id": "chain_pull",
+        "type": "cooldown",
+        "anim": "dash",
+        "vfx": "dash",
+        "cooldown_ms": 3000,
+        "dmg": 6,
+        "range": 150
+      },
+      {
+        "id": "heavy_arc",
+        "type": "special",
+        "anim": "spin",
+        "vfx": "spin",
+        "mp_cost": 22,
+        "dmg": 8
+      },
+      {
+        "id": "iron_hide",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "aura",
+        "mp_cost": 20,
+        "applies": {
+          "effect": "tenacity",
+          "duration_ms": 5000,
+          "magnitude": 0.5,
+          "target": "self"
+        }
+      },
+      {
+        "id": "wrecking_ball",
+        "type": "ultimate",
+        "anim": "slam",
+        "vfx": "slam",
+        "mp_cost": 100,
+        "dmg": 32
+      }
+    ]
+  },
+  "quarrel": {
+    "display_name": "Quarrel",
+    "color": [
+      125,
+      155,
+      85
+    ],
+    "accent_color": [
+      230,
+      232,
+      200
+    ],
+    "brand_color": [
+      150,
+      185,
+      70
+    ],
+    "attack_interval_ms": 1300,
+    "accuracy": 0.86,
+    "damage": [
+      4,
+      5
+    ],
+    "skills": [
+      {
+        "id": "bolt_shot",
+        "type": "basic",
+        "anim": "cast",
+        "vfx": "bolt",
+        "range": 310
+      },
+      {
+        "id": "double_tap",
+        "type": "cooldown",
+        "anim": "cast",
+        "vfx": "multishot",
+        "cooldown_ms": 2800,
+        "dmg": 6,
+        "range": 300
+      },
+      {
+        "id": "piercer",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "bolt",
+        "mp_cost": 18,
+        "dmg": 8,
+        "range": 330
+      },
+      {
+        "id": "snare",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "aura",
+        "mp_cost": 20,
+        "applies": {
+          "effect": "slow",
+          "duration_ms": 3000,
+          "magnitude": 0.5,
+          "target": "opponent"
+        }
+      },
+      {
+        "id": "siege_bolt",
+        "type": "ultimate",
+        "anim": "cast",
+        "vfx": "bolt",
+        "mp_cost": 100,
+        "dmg": 32,
+        "range": 340
+      }
+    ]
+  },
+  "cleaver": {
+    "display_name": "Cleaver",
+    "color": [
+      165,
+      80,
+      55
+    ],
+    "accent_color": [
+      240,
+      205,
+      195
+    ],
+    "brand_color": [
+      220,
+      45,
+      40
+    ],
+    "attack_interval_ms": 1050,
+    "accuracy": 0.8,
+    "damage": [
+      3,
+      5
+    ],
+    "skills": [
+      {
+        "id": "chop",
+        "type": "basic",
+        "anim": "slash",
+        "vfx": "melee"
+      },
+      {
+        "id": "rend",
+        "type": "cooldown",
+        "anim": "dash",
+        "vfx": "dash",
+        "cooldown_ms": 2800,
+        "dmg": 6,
+        "range": "melee"
+      },
+      {
+        "id": "bloodthirst",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "aura",
+        "mp_cost": 20,
+        "applies": {
+          "effect": "shield",
+          "duration_ms": 4000,
+          "magnitude": 0.4,
+          "target": "self"
+        }
+      },
+      {
+        "id": "axe_cyclone",
+        "type": "special",
+        "anim": "spin",
+        "vfx": "spin",
+        "mp_cost": 22,
+        "dmg": 8
+      },
+      {
+        "id": "executioner",
+        "type": "ultimate",
+        "anim": "spin",
+        "vfx": "spin",
+        "mp_cost": 100,
+        "dmg": 32
+      }
+    ]
+  },
+  "pyre": {
+    "display_name": "Pyre",
+    "color": [
+      255,
+      120,
+      40
+    ],
+    "accent_color": [
+      255,
+      230,
+      170
+    ],
+    "brand_color": [
+      255,
+      80,
+      10
+    ],
+    "attack_interval_ms": 1050,
+    "accuracy": 0.8,
+    "damage": [
+      2,
+      4
+    ],
+    "skills": [
+      {
+        "id": "ember",
+        "type": "basic",
+        "anim": "cast",
+        "vfx": "bolt",
+        "range": 300
+      },
+      {
+        "id": "fire_lance",
+        "type": "cooldown",
+        "anim": "cast",
+        "vfx": "bolt",
+        "cooldown_ms": 2600,
+        "dmg": 5,
+        "range": 300
+      },
+      {
+        "id": "scorch",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "bolt",
+        "mp_cost": 20,
+        "dmg": 7,
+        "range": 320,
+        "applies": {
+          "effect": "slow",
+          "duration_ms": 2500,
+          "magnitude": 0.6,
+          "target": "opponent"
+        }
+      },
+      {
+        "id": "flame_ward",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "shield",
+        "mp_cost": 18,
+        "applies": {
+          "effect": "shield",
+          "duration_ms": 4000,
+          "magnitude": 0.4,
+          "target": "self"
+        }
+      },
+      {
+        "id": "meteor",
+        "type": "ultimate",
+        "anim": "cast",
+        "vfx": "beam",
+        "mp_cost": 100,
+        "dmg": 32,
+        "range": 340
+      }
+    ]
+  },
+  "venom": {
+    "display_name": "Venom",
+    "color": [
+      130,
+      210,
+      70
+    ],
+    "accent_color": [
+      225,
+      245,
+      200
+    ],
+    "brand_color": [
+      150,
+      255,
+      60
+    ],
+    "attack_interval_ms": 850,
+    "accuracy": 0.8,
+    "damage": [
+      2,
+      3
+    ],
+    "skills": [
+      {
+        "id": "kunai",
+        "type": "basic",
+        "anim": "cast",
+        "vfx": "bolt",
+        "range": 290
+      },
+      {
+        "id": "shuriken_fan",
+        "type": "cooldown",
+        "anim": "cast",
+        "vfx": "multishot",
+        "cooldown_ms": 2400,
+        "dmg": 5,
+        "range": 290
+      },
+      {
+        "id": "poison_dart",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "bolt",
+        "mp_cost": 16,
+        "dmg": 6,
+        "range": 300,
+        "applies": {
+          "effect": "slow",
+          "duration_ms": 3000,
+          "magnitude": 0.5,
+          "target": "opponent"
+        }
+      },
+      {
+        "id": "smoke",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "shield",
+        "mp_cost": 16,
+        "applies": {
+          "effect": "shield",
+          "duration_ms": 3500,
+          "magnitude": 0.4,
+          "target": "self"
+        }
+      },
+      {
+        "id": "blade_fan",
+        "type": "ultimate",
+        "anim": "cast",
+        "vfx": "multishot",
+        "mp_cost": 100,
+        "dmg": 30,
+        "range": 320
       }
     ]
   }

@@ -518,6 +518,65 @@ _STYLES = {
                     "torso_length": 106, "upper_arm": 35, "forearm": 35,  # lanky, long arms
                     "thigh": 37, "shin": 37, "line_width": 4,
                     "hand_radius": 3, "foot_length": 12},
+    # ── New 10 archetypes — build + crest + (unique) weapon separate them ──
+    "bulwark":     {"head_shape": "square",   "head_size": 30, "crest": "great_helm",
+                    "torso_length": 90, "upper_arm": 32, "forearm": 31,
+                    "thigh": 33, "shin": 33, "line_width": 11,   # broad defensive tank
+                    "hand_radius": 8, "foot_length": 24},
+    "ironfist":    {"head_shape": "circle",   "head_size": 24, "crest": "topknot",
+                    "torso_length": 92, "upper_arm": 36, "forearm": 35,  # long arms, puncher
+                    "thigh": 32, "shin": 32, "line_width": 8,
+                    "hand_radius": 9, "foot_length": 17,         # big fists
+                    "pose_overrides": {
+                        "idle_oscillations": [
+                            {"field": "near_hand_y_offset", "amplitude": 4.0, "period_ms": 600.0},
+                        ]}},
+    "reaver":      {"head_shape": "triangle", "head_size": 25, "crest": "hood",
+                    "torso_length": 112, "upper_arm": 33, "forearm": 34,  # tall, gaunt
+                    "thigh": 38, "shin": 38, "line_width": 6,
+                    "hand_radius": 4, "foot_length": 14},
+    "deadeye":     {"head_shape": "circle",   "head_size": 26, "crest": "wide_brim",
+                    "torso_length": 98, "upper_arm": 32, "forearm": 32,
+                    "thigh": 34, "shin": 34, "line_width": 5,
+                    "hand_radius": 4, "foot_length": 14},
+    "cyclone":     {"head_shape": "circle",   "head_size": 26, "crest": "topknot",
+                    "torso_length": 100, "upper_arm": 32, "forearm": 32,
+                    "thigh": 35, "shin": 35, "line_width": 6,
+                    "hand_radius": 5, "foot_length": 15,
+                    "pose_overrides": {
+                        "idle_oscillations": [
+                            {"field": "weapon_deg", "amplitude": 6.0, "period_ms": 2200.0},
+                        ]}},
+    "wrecker":     {"head_shape": "square",   "head_size": 32, "crest": "spikes",
+                    "torso_length": 96, "upper_arm": 34, "forearm": 33,
+                    "thigh": 36, "shin": 36, "line_width": 12,   # brute, slightly < juggernaut
+                    "hand_radius": 9, "foot_length": 26},
+    "quarrel":     {"head_shape": "triangle", "head_size": 26, "crest": "hood",
+                    "torso_length": 98, "upper_arm": 33, "forearm": 33,
+                    "thigh": 34, "shin": 34, "line_width": 5,
+                    "hand_radius": 4, "foot_length": 14},
+    "cleaver":     {"head_shape": "square",   "head_size": 30, "crest": "horns",
+                    "torso_length": 92, "upper_arm": 34, "forearm": 33,
+                    "thigh": 35, "shin": 35, "line_width": 10,   # wide berserker
+                    "hand_radius": 8, "foot_length": 23},
+    "pyre":        {"head_shape": "diamond",  "head_size": 29, "crest": "flame_crown",
+                    "torso_length": 106, "upper_arm": 30, "forearm": 30,  # lean mage
+                    "thigh": 36, "shin": 36, "line_width": 5,
+                    "hand_radius": 4, "foot_length": 13,
+                    "pose_overrides": {
+                        "idle_weapon_deg": -112.0, "walk_weapon_deg": -65.0,
+                        "idle_torso_lean": 4.0,
+                        "idle_oscillations": [
+                            {"field": "weapon_deg", "amplitude": 9.0, "period_ms": 2600.0},
+                        ]}},
+    "venom":       {"head_shape": "circle",   "head_size": 23, "crest": "ninja_band",
+                    "torso_length": 104, "upper_arm": 33, "forearm": 34,  # lithe ninja
+                    "thigh": 37, "shin": 37, "line_width": 4,
+                    "hand_radius": 3, "foot_length": 12,
+                    "pose_overrides": {
+                        "idle_oscillations": [
+                            {"field": "near_hand_y_offset", "amplitude": 3.0, "period_ms": 750.0},
+                        ]}},
 }
 
 _DEFAULT_STYLE = {"head_shape": "circle", "head_size": 22,
@@ -631,6 +690,40 @@ def _draw_crest(surf, color, accent, geo, style):
         poly([(cx + back * hs * 1.3, cy - hs * 0.2), (cx - back * hs * 0.2, cy - hs * 1.5),
               (cx - back * hs * 0.9, cy - hs * 0.3), (cx + back * hs * 0.6, cy + hs * 0.4)],
              accent)
+    elif crest == "great_helm":    # tank — full visored helm dome + slit + top fin
+        pygame.draw.circle(surf, accent, (cx, int(cy - hs * 0.1)), max(2, int(hs * 0.95)))
+        pygame.draw.circle(surf, blk, (cx, int(cy - hs * 0.1)), max(2, int(hs * 0.95)), 1)
+        pygame.draw.line(surf, blk, (cx - hs * 0.7, cy - hs * 0.1),
+                         (cx + hs * 0.7, cy - hs * 0.1), 2)
+        poly([(cx - hs * 0.22, cy - hs * 0.9), (cx + hs * 0.22, cy - hs * 0.9),
+              (cx, cy - hs * 1.55)], accent)
+    elif crest == "wide_brim":     # gunslinger — wide hat brim + cap
+        top = cy - hs * 0.85
+        poly([(cx - hs * 1.5, top), (cx + hs * 1.5, top),
+              (cx + hs * 1.15, top + hs * 0.28), (cx - hs * 1.15, top + hs * 0.28)], accent)
+        poly([(cx - hs * 0.62, top), (cx + hs * 0.62, top),
+              (cx + hs * 0.46, top - hs * 0.85), (cx - hs * 0.46, top - hs * 0.85)], accent)
+    elif crest == "spikes":        # brute — row of three upward spikes
+        top = cy - hs
+        for s in (-1, 0, 1):
+            bx = cx + s * hs * 0.62
+            poly([(bx - hs * 0.22, top), (bx + hs * 0.22, top),
+                  (bx, top - hs * 0.95)], accent)
+    elif crest == "flame_crown":   # fire mage — flame tongues rising off the crown
+        top = cy - hs * 0.85
+        for s in (-1, 0, 1):
+            bx = cx + s * hs * 0.55
+            h2 = hs * (1.4 if s == 0 else 0.95)
+            poly([(bx - hs * 0.26, top), (bx + hs * 0.26, top),
+                  (bx + hs * 0.06, top - h2)], accent)
+    elif crest == "ninja_band":    # ninja — forehead band + two tails trailing back
+        pygame.draw.line(surf, accent, (cx - hs * 0.95, cy - hs * 0.45),
+                         (cx + hs * 0.95, cy - hs * 0.45), max(2, int(hs * 0.32)))
+        root = (cx + back * hs * 0.75, cy - hs * 0.4)
+        for dy in (0.0, 0.45):
+            poly([root, (root[0] + back * hs * 1.5, root[1] + hs * dy),
+                  (root[0] + back * hs * 1.35, root[1] + hs * (dy + 0.35)),
+                  (root[0], root[1] + hs * 0.18)], accent)
     elif crest == "antenna":       # brick phone — stubby antenna
         ax = cx - back * hs * 0.4
         pygame.draw.line(surf, accent, (ax, cy - hs), (ax, cy - hs * 1.9), 3)

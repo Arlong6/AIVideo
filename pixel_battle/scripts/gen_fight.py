@@ -30,9 +30,15 @@ ATK_REMAIN = 24
 # Champion → movement archetype (mage+marksman collapse to "ranged";
 # warrior/tank/duelist to "melee"; assassin is its own hit-and-run profile).
 ARCH = {
+    # ranged casters/archers/gunners — hold spacing, kite
     "lux": "ranged", "ashe": "ranged", "jinx": "ranged",
+    "deadeye": "ranged", "quarrel": "ranged", "pyre": "ranged", "venom": "ranged",
+    # assassin — flash in/out
     "katarina": "assassin",
+    # melee bruisers/tanks/duelists — advance and trade
     "yasuo": "melee", "garen": "melee", "pantheon": "melee", "mordekaiser": "melee",
+    "bulwark": "melee", "ironfist": "melee", "reaver": "melee", "cyclone": "melee",
+    "wrecker": "melee", "cleaver": "melee",
 }
 L_ARCH, R_ARCH = ARCH.get(LEFT, "melee"), ARCH.get(RIGHT, "melee")
 ULT_ADJACENT = VFX in ("slam", "spin", "dash", "melee")   # ult needs to be in close

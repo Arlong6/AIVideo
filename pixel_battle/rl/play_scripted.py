@@ -37,6 +37,22 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     driver = load_fight_file(script_path)
+
+    # Arena backdrop: explicit `arena:` field in the YAML wins, otherwise rotate
+    # themes by script name so a batch reel varies scene to scene.
+    import yaml as _yaml
+    from pixel_battle.rl.play import set_arena, _ARENA_THEMES
+    _arena = None
+    try:
+        _meta = _yaml.safe_load(script_path.read_text(encoding="utf-8"))
+        if isinstance(_meta, dict):
+            _arena = _meta.get("arena")
+    except Exception:
+        _arena = None
+    if not _arena:
+        _arena = _ARENA_THEMES[sum(map(ord, script_path.stem)) % len(_ARENA_THEMES)]
+    set_arena(_arena)
+
     tl_seed = getattr(driver.timeline, "seed", None)
     env_kwargs = {"left_id": driver.left, "right_id": driver.right}
     if tl_seed is not None:

@@ -75,9 +75,9 @@ left_timeline:
   - {t: 32230, do: advance}
   - {t: 32300, do: "flash:in"}
   - {t: 32800, do: advance}
-  - {t: 33000, do: "cast:demacian_justice"}
+  - {t: 33000, do: "cast:skybreaker"}
 right_timeline:
-  - {t: 700, do: "cast:light_binding"}
+  - {t: 700, do: "cast:light_lance"}
   - {t: 1220, do: retreat}
   - {t: 1900, do: "flash:back"}
   - {t: 2420, do: jump}
@@ -85,16 +85,16 @@ right_timeline:
   - {t: 3360, do: retreat}
   - {t: 3830, do: jump}
   - {t: 4300, do: advance}
-  - {t: 4700, do: "cast:light_binding"}
+  - {t: 4700, do: "cast:light_lance"}
   - {t: 5220, do: retreat}
   - {t: 5690, do: jump}
-  - {t: 6000, do: "cast:lucent_singularity"}
+  - {t: 6000, do: "cast:nova_core"}
   - {t: 6520, do: retreat}
   - {t: 6990, do: advance}
   - {t: 7460, do: retreat}
   - {t: 7930, do: jump}
   - {t: 8400, do: retreat}
-  - {t: 8700, do: "cast:light_binding"}
+  - {t: 8700, do: "cast:light_lance"}
   - {t: 9220, do: jump}
   - {t: 9690, do: advance}
   - {t: 10160, do: retreat}
@@ -102,8 +102,8 @@ right_timeline:
   - {t: 11000, do: "flash:back"}
   - {t: 11520, do: advance}
   - {t: 11990, do: retreat}
-  - {t: 12700, do: "cast:light_binding"}
-  - {t: 13000, do: "cast:lucent_singularity"}
+  - {t: 12700, do: "cast:light_lance"}
+  - {t: 13000, do: "cast:nova_core"}
   - {t: 13520, do: jump}
   - {t: 13990, do: retreat}
   - {t: 14460, do: advance}
@@ -111,15 +111,15 @@ right_timeline:
   - {t: 15400, do: jump}
   - {t: 15870, do: retreat}
   - {t: 16340, do: jump}
-  - {t: 16700, do: "cast:light_binding"}
+  - {t: 16700, do: "cast:light_lance"}
   - {t: 17220, do: advance}
   - {t: 17690, do: retreat}
   - {t: 18160, do: jump}
   - {t: 18630, do: advance}
   - {t: 19100, do: retreat}
   - {t: 19570, do: jump}
-  - {t: 20000, do: "cast:lucent_singularity"}
-  - {t: 20700, do: "cast:light_binding"}
+  - {t: 20000, do: "cast:nova_core"}
+  - {t: 20700, do: "cast:light_lance"}
   - {t: 21220, do: retreat}
   - {t: 21690, do: advance}
   - {t: 22160, do: retreat}
@@ -127,15 +127,15 @@ right_timeline:
   - {t: 23000, do: "flash:back"}
   - {t: 23520, do: retreat}
   - {t: 23990, do: jump}
-  - {t: 24700, do: "cast:light_binding"}
+  - {t: 24700, do: "cast:light_lance"}
   - {t: 25220, do: advance}
   - {t: 25690, do: retreat}
   - {t: 26160, do: jump}
   - {t: 26630, do: advance}
-  - {t: 27000, do: "cast:lucent_singularity"}
+  - {t: 27000, do: "cast:nova_core"}
   - {t: 27520, do: retreat}
   - {t: 27990, do: jump}
-  - {t: 28700, do: "cast:light_binding"}
+  - {t: 28700, do: "cast:light_lance"}
   - {t: 29220, do: retreat}
   - {t: 29690, do: advance}
   - {t: 30160, do: retreat}

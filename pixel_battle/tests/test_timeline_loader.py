@@ -17,7 +17,7 @@ left_timeline:
 right_timeline:
   - {t: 0, do: idle}
   - {t: 800, do: retreat}
-  - {t: 3000, do: "cast:light_binding"}
+  - {t: 3000, do: "cast:light_lance"}
 """
 
 
@@ -32,9 +32,9 @@ def test_parses_valid_yaml():
     # `do: advance` → action_int 2, no skill_id
     assert tl.left_events[1].action_int == 2
     assert tl.left_events[1].skill_id is None
-    # `do: cast:light_binding` → action_int 5 (cooldown), skill_id set
+    # `do: cast:light_lance` → action_int 5 (cooldown), skill_id set
     assert tl.right_events[2].action_int == 5
-    assert tl.right_events[2].skill_id == "light_binding"
+    assert tl.right_events[2].skill_id == "light_lance"
 
 
 def test_unknown_do_verb_rejected():
@@ -44,16 +44,16 @@ def test_unknown_do_verb_rejected():
 
 
 def test_unknown_skill_id_rejected():
-    bad = _GOOD.replace("cast:light_binding", "cast:no_such_skill")
+    bad = _GOOD.replace("cast:light_lance", "cast:no_such_skill")
     with pytest.raises(TimelineLoadError, match="unknown skill id"):
         load_timeline_text(bad)
 
 
 def test_skill_not_on_character_rejected():
-    # Garen does not have light_binding (it's a Lux skill). If we put a Lux-only
+    # Garen does not have light_lance (it's a Lux skill). If we put a Lux-only
     # skill on Garen's LEFT timeline, the loader must reject it with "not a skill of".
     # Keep right_timeline valid; replace attack:basic on Garen's side with a Lux skill.
-    bad = _GOOD.replace("do: \"attack:basic\"", "do: \"cast:light_binding\"")
+    bad = _GOOD.replace("do: \"attack:basic\"", "do: \"cast:light_lance\"")
     with pytest.raises(TimelineLoadError, match="not a skill of"):
         load_timeline_text(bad)
 

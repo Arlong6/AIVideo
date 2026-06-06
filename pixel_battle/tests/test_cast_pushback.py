@@ -6,8 +6,12 @@ from pixel_battle.engine.skill import SkillType
 
 
 def _battle_in_range(seed=42):
-    a = Character.load("brick_phone")
-    b = Character.load("glass_slab")
+    # yasuo has a melee cooldown (gale_cut) whose cast hops the attacker back.
+    # Projectile-vfx casts intentionally do NOT hop back (that would drift two
+    # ranged fighters out of range), so a melee-CD champ exercises the spacing
+    # pushback here.
+    a = Character.load("yasuo")
+    b = Character.load("garen")
     bat = Battle(left=a, right=b, rng=BattleRNG(seed))
     bat.tick_ms(2500)
     a.pos_x = 200

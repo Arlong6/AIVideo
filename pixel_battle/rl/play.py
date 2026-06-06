@@ -131,29 +131,132 @@ def _get_hud_font(size: int = 14) -> pygame.font.Font:
     return f
 
 
-# ── Background / arena helpers ────────────────────────────────────────────────
-
-def _draw_back_wall(surf: pygame.Surface) -> None:
-    """Fill the area above the floor: vertical gradient + diagonal accent lines."""
-    for i in range(0, GROUND_Y, 6):
-        t = i / GROUND_Y
-        c = (int(18 + 12 * t), int(22 + 14 * t), int(40 + 20 * t))
-        pygame.draw.rect(surf, c, (0, i, WIDTH, 6))
-    wall_color = (46, 56, 88)
-    for x in range(-240, WIDTH + 240, 120):
-        pygame.draw.line(surf, wall_color, (x, 0), (x + 260, GROUND_Y), 2)
+# ── Background / arena themes ─────────────────────────────────────────────────
+# Per-script selectable arena. set_arena() is called from the renderer entry
+# (play_scripted) before a fight; the batch rotates themes so the reel varies.
+_ARENA_THEMES = ("dusk", "dojo", "ruins")
+_ARENA_THEME = "ruins"
 
 
-def _draw_floor(surf: pygame.Surface) -> None:
-    """Thicker ground band + horizontal hatch lines for parallax feel."""
-    pygame.draw.rect(surf, (28, 34, 56), (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))
-    pygame.draw.line(surf, (90, 110, 170), (0, GROUND_Y), (WIDTH, GROUND_Y), 3)
-    for x in range(0, WIDTH, 40):
-        pygame.draw.line(surf, (50, 60, 95), (x, GROUND_Y + 8),
-                          (x + 20, GROUND_Y + 8), 1)
-    for x in range(20, WIDTH, 40):
-        pygame.draw.line(surf, (50, 60, 95), (x, GROUND_Y + 22),
-                          (x + 20, GROUND_Y + 22), 1)
+def set_arena(theme: str) -> None:
+    """Select the arena backdrop for subsequent renders."""
+    global _ARENA_THEME
+    if theme in _ARENA_THEMES:
+        _ARENA_THEME = theme
+
+
+def _vgrad(surf, top, bottom, y0=0, y1=None) -> None:
+    """Vertical gradient band from `top` to `bottom` colour over [y0, y1)."""
+    if y1 is None:
+        y1 = GROUND_Y
+    span = max(1, y1 - y0)
+    for i in range(y0, y1, 4):
+        t = (i - y0) / span
+        pygame.draw.rect(surf, (int(top[0] + (bottom[0] - top[0]) * t),
+                                int(top[1] + (bottom[1] - top[1]) * t),
+                                int(top[2] + (bottom[2] - top[2]) * t)),
+                         (0, i, WIDTH, 4))
+
+
+def _soft_glow(surf, cx, cy, rings) -> None:
+    """Additive-ish soft glow: concentric translucent circles."""
+    rmax = max(r for r, _ in rings)
+    g = pygame.Surface((rmax * 2 + 4, rmax * 2 + 4), pygame.SRCALPHA)
+    for r, (col) in rings:
+        pygame.draw.circle(g, col, (rmax + 2, rmax + 2), r)
+    surf.blit(g, (cx - rmax - 2, cy - rmax - 2))
+
+
+def _back_dusk(surf, frame: int) -> None:
+    """Neon dusk colosseum: indigo→magenta sky, tiered crowd, embers."""
+    _vgrad(surf, (26, 16, 46), (74, 28, 66))
+    for ry, col in ((0.30, (40, 28, 60)), (0.45, (52, 32, 70)), (0.60, (66, 40, 84))):
+        y = int(GROUND_Y * ry)
+        for x in range(8, WIDTH - 8, 26):
+            pygame.draw.rect(surf, col, (x, y, 16, 9))
+    for i in range(26):                                   # crowd twinkle
+        if (frame + i * 7) % 130 < 26:
+            x = (i * 53) % WIDTH
+            y = int(GROUND_Y * 0.30) + (i * 37) % int(GROUND_Y * 0.34)
+            pygame.draw.circle(surf, (255, 212, 150), (x, y), 1)
+    for px in (14, WIDTH - 26):                           # side pillars
+        pygame.draw.rect(surf, (28, 18, 38), (px, 0, 12, GROUND_Y))
+    for i in range(20):                                   # rising embers
+        ex = int((i * 61 + 9 * math.sin((frame + i * 20) / 40.0)) % WIDTH)
+        ey = GROUND_Y - ((frame + i * 43) % GROUND_Y)
+        a = max(0, 190 - int(170 * (GROUND_Y - ey) / GROUND_Y))
+        s = pygame.Surface((3, 3), pygame.SRCALPHA)
+        pygame.draw.circle(s, (255, 150, 60, a), (1, 1), 1)
+        surf.blit(s, (ex, ey))
+
+
+def _back_dojo(surf, frame: int) -> None:
+    """Torch-lit dojo: warm shoji grid, hanging lanterns, falling petals."""
+    _vgrad(surf, (42, 28, 18), (20, 13, 9))
+    grid = (74, 56, 38)
+    for x in range(0, WIDTH + 1, 48):
+        pygame.draw.line(surf, grid, (x, 0), (x, GROUND_Y), 2)
+    for y in range(0, GROUND_Y, 60):
+        pygame.draw.line(surf, grid, (0, y), (WIDTH, y), 2)
+    for lx in (58, WIDTH - 58):                           # lanterns
+        _soft_glow(surf, lx, 92, [(32, (255, 170, 70, 45)),
+                                  (20, (255, 185, 90, 80)), (11, (255, 210, 120, 140))])
+        pygame.draw.circle(surf, (255, 200, 110), (lx, 92), 5)
+    for i in range(18):                                   # cherry petals
+        px = int((i * 57 + 14 * math.sin((frame + i * 30) / 50.0)) % WIDTH)
+        py = (frame + i * 47) % GROUND_Y
+        s = pygame.Surface((4, 3), pygame.SRCALPHA)
+        pygame.draw.ellipse(s, (255, 182, 200, 205), (0, 0, 4, 3))
+        surf.blit(s, (px, py))
+
+
+def _back_ruins(surf, frame: int) -> None:
+    """Moonlit ruins in rain: broken pillars, moon glow, animated rain."""
+    _vgrad(surf, (16, 20, 38), (32, 38, 62))
+    _soft_glow(surf, WIDTH - 70, 80, [(50, (180, 200, 235, 26)),
+                                      (32, (190, 208, 238, 44)), (18, (210, 225, 245, 90))])
+    pygame.draw.circle(surf, (212, 226, 246), (WIDTH - 70, 80), 15)
+    for px, h in ((40, 0.50), (150, 0.34), (WIDTH - 66, 0.42), (WIDTH - 158, 0.30)):
+        top = int(GROUND_Y * (1 - h))
+        pygame.draw.rect(surf, (24, 28, 46), (px, top, 20, GROUND_Y - top))
+    for i in range(64):                                   # rain
+        rx = (i * 37 + frame * 6) % (WIDTH + 80) - 40
+        ry = (i * 53 + frame * 14) % GROUND_Y
+        pygame.draw.line(surf, (120, 140, 190), (rx, ry), (rx - 6, ry + 14), 1)
+
+
+def _draw_back_wall(surf: pygame.Surface, frame: int = 0) -> None:
+    """Themed backdrop above the floor (gradient + parallax + particles)."""
+    if _ARENA_THEME == "dusk":
+        _back_dusk(surf, frame)
+    elif _ARENA_THEME == "dojo":
+        _back_dojo(surf, frame)
+    else:
+        _back_ruins(surf, frame)
+
+
+def _draw_floor(surf: pygame.Surface, frame: int = 0) -> None:
+    """Themed ground band matching the active arena."""
+    if _ARENA_THEME == "dusk":
+        pygame.draw.rect(surf, (30, 18, 40), (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))
+        pygame.draw.line(surf, (255, 90, 180), (0, GROUND_Y), (WIDTH, GROUND_Y), 3)
+        pygame.draw.line(surf, (80, 220, 255), (0, GROUND_Y + 4), (WIDTH, GROUND_Y + 4), 1)
+        for x in range(0, WIDTH, 60):
+            pygame.draw.line(surf, (62, 30, 72), (x, GROUND_Y + 14), (x + 30, GROUND_Y + 14), 1)
+    elif _ARENA_THEME == "dojo":
+        pygame.draw.rect(surf, (58, 40, 26), (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))
+        pygame.draw.line(surf, (120, 90, 55), (0, GROUND_Y), (WIDTH, GROUND_Y), 3)
+        for y in range(GROUND_Y + 12, HEIGHT, 16):
+            pygame.draw.line(surf, (44, 30, 20), (0, y), (WIDTH, y), 1)
+        for x in range(0, WIDTH, 80):
+            pygame.draw.line(surf, (44, 30, 20), (x, GROUND_Y), (x, HEIGHT), 1)
+    else:
+        pygame.draw.rect(surf, (28, 34, 56), (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))
+        pygame.draw.line(surf, (90, 110, 170), (0, GROUND_Y), (WIDTH, GROUND_Y), 3)
+        for x in range(0, WIDTH, 40):
+            pygame.draw.line(surf, (50, 60, 95), (x, GROUND_Y + 8), (x + 20, GROUND_Y + 8), 1)
+        for x in range(20, WIDTH, 40):
+            pygame.draw.line(surf, (50, 60, 95), (x, GROUND_Y + 22), (x + 20, GROUND_Y + 22), 1)
 
 
 def _draw_shadow(surf: pygame.Surface, char) -> None:
@@ -382,8 +485,8 @@ def _draw_vs_intro(surf: pygame.Surface, left_char, right_char,
                     frame: int, total: int) -> None:
     """One frame of the VS intro — both champions slide in, big VS, names."""
     surf.fill(BG)
-    _draw_back_wall(surf)
-    _draw_floor(surf)
+    _draw_back_wall(surf, frame)
+    _draw_floor(surf, frame)
 
     t = frame / max(1, total)
     slide = _ease_out(min(1.0, t / 0.45))     # slide-in completes at 45%
@@ -430,8 +533,8 @@ def _draw_ko_result(surf: pygame.Surface, winner_char,
                      frame: int, total: int) -> None:
     """One frame of the K.O. / winner card."""
     surf.fill(BG)
-    _draw_back_wall(surf)
-    _draw_floor(surf)
+    _draw_back_wall(surf, frame)
+    _draw_floor(surf, frame)
 
     t = frame / max(1, total)
 
@@ -995,6 +1098,22 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                                        color=_ult_burst_color,
                                        current_ms=int(frame * RENDER_MS),
                                        duration_ms=240)
+                elif _ult_pending_vfx == "multishot":
+                    # Gunslinger bullet-hell / ninja blade-fan: a spread of
+                    # projectiles converging on the defender.
+                    for _k in range(5):
+                        _spread = (_k - 2) * 24
+                        projectiles.spawn(
+                            start=(int(_ult_actor_x), int(_ult_actor_y) - 130),
+                            end=(int(_ult_target_x), int(_ult_target_y) - 90 + _spread),
+                            color=_ult_burst_color,
+                            current_ms=int(frame * RENDER_MS),
+                            duration_ms=240)
+                    impact_fx.spawn_hit_spark(
+                        int(_ult_target_x), int(_ult_target_y) - 95, 26, _ult_brand_col)
+                    active_shockwaves.append([
+                        int(_ult_target_x), int(_ult_target_y) - 90,
+                        _ult_brand_col, 0, 18, 400])
                 elif _ult_pending_vfx == "spin":
                     # Assassin blade-storm: whirling rings on the caster + a
                     # shockwave burst where the blades shred the defender.
@@ -1062,8 +1181,8 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
 
         # World layer — apply interpolated draw positions for the render frame
         world.fill(BG)
-        _draw_back_wall(world)
-        _draw_floor(world)
+        _draw_back_wall(world, frame)
+        _draw_floor(world, frame)
 
         # Temporarily override pos_x/pos_y with interpolated values for drawing only
         def _set_draw_pos(char, ix, iy):

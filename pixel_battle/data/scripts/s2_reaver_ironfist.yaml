@@ -1,12 +1,12 @@
-# mordekaiser(melee) vs garen(melee) — LONG ~51s · cataclysm climax · auto-tuned
-name: "mordekaiser vs garen — long (cataclysm)"
-left: mordekaiser
-right: garen
+# reaver(melee) vs ironfist(melee) — LONG ~51s · death_spiral climax · auto-tuned
+name: "reaver vs ironfist — long (death_spiral)"
+left: reaver
+right: ironfist
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 154
-right_start_hp: 192
+left_start_hp: 129
+right_start_hp: 139
 left_timeline:
   - {t: 400, do: advance}
   - {t: 870, do: "attack:basic"}
@@ -104,7 +104,7 @@ left_timeline:
   - {t: 44290, do: jump}
   - {t: 44360, do: "flash:in"}
   - {t: 44840, do: advance}
-  - {t: 45000, do: "cast:cataclysm"}
+  - {t: 45000, do: "cast:death_spiral"}
 right_timeline:
   - {t: 700, do: advance}
   - {t: 1170, do: "attack:basic"}
@@ -118,14 +118,14 @@ right_timeline:
   - {t: 5070, do: advance}
   - {t: 5540, do: "attack:cd"}
   - {t: 6010, do: advance}
-  - {t: 6480, do: "cast:whirl_cut"}
+  - {t: 6480, do: "cast:uppercut"}
   - {t: 6950, do: "attack:cd"}
   - {t: 7400, do: "flash:in"}
   - {t: 7920, do: advance}
-  - {t: 8390, do: "cast:whirl_cut"}
+  - {t: 8390, do: "cast:uppercut"}
   - {t: 8860, do: jump}
   - {t: 9330, do: advance}
-  - {t: 9800, do: "cast:whirl_cut"}
+  - {t: 9800, do: "cast:uppercut"}
   - {t: 10270, do: advance}
   - {t: 10740, do: "attack:cd"}
   - {t: 11210, do: advance}
@@ -151,14 +151,14 @@ right_timeline:
   - {t: 20670, do: advance}
   - {t: 21140, do: "attack:cd"}
   - {t: 21610, do: advance}
-  - {t: 22080, do: "cast:whirl_cut"}
+  - {t: 22080, do: "cast:uppercut"}
   - {t: 22550, do: "attack:cd"}
   - {t: 23000, do: "flash:in"}
   - {t: 23520, do: advance}
-  - {t: 23990, do: "cast:whirl_cut"}
+  - {t: 23990, do: "cast:uppercut"}
   - {t: 24460, do: jump}
   - {t: 24930, do: advance}
-  - {t: 25400, do: "cast:whirl_cut"}
+  - {t: 25400, do: "cast:uppercut"}
   - {t: 25870, do: advance}
   - {t: 26340, do: "attack:cd"}
   - {t: 26810, do: advance}
@@ -184,14 +184,14 @@ right_timeline:
   - {t: 36270, do: advance}
   - {t: 36740, do: "attack:cd"}
   - {t: 37210, do: advance}
-  - {t: 37680, do: "cast:whirl_cut"}
+  - {t: 37680, do: "cast:uppercut"}
   - {t: 38150, do: "attack:cd"}
   - {t: 38600, do: "flash:in"}
   - {t: 39120, do: advance}
-  - {t: 39590, do: "cast:whirl_cut"}
+  - {t: 39590, do: "cast:uppercut"}
   - {t: 40060, do: jump}
   - {t: 40530, do: advance}
-  - {t: 41000, do: "cast:whirl_cut"}
+  - {t: 41000, do: "cast:uppercut"}
   - {t: 41470, do: advance}
   - {t: 41940, do: "attack:cd"}
   - {t: 42410, do: advance}
@@ -199,3 +199,4 @@ right_timeline:
   - {t: 43350, do: "attack:cd"}
   - {t: 43820, do: advance}
   - {t: 44290, do: "attack:basic"}
+arena: dojo

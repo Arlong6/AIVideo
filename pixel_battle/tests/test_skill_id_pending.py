@@ -8,12 +8,11 @@ from pixel_battle.engine.rng import BattleRNG
 
 
 def _new_battle():
-    # Lux has two special skills: lucent_singularity (mp_cost=26) and
-    # prismatic_barrier (mp_cost=20). Engine default = first affordable
-    # (lucent_singularity if MP >= 26; otherwise prismatic_barrier).
-    # We will test: setting pending_cast_skill_id = "prismatic_barrier"
-    # makes the engine pick prismatic_barrier even when lucent_singularity
-    # is also affordable (i.e. we give Lux full MP).
+    # Lumen (lux) has two special skills: nova_core (mp_cost=20) and
+    # prism_guard (mp_cost=18). Engine default = first affordable special in
+    # kit order (nova_core). We test: setting pending_cast_skill_id =
+    # "prism_guard" makes the engine pick it even when nova_core is also
+    # affordable (i.e. we give Lumen full MP).
     lux = Character.load("lux")
     garen = Character.load("garen")
     b = Battle(lux, garen, rng=BattleRNG(seed=0))
@@ -26,10 +25,10 @@ def _new_battle():
 
 def test_pending_cast_overrides_affordable_first():
     b, lux, garen = _new_battle()
-    # Default behaviour: pick first affordable special (lucent_singularity).
+    # Default behaviour: pick first affordable special (nova_core).
     b._start_attack_with_kind(lux, garen, "special")
     assert lux.attack_used_kind is not None
-    assert lux.attack_used_kind.id == "lucent_singularity"
+    assert lux.attack_used_kind.id == "nova_core"
 
 
 def test_pending_cast_picks_named_skill():
@@ -40,10 +39,10 @@ def test_pending_cast_picks_named_skill():
     lux.attack_phase = "none"
     lux.last_attack_ms = -10000
     # Pre-set the named skill the driver wants
-    lux.pending_cast_skill_id = "prismatic_barrier"
+    lux.pending_cast_skill_id = "prism_guard"
     b._start_attack_with_kind(lux, garen, "special")
     assert lux.attack_used_kind is not None
-    assert lux.attack_used_kind.id == "prismatic_barrier"
+    assert lux.attack_used_kind.id == "prism_guard"
     # Field is consumed (cleared) after the attack starts
     assert lux.pending_cast_skill_id is None
 

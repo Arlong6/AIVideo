@@ -1,12 +1,12 @@
-# pantheon(melee) vs lux(ranged) — LONG ~51s · grand_starfall climax · auto-tuned
-name: "pantheon vs lux — long (grand_starfall)"
+# pantheon(melee) vs lux(ranged) — LONG ~51s · skyfall climax · auto-tuned
+name: "pantheon vs lux — long (skyfall)"
 left: pantheon
 right: lux
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 165
-right_start_hp: 115
+left_start_hp: 141
+right_start_hp: 129
 left_timeline:
   - {t: 400, do: advance}
   - {t: 870, do: "attack:basic"}
@@ -104,99 +104,99 @@ left_timeline:
   - {t: 44290, do: jump}
   - {t: 44360, do: "flash:in"}
   - {t: 44840, do: advance}
-  - {t: 45000, do: "cast:grand_starfall"}
+  - {t: 45000, do: "cast:skyfall"}
 right_timeline:
   - {t: 700, do: "attack:basic"}
   - {t: 1170, do: "attack:cd"}
-  - {t: 1640, do: "cast:lucent_singularity"}
+  - {t: 1640, do: "cast:nova_core"}
   - {t: 2110, do: jump}
   - {t: 2580, do: "attack:basic"}
   - {t: 3050, do: "attack:cd"}
   - {t: 3520, do: "attack:basic"}
   - {t: 3990, do: jump}
-  - {t: 4460, do: "cast:lucent_singularity"}
+  - {t: 4460, do: "cast:nova_core"}
   - {t: 4930, do: "attack:cd"}
   - {t: 5400, do: "attack:basic"}
   - {t: 5870, do: jump}
   - {t: 6340, do: "attack:basic"}
   - {t: 6810, do: "attack:cd"}
-  - {t: 7280, do: "cast:lucent_singularity"}
+  - {t: 7280, do: "cast:nova_core"}
   - {t: 7750, do: jump}
   - {t: 8220, do: "attack:basic"}
   - {t: 8690, do: "attack:cd"}
   - {t: 9160, do: "attack:basic"}
   - {t: 9630, do: jump}
-  - {t: 10100, do: "cast:lucent_singularity"}
+  - {t: 10100, do: "cast:nova_core"}
   - {t: 10570, do: "attack:cd"}
   - {t: 11040, do: "attack:basic"}
   - {t: 11510, do: jump}
   - {t: 11980, do: "attack:basic"}
   - {t: 12450, do: "attack:cd"}
-  - {t: 12920, do: "cast:lucent_singularity"}
+  - {t: 12920, do: "cast:nova_core"}
   - {t: 13390, do: jump}
   - {t: 13860, do: "attack:basic"}
   - {t: 14330, do: "attack:cd"}
   - {t: 14800, do: "attack:basic"}
   - {t: 15270, do: jump}
-  - {t: 15740, do: "cast:lucent_singularity"}
+  - {t: 15740, do: "cast:nova_core"}
   - {t: 16210, do: "attack:cd"}
   - {t: 16680, do: "attack:basic"}
   - {t: 17150, do: jump}
   - {t: 17620, do: "attack:basic"}
   - {t: 18090, do: "attack:cd"}
-  - {t: 18560, do: "cast:lucent_singularity"}
+  - {t: 18560, do: "cast:nova_core"}
   - {t: 19030, do: jump}
   - {t: 19500, do: "attack:basic"}
   - {t: 19970, do: "attack:cd"}
   - {t: 20440, do: "attack:basic"}
   - {t: 20910, do: jump}
-  - {t: 21380, do: "cast:lucent_singularity"}
+  - {t: 21380, do: "cast:nova_core"}
   - {t: 21850, do: "attack:cd"}
   - {t: 22320, do: "attack:basic"}
   - {t: 22790, do: jump}
   - {t: 23260, do: "attack:basic"}
   - {t: 23730, do: "attack:cd"}
-  - {t: 24200, do: "cast:lucent_singularity"}
+  - {t: 24200, do: "cast:nova_core"}
   - {t: 24670, do: jump}
   - {t: 25140, do: "attack:basic"}
   - {t: 25610, do: "attack:cd"}
   - {t: 26080, do: "attack:basic"}
   - {t: 26550, do: jump}
-  - {t: 27020, do: "cast:lucent_singularity"}
+  - {t: 27020, do: "cast:nova_core"}
   - {t: 27490, do: "attack:cd"}
   - {t: 27960, do: "attack:basic"}
   - {t: 28430, do: jump}
   - {t: 28900, do: "attack:basic"}
   - {t: 29370, do: "attack:cd"}
-  - {t: 29840, do: "cast:lucent_singularity"}
+  - {t: 29840, do: "cast:nova_core"}
   - {t: 30310, do: jump}
   - {t: 30780, do: "attack:basic"}
   - {t: 31250, do: "attack:cd"}
   - {t: 31720, do: "attack:basic"}
   - {t: 32190, do: jump}
-  - {t: 32660, do: "cast:lucent_singularity"}
+  - {t: 32660, do: "cast:nova_core"}
   - {t: 33130, do: "attack:cd"}
   - {t: 33600, do: "attack:basic"}
   - {t: 34070, do: jump}
   - {t: 34540, do: "attack:basic"}
   - {t: 35010, do: "attack:cd"}
-  - {t: 35480, do: "cast:lucent_singularity"}
+  - {t: 35480, do: "cast:nova_core"}
   - {t: 35950, do: jump}
   - {t: 36420, do: "attack:basic"}
   - {t: 36890, do: "attack:cd"}
   - {t: 37360, do: "attack:basic"}
   - {t: 37830, do: jump}
-  - {t: 38300, do: "cast:lucent_singularity"}
+  - {t: 38300, do: "cast:nova_core"}
   - {t: 38770, do: "attack:cd"}
   - {t: 39240, do: "attack:basic"}
   - {t: 39710, do: jump}
   - {t: 40180, do: "attack:basic"}
   - {t: 40650, do: "attack:cd"}
-  - {t: 41120, do: "cast:lucent_singularity"}
+  - {t: 41120, do: "cast:nova_core"}
   - {t: 41590, do: jump}
   - {t: 42060, do: "attack:basic"}
   - {t: 42530, do: "attack:cd"}
   - {t: 43000, do: "attack:basic"}
   - {t: 43470, do: jump}
-  - {t: 43940, do: "cast:lucent_singularity"}
+  - {t: 43940, do: "cast:nova_core"}
   - {t: 44410, do: "attack:cd"}

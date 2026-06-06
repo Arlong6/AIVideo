@@ -1,12 +1,12 @@
-# lux(ranged) vs pantheon(melee) — LONG ~51s · final_spark climax · auto-tuned
-name: "lux vs pantheon — long (final_spark)"
+# lux(ranged) vs pantheon(melee) — LONG ~51s · radiant_beam climax · auto-tuned
+name: "lux vs pantheon — long (radiant_beam)"
 left: lux
 right: pantheon
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 147
-right_start_hp: 126
+left_start_hp: 127
+right_start_hp: 124
 left_timeline:
   - {t: 400, do: "attack:basic"}
   - {t: 870, do: "attack:cd"}
@@ -103,7 +103,7 @@ left_timeline:
   - {t: 43640, do: "attack:basic"}
   - {t: 44110, do: "attack:cd"}
   - {t: 44400, do: "attack:basic"}
-  - {t: 45000, do: "cast:final_spark"}
+  - {t: 45000, do: "cast:radiant_beam"}
 right_timeline:
   - {t: 700, do: advance}
   - {t: 1170, do: "attack:basic"}
@@ -117,14 +117,14 @@ right_timeline:
   - {t: 5070, do: advance}
   - {t: 5540, do: "attack:cd"}
   - {t: 6010, do: advance}
-  - {t: 6480, do: "cast:shield_vault"}
+  - {t: 6480, do: "cast:pike_sweep"}
   - {t: 6950, do: "attack:cd"}
   - {t: 7400, do: "flash:in"}
   - {t: 7920, do: advance}
-  - {t: 8390, do: "cast:shield_vault"}
+  - {t: 8390, do: "cast:pike_sweep"}
   - {t: 8860, do: jump}
   - {t: 9330, do: advance}
-  - {t: 9800, do: "cast:shield_vault"}
+  - {t: 9800, do: "cast:pike_sweep"}
   - {t: 10270, do: advance}
   - {t: 10740, do: "attack:cd"}
   - {t: 11210, do: advance}
@@ -150,14 +150,14 @@ right_timeline:
   - {t: 20670, do: advance}
   - {t: 21140, do: "attack:cd"}
   - {t: 21610, do: advance}
-  - {t: 22080, do: "cast:shield_vault"}
+  - {t: 22080, do: "cast:pike_sweep"}
   - {t: 22550, do: "attack:cd"}
   - {t: 23000, do: "flash:in"}
   - {t: 23520, do: advance}
-  - {t: 23990, do: "cast:shield_vault"}
+  - {t: 23990, do: "cast:pike_sweep"}
   - {t: 24460, do: jump}
   - {t: 24930, do: advance}
-  - {t: 25400, do: "cast:shield_vault"}
+  - {t: 25400, do: "cast:pike_sweep"}
   - {t: 25870, do: advance}
   - {t: 26340, do: "attack:cd"}
   - {t: 26810, do: advance}
@@ -183,14 +183,14 @@ right_timeline:
   - {t: 36270, do: advance}
   - {t: 36740, do: "attack:cd"}
   - {t: 37210, do: advance}
-  - {t: 37680, do: "cast:shield_vault"}
+  - {t: 37680, do: "cast:pike_sweep"}
   - {t: 38150, do: "attack:cd"}
   - {t: 38600, do: "flash:in"}
   - {t: 39120, do: advance}
-  - {t: 39590, do: "cast:shield_vault"}
+  - {t: 39590, do: "cast:pike_sweep"}
   - {t: 40060, do: jump}
   - {t: 40530, do: advance}
-  - {t: 41000, do: "cast:shield_vault"}
+  - {t: 41000, do: "cast:pike_sweep"}
   - {t: 41470, do: advance}
   - {t: 41940, do: "attack:cd"}
   - {t: 42410, do: advance}
