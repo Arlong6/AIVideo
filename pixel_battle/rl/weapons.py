@@ -44,6 +44,7 @@ _WEAPONS = {
     "cleaver":     Weapon("axe",        length=96,  grip="two_hand", width=1.4),
     "pyre":        Weapon("fire_staff", length=108, grip="one_hand", width=0.8),
     "venom":       Weapon("kunai",      length=34,  grip="one_hand", width=0.9),
+    "outlaw":      Weapon("revolver",   length=30,  grip="one_hand", width=1.4),
 }
 
 
@@ -262,6 +263,18 @@ def draw_weapon(surf: pygame.Surface, weapon: Weapon, grip_xy: Vec, angle_deg: f
                             [_pt(tip, angle_deg - 60, w + 2),
                              _pt(tip, angle_deg - 120, w + 2),
                              (int(fl[0]), int(fl[1]))])
+
+    elif weapon.kind == "revolver":
+        # Short barrel + cylinder bulge + down grip — a heavy handcannon used to
+        # shoot AND to pistol-whip up close.
+        bt = _pt(grip_xy, angle_deg, weapon.length)
+        pygame.draw.line(surf, color, (gx, gy), (int(bt[0]), int(bt[1])), max(3, w))
+        cyl = _pt(grip_xy, angle_deg, weapon.length * 0.42)
+        pygame.draw.circle(surf, accent, (int(cyl[0]), int(cyl[1])), max(2, int(w * 0.9)))
+        pygame.draw.circle(surf, color, (int(cyl[0]), int(cyl[1])), max(2, int(w * 0.9)), 1)
+        gd = _pt(grip_xy, angle_deg + 110, weapon.length * 0.6)
+        pygame.draw.line(surf, color, (gx, gy), (int(gd[0]), int(gd[1])), max(2, w))
+        pygame.draw.circle(surf, accent, (int(bt[0]), int(bt[1])), max(1, int(w * 0.5)))
 
     elif weapon.kind == "kunai":
         # Twin throwing knives with ring pommels, off-hand fanned.

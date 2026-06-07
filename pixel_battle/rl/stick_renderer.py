@@ -577,6 +577,10 @@ _STYLES = {
                         "idle_oscillations": [
                             {"field": "near_hand_y_offset", "amplitude": 3.0, "period_ms": 750.0},
                         ]}},
+    "outlaw":      {"head_shape": "circle",   "head_size": 25, "crest": "wide_brim",
+                    "torso_length": 98, "upper_arm": 33, "forearm": 32,  # gunslinger
+                    "thigh": 34, "shin": 34, "line_width": 6,
+                    "hand_radius": 5, "foot_length": 16},
 }
 
 _DEFAULT_STYLE = {"head_shape": "circle", "head_size": 22,
@@ -597,6 +601,7 @@ _CAPES = {
     "pantheon": (190, 60, 50), "bulwark": (60, 100, 160),
     "reaver": (70, 40, 110), "pyre": (200, 70, 20),
     "wrecker": (90, 70, 70), "skylance": (190, 60, 50),
+    "outlaw": (150, 110, 70),
 }
 
 

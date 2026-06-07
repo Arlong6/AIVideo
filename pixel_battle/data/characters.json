@@ -1429,5 +1429,73 @@
         "range": 320
       }
     ]
+  },
+  "outlaw": {
+    "display_name": "Outlaw",
+    "color": [
+      200,
+      150,
+      90
+    ],
+    "accent_color": [
+      245,
+      230,
+      200
+    ],
+    "brand_color": [
+      230,
+      170,
+      60
+    ],
+    "attack_interval_ms": 820,
+    "accuracy": 0.82,
+    "damage": [
+      2,
+      3
+    ],
+    "skills": [
+      {
+        "id": "pistol_whip",
+        "type": "basic",
+        "anim": "slash",
+        "vfx": "melee"
+      },
+      {
+        "id": "gun_shot",
+        "type": "cooldown",
+        "anim": "cast",
+        "vfx": "bolt",
+        "cooldown_ms": 2200,
+        "dmg": 5,
+        "range": 230
+      },
+      {
+        "id": "fan_hammer",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "multishot",
+        "mp_cost": 18,
+        "dmg": 6,
+        "range": 240
+      },
+      {
+        "id": "point_blank",
+        "type": "special",
+        "anim": "slash",
+        "vfx": "melee",
+        "mp_cost": 20,
+        "dmg": 9,
+        "range": "melee"
+      },
+      {
+        "id": "high_noon",
+        "type": "ultimate",
+        "anim": "cast",
+        "vfx": "bolt",
+        "mp_cost": 100,
+        "dmg": 70,
+        "range": 320
+      }
+    ]
   }
 }

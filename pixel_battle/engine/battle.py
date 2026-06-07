@@ -64,6 +64,7 @@ RETREAT_DURATION_MS = 800           # max consecutive ms in retreat before force
 WALL_STUCK_PX = 30                  # distance from AI_ENGAGE_LEFT/RIGHT that counts as stuck
 DEFENSIVE_RETREAT_HP = 15           # HP below which defensive retreat may trigger
 MIN_CHAR_DISTANCE = 70              # px; min horizontal distance between character centers
+DASH_SPECIAL_KB_MULT = 1.2         # dash/special hits LAUNCH a bit harder (knockback → chase)
 
 
 def _hitstop_for(is_crit: bool, skill_type: SkillType = SkillType.BASIC) -> int:
@@ -397,7 +398,12 @@ class Battle:
         if skill.vfx in _PROJECTILE_VFX:
             defender.vel_x = 0.0
         else:
-            defender.vel_x = knockback_dir * (KNOCKBACK_BASE + dmg * KNOCKBACK_DMG_SCALE)
+            kb = KNOCKBACK_BASE + dmg * KNOCKBACK_DMG_SCALE
+            # Dash/special hits LAUNCH the defender — they fly back and the
+            # attacker re-approaches (a launch-and-chase beat, not a static trade).
+            if skill.vfx == "dash" or skill.skill_type in (SkillType.SPECIAL, SkillType.COOLDOWN):
+                kb *= DASH_SPECIAL_KB_MULT
+            defender.vel_x = knockback_dir * kb
         # Cancel defender's attack if mid-swing
         if defender.attack_phase != "none":
             defender.attack_phase = "none"

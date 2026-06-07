@@ -42,7 +42,7 @@ ARCH = {
     # melee bruisers/tanks/duelists — advance and trade
     "yasuo": "melee", "garen": "melee", "pantheon": "melee", "mordekaiser": "melee",
     "bulwark": "melee", "ironfist": "melee", "reaver": "melee", "cyclone": "melee",
-    "wrecker": "melee", "cleaver": "melee",
+    "wrecker": "melee", "cleaver": "melee", "outlaw": "melee",
 }
 L_ARCH, R_ARCH = ARCH.get(LEFT, "melee"), ARCH.get(RIGHT, "melee")
 ULT_ADJACENT = VFX in ("slam", "spin", "dash", "melee")   # ult needs to be in close

@@ -49,7 +49,7 @@ _MAGE_IDS = frozenset({"lux", "pyre"})
 # Per-shooter projectile visual (marksmen each fire something distinct).
 _PROJECTILE_KIND = {
     "lux": "orb", "pyre": "fire", "ashe": "ice", "jinx": "rocket",
-    "deadeye": "bullet", "quarrel": "bolt", "venom": "kunai",
+    "deadeye": "bullet", "quarrel": "bolt", "venom": "kunai", "outlaw": "bullet",
 }
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
