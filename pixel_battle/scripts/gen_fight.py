@@ -62,10 +62,12 @@ def _specials(cid):
 # by longer "breath" beats (movement/jump) give each class its own rhythm instead
 # of one metronomic 470ms pulse. Phrases loop until the ult approach.
 _PHRASES = {
-    # archer/mage: quick double-tap, breathe, single shot, reposition
+    # archer/mage: fire, sidestep-hop, fire, reposition — kites at spacing, never
+    # clinches. A brief retreat opens distance then it resumes firing.
     "ranged": [
-        ("attack:basic", 360), ("attack:cd", 380), ("jump", 640),
-        ("attack:basic", 360), ("attack:basic", 380), ("attack:cd", 660),
+        ("attack:basic", 360), ("attack:cd", 400), ("jump", 520),
+        ("attack:basic", 360), ("retreat", 360), ("advance", 300),
+        ("attack:basic", 380), ("attack:cd", 640),
     ],
     # assassin: an ASSASSINATION ROTATION — blink onto the target, blade flurry,
     # dash-strike reposition, aerial mix-up, vanish out, re-engage. Dense and
@@ -84,11 +86,14 @@ _PHRASES = {
         ("attack:basic", 250),
         ("attack:cd", 460),      # dash-strike, then a brief breath
     ],
-    # melee: PONDEROUS but engaged — march, a heavy cluster, brief recover, repeat
+    # melee: march in → heavy cluster → BIG disengage (flash/jump back opens a
+    # real gap a plain retreat can't, since the opponent just re-advances) →
+    # re-approach. The spacing pumps in-and-out instead of an endless clinch.
     "melee": [
-        ("advance", 280), ("attack:basic", 360), ("attack:cd", 460),
-        ("advance", 260), ("attack:basic", 360), ("attack:basic", 480),
-        ("advance", 260), ("attack:cd", 420), ("jump", 520),
+        ("advance", 280), ("attack:basic", 360), ("attack:cd", 440),
+        ("attack:basic", 420), ("retreat", 340), ("retreat", 460),  # 2 hops = real gap
+        ("advance", 300), ("attack:basic", 360), ("jump", 440),     # leap back in
+        ("attack:cd", 520),
     ],
 }
 
