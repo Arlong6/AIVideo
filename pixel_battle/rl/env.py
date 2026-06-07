@@ -19,7 +19,7 @@ from pixel_battle.engine.rng import BattleRNG
 from pixel_battle.engine.physics import (
     MELEE_RANGE, SPECIAL_RANGE, MAX_ATTACK_RANGE,
     FLASH_DISTANCE, FLASH_COOLDOWN_MS, WALK_SPEED, clamp_x,
-    FLASH_ARENA_LEFT, FLASH_ARENA_RIGHT,
+    FLASH_ARENA_LEFT, FLASH_ARENA_RIGHT, JUMP_VELOCITY,
 )
 
 
@@ -194,7 +194,7 @@ class PixelBattleEnv(gym.Env):
             me.vel_x = WALK_SPEED * fwd
             me.facing = fwd
         elif action == 3 and me.on_ground:       # jump
-            me.vel_y = -8.0
+            me.vel_y = JUMP_VELOCITY              # ~3x the old -8 hop — a real leap
             me.on_ground = False
         elif action == 4 and dist <= MELEE_RANGE:      # basic attack
             self.battle._start_attack_with_kind(me, opp, "basic")
