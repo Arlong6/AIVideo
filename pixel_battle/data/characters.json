@@ -205,7 +205,7 @@
         "anim": "slam",
         "vfx": "slam",
         "mp_cost": 100,
-        "dmg": 70
+        "dmg": 110
       }
     ]
   },
@@ -277,7 +277,7 @@
         "anim": "cast",
         "vfx": "beam",
         "mp_cost": 100,
-        "dmg": 70,
+        "dmg": 110,
         "range": 340
       }
     ]
@@ -348,7 +348,7 @@
         "anim": "dash",
         "vfx": "dash",
         "mp_cost": 100,
-        "dmg": 70
+        "dmg": 110
       }
     ]
   },
@@ -420,7 +420,7 @@
         "anim": "cast",
         "vfx": "bolt",
         "mp_cost": 100,
-        "dmg": 70,
+        "dmg": 110,
         "range": 340
       }
     ]
@@ -491,7 +491,7 @@
         "anim": "slam",
         "vfx": "slam",
         "mp_cost": 100,
-        "dmg": 70
+        "dmg": 110
       }
     ]
   },
@@ -562,7 +562,7 @@
         "anim": "slam",
         "vfx": "slam",
         "mp_cost": 100,
-        "dmg": 70
+        "dmg": 110
       }
     ]
   },
@@ -627,7 +627,7 @@
         "anim": "spin",
         "vfx": "spin",
         "mp_cost": 100,
-        "dmg": 70
+        "dmg": 110
       }
     ]
   },
@@ -699,7 +699,7 @@
         "anim": "cast",
         "vfx": "beam",
         "mp_cost": 100,
-        "dmg": 70,
+        "dmg": 110,
         "range": 340
       }
     ]
@@ -770,7 +770,7 @@
         "anim": "slam",
         "vfx": "slam",
         "mp_cost": 100,
-        "dmg": 70
+        "dmg": 110
       }
     ]
   },
@@ -840,7 +840,7 @@
         "anim": "spin",
         "vfx": "spin",
         "mp_cost": 100,
-        "dmg": 70
+        "dmg": 110
       }
     ]
   },
@@ -911,7 +911,7 @@
         "anim": "spin",
         "vfx": "spin",
         "mp_cost": 100,
-        "dmg": 70
+        "dmg": 110
       }
     ]
   },
@@ -983,7 +983,7 @@
         "anim": "cast",
         "vfx": "multishot",
         "mp_cost": 100,
-        "dmg": 70,
+        "dmg": 110,
         "range": 300
       }
     ]
@@ -1054,7 +1054,7 @@
         "anim": "spin",
         "vfx": "spin",
         "mp_cost": 100,
-        "dmg": 70
+        "dmg": 110
       }
     ]
   },
@@ -1125,7 +1125,7 @@
         "anim": "slam",
         "vfx": "slam",
         "mp_cost": 100,
-        "dmg": 70
+        "dmg": 110
       }
     ]
   },
@@ -1197,7 +1197,7 @@
         "anim": "cast",
         "vfx": "bolt",
         "mp_cost": 100,
-        "dmg": 70,
+        "dmg": 110,
         "range": 340
       }
     ]
@@ -1268,7 +1268,7 @@
         "anim": "spin",
         "vfx": "spin",
         "mp_cost": 100,
-        "dmg": 70
+        "dmg": 110
       }
     ]
   },
@@ -1346,7 +1346,7 @@
         "anim": "cast",
         "vfx": "beam",
         "mp_cost": 100,
-        "dmg": 70,
+        "dmg": 110,
         "range": 340
       }
     ]
@@ -1425,7 +1425,7 @@
         "anim": "cast",
         "vfx": "multishot",
         "mp_cost": 100,
-        "dmg": 70,
+        "dmg": 110,
         "range": 320
       }
     ]
@@ -1493,7 +1493,7 @@
         "anim": "cast",
         "vfx": "bolt",
         "mp_cost": 100,
-        "dmg": 70,
+        "dmg": 110,
         "range": 320
       }
     ]
