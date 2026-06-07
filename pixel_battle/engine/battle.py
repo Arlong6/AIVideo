@@ -65,6 +65,7 @@ WALL_STUCK_PX = 30                  # distance from AI_ENGAGE_LEFT/RIGHT that co
 DEFENSIVE_RETREAT_HP = 15           # HP below which defensive retreat may trigger
 MIN_CHAR_DISTANCE = 70              # px; min horizontal distance between character centers
 DASH_SPECIAL_KB_MULT = 1.2         # dash/special hits LAUNCH a bit harder (knockback → chase)
+CROSS_UP_RANGE = 150               # px; an assassin dash from inside this whirls THROUGH
 
 
 def _hitstop_for(is_crit: bool, skill_type: SkillType = SkillType.BASIC) -> int:
@@ -677,8 +678,21 @@ class Battle:
         Either way the defender is briefly frozen so the skill reads.
         """
         if skill.vfx == "dash":
-            char.facing = 1 if opp.pos_x > char.pos_x else -1
-            char.vel_x = DASH_LUNGE_SPEED * char.facing
+            toward = 1 if opp.pos_x > char.pos_x else -1
+            land = opp.pos_x + toward * (MIN_CHAR_DISTANCE + 8)
+            # Assassin-only cross-up: whirl THROUGH to the far side for a mix-up,
+            # but ONLY when the landing is well inside the arena. Near a wall the
+            # teleport tangles the fighters (the opponent gets pinned), so there
+            # it just lunges normally.
+            if (char.id == "katarina"
+                    and abs(opp.pos_x - char.pos_x) < CROSS_UP_RANGE
+                    and AI_ENGAGE_LEFT + 30 < land < AI_ENGAGE_RIGHT - 30):
+                char.pos_x = land
+                char.vel_x = 0.0
+                char.facing = 1 if opp.pos_x > char.pos_x else -1
+            else:
+                char.facing = toward
+                char.vel_x = DASH_LUNGE_SPEED * toward
         elif skill.vfx in _PROJECTILE_VFX:
             # Ranged casters plant their feet and fire — no spacing hop-back.
             # Two ranged fighters otherwise hop-back each other into opposite

@@ -1118,13 +1118,33 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     active_shockwaves.append([
                         int(_ult_target_x), int(_ult_target_y) - 90,
                         _ult_burst_color, 0, 24, 520])
+                    # EXECUTION: a ground crater — debris kicked up + dust + a
+                    # wide low ground-crack ring, and a heavier shake below.
+                    for _d in range(3):
+                        impact_fx.spawn_hit_spark(int(_ult_target_x), GROUND_Y - 6,
+                                                  26, _ult_brand_col)
+                    impact_fx.spawn_smoke_cloud(x=float(_ult_target_x),
+                                                y=float(GROUND_Y), color=(150, 142, 130))
+                    active_shockwaves.append([
+                        int(_ult_target_x), GROUND_Y - 4, (230, 220, 200), 0, 13, 580])
+                    screen_shake_frames_left = max(screen_shake_frames_left, 40)
+                    screen_shake_mag = max(screen_shake_mag, 14)
                 elif _ult_pending_vfx == "bolt":
-                    projectiles.spawn(start=(int(_ult_actor_x), int(_ult_actor_y) - 130),
-                                       end=(int(_ult_target_x), int(_ult_target_y) - 90),
-                                       color=_ult_burst_color,
-                                       current_ms=int(frame * RENDER_MS),
-                                       duration_ms=240,
-                                       kind=_PROJECTILE_KIND.get(_ult_actor_id, "orb"))
+                    # A converging VOLLEY (e.g. 3 giant ice shards) + an impact punch
+                    # — a single bolt read too thin for a climax.
+                    _bk = _PROJECTILE_KIND.get(_ult_actor_id, "orb")
+                    for _o in (-15, 0, 15):
+                        projectiles.spawn(
+                            start=(int(_ult_actor_x), int(_ult_actor_y) - 130),
+                            end=(int(_ult_target_x), int(_ult_target_y) - 90 + _o),
+                            color=_ult_burst_color,
+                            current_ms=int(frame * RENDER_MS),
+                            duration_ms=240, kind=_bk)
+                    impact_fx.spawn_hit_spark(
+                        int(_ult_target_x), int(_ult_target_y) - 95, 30, _ult_brand_col)
+                    active_shockwaves.append([
+                        int(_ult_target_x), int(_ult_target_y) - 95,
+                        _ult_brand_col, 0, 18, 410])
                 elif _ult_pending_vfx == "multishot":
                     # Gunslinger bullet-hell / ninja blade-fan: a spread of
                     # projectiles converging on the defender.
