@@ -49,11 +49,13 @@ ULT_ADJACENT = VFX in ("slam", "spin", "dash", "melee")   # ult needs to be in c
 
 
 def _specials(cid):
-    """Damaging special skill ids for a champion (defender spends MP on these)."""
+    """All special (MP-spending) skill ids — damaging first, then buffs/utility,
+    so the rotation shows the FULL kit, not just basics + the ultimate."""
     import json
     d = json.load(open("pixel_battle/data/characters.json"))
-    return [s["id"] for s in d[cid]["skills"]
-            if s["type"] == "special" and s.get("dmg", 0) > 0]
+    sk = [s for s in d[cid]["skills"] if s["type"] == "special"]
+    sk.sort(key=lambda s: 0 if s.get("dmg", 0) > 0 else 1)   # damaging first
+    return [s["id"] for s in sk]
 
 
 # Per-archetype PHRASES: (action, gap_after_ms). Tight attack clusters punctuated
@@ -98,12 +100,22 @@ def side_actions(arch, is_caster, cid):
     rows = []
     sp = _specials(cid)
     phrase = _PHRASES.get(arch, _PHRASES["melee"])
-    t, pi = (400 if is_caster else 700), 0
+    t, pi, si = (400 if is_caster else 700), 0, 0
     end = ULT_T - 700 if is_caster else ULT_T - 500
+    # The caster must hold MP=100 for the ult. Melee/assassin casters regain MP
+    # fast (many connecting hits) so they can spend on specials then rebuild;
+    # ranged casters kite — their MP regen is too slow, so they keep MP for the
+    # ult and show variety through their projectile basics + cooldown instead.
+    # Defenders need no ult, so they spend freely and often.
+    if is_caster:
+        cast_until = 0 if arch == "ranged" else (ULT_T - 8500)
+    else:
+        cast_until = end
+    period = 5 if is_caster else 3
     while t < end:
         act, gap = phrase[pi % len(phrase)]
-        if (not is_caster) and sp and act == "attack:basic" and pi % 4 == 3:
-            act = f"cast:{sp[pi % len(sp)]}"
+        if sp and act == "attack:basic" and pi % period == period - 1 and t < cast_until:
+            act = f"cast:{sp[si % len(sp)]}"; si += 1   # cycle through the whole kit
         rows.append((t, act)); t += gap; pi += 1
     return rows
 
