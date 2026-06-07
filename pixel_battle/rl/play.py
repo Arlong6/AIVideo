@@ -43,6 +43,9 @@ RENDER_MS = 1000.0 / RENDER_FPS   # 16.667 ms per render frame
 ENGINE_HZ = 60            # engine tick rate (unchanged)
 ENGINE_MS = 1000.0 / ENGINE_HZ    # 16.667 ms per engine tick
 HIT_FLASH = (255, 255, 255)   # color a fighter flashes to when struck
+# True arcane casters — get a magic circle + rune aura on their casts so they
+# read as spellcasters (the deliberate opposite of the de-magified assassins).
+_MAGE_IDS = frozenset({"lux", "pyre"})
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
 # same feet-landing line the simulation uses, or the camera and floor will
@@ -843,6 +846,11 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     ax, ay = int(actor_obj.pos_x), int(actor_obj.pos_y)
                     tx, ty = int(target_obj.pos_x), int(target_obj.pos_y)
                     now_ms = int(frame * RENDER_MS)
+                    # Arcane casters: a rune ring pulse at the feet + a radial
+                    # starburst so spells read as channelled magic (vs assassin steel).
+                    if actor_obj.id in _MAGE_IDS and vfx in ("bolt", "multishot", "beam", "aura", "shield"):
+                        impact_fx.spawn_hit_ring(x=ax, y=GROUND_Y, color=brand_col)
+                        impact_fx.spawn_aura_starburst(x=ax, y=ay - 80, color=brand_col)
                     if vfx == "bolt":
                         projectiles.spawn(start=(ax, ay - 130), end=(tx, ty - 90),
                                            color=a_color, current_ms=now_ms,

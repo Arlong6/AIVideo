@@ -590,10 +590,23 @@ _SCALED_KEYS = frozenset({"head_size", "torso_length", "upper_arm", "forearm",
                           "thigh", "shin", "line_width", "hand_radius", "foot_length"})
 
 
+# Capes — char_id → RGB. A flowing cloak adds heroic silhouette weight; kept off
+# the lithe/bare fighters (assassins, brawler, monk) on purpose.
+_CAPES = {
+    "garen": (40, 90, 200), "mordekaiser": (120, 30, 40),
+    "pantheon": (190, 60, 50), "bulwark": (60, 100, 160),
+    "reaver": (70, 40, 110), "pyre": (200, 70, 20),
+    "wrecker": (90, 70, 70), "skylance": (190, 60, 50),
+}
+
+
 def get_style(char_id: str) -> dict:
     base = _STYLES.get(char_id, _DEFAULT_STYLE)
-    return {k: (max(1, int(v * _FIGURE_SCALE)) if k in _SCALED_KEYS else v)
-            for k, v in base.items()}
+    out = {k: (max(1, int(v * _FIGURE_SCALE)) if k in _SCALED_KEYS else v)
+           for k, v in base.items()}
+    if char_id in _CAPES:
+        out["cape"] = _CAPES[char_id]
+    return out
 
 
 # ── Jointed skeleton draw helpers ─────────────────────────────────────────────
@@ -750,6 +763,30 @@ def _draw_ghost(surf, char, color, offset_x, alpha, style):
     surf.blit(ghost, (0, 0))
 
 
+def _draw_cape(surf, geo, style, time_ms: float, vel_x: float) -> None:
+    """A flowing cape behind the figure (style['cape'] = RGB). Billows with a
+    gentle time wave plus a velocity-driven drag, so it reads as cloth in motion.
+    Drawn before the back limbs so the body sits on top of it."""
+    cape_col = style.get("cape")
+    if not cape_col:
+        return
+    f = geo.facing
+    back = -f                          # cape trails the way the figure faces away
+    sx, sy = geo.shoulder
+    L = style["torso_length"] * 1.08
+    w = max(3, style["line_width"])
+    sway = math.sin(time_ms / 240.0) * 5.0 - float(vel_x) * 2.6   # billow + drag
+    collar1 = (sx - f * w * 0.4, sy - w * 0.3)
+    collar2 = (sx + back * w * 1.3, sy + w * 0.2)
+    hemx = sx + back * (L * 0.42) + sway
+    hem_out = (hemx + back * w * 2.2, sy + L * 0.88)
+    hem_in = (hemx - w * 1.1 + back * w * 0.4, sy + L)
+    pts = [(int(collar1[0]), int(collar1[1])), (int(collar2[0]), int(collar2[1])),
+           (int(hem_out[0]), int(hem_out[1])), (int(hem_in[0]), int(hem_in[1]))]
+    pygame.draw.polygon(surf, cape_col, pts)
+    pygame.draw.polygon(surf, (0, 0, 0), pts, 1)
+
+
 # ── Main draw function ────────────────────────────────────────────────────────
 
 def draw_stick_figure(surf, char, color, dt_ms: float = _RENDER_TICK_MS,
@@ -804,6 +841,9 @@ def draw_stick_figure(surf, char, color, dt_ms: float = _RENDER_TICK_MS,
     # Motion-afterimage ghosts: update snapshot queue, then draw behind figure
     rs.update_motion_ghosts(char, style, dt_ms=dt_ms)
     rs.draw_motion_ghosts(surf, color, style)
+
+    # Cape (if any) sits behind the body.
+    _draw_cape(surf, geo, style, time_ms, char.vel_x)
 
     # Back limbs first (depth).
     _draw_limb(surf, color, geo.shoulder, geo.back_elbow, geo.back_hand,
