@@ -850,6 +850,23 @@ def draw_stick_figure(surf, char, color, dt_ms: float = _RENDER_TICK_MS,
     # Cape (if any) sits behind the body.
     _draw_cape(surf, geo, style, time_ms, char.vel_x)
 
+    # Soft RIM GLOW — the skeleton drawn thick in the champion's brand colour on
+    # an additive layer behind the body, so the silhouette reads lit/premium
+    # (the body lines draw on top, leaving a coloured rim).
+    _glow_col = getattr(char, "brand_color", color)
+    _gw = lw + 5
+    _gl = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    _ga = (_glow_col[0], _glow_col[1], _glow_col[2], 55)
+    for _a, _b in ((geo.hip, geo.shoulder), (geo.shoulder, geo.back_elbow),
+                   (geo.back_elbow, geo.back_hand), (geo.shoulder, geo.front_elbow),
+                   (geo.front_elbow, geo.front_hand), (geo.hip, geo.back_knee),
+                   (geo.back_knee, geo.back_foot), (geo.hip, geo.front_knee),
+                   (geo.front_knee, geo.front_foot)):
+        pygame.draw.line(_gl, _ga, _a, _b, _gw)
+    pygame.draw.circle(_gl, _ga, (int(geo.head_center[0]), int(geo.head_center[1])),
+                       style["head_size"] + 3)
+    surf.blit(_gl, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
     # Back limbs first (depth).
     _draw_limb(surf, color, geo.shoulder, geo.back_elbow, geo.back_hand,
                lw, style["hand_radius"])
