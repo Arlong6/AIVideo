@@ -62,38 +62,35 @@ def _specials(cid):
 # by longer "breath" beats (movement/jump) give each class its own rhythm instead
 # of one metronomic 470ms pulse. Phrases loop until the ult approach.
 _PHRASES = {
-    # archer/mage: fire, sidestep-hop, fire, reposition — kites at spacing, never
-    # clinches. A brief retreat opens distance then it resumes firing.
+    # archer/mage: fire, DUCK an incoming shot, fire, hop, reposition — kites and
+    # bobs at spacing, never clinches.
     "ranged": [
-        ("attack:basic", 360), ("attack:cd", 400), ("jump", 520),
-        ("attack:basic", 360), ("retreat", 360), ("advance", 300),
-        ("attack:basic", 380), ("attack:cd", 640),
+        ("attack:basic", 360), ("crouch", 320), ("attack:cd", 380),
+        ("jump", 460), ("attack:basic", 360), ("retreat", 340),
+        ("advance", 280), ("attack:basic", 380), ("attack:cd", 600),
     ],
-    # assassin: an ASSASSINATION ROTATION — blink onto the target, blade flurry,
-    # dash-strike reposition, aerial mix-up, vanish out, re-engage. Dense and
-    # darting (a Zed/Katarina-style dive) rather than a static trade.
+    # assassin: a HYPER-MOBILE assassination dance — blink in, fast cuts, aerial
+    # mix-ups, duck a counter, vanish, dart back. Constantly moving (lots of
+    # flash/dash/jump) so it never stands and trades.
     "assassin": [
-        ("flash:in", 200),       # blink onto the target
-        ("attack:basic", 250),   # ↘ dagger flurry
-        ("attack:basic", 250),
-        ("attack:cd", 280),      # shadow-step dash-strike (reposition + cut)
-        ("attack:basic", 250),
-        ("jump", 320),           # aerial mix-up
-        ("attack:cd", 300),      # dash-strike on the way down
-        ("attack:basic", 250),
-        ("flash:back", 280),     # vanish out
-        ("advance", 240),        # dart back in
-        ("attack:basic", 250),
-        ("attack:cd", 460),      # dash-strike, then a brief breath
+        ("flash:in", 190), ("attack:basic", 230), ("attack:basic", 230),
+        ("attack:cd", 250),                      # shadow-step dash-strike
+        ("jump", 250),                           # aerial
+        ("attack:basic", 230), ("crouch", 240),  # duck a counter
+        ("flash:back", 240),                     # vanish
+        ("advance", 210), ("attack:basic", 230),
+        ("jump", 260),                           # more air mix-up
+        ("attack:cd", 250), ("attack:basic", 230),
+        ("flash:in", 190), ("attack:basic", 230),
+        ("retreat", 300),
     ],
-    # melee: march in → heavy cluster → BIG disengage (flash/jump back opens a
-    # real gap a plain retreat can't, since the opponent just re-advances) →
-    # re-approach. The spacing pumps in-and-out instead of an endless clinch.
+    # melee: march in → heavy cluster → DISENGAGE → leap/duck → re-approach, so
+    # the spacing pumps in-and-out (no endless face-to-face clinch).
     "melee": [
         ("advance", 280), ("attack:basic", 360), ("attack:cd", 440),
-        ("attack:basic", 420), ("retreat", 340), ("retreat", 460),  # 2 hops = real gap
-        ("advance", 300), ("attack:basic", 360), ("jump", 440),     # leap back in
-        ("attack:cd", 520),
+        ("attack:basic", 420), ("retreat", 340), ("jump", 380),     # leap out
+        ("advance", 280), ("attack:basic", 360), ("crouch", 320),   # duck a swing
+        ("attack:cd", 460), ("jump", 440),
     ],
 }
 
