@@ -46,6 +46,11 @@ HIT_FLASH = (255, 255, 255)   # color a fighter flashes to when struck
 # True arcane casters — get a magic circle + rune aura on their casts so they
 # read as spellcasters (the deliberate opposite of the de-magified assassins).
 _MAGE_IDS = frozenset({"lux", "pyre"})
+# Per-shooter projectile visual (marksmen each fire something distinct).
+_PROJECTILE_KIND = {
+    "lux": "orb", "pyre": "fire", "ashe": "ice", "jinx": "rocket",
+    "deadeye": "bullet", "quarrel": "bolt", "venom": "kunai",
+}
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
 # same feet-landing line the simulation uses, or the camera and floor will
@@ -851,16 +856,17 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     if actor_obj.id in _MAGE_IDS and vfx in ("bolt", "multishot", "beam", "aura", "shield"):
                         impact_fx.spawn_hit_ring(x=ax, y=GROUND_Y, color=brand_col)
                         impact_fx.spawn_aura_starburst(x=ax, y=ay - 80, color=brand_col)
+                    pkind = _PROJECTILE_KIND.get(actor_obj.id, "orb")
                     if vfx == "bolt":
                         projectiles.spawn(start=(ax, ay - 130), end=(tx, ty - 90),
                                            color=a_color, current_ms=now_ms,
-                                           duration_ms=280)
+                                           duration_ms=280, kind=pkind)
                     elif vfx == "multishot":
                         for off in (-44, -22, 0, 22, 44):
                             projectiles.spawn(start=(ax, ay - 110),
                                                end=(tx, ty - 90 + off),
                                                color=a_color, current_ms=now_ms,
-                                               duration_ms=300)
+                                               duration_ms=300, kind=pkind)
                         # Multishot fan sparks from caster hand
                         for off_deg in (-20, -10, 0, 10, 20):
                             impact_fx.spawn_hit_spark(
@@ -951,6 +957,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         surf_size=(WIDTH, HEIGHT))
                     # Store deferred VFX info for RELEASE phase
                     _ult_pending_vfx = (ev.extra or {}).get("vfx", "slam")
+                    _ult_actor_id = actor_obj.id
                     _ult_actor_x = float(actor_obj.pos_x)
                     _ult_actor_y = float(actor_obj.pos_y)
                     _ult_target_x = float(defender.pos_x)
@@ -1116,10 +1123,12 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                                        end=(int(_ult_target_x), int(_ult_target_y) - 90),
                                        color=_ult_burst_color,
                                        current_ms=int(frame * RENDER_MS),
-                                       duration_ms=240)
+                                       duration_ms=240,
+                                       kind=_PROJECTILE_KIND.get(_ult_actor_id, "orb"))
                 elif _ult_pending_vfx == "multishot":
                     # Gunslinger bullet-hell / ninja blade-fan: a spread of
                     # projectiles converging on the defender.
+                    _ukind = _PROJECTILE_KIND.get(_ult_actor_id, "orb")
                     for _k in range(5):
                         _spread = (_k - 2) * 24
                         projectiles.spawn(
@@ -1127,7 +1136,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                             end=(int(_ult_target_x), int(_ult_target_y) - 90 + _spread),
                             color=_ult_burst_color,
                             current_ms=int(frame * RENDER_MS),
-                            duration_ms=240)
+                            duration_ms=240, kind=_ukind)
                     impact_fx.spawn_hit_spark(
                         int(_ult_target_x), int(_ult_target_y) - 95, 26, _ult_brand_col)
                     active_shockwaves.append([

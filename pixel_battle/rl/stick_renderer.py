@@ -1052,51 +1052,137 @@ class ProjectileLayer:
         # Each item: (start_x, start_y, end_x, end_y, t0_ms, duration_ms, color)
         self._items = []
 
-    def spawn(self, start, end, color, current_ms, duration_ms=350):
-        """Add a new projectile traveling start->end over duration_ms."""
+    def spawn(self, start, end, color, current_ms, duration_ms=350, kind="orb"):
+        """Add a projectile traveling start->end over duration_ms. `kind` selects
+        a per-weapon visual: orb(mage)/ice/rocket/bullet/bolt/kunai/fire."""
         self._items.append((
-            int(start[0]), int(start[1]),
-            int(end[0]), int(end[1]),
-            int(current_ms), int(duration_ms),
-            tuple(color),
+            int(start[0]), int(start[1]), int(end[0]), int(end[1]),
+            int(current_ms), int(duration_ms), tuple(color), kind,
         ))
 
     def draw(self, surf, current_ms):
-        """Render every live projectile and cull expired ones.
-
-        Each projectile is drawn as a 4px filled circle (with a 1px black
-        outline) plus three fading tail dots trailing behind.
-        """
+        """Render every live projectile (per `kind` visual) and cull expired ones."""
         live = []
         for item in self._items:
-            sx, sy, ex, ey, t0, dur, color = item
+            sx, sy, ex, ey, t0, dur, color, kind = item
             t = (current_ms - t0) / dur
             if t >= 1.0:
                 continue
             live.append(item)
             cx = sx + (ex - sx) * t
             cy = sy + (ey - sy) * t
-            # Comet trail — 7 trailing glow segments (additive) for a bright streak
-            for offset, ga, rad in ((0.05, 150, 16), (0.10, 120, 14), (0.15, 95, 12),
-                                    (0.20, 70, 10), (0.26, 48, 8), (0.32, 30, 6),
-                                    (0.40, 18, 5)):
-                tt = max(0.0, t - offset)
-                tx = sx + (ex - sx) * tt
-                ty = sy + (ey - sy) * tt
-                d = rad * 2 + 2
-                tail = pygame.Surface((d, d), pygame.SRCALPHA)
-                pygame.draw.circle(tail, (*color, ga), (d // 2, d // 2), rad)
-                surf.blit(tail, (int(tx) - d // 2, int(ty) - d // 2),
-                          special_flags=pygame.BLEND_RGB_ADD)
-            # Luminous orb: soft additive halo (3 rings) → glows like real magic,
-            # not a flat dot. Readable even when the camera is pulled way back.
-            gr = 30
-            glow = pygame.Surface((gr * 2, gr * 2), pygame.SRCALPHA)
-            for rr, ga in ((gr, 45), (int(gr * 0.62), 80), (int(gr * 0.32), 140)):
-                pygame.draw.circle(glow, (*color, ga), (gr, gr), rr)
-            surf.blit(glow, (int(cx) - gr, int(cy) - gr),
-                      special_flags=pygame.BLEND_RGB_ADD)
-            # White-hot core on top
-            pygame.draw.circle(surf, color, (int(cx), int(cy)), 11)
-            pygame.draw.circle(surf, (255, 255, 255), (int(cx), int(cy)), 6)
+            ang = math.atan2(ey - sy, ex - sx)
+            if kind == "ice":
+                self._draw_ice(surf, cx, cy, ang, sx, sy, ex, ey, t)
+            elif kind == "rocket":
+                self._draw_rocket(surf, cx, cy, ang, color, sx, sy, ex, ey, t)
+            elif kind == "bullet":
+                self._draw_bullet(surf, cx, cy, ang, color)
+            elif kind == "bolt":
+                self._draw_bolt(surf, cx, cy, ang, color)
+            elif kind == "kunai":
+                self._draw_kunai(surf, cx, cy, color, current_ms)
+            elif kind == "fire":
+                self._draw_fire(surf, cx, cy, sx, sy, ex, ey, t, current_ms)
+            else:
+                self._draw_orb(surf, cx, cy, color, sx, sy, ex, ey, t)
         self._items = live
+
+    @staticmethod
+    def _trail(surf, sx, sy, ex, ey, t, segs, add=True):
+        for off, a, r, col in segs:
+            tt = max(0.0, t - off)
+            tx = sx + (ex - sx) * tt
+            ty = sy + (ey - sy) * tt
+            d = r * 2 + 2
+            s = pygame.Surface((d, d), pygame.SRCALPHA)
+            pygame.draw.circle(s, (*col, a), (d // 2, d // 2), r)
+            surf.blit(s, (int(tx) - d // 2, int(ty) - d // 2),
+                      special_flags=pygame.BLEND_RGB_ADD if add else 0)
+
+    def _draw_orb(self, surf, cx, cy, color, sx, sy, ex, ey, t):       # mage light
+        self._trail(surf, sx, sy, ex, ey, t,
+                    [(0.05, 150, 16, color), (0.10, 120, 14, color), (0.15, 95, 12, color),
+                     (0.20, 70, 10, color), (0.26, 48, 8, color), (0.32, 30, 6, color)])
+        gr = 30
+        glow = pygame.Surface((gr * 2, gr * 2), pygame.SRCALPHA)
+        for rr, ga in ((gr, 45), (int(gr * 0.62), 80), (int(gr * 0.32), 140)):
+            pygame.draw.circle(glow, (*color, ga), (gr, gr), rr)
+        surf.blit(glow, (int(cx) - gr, int(cy) - gr), special_flags=pygame.BLEND_RGB_ADD)
+        pygame.draw.circle(surf, color, (int(cx), int(cy)), 11)
+        pygame.draw.circle(surf, (255, 255, 255), (int(cx), int(cy)), 6)
+
+    def _draw_ice(self, surf, cx, cy, ang, sx, sy, ex, ey, t):          # frost arrow
+        self._trail(surf, sx, sy, ex, ey, t,
+                    [(0.08, 120, 4, (200, 240, 255)), (0.16, 80, 3, (200, 240, 255)),
+                     (0.26, 50, 2, (200, 240, 255))])
+        L, W = 15, 5
+        p = ang + math.pi / 2
+        tip = (cx + math.cos(ang) * L, cy + math.sin(ang) * L)
+        back = (cx - math.cos(ang) * L * 0.7, cy - math.sin(ang) * L * 0.7)
+        s1 = (cx + math.cos(p) * W, cy + math.sin(p) * W)
+        s2 = (cx - math.cos(p) * W, cy - math.sin(p) * W)
+        pts = [(int(tip[0]), int(tip[1])), (int(s1[0]), int(s1[1])),
+               (int(back[0]), int(back[1])), (int(s2[0]), int(s2[1]))]
+        pygame.draw.polygon(surf, (180, 235, 255), pts)
+        pygame.draw.polygon(surf, (255, 255, 255), pts, 1)
+
+    def _draw_rocket(self, surf, cx, cy, ang, color, sx, sy, ex, ey, t):  # explosive
+        self._trail(surf, sx, sy, ex, ey, t,
+                    [(0.10, 90, 6, (170, 170, 170)), (0.20, 58, 7, (160, 160, 160)),
+                     (0.32, 34, 8, (150, 150, 150))], add=False)
+        back = (cx - math.cos(ang) * 10, cy - math.sin(ang) * 10)
+        fs = pygame.Surface((16, 16), pygame.SRCALPHA)
+        pygame.draw.circle(fs, (255, 180, 40, 200), (8, 8), 6)
+        surf.blit(fs, (int(back[0]) - 8, int(back[1]) - 8), special_flags=pygame.BLEND_RGB_ADD)
+        tip = (cx + math.cos(ang) * 9, cy + math.sin(ang) * 9)
+        pygame.draw.line(surf, color, (int(back[0]), int(back[1])),
+                         (int(tip[0]), int(tip[1])), 6)
+        pygame.draw.circle(surf, (255, 235, 130), (int(tip[0]), int(tip[1])), 3)
+
+    def _draw_bullet(self, surf, cx, cy, ang, color):                   # gun tracer
+        bt = (cx - math.cos(ang) * 24, cy - math.sin(ang) * 24)
+        s = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        pygame.draw.line(s, (*color, 150), (int(bt[0]), int(bt[1])), (int(cx), int(cy)), 2)
+        surf.blit(s, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+        pygame.draw.circle(surf, (255, 255, 225), (int(cx), int(cy)), 3)
+        pygame.draw.circle(surf, color, (int(cx), int(cy)), 2)
+
+    def _draw_bolt(self, surf, cx, cy, ang, color):                     # crossbow bolt
+        L = 16
+        p = ang + math.pi / 2
+        tip = (cx + math.cos(ang) * L, cy + math.sin(ang) * L)
+        back = (cx - math.cos(ang) * L, cy - math.sin(ang) * L)
+        pygame.draw.line(surf, color, (int(back[0]), int(back[1])),
+                         (int(tip[0]), int(tip[1])), 3)
+        h1 = (tip[0] - math.cos(ang) * 6 + math.cos(p) * 4, tip[1] - math.sin(ang) * 6 + math.sin(p) * 4)
+        h2 = (tip[0] - math.cos(ang) * 6 - math.cos(p) * 4, tip[1] - math.sin(ang) * 6 - math.sin(p) * 4)
+        pygame.draw.polygon(surf, (235, 235, 235),
+                            [(int(tip[0]), int(tip[1])), (int(h1[0]), int(h1[1])), (int(h2[0]), int(h2[1]))])
+        for s in (1, -1):
+            fl = (back[0] + math.cos(p) * 4 * s, back[1] + math.sin(p) * 4 * s)
+            pygame.draw.line(surf, (210, 130, 80), (int(back[0]), int(back[1])),
+                             (int(fl[0]), int(fl[1])), 2)
+
+    def _draw_kunai(self, surf, cx, cy, color, current_ms):             # spinning blade
+        rot = (current_ms / 38.0) % (2 * math.pi)
+        for k in range(2):
+            a = rot + k * math.pi
+            p = a + math.pi / 2
+            tip = (cx + math.cos(a) * 9, cy + math.sin(a) * 9)
+            b1 = (cx + math.cos(p) * 3, cy + math.sin(p) * 3)
+            b2 = (cx - math.cos(p) * 3, cy - math.sin(p) * 3)
+            pygame.draw.polygon(surf, color,
+                                [(int(tip[0]), int(tip[1])), (int(b1[0]), int(b1[1])), (int(b2[0]), int(b2[1]))])
+        pygame.draw.circle(surf, (30, 50, 25), (int(cx), int(cy)), 2)
+
+    def _draw_fire(self, surf, cx, cy, sx, sy, ex, ey, t, current_ms):  # fireball
+        self._trail(surf, sx, sy, ex, ey, t,
+                    [(0.08, 130, 5, (255, 110, 30)), (0.16, 85, 4, (255, 90, 20)),
+                     (0.26, 50, 3, (220, 70, 15))])
+        jit = int((current_ms // 50) % 3) - 1
+        g = pygame.Surface((24, 24), pygame.SRCALPHA)
+        pygame.draw.circle(g, (255, 140, 40, 150), (12, 12), 10)
+        pygame.draw.circle(g, (255, 210, 120, 200), (12, 12), 6)
+        surf.blit(g, (int(cx) - 12 + jit, int(cy) - 12), special_flags=pygame.BLEND_RGB_ADD)
+        pygame.draw.circle(surf, (255, 245, 200), (int(cx), int(cy)), 3)
