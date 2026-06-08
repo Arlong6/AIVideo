@@ -19633,7 +19633,7 @@
         },
         {
           "date": "2026-06-08",
-          "views": 47,
+          "views": 48,
           "likes": 0,
           "comments": 1
         }
@@ -21518,7 +21518,7 @@
         },
         {
           "date": "2026-06-08",
-          "views": 25,
+          "views": 27,
           "likes": 0,
           "comments": 1
         }
@@ -22295,7 +22295,7 @@
         },
         {
           "date": "2026-06-08",
-          "views": 105,
+          "views": 107,
           "likes": 0,
           "comments": 1
         }
@@ -22359,7 +22359,7 @@
         },
         {
           "date": "2026-06-08",
-          "views": 69,
+          "views": 71,
           "likes": 0,
           "comments": 1
         }
@@ -22852,7 +22852,7 @@
         },
         {
           "date": "2026-06-08",
-          "views": 1053,
+          "views": 1054,
           "likes": 9,
           "comments": 1
         }
@@ -22880,7 +22880,7 @@
         },
         {
           "date": "2026-06-08",
-          "views": 651,
+          "views": 652,
           "likes": 9,
           "comments": 2
         }
@@ -22924,6 +22924,22 @@
         }
       ],
       "series_tag": "political"
+    },
+    {
+      "video_id": "rCqpxcNtuP8",
+      "topic": "劉邦友血案：台灣省議員官邸滅門慘案，高層政治角力下的世紀懸案",
+      "slot": 1,
+      "duration_s": 81,
+      "publish_at": "2026-06-09T10:00:00+08:00",
+      "uploaded_at": "2026-06-08T20:36:43.777431+00:00",
+      "stats": [
+        {
+          "date": "2026-06-08",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
