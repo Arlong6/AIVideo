@@ -61,37 +61,39 @@ def _specials(cid):
 # Per-archetype PHRASES: (action, gap_after_ms). Tight attack clusters punctuated
 # by longer "breath" beats (movement/jump) give each class its own rhythm instead
 # of one metronomic 470ms pulse. Phrases loop until the ult approach.
+# Phrases mix basic + cd + special-bearing beats so consecutive attacks use
+# DIFFERENT animations (a plain swing, then a dash-strike, then a cooldown,
+# then a special) instead of the same jab on repeat — and they pump the spacing
+# CLOSE (trade) ↔ FAR (kite/reposition) ↔ close instead of locking at one range.
 _PHRASES = {
-    # archer/mage: fire, hop to dodge, fire, reposition — kites and bobs at
-    # spacing (no crouch-slide: that slides INTO melee and breaks the kite).
+    # archer/mage: fire from range, big hop-back to open distance, poke from afar,
+    # then drift in for a closer shot — the gap breathes wide↔mid.
     "ranged": [
-        ("attack:basic", 360), ("jump", 420), ("attack:cd", 380),
-        ("retreat", 320), ("attack:basic", 360), ("advance", 280),
-        ("attack:basic", 380), ("jump", 440), ("attack:cd", 600),
+        ("attack:basic", 340), ("attack:cd", 380), ("retreat", 360),   # ↗ back off FAR
+        ("jump", 380), ("attack:basic", 340),                          # poke from afar
+        ("attack:cd", 400), ("advance", 280), ("attack:basic", 340),   # drift to mid, shot
+        ("retreat", 340), ("attack:cd", 560),                          # open up again
     ],
-    # assassin: a HYPER-MOBILE assassination dance — blink in, fast cuts, aerial
-    # mix-ups, a low slide-in under a counter, vanish, dart back. Constantly
-    # moving (flash / dash / jump / slide) so it never stands and trades.
+    # assassin: hyper-mobile — blink in for a fast flurry, dash-strike, aerial,
+    # slide low, vanish FAR, dart back. Range snaps point-blank ↔ way out.
     "assassin": [
-        ("flash:in", 190), ("attack:basic", 230), ("attack:basic", 230),
-        ("attack:cd", 250),                      # shadow-step dash-strike
-        ("jump", 250),                           # aerial
-        ("attack:basic", 230), ("crouch", 230),  # ↘ slide low under a swing
-        ("attack:basic", 230), ("flash:back", 240),   # vanish out
-        ("advance", 210), ("attack:basic", 230),
-        ("jump", 260),                           # air mix-up
-        ("crouch", 230), ("attack:basic", 230),  # slide back in low
-        ("attack:cd", 250), ("flash:in", 190),
-        ("attack:basic", 230), ("retreat", 280),
+        ("flash:in", 190), ("attack:basic", 230), ("attack:cd", 240),  # blink in, cut, dash-cut
+        ("attack:basic", 230), ("jump", 250),                          # flurry + aerial
+        ("attack:cd", 240), ("crouch", 230),                           # dash-cut, slide low
+        ("flash:back", 280),                                           # VANISH far
+        ("advance", 200), ("attack:basic", 230), ("attack:cd", 240),   # dart back in
+        ("attack:basic", 230), ("jump", 250),
+        ("flash:in", 190), ("attack:cd", 240), ("attack:basic", 230),
+        ("retreat", 300),
     ],
-    # melee: march/slide in → heavy cluster → disengage → leap → re-approach, so
-    # the spacing pumps in-and-out (no endless face-to-face clinch).
+    # melee: a CLOSE trade cluster (basic+cd+special, varied swings) → disengage
+    # to mid → reposition at range → charge back in. The gap pumps in-and-out.
     "melee": [
-        ("advance", 260), ("attack:basic", 360), ("attack:cd", 440),
-        ("attack:basic", 420), ("retreat", 320), ("jump", 380),     # leap out
-        ("crouch", 280), ("attack:basic", 360),                     # slide back in low
-        ("attack:cd", 460), ("advance", 240), ("attack:basic", 360),
-        ("jump", 440),
+        ("advance", 240), ("attack:basic", 340), ("attack:cd", 420),   # close: varied trade
+        ("attack:basic", 360), ("attack:cd", 400),
+        ("retreat", 300), ("retreat", 360), ("jump", 360),             # disengage to mid+air
+        ("advance", 240), ("attack:cd", 400), ("attack:basic", 360),   # charge back, cd-first
+        ("crouch", 280),                                               # slide low
     ],
 }
 
