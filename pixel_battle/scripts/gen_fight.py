@@ -62,35 +62,36 @@ def _specials(cid):
 # by longer "breath" beats (movement/jump) give each class its own rhythm instead
 # of one metronomic 470ms pulse. Phrases loop until the ult approach.
 _PHRASES = {
-    # archer/mage: fire, DUCK an incoming shot, fire, hop, reposition — kites and
-    # bobs at spacing, never clinches.
+    # archer/mage: fire, hop to dodge, fire, reposition — kites and bobs at
+    # spacing (no crouch-slide: that slides INTO melee and breaks the kite).
     "ranged": [
-        ("attack:basic", 360), ("crouch", 320), ("attack:cd", 380),
-        ("jump", 460), ("attack:basic", 360), ("retreat", 340),
-        ("advance", 280), ("attack:basic", 380), ("attack:cd", 600),
+        ("attack:basic", 360), ("jump", 420), ("attack:cd", 380),
+        ("retreat", 320), ("attack:basic", 360), ("advance", 280),
+        ("attack:basic", 380), ("jump", 440), ("attack:cd", 600),
     ],
     # assassin: a HYPER-MOBILE assassination dance — blink in, fast cuts, aerial
-    # mix-ups, duck a counter, vanish, dart back. Constantly moving (lots of
-    # flash/dash/jump) so it never stands and trades.
+    # mix-ups, a low slide-in under a counter, vanish, dart back. Constantly
+    # moving (flash / dash / jump / slide) so it never stands and trades.
     "assassin": [
         ("flash:in", 190), ("attack:basic", 230), ("attack:basic", 230),
         ("attack:cd", 250),                      # shadow-step dash-strike
         ("jump", 250),                           # aerial
-        ("attack:basic", 230), ("crouch", 240),  # duck a counter
-        ("flash:back", 240),                     # vanish
+        ("attack:basic", 230), ("crouch", 230),  # ↘ slide low under a swing
+        ("attack:basic", 230), ("flash:back", 240),   # vanish out
         ("advance", 210), ("attack:basic", 230),
-        ("jump", 260),                           # more air mix-up
-        ("attack:cd", 250), ("attack:basic", 230),
-        ("flash:in", 190), ("attack:basic", 230),
-        ("retreat", 300),
+        ("jump", 260),                           # air mix-up
+        ("crouch", 230), ("attack:basic", 230),  # slide back in low
+        ("attack:cd", 250), ("flash:in", 190),
+        ("attack:basic", 230), ("retreat", 280),
     ],
-    # melee: march in → heavy cluster → DISENGAGE → leap/duck → re-approach, so
+    # melee: march/slide in → heavy cluster → disengage → leap → re-approach, so
     # the spacing pumps in-and-out (no endless face-to-face clinch).
     "melee": [
-        ("advance", 280), ("attack:basic", 360), ("attack:cd", 440),
-        ("attack:basic", 420), ("retreat", 340), ("jump", 380),     # leap out
-        ("advance", 280), ("attack:basic", 360), ("crouch", 320),   # duck a swing
-        ("attack:cd", 460), ("jump", 440),
+        ("advance", 260), ("attack:basic", 360), ("attack:cd", 440),
+        ("attack:basic", 420), ("retreat", 320), ("jump", 380),     # leap out
+        ("crouch", 280), ("attack:basic", 360),                     # slide back in low
+        ("attack:cd", 460), ("advance", 240), ("attack:basic", 360),
+        ("jump", 440),
     ],
 }
 

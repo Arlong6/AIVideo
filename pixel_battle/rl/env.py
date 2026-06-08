@@ -215,9 +215,11 @@ class PixelBattleEnv(gym.Env):
             me.action_state = "blocking"
             me.block_end_ms = self.battle.elapsed_ms + BLOCK_DURATION_MS
             me.vel_x = 0.0
-        elif action == 12:                       # crouch
+        elif action == 12:                       # crouch-SLIDE
             me.action_state = "crouching"
             me.crouch_end_ms = self.battle.elapsed_ms + CROUCH_DURATION_MS
+            me.vel_x = 22.0 * -fwd                # slide-dodge LOW & BACK (sliding toward
+            #                                       the opponent just bumps the collision)
 
     def _do_flash(self, me: Character, opp: Character, toward: bool) -> None:
         """Instant teleport (Flash). No-op while on cooldown."""

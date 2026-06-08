@@ -17,7 +17,7 @@ FLASH_ARENA_RIGHT = AI_ENGAGE_RIGHT
 
 # Motion
 WALK_SPEED = 4.5           # px/frame — 60% faster for snappy approach/retreat
-JUMP_VELOCITY = -16.0       # upward impulse (y is screen-down) — a clear high leap
+JUMP_VELOCITY = -21.0       # upward impulse (y is screen-down) — a big high leap
 GRAVITY = 0.85              # px/frame²
 MAX_FALL_SPEED = 18.0
 GROUND_FRICTION = 0.85      # vel_x decay per frame when on ground and no input
