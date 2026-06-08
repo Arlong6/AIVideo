@@ -418,8 +418,8 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
 
     # ── descending weapon strikes ────────────────────────────────────────────
     if aid == "garen":                # VANGUARD — a giant blade of light falls
-        y, p = descend(340)
-        bl = 96
+        y, p = descend(420)
+        bl = 130
         pts = [(cx, y + bl), (cx - 13, y), (cx + 13, y)]
         pygame.draw.polygon(surf, (205, 228, 255), [(int(a), int(b)) for a, b in pts])
         pygame.draw.polygon(surf, W, [(int(a), int(b)) for a, b in pts], 2)
@@ -437,8 +437,8 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
         if p >= 1.0:
             add_ring(cx, iy, int(30 + 240 * (t - 0.45)), (255, 190, 90), int(150 * fade), 5)
     elif aid == "wrecker":            # WRECKER — a giant spiked ball drops & smashes
-        y, p = descend(300)
-        r = 28
+        y, p = descend(380)
+        r = 38
         for a in range(0, 360, 40):
             sp = (cx + int(math.cos(math.radians(a)) * (r + 11)),
                   y + int(math.sin(math.radians(a)) * (r + 11)))
@@ -469,7 +469,7 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
         for k, col in enumerate(((255, 120, 120), (255, 230, 120), (140, 255, 160),
                                  (130, 190, 255), (210, 150, 255))):
             ang = -90 + (k - 2) * 22
-            ln = int(40 + 300 * min(1.0, t / 0.4)) * fade if t > 0.4 else int(40 + 300 * (t / 0.4))
+            ln = int(55 + 430 * min(1.0, t / 0.4)) * fade if t > 0.4 else int(55 + 430 * (t / 0.4))
             ex = cx + int(math.cos(math.radians(ang)) * ln)
             ey = iy + int(math.sin(math.radians(ang)) * ln)
             lay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
@@ -478,7 +478,7 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
             surf.blit(lay, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
         add_circle(cx, iy, int(16 + 20 * fade), (255, 255, 230), int(220 * fade))
     elif aid == "jinx":               # WILDFIRE — a huge rocket fireball blooms
-        r = int(20 + 150 * t)
+        r = int(28 + 210 * t)
         add_circle(cx, iy, r, (255, 90, 40), int(150 * fade))
         add_circle(cx, iy, int(r * 0.6), (255, 170, 60), int(180 * fade))
         add_circle(cx, iy, int(r * 0.3), (255, 240, 160), int(220 * fade))
@@ -488,15 +488,15 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
             add_circle(cx + int(math.cos(math.radians(a)) * rr),
                        iy + int(math.sin(math.radians(a)) * rr), 4, (90, 90, 90), int(120 * fade))
     elif aid == "ashe":               # FROSTBOW — ice spikes erupt from the ground
-        n = 9
+        n = 11
         for i in range(n):
-            sx = cx - 140 + int(280 * i / (n - 1))
-            gh = int((70 + 50 * math.sin(i * 1.7)) * min(1.0, t / 0.4))
+            sx = cx - 190 + int(380 * i / (n - 1))
+            gh = int((115 + 75 * math.sin(i * 1.7)) * min(1.0, t / 0.4))
             tipy = ground_y - gh
             pygame.draw.polygon(surf, (180, 235, 255),
-                                [(sx - 9, ground_y), (sx + 9, ground_y), (sx, tipy)])
-            pygame.draw.polygon(surf, W, [(sx - 9, ground_y), (sx + 9, ground_y), (sx, tipy)], 1)
-        add_circle(cx, iy, int(30 * fade) + 6, (200, 240, 255), int(140 * fade))
+                                [(sx - 12, ground_y), (sx + 12, ground_y), (sx, tipy)])
+            pygame.draw.polygon(surf, W, [(sx - 12, ground_y), (sx + 12, ground_y), (sx, tipy)], 2)
+        add_circle(cx, iy, int(44 * fade) + 8, (200, 240, 255), int(150 * fade))
     elif aid == "quarrel":            # QUARREL — one massive piercing bolt + crack
         p = min(1.0, t / 0.4)
         bx = cx - int(320 * (1 - p))
@@ -524,7 +524,7 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
     elif aid == "venom":              # VENOM — a fan of poison blades spreads out
         for k in range(7):
             ang = -150 + k * 25
-            ln = int(40 + 200 * min(1.0, t / 0.4))
+            ln = int(55 + 280 * min(1.0, t / 0.4))
             ex = cx + int(math.cos(math.radians(ang)) * ln)
             ey = iy + int(math.sin(math.radians(ang)) * ln)
             pygame.draw.line(surf, (150, 230, 70), (cx, iy), (ex, ey), 3)
@@ -535,7 +535,7 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
     # ── physical / spin / melee ──────────────────────────────────────────────
     elif aid in ("katarina", "reaver", "cyclone", "cleaver"):  # whirling-blade ults
         spin = age * 0.85
-        rad = int(46 + 46 * t)
+        rad = int(60 + 70 * t)
         arccol = {"katarina": (255, 90, 110), "reaver": (150, 255, 120),
                   "cyclone": (130, 230, 150), "cleaver": (255, 70, 60)}.get(aid, color)
         for kk in range(3):
@@ -588,10 +588,10 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
             pygame.draw.polygon(surf, col, pts, ring_w)
     else:                              # default — a champion-colour star burst
         for a in range(0, 360, 30):
-            ln = int(30 + 200 * t)
+            ln = int(40 + 280 * t)
             ex = cx + int(math.cos(math.radians(a)) * ln)
             ey = iy + int(math.sin(math.radians(a)) * ln)
-            pygame.draw.line(surf, color, (cx, iy), (ex, ey), 3)
+            pygame.draw.line(surf, color, (cx, iy), (ex, ey), 4)
         add_circle(cx, iy, int(24 * fade) + 6, color, int(150 * fade))
 
 
@@ -884,7 +884,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     active_spins: list = []           # [cx, cy, color, age]
     active_auras: list = []           # [cx, cy, color, age]
     active_ult_sigs: list = []        # [actor_id, cx, gy, age, color] — per-champion ult signature
-    ULT_SIG_LIFE = 54
+    ULT_SIG_LIFE = 68
     BEAM_LIFE, SPIN_LIFE, AURA_LIFE = 10, 34, 46   # spin/aura linger longer to read
     prev_on_ground_left = env.left.on_ground
     prev_on_ground_right = env.right.on_ground
