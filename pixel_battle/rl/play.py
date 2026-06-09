@@ -49,7 +49,7 @@ _MAGE_IDS = frozenset({"lux", "pyre"})
 # Per-shooter projectile visual (marksmen each fire something distinct).
 _PROJECTILE_KIND = {
     "lux": "orb", "pyre": "fire", "ashe": "ice", "jinx": "rocket",
-    "deadeye": "bullet", "quarrel": "bolt", "venom": "kunai", "outlaw": "bullet",
+    "deadeye": "bullet", "quarrel": "bolt", "venom": "kunai", "outlaw": "bullet", "warlock": "spirit",
 }
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
@@ -586,6 +586,25 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
                     iy + int(math.sin(math.radians(60 * k - 90)) * rad)) for k in range(6)]
             col = color if ring_w == 6 else W
             pygame.draw.polygon(surf, col, pts, ring_w)
+    elif aid == "warlock":            # WARLOCK — a giant spectral COLOSSUS looms & slams
+        grow = min(1.0, t / 0.4)
+        h = int(230 * grow); bw = max(6, int(58 * grow))
+        topy = ground_y - h
+        col = (color[0] * 2 // 3, color[1] * 2 // 3, color[2] * 2 // 3)
+        body = pygame.Surface((bw * 2 + 30, h + 30), pygame.SRCALPHA)
+        pygame.draw.ellipse(body, (*col, 175), (15, 30, bw * 2, max(4, h - 10)))      # torso
+        pygame.draw.circle(body, (*col, 175), (bw + 15, 28), max(3, int(bw * 0.55)))  # head
+        surf.blit(body, (cx - bw - 15, topy))
+        add_circle(cx - bw // 3, topy + 24, 5, (170, 255, 130), 235)   # glowing eyes
+        add_circle(cx + bw // 3, topy + 24, 5, (170, 255, 130), 235)
+        add_circle(cx, topy + h // 2, int(bw * 1.3), color, int(45 * fade))  # spectral aura
+        if t > 0.45:                  # fists slam down
+            drop = int(120 * (t - 0.45) / 0.55)
+            for s in (-1, 1):
+                pygame.draw.line(surf, col, (cx + s * bw, topy + h // 3),
+                                 (cx + s * 26, topy + h // 3 + 70 + drop), 13)
+            if t > 0.55:
+                add_ring(cx, iy, int(30 + 250 * (t - 0.55)), color, int(160 * fade), 8)
     else:                              # default — a champion-colour star burst
         for a in range(0, 360, 30):
             ln = int(40 + 280 * t)
@@ -979,7 +998,11 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     defender = env.right if ev.target == env.right.id else env.left
                     attacker = env.left if ev.actor == env.left.id else env.right
                     is_crit = bool((ev.extra or {}).get("crit", False))
-                    burst_size = 84 if is_crit else 62
+                    # GRADED impact — heavier hits (specials / big damage) burst
+                    # bigger, spark harder and shake more than a light jab.
+                    amt = int(getattr(ev, "amount", 0) or 0)
+                    heavy = is_crit or amt >= 8
+                    burst_size = 98 if is_crit else (80 if heavy else 58)
                     burst_color = lcol if attacker is env.left else rcol
                     active_bursts.append([
                         int(defender.pos_x), int(defender.pos_y) - 90,
@@ -989,19 +1012,25 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         left_flash_frames = max(left_flash_frames, 8)
                     else:
                         right_flash_frames = max(right_flash_frames, 8)
-                    # ── Spark SPRAY at the contact point — the missing "it connected!"
-                    #    feedback. Without this a clean hit read as a whiff. ──
+                    # ── Spark SPRAY at the contact point — graded by hit weight. ──
                     impact_fx.spawn_hit_spark(
                         x=int(defender.pos_x), y=int(defender.pos_y) - 78,
-                        damage=(10 if is_crit else 7), color=burst_color)
+                        damage=(12 if is_crit else (9 if heavy else 6)), color=burst_color)
+                    # Heavy hits add an expanding shockwave ring for extra punch.
+                    if heavy:
+                        active_shockwaves.append([
+                            int(defender.pos_x), int(defender.pos_y) - 80,
+                            burst_color, 0, 14, 220])
                     # quick white impact pop
                     impact_fx.flash_screen(color=(255, 255, 255),
-                                           alpha=(150 if is_crit else 70))
-                    # ── Camera shake on hit (punchier) ──
+                                           alpha=(170 if is_crit else (110 if heavy else 70)))
+                    # ── Camera shake on hit (graded — heavy hits hit harder) ──
                     if is_crit:
-                        impact_fx.camera_shake.trigger(magnitude_px=6.0, duration_ms=220.0)
+                        impact_fx.camera_shake.trigger(magnitude_px=7.0, duration_ms=240.0)
+                    elif heavy:
+                        impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=180.0)
                     else:
-                        impact_fx.camera_shake.trigger(magnitude_px=3.5, duration_ms=140.0)
+                        impact_fx.camera_shake.trigger(magnitude_px=3.0, duration_ms=130.0)
                     # ── Hit-confirm ring at defender's hip ──
                     impact_fx.spawn_hit_ring(
                         x=int(defender.pos_x),

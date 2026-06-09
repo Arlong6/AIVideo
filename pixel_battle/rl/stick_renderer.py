@@ -581,6 +581,12 @@ _STYLES = {
                     "torso_length": 98, "upper_arm": 33, "forearm": 32,  # gunslinger
                     "thigh": 34, "shin": 34, "line_width": 6,
                     "hand_radius": 5, "foot_length": 16},
+    "warlock":     {"head_shape": "diamond",  "head_size": 28, "crest": "hood",
+                    "torso_length": 106, "upper_arm": 30, "forearm": 30,  # robed caster
+                    "thigh": 36, "shin": 36, "line_width": 6,
+                    "hand_radius": 4, "foot_length": 13,
+                    "pose_overrides": {"idle_weapon_deg": -115.0, "walk_weapon_deg": -68.0,
+                        "idle_oscillations": [{"field": "weapon_deg", "amplitude": 7.0, "period_ms": 2800.0}]}},
 }
 
 _DEFAULT_STYLE = {"head_shape": "circle", "head_size": 22,
@@ -602,6 +608,7 @@ _CAPES = {
     "reaver": (70, 40, 110), "pyre": (200, 70, 20),
     "wrecker": (90, 70, 70), "skylance": (190, 60, 50),
     "outlaw": (150, 110, 70),
+    "warlock": (80, 55, 120),
 }
 
 
@@ -1106,9 +1113,30 @@ class ProjectileLayer:
                 self._draw_kunai(surf, cx, cy, color, current_ms)
             elif kind == "fire":
                 self._draw_fire(surf, cx, cy, sx, sy, ex, ey, t, current_ms)
+            elif kind == "spirit":
+                self._draw_spirit(surf, cx, cy, color, sx, sy, ex, ey, t, current_ms)
             else:
                 self._draw_orb(surf, cx, cy, color, sx, sy, ex, ey, t)
         self._items = live
+
+    def _draw_spirit(self, surf, cx, cy, color, sx, sy, ex, ey, t, current_ms):  # summoned wisp
+        bob = math.sin(current_ms / 70.0) * 4
+        cy = cy + bob
+        self._trail(surf, sx, sy, ex, ey, t,
+                    [(0.10, 110, 7, color), (0.20, 70, 6, color), (0.32, 40, 5, color)])
+        # ghostly body (translucent orb) + a hood point + two eyes
+        body = pygame.Surface((28, 32), pygame.SRCALPHA)
+        pygame.draw.circle(body, (*color, 150), (14, 16), 11)
+        pygame.draw.polygon(body, (*color, 150), [(6, 12), (22, 12), (14, 1)])   # hood peak
+        pygame.draw.circle(body, (235, 245, 220), (10, 16), 2)
+        pygame.draw.circle(body, (235, 245, 220), (18, 16), 2)
+        surf.blit(body, (int(cx) - 14, int(cy) - 16))
+        for k in range(3):                       # wispy tail tatters
+            tx = cx + math.sin(current_ms / 50.0 + k) * 5
+            ty = cy + 12 + k * 5
+            s = pygame.Surface((8, 8), pygame.SRCALPHA)
+            pygame.draw.circle(s, (*color, 90 - k * 25), (4, 4), 3)
+            surf.blit(s, (int(tx) - 4, int(ty) - 4))
 
     @staticmethod
     def _trail(surf, sx, sy, ex, ey, t, segs, add=True):

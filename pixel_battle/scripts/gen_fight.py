@@ -36,7 +36,7 @@ ATK_REMAIN = 40
 ARCH = {
     # ranged casters/archers/gunners — hold spacing, kite
     "lux": "ranged", "ashe": "ranged", "jinx": "ranged",
-    "deadeye": "ranged", "quarrel": "ranged", "pyre": "ranged", "venom": "ranged",
+    "deadeye": "ranged", "quarrel": "ranged", "pyre": "ranged", "venom": "ranged", "warlock": "ranged",
     # assassin — flash in/out
     "katarina": "assassin",
     # melee bruisers/tanks/duelists — advance and trade

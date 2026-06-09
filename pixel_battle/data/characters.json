@@ -1497,5 +1497,83 @@
         "range": 320
       }
     ]
+  },
+  "warlock": {
+    "display_name": "Warlock",
+    "color": [
+      120,
+      85,
+      160
+    ],
+    "accent_color": [
+      205,
+      185,
+      235
+    ],
+    "brand_color": [
+      160,
+      90,
+      225
+    ],
+    "attack_interval_ms": 1050,
+    "accuracy": 0.8,
+    "damage": [
+      2,
+      4
+    ],
+    "skills": [
+      {
+        "id": "spirit_bolt",
+        "type": "basic",
+        "anim": "cast",
+        "vfx": "bolt",
+        "range": 300
+      },
+      {
+        "id": "spirit_swarm",
+        "type": "cooldown",
+        "anim": "cast",
+        "vfx": "multishot",
+        "cooldown_ms": 2600,
+        "dmg": 5,
+        "range": 300
+      },
+      {
+        "id": "hex",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "bolt",
+        "mp_cost": 20,
+        "dmg": 7,
+        "range": 320,
+        "applies": {
+          "effect": "slow",
+          "duration_ms": 2500,
+          "magnitude": 0.6,
+          "target": "opponent"
+        }
+      },
+      {
+        "id": "soul_ward",
+        "type": "special",
+        "anim": "cast",
+        "vfx": "shield",
+        "mp_cost": 18,
+        "applies": {
+          "effect": "shield",
+          "duration_ms": 4000,
+          "magnitude": 0.4,
+          "target": "self"
+        }
+      },
+      {
+        "id": "summon_colossus",
+        "type": "ultimate",
+        "anim": "slam",
+        "vfx": "slam",
+        "mp_cost": 100,
+        "dmg": 110
+      }
+    ]
   }
 }

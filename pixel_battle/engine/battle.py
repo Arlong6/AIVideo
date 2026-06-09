@@ -617,7 +617,14 @@ class Battle:
             basics = char.skills_of_type(SkillType.BASIC)
             skill = (next((s for s in basics if s.id == explicit_id), None)
                      if explicit_id else basics[0])
-            char.attack_anim_hint = "jab"
+            # Cycle a pose variant so consecutive melee basics aren't the same
+            # swing: mostly a swing, every 3rd a KICK mix-up. (Ranged basics keep
+            # their cast pose.)
+            char._atk_n += 1
+            if skill is not None and skill.vfx == "melee" and char._atk_n % 3 == 0:
+                char.attack_anim_hint = "kick"
+            else:
+                char.attack_anim_hint = "jab"
         elif kind == "cooldown":
             cd_skills = char.skills_of_type(SkillType.COOLDOWN)
             available = [s for s in cd_skills

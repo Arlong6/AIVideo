@@ -48,6 +48,7 @@ class Character:
     windup_stun_until_ms: int = 0
     effects: List[StatusEffect] = field(default_factory=list)
     pending_cast_skill_id: Optional[str] = None
+    _atk_n: int = 0          # basic-attack counter — cycles swing/kick pose variants
 
     @classmethod
     def load(cls, char_id: str) -> "Character":

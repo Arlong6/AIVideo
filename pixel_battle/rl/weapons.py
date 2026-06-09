@@ -45,6 +45,7 @@ _WEAPONS = {
     "pyre":        Weapon("fire_staff", length=108, grip="one_hand", width=0.8),
     "venom":       Weapon("kunai",      length=34,  grip="one_hand", width=0.9),
     "outlaw":      Weapon("revolver",   length=30,  grip="one_hand", width=1.4),
+    "warlock":     Weapon("staff",      length=112, grip="one_hand", width=0.8),
 }
 
 
