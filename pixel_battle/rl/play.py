@@ -586,25 +586,51 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
                     iy + int(math.sin(math.radians(60 * k - 90)) * rad)) for k in range(6)]
             col = color if ring_w == 6 else W
             pygame.draw.polygon(surf, col, pts, ring_w)
-    elif aid == "warlock":            # WARLOCK — a giant spectral COLOSSUS looms & slams
-        grow = min(1.0, t / 0.4)
-        h = int(230 * grow); bw = max(6, int(58 * grow))
-        topy = ground_y - h
-        col = (color[0] * 2 // 3, color[1] * 2 // 3, color[2] * 2 // 3)
-        body = pygame.Surface((bw * 2 + 30, h + 30), pygame.SRCALPHA)
-        pygame.draw.ellipse(body, (*col, 175), (15, 30, bw * 2, max(4, h - 10)))      # torso
-        pygame.draw.circle(body, (*col, 175), (bw + 15, 28), max(3, int(bw * 0.55)))  # head
-        surf.blit(body, (cx - bw - 15, topy))
-        add_circle(cx - bw // 3, topy + 24, 5, (170, 255, 130), 235)   # glowing eyes
-        add_circle(cx + bw // 3, topy + 24, 5, (170, 255, 130), 235)
-        add_circle(cx, topy + h // 2, int(bw * 1.3), color, int(45 * fade))  # spectral aura
-        if t > 0.45:                  # fists slam down
-            drop = int(120 * (t - 0.45) / 0.55)
+    elif aid == "warlock":            # WARLOCK — a huge HORNED spectral colossus rises & slams
+        grow = min(1.0, t / 0.42)
+        gy = ground_y
+        h = int(300 * grow); bw = max(6, int(70 * grow))
+        topy = gy - h
+        dark = (max(0, color[0] * 2 // 5), max(0, color[1] * 2 // 5), color[2] * 3 // 5)
+        glow = (170, 255, 130)
+        # spectral ground portal + rising aura when it forms
+        add_circle(cx, gy - 4, int(bw * 1.4), color, int(60 * fade))
+        body = pygame.Surface((bw * 2 + 60, h + 60), pygame.SRCALPHA)
+        ox = bw + 30
+        # hunched torso + broad shoulders
+        pygame.draw.ellipse(body, (*dark, 200), (30, 40, bw * 2, max(4, h - 20)))
+        pygame.draw.polygon(body, (*dark, 200), [(20, 90), (ox, 55), (bw * 2 + 40, 90),
+                                                 (bw * 2 + 30, 150), (40, 150)])   # shoulders
+        # head + curved HORNS
+        hr = max(4, int(bw * 0.5))
+        pygame.draw.circle(body, (*dark, 210), (ox, 50), hr)
+        for s in (-1, 1):
+            base = (ox + s * hr * 0.7, 50 - hr * 0.4)
+            pygame.draw.polygon(body, (*dark, 210),
+                                [base, (base[0] + s * hr * 0.8, 50 - hr * 2.2),
+                                 (base[0] + s * hr * 1.5, 50 - hr * 1.1), (base[0] + s * hr * 0.3, 50)])
+        surf.blit(body, (cx - ox, topy))
+        # glowing runes down the torso + bright eyes
+        for ry in range(1, 4):
+            add_circle(cx, topy + 60 + ry * (h // 5), max(3, bw // 8), glow, int(150 * fade))
+        add_circle(cx - bw // 3, topy + 46, 6, glow, 240)
+        add_circle(cx + bw // 3, topy + 46, 6, glow, 240)
+        add_circle(cx - bw // 3, topy + 46, 11, glow, int(90 * fade))   # eye glow halo
+        add_circle(cx + bw // 3, topy + 46, 11, glow, int(90 * fade))
+        if grow >= 1.0 and t < 0.55:   # a roar shockwave the instant it's fully formed
+            add_ring(cx, topy + h // 2, int((t - 0.42) * 1400), color, int(150 * (1 - (t - 0.42) / 0.13)), 6)
+        if t > 0.5:                    # massive clawed fists SLAM down onto the victim
+            drop = int(150 * (t - 0.5) / 0.5)
             for s in (-1, 1):
-                pygame.draw.line(surf, col, (cx + s * bw, topy + h // 3),
-                                 (cx + s * 26, topy + h // 3 + 70 + drop), 13)
-            if t > 0.55:
-                add_ring(cx, iy, int(30 + 250 * (t - 0.55)), color, int(160 * fade), 8)
+                ax2 = cx + s * bw
+                handx = cx + s * 30; handy = topy + h // 3 + 90 + drop
+                pygame.draw.line(surf, dark, (ax2, topy + h // 4), (handx, handy), 16)
+                for cz in (-1, 0, 1):  # claws
+                    pygame.draw.line(surf, glow, (handx, handy),
+                                     (handx + s * 10 + cz * 6, handy + 16), 3)
+            if t > 0.6:
+                add_ring(cx, iy, int(34 + 280 * (t - 0.6)), color, int(170 * fade), 9)
+                add_ring(cx, iy, int(20 + 200 * (t - 0.6)), glow, int(140 * fade), 4)
     else:                              # default — a champion-colour star burst
         for a in range(0, 360, 30):
             ln = int(40 + 280 * t)
