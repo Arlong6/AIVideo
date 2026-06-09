@@ -586,13 +586,21 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
                     iy + int(math.sin(math.radians(60 * k - 90)) * rad)) for k in range(6)]
             col = color if ring_w == 6 else W
             pygame.draw.polygon(surf, col, pts, ring_w)
-    elif aid == "warlock":            # WARLOCK — a huge HORNED spectral colossus rises & slams
-        grow = min(1.0, t / 0.42)
+    elif aid == "warlock":            # WARLOCK — a HORNED spectral colossus rises, slams TWICE, ringed by spirit wisps
+        grow = min(1.0, t / 0.28)
         gy = ground_y
         h = int(300 * grow); bw = max(6, int(70 * grow))
         topy = gy - h
         dark = (max(0, color[0] * 2 // 5), max(0, color[1] * 2 // 5), color[2] * 3 // 5)
         glow = (170, 255, 130)
+        # summon: wisps spiral IN to coalesce into the colossus before it forms
+        if t < 0.28:
+            for i in range(8):
+                sp = 1.0 - grow
+                ang = age * 0.22 + i * (math.pi / 4)
+                rr = 30 + 180 * sp
+                add_circle(cx + math.cos(ang) * rr, gy - h * 0.5 + math.sin(ang) * rr * 0.6,
+                           4, glow, int(220 * grow))
         # spectral ground portal + rising aura when it forms
         add_circle(cx, gy - 4, int(bw * 1.4), color, int(60 * fade))
         body = pygame.Surface((bw * 2 + 60, h + 60), pygame.SRCALPHA)
@@ -617,10 +625,13 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
         add_circle(cx + bw // 3, topy + 46, 6, glow, 240)
         add_circle(cx - bw // 3, topy + 46, 11, glow, int(90 * fade))   # eye glow halo
         add_circle(cx + bw // 3, topy + 46, 11, glow, int(90 * fade))
-        if grow >= 1.0 and t < 0.55:   # a roar shockwave the instant it's fully formed
-            add_ring(cx, topy + h // 2, int((t - 0.42) * 1400), color, int(150 * (1 - (t - 0.42) / 0.13)), 6)
-        if t > 0.5:                    # massive clawed fists SLAM down onto the victim
-            drop = int(150 * (t - 0.5) / 0.5)
+        # roar shockwave the instant it's fully formed
+        if grow >= 1.0 and 0.28 <= t < 0.40:
+            add_ring(cx, topy + h // 2, int((t - 0.28) * 1600), color,
+                     int(160 * (1 - (t - 0.28) / 0.12)), 6)
+
+        def _slam(prog, ring_at):      # clawed fists drop onto the victim
+            drop = int(150 * prog)
             for s in (-1, 1):
                 ax2 = cx + s * bw
                 handx = cx + s * 30; handy = topy + h // 3 + 90 + drop
@@ -628,9 +639,29 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
                 for cz in (-1, 0, 1):  # claws
                     pygame.draw.line(surf, glow, (handx, handy),
                                      (handx + s * 10 + cz * 6, handy + 16), 3)
-            if t > 0.6:
-                add_ring(cx, iy, int(34 + 280 * (t - 0.6)), color, int(170 * fade), 9)
-                add_ring(cx, iy, int(20 + 200 * (t - 0.6)), glow, int(140 * fade), 4)
+            if ring_at is not None:
+                add_ring(cx, iy, int(34 + 280 * ring_at), color, int(170 * fade), 9)
+                add_ring(cx, iy, int(20 + 200 * ring_at), glow, int(140 * fade), 4)
+        # TWO slams: a first strike, then a raise and a heavier finishing slam
+        if 0.40 <= t < 0.58:
+            _slam((t - 0.40) / 0.18, (t - 0.52) / 0.06 if t > 0.52 else None)
+        elif 0.62 <= t < 0.84:
+            _slam((t - 0.62) / 0.22, (t - 0.76) / 0.08 if t > 0.76 else None)
+        elif t >= 0.84:
+            _slam(1.0, None)           # fists rest, lingering glow
+        # SPIRIT WISPS — small summoned minions orbiting the colossus throughout
+        if grow >= 0.6:
+            for i in range(4):
+                ang = age * 0.13 + i * (math.pi / 2)
+                wr = bw * 1.5 + 18 * math.sin(age * 0.08 + i)
+                wx = cx + math.cos(ang) * wr
+                wy = topy + h * 0.5 + math.sin(ang) * (h * 0.28)
+                wa = int(200 * fade)
+                add_circle(wx, wy, 9, color, wa // 2)        # ghostly body
+                add_circle(wx, wy - 2, 5, glow, wa)          # bright core
+                add_circle(wx - 2, wy - 3, 2, W, wa)         # eye glint
+                add_circle(wx, wy + 8, 3, glow, wa // 2)     # wispy tail
+                add_circle(wx, wy + 14, 2, glow, wa // 3)
     else:                              # default — a champion-colour star burst
         for a in range(0, 360, 30):
             ln = int(40 + 280 * t)
@@ -930,6 +961,9 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     active_auras: list = []           # [cx, cy, color, age]
     active_ult_sigs: list = []        # [actor_id, cx, gy, age, color] — per-champion ult signature
     ULT_SIG_LIFE = 68
+    # Summon ults (the warlock colossus) linger longer so the minion can stomp
+    # twice and the spirit wisps get screen time — a summon should DWELL, not flash.
+    _ULT_SIG_LIFE_MULT = {"warlock": 1.7}
     BEAM_LIFE, SPIN_LIFE, AURA_LIFE = 10, 34, 46   # spin/aura linger longer to read
     prev_on_ground_left = env.left.on_ground
     prev_on_ground_right = env.right.on_ground
@@ -953,10 +987,12 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     # On ULTIMATE_START: zoom 1.0 → 1.35 over 200 ms, hold 200 ms, back to 1.0
     # over 200 ms. Focus on the caster's x position.
     _ULT_ZOOM_IN_MS = 800       # zoom in over first 800ms of anticipation
-    _ULT_ZOOM_HOLD_MS = 700     # hold at max through rest of anticipation + release
-    _ULT_ZOOM_OUT_MS = 400      # pull back during aftermath
+    _ULT_ZOOM_HOLD_MS = 1150    # hold tight through anticipation + release + the
+    #                             SIGNATURE flourish (a sword-fall / colossus-slam /
+    #                             bullet-storm gets its full beat under the crop)
+    _ULT_ZOOM_OUT_MS = 550      # ease back during aftermath
     _ULT_ZOOM_TOTAL_MS = _ULT_ZOOM_IN_MS + _ULT_ZOOM_HOLD_MS + _ULT_ZOOM_OUT_MS
-    _ULT_ZOOM_MAX = 1.5         # slightly tighter crop for drama
+    _ULT_ZOOM_MAX = 1.62        # tighter crop for the climax
     _ult_zoom_age_ms: float = _ULT_ZOOM_TOTAL_MS   # starts "expired" (no zoom)
     _ult_zoom_focus_x: float = WIDTH / 2.0
 
@@ -1442,6 +1478,11 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 # ice spikes vs a bullet barrage…).
                 active_ult_sigs.append([_ult_actor_id, int(_ult_target_x),
                                         int(_ult_target_y), 0, _ult_brand_col])
+                # Guaranteed slow-mo BEAT the instant the signature lands — time
+                # stretches so every ult's flourish reads as the climax (universal,
+                # on top of the sequence's own dt_scale).
+                _slowmo_remaining_ms = max(_slowmo_remaining_ms, 150.0)
+                _slowmo_dt_scale = min(_slowmo_dt_scale, 0.3)
                 # Camera shake + flash on release — clean white-gold (an ultimate
                 # discharge), NOT the red hit-flash that read as "getting punched".
                 impact_fx.flash_screen(color=(255, 244, 210), alpha=210)
@@ -1647,9 +1688,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
 
         live_sigs = []
         for sg in active_ult_sigs:
-            _draw_ult_sig(world, sg[0], sg[1], sg[2], sg[3], ULT_SIG_LIFE, sg[4], GROUND_Y)
+            _sig_life = int(ULT_SIG_LIFE * _ULT_SIG_LIFE_MULT.get(sg[0], 1.0))
+            _draw_ult_sig(world, sg[0], sg[1], sg[2], sg[3], _sig_life, sg[4], GROUND_Y)
             sg[3] += 1
-            if sg[3] < ULT_SIG_LIFE:
+            if sg[3] < _sig_life:
                 live_sigs.append(sg)
         active_ult_sigs = live_sigs
 
