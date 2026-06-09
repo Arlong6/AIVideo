@@ -37,6 +37,7 @@ ARCH = {
     # ranged casters/archers/gunners — hold spacing, kite
     "lux": "ranged", "ashe": "ranged", "jinx": "ranged",
     "deadeye": "ranged", "quarrel": "ranged", "pyre": "ranged", "venom": "ranged", "warlock": "ranged",
+    "necro": "ranged", "totem": "ranged",
     # assassin — flash in/out
     "katarina": "assassin",
     # melee bruisers/tanks/duelists — advance and trade

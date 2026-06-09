@@ -587,6 +587,18 @@ _STYLES = {
                     "hand_radius": 4, "foot_length": 13,
                     "pose_overrides": {"idle_weapon_deg": -115.0, "walk_weapon_deg": -68.0,
                         "idle_oscillations": [{"field": "weapon_deg", "amplitude": 7.0, "period_ms": 2800.0}]}},
+    "necro":       {"head_shape": "circle",   "head_size": 27, "crest": "hood",
+                    "torso_length": 104, "upper_arm": 30, "forearm": 30,  # hooded necromancer
+                    "thigh": 35, "shin": 35, "line_width": 6,
+                    "hand_radius": 4, "foot_length": 13,
+                    "pose_overrides": {"idle_weapon_deg": -118.0, "walk_weapon_deg": -70.0,
+                        "idle_oscillations": [{"field": "weapon_deg", "amplitude": 6.0, "period_ms": 3000.0}]}},
+    "totem":       {"head_shape": "diamond",  "head_size": 28, "crest": "flame_crown",
+                    "torso_length": 102, "upper_arm": 30, "forearm": 30,  # feathered shaman
+                    "thigh": 36, "shin": 36, "line_width": 6,
+                    "hand_radius": 4, "foot_length": 13,
+                    "pose_overrides": {"idle_weapon_deg": -112.0, "walk_weapon_deg": -66.0,
+                        "idle_oscillations": [{"field": "weapon_deg", "amplitude": 8.0, "period_ms": 2600.0}]}},
 }
 
 _DEFAULT_STYLE = {"head_shape": "circle", "head_size": 22,
@@ -609,6 +621,7 @@ _CAPES = {
     "wrecker": (90, 70, 70), "skylance": (190, 60, 50),
     "outlaw": (150, 110, 70),
     "warlock": (80, 55, 120),
+    "necro": (60, 80, 55), "totem": (40, 110, 100),
 }
 
 

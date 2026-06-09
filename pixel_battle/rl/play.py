@@ -50,6 +50,7 @@ _MAGE_IDS = frozenset({"lux", "pyre"})
 _PROJECTILE_KIND = {
     "lux": "orb", "pyre": "fire", "ashe": "ice", "jinx": "rocket",
     "deadeye": "bullet", "quarrel": "bolt", "venom": "kunai", "outlaw": "bullet", "warlock": "spirit",
+    "necro": "spirit", "totem": "orb",
 }
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
@@ -649,19 +650,110 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
             _slam((t - 0.62) / 0.22, (t - 0.76) / 0.08 if t > 0.76 else None)
         elif t >= 0.84:
             _slam(1.0, None)           # fists rest, lingering glow
-        # SPIRIT WISPS — small summoned minions orbiting the colossus throughout
+        # SPIRIT WISPS — minions orbit the colossus, then periodically DART IN to
+        # bite the victim and recoil back out (each on its own phase).
         if grow >= 0.6:
             for i in range(4):
                 ang = age * 0.13 + i * (math.pi / 2)
-                wr = bw * 1.5 + 18 * math.sin(age * 0.08 + i)
-                wx = cx + math.cos(ang) * wr
-                wy = topy + h * 0.5 + math.sin(ang) * (h * 0.28)
+                orbit_r = bw * 1.5 + 14 * math.sin(age * 0.08 + i)
+                ox_p = cx + math.cos(ang) * orbit_r
+                oy_p = topy + h * 0.5 + math.sin(ang) * (h * 0.28)
+                bite = max(0.0, math.sin(age * 0.17 + i * 1.7))   # 0..1
+                bite *= bite                                       # snap (slow out, fast in)
+                wx = ox_p + (cx - ox_p) * (0.82 * bite)
+                wy = oy_p + (iy - oy_p) * (0.82 * bite)
                 wa = int(200 * fade)
-                add_circle(wx, wy, 9, color, wa // 2)        # ghostly body
-                add_circle(wx, wy - 2, 5, glow, wa)          # bright core
-                add_circle(wx - 2, wy - 3, 2, W, wa)         # eye glint
-                add_circle(wx, wy + 8, 3, glow, wa // 2)     # wispy tail
-                add_circle(wx, wy + 14, 2, glow, wa // 3)
+                if bite > 0.3:                                     # lunge trail
+                    add_circle(ox_p + (cx - ox_p) * 0.5 * bite,
+                               oy_p + (iy - oy_p) * 0.5 * bite,
+                               4, glow, int(wa * 0.4 * bite))
+                add_circle(wx, wy, 9, color, wa // 2)              # ghostly body
+                add_circle(wx, wy - 2, 5, glow, wa)               # bright core
+                add_circle(wx - 2, wy - 3, 2, W, wa)              # eye glint
+                if bite > 0.86:                                    # fanged bite snap
+                    add_ring(wx, wy, 7, W, int(220 * fade), 2)
+                    add_circle(wx, wy, 12, glow, int(120 * fade))
+    elif aid == "necro":              # NECRO — a SWARM of skeletons claws up from the grave
+        bone = (225, 222, 205); bonedk = (120, 122, 108); grave = (150, 215, 120)
+        gy = ground_y
+        add_circle(cx, gy - 4, int(60 + 150 * min(1.0, t / 0.3)), grave, int(70 * fade))
+        for k in range(-3, 4):         # cracks splitting the soil
+            cxk = cx + k * 40
+            pygame.draw.line(surf, (40, 60, 38), (cxk, gy - 2),
+                             (cxk + (4 if k % 2 else -4), gy - 14), 2)
+        n = 5
+        for s in range(n):
+            off = (s - (n - 1) / 2)
+            sx = cx + int(off * 56)
+            phase = max(0.0, min(1.0, (t - 0.10 - abs(off) * 0.05) / 0.45))   # staggered rise
+            if phase <= 0:
+                continue
+            sy = gy - int(150 * phase)          # skull height
+            reach = max(0.0, (t - 0.45) / 0.55)  # claw toward the victim after rising
+            pygame.draw.line(surf, bone, (sx, sy + 8), (sx, sy + 8 + int(46 * phase)), 4)  # spine
+            for rk in range(3):                 # ribcage
+                ry = sy + 16 + rk * 10
+                pygame.draw.line(surf, bonedk, (sx - 9, ry), (sx + 9, ry), 2)
+            pygame.draw.circle(surf, bone, (sx, sy), 9)                # skull
+            pygame.draw.circle(surf, (30, 40, 28), (sx - 3, sy - 1), 2)
+            pygame.draw.circle(surf, (30, 40, 28), (sx + 3, sy - 1), 2)
+            add_circle(sx - 3, sy - 1, 3, grave, int(220 * fade))      # eye-socket glow
+            add_circle(sx + 3, sy - 1, 3, grave, int(220 * fade))
+            pygame.draw.line(surf, (30, 40, 28), (sx - 4, sy + 5), (sx + 4, sy + 5), 1)  # jaw
+            hand_x = sx + int((cx - sx) * (0.4 + 0.5 * reach))         # arms reach inward
+            hand_y = sy + 18 - int(10 * reach)
+            cdir = 1 if cx >= sx else -1
+            for arm_s in (-1, 1):
+                pygame.draw.line(surf, bone, (sx + arm_s * 8, sy + 14), (hand_x, hand_y), 3)
+                for cz in (-1, 0, 1):                                  # finger claws
+                    pygame.draw.line(surf, bone, (hand_x, hand_y),
+                                     (hand_x + cdir * 5 + cz * 4, hand_y + 7), 1)
+        if t > 0.55:                            # the swarm DRAGS the victim down
+            add_ring(cx, iy, int(30 + 250 * (t - 0.55)), grave, int(160 * fade), 6)
+            for b in range(8):                  # bone shards kicked up
+                ba = b * 45 + age * 4
+                bx = cx + math.cos(math.radians(ba)) * (40 + 120 * (t - 0.55))
+                by = iy + math.sin(math.radians(ba)) * (30 + 80 * (t - 0.55))
+                pygame.draw.line(surf, bone, (int(bx), int(by)), (int(bx + 6), int(by + 2)), 2)
+    elif aid == "totem":              # TOTEM — a RING of carved idols rises and beams inward
+        spirit = (90, 230, 200); wood = (140, 104, 64); woodd = (96, 72, 48)
+        gy = ground_y
+        add_circle(cx, gy - 4, int(50 + 140 * min(1.0, t / 0.3)), spirit, int(60 * fade))
+        for ox_off, scale in ((-152, 1.0), (-92, 0.86), (-40, 0.74),
+                              (40, 0.74), (92, 0.86), (152, 1.0)):
+            tx = cx + ox_off
+            rphase = max(0.0, min(1.0, (t - 0.05) / 0.30))
+            th = int(92 * scale * rphase)
+            if th <= 2:
+                continue
+            base_y = gy - 2; top_y = base_y - th
+            pygame.draw.line(surf, woodd, (tx, base_y), (tx, top_y + 10), max(2, int(8 * scale)))
+            for bk in range(2):                 # carved head blocks
+                by = top_y + bk * int(28 * scale)
+                bw2 = max(4, int(16 * scale))
+                pygame.draw.polygon(surf, wood if bk % 2 else woodd,
+                                    [(tx - bw2, by), (tx + bw2, by),
+                                     (tx + bw2 - 2, by + int(26 * scale)),
+                                     (tx - bw2 + 2, by + int(26 * scale))])
+                ey = by + int(10 * scale)        # glowing carved eyes
+                add_circle(tx - bw2 // 2, ey, max(2, int(3 * scale)), spirit, int(230 * fade))
+                add_circle(tx + bw2 // 2, ey, max(2, int(3 * scale)), spirit, int(230 * fade))
+            if rphase >= 1.0 and t > 0.35:       # beam from mouth converging to the victim
+                bt = min(1.0, (t - 0.35) / 0.25)
+                mx = tx + int((cx - tx) * bt); my = (top_y + int(20 * scale))
+                my = my + int((iy - my) * bt)
+                pygame.draw.line(surf, spirit, (tx, top_y + int(20 * scale)),
+                                 (mx, my), max(2, int(3 * scale)))
+                add_circle(mx, my, 4, W, int(200 * fade))
+        if t > 0.6:                              # central spirit pillar ERUPTS + ring
+            ph = (t - 0.6) / 0.4
+            pillar_h = int(260 * ph)
+            for w_ in (18, 10, 4):
+                col = W if w_ == 4 else spirit
+                pygame.draw.line(surf, col, (cx, iy + 10), (cx, iy + 10 - pillar_h),
+                                 max(2, int(w_ * (1.0 - 0.3 * ph))))
+            add_ring(cx, iy, int(30 + 260 * ph), spirit, int(170 * fade), 7)
+            add_ring(cx, iy, int(18 + 180 * ph), W, int(130 * fade), 3)
     else:                              # default — a champion-colour star burst
         for a in range(0, 360, 30):
             ln = int(40 + 280 * t)
@@ -963,7 +1055,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     ULT_SIG_LIFE = 68
     # Summon ults (the warlock colossus) linger longer so the minion can stomp
     # twice and the spirit wisps get screen time — a summon should DWELL, not flash.
-    _ULT_SIG_LIFE_MULT = {"warlock": 1.7}
+    _ULT_SIG_LIFE_MULT = {"warlock": 1.7, "necro": 1.6, "totem": 1.55}
     BEAM_LIFE, SPIN_LIFE, AURA_LIFE = 10, 34, 46   # spin/aura linger longer to read
     prev_on_ground_left = env.left.on_ground
     prev_on_ground_right = env.right.on_ground
