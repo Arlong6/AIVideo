@@ -73,13 +73,37 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
     raw = out_dir / f"{script_path.stem}_raw.mp4"
     recorder = FrameRecorder(str(raw), fps=RENDER_FPS, width=WIDTH, height=HEIGHT)
     recorder.start()
+    fight = None
     try:
-        _render_fight(recorder, _driver_action_source(driver), env,
-                      max_seconds=60.0, end_hold_frames=120,
-                      left_start_mp=left_start_mp, right_start_mp=right_start_mp,
-                      left_start_hp=left_start_hp, right_start_hp=right_start_hp)
+        fight = _render_fight(recorder, _driver_action_source(driver), env,
+                              max_seconds=60.0, end_hold_frames=120,
+                              left_start_mp=left_start_mp, right_start_mp=right_start_mp,
+                              left_start_hp=left_start_hp, right_start_hp=right_start_hp)
     finally:
         recorder.stop()
+
+    # Audio bed: BGM + routed SFX (hits / casts / ults incl. the summon rumble),
+    # muxed INTO the raw so the posting short carries sound. The scripted batch
+    # was silent before this — TikTok/Shorts weight audio heavily.
+    if fight is not None:
+        try:
+            from pixel_battle.rl.play import (
+                AudioMixer, mux_audio_video, BGM_DIR, _route_audio_for_events,
+                _load_wav, _loop_to_length, RENDER_MS)
+            total_ms = int(fight["n_frames"] * RENDER_MS)
+            mixer = AudioMixer(sample_rate=48000)
+            bgm_path = BGM_DIR / "battle_loop.mp3"
+            if bgm_path.exists():
+                mixer.bgm_bus.add(
+                    _loop_to_length(_load_wav(bgm_path, mixer.sr), total_ms, mixer.sr), t_ms=0)
+            _route_audio_for_events(fight["events"], fight["event_video_ms"], mixer)
+            audio_wav = out_dir / f"{script_path.stem}_audio.wav"
+            mixer.export(total_ms, str(audio_wav))
+            snd = out_dir / f"{script_path.stem}_snd.mp4"
+            mux_audio_video(str(raw), str(audio_wav), str(snd))
+            snd.replace(raw)                       # raw now carries the audio track
+        except Exception as e:
+            print(f"  [audio] skipped ({e})")
     print(f"Scripted render: {raw}")
     return raw
 

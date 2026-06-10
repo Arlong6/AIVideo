@@ -71,6 +71,12 @@ def main():
     cut_dur = probe_dur(raw) - cut_start
     win_start = max(0.0, cut_dur - WIN_TAIL)
 
+    # Does the raw carry an audio track? (Scripted renders now mux BGM+SFX in.)
+    has_audio = bool(subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries",
+         "stream=index", "-of", "csv=p=0", raw],
+        capture_output=True, text=True).stdout.strip())
+
     # scale fight -> vertical, overlay hook (fades by HOOK_SECS), then winner band.
     fc = (
         f"[0:v]trim={cut_start},setpts=PTS-STARTPTS,"
@@ -78,10 +84,16 @@ def main():
         f"[v][1:v]overlay=0:0:enable='lt(t,{HOOK_SECS})'[v1];"
         f"[v1][2:v]overlay=0:0:enable='gte(t,{win_start})'[vo]"
     )
-    cmd = ["ffmpeg", "-y", "-i", raw, "-i", hook_p, "-i", win_p,
-           "-filter_complex", fc, "-map", "[vo]",
-           "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
-           "-profile:v", "high", "-crf", "19", out]
+    cmd = ["ffmpeg", "-y", "-i", raw, "-i", hook_p, "-i", win_p]
+    if has_audio:
+        # Trim the audio in lock-step with the video so SFX stay synced.
+        fc += f";[0:a]atrim={cut_start},asetpts=PTS-STARTPTS[a]"
+        cmd += ["-filter_complex", fc, "-map", "[vo]", "-map", "[a]",
+                "-c:a", "aac", "-b:a", "160k"]
+    else:
+        cmd += ["-filter_complex", fc, "-map", "[vo]"]
+    cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
+            "-profile:v", "high", "-crf", "19", out]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         print(r.stderr[-1500:]); sys.exit(1)
