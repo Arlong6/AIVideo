@@ -3209,7 +3209,7 @@
         },
         {
           "date": "2026-06-10",
-          "views": 13,
+          "views": 14,
           "likes": 0,
           "comments": 1
         }
@@ -3613,7 +3613,7 @@
         },
         {
           "date": "2026-06-10",
-          "views": 77,
+          "views": 78,
           "likes": 0,
           "comments": 1
         }
@@ -23945,7 +23945,7 @@
         },
         {
           "date": "2026-06-10",
-          "views": 13,
+          "views": 14,
           "likes": 0,
           "comments": 1
         }
@@ -24148,7 +24148,7 @@
         },
         {
           "date": "2026-06-10",
-          "views": 1052,
+          "views": 1054,
           "likes": 9,
           "comments": 1
         }
@@ -24222,7 +24222,7 @@
         },
         {
           "date": "2026-06-10",
-          "views": 171,
+          "views": 180,
           "likes": 0,
           "comments": 1
         }
@@ -24250,7 +24250,7 @@
         },
         {
           "date": "2026-06-10",
-          "views": 33,
+          "views": 35,
           "likes": 0,
           "comments": 0
         }
@@ -24279,7 +24279,7 @@
         },
         {
           "date": "2026-06-10",
-          "views": 10,
+          "views": 14,
           "likes": 0,
           "comments": 1
         }
@@ -24301,7 +24301,7 @@
         },
         {
           "date": "2026-06-10",
-          "views": 162,
+          "views": 213,
           "likes": 0,
           "comments": 1
         }
@@ -24323,6 +24323,22 @@
         }
       ],
       "series_tag": "default"
+    },
+    {
+      "video_id": "heWn74hZbNk",
+      "topic": "關廟殺人事件",
+      "slot": 1,
+      "duration_s": 77,
+      "publish_at": "2026-06-11T10:00:00+08:00",
+      "uploaded_at": "2026-06-10T20:49:48.240787+00:00",
+      "stats": [
+        {
+          "date": "2026-06-10",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
