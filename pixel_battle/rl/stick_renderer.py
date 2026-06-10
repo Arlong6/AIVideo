@@ -599,6 +599,12 @@ _STYLES = {
                     "hand_radius": 4, "foot_length": 13,
                     "pose_overrides": {"idle_weapon_deg": -112.0, "walk_weapon_deg": -66.0,
                         "idle_oscillations": [{"field": "weapon_deg", "amplitude": 8.0, "period_ms": 2600.0}]}},
+    "forge":       {"head_shape": "square",   "head_size": 26, "crest": "great_helm",
+                    "torso_length": 104, "upper_arm": 32, "forearm": 31,  # heavy machinist
+                    "thigh": 36, "shin": 36, "line_width": 7,
+                    "hand_radius": 5, "foot_length": 15,
+                    "pose_overrides": {"idle_weapon_deg": -100.0, "walk_weapon_deg": -60.0,
+                        "idle_oscillations": [{"field": "weapon_deg", "amplitude": 5.0, "period_ms": 3200.0}]}},
 }
 
 _DEFAULT_STYLE = {"head_shape": "circle", "head_size": 22,
@@ -622,6 +628,7 @@ _CAPES = {
     "outlaw": (150, 110, 70),
     "warlock": (80, 55, 120),
     "necro": (60, 80, 55), "totem": (40, 110, 100),
+    "forge": (90, 96, 105),
 }
 
 

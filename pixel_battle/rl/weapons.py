@@ -48,6 +48,7 @@ _WEAPONS = {
     "warlock":     Weapon("staff",      length=112, grip="one_hand", width=0.8),
     "necro":       Weapon("scythe",     length=120, grip="two_hand", width=0.9),
     "totem":       Weapon("staff",      length=114, grip="one_hand", width=1.0),
+    "forge":       Weapon("cannon",     length=80,  grip="two_hand", width=2.1),
 }
 
 

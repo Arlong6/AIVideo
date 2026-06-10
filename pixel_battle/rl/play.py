@@ -50,8 +50,11 @@ _MAGE_IDS = frozenset({"lux", "pyre"})
 _PROJECTILE_KIND = {
     "lux": "orb", "pyre": "fire", "ashe": "ice", "jinx": "rocket",
     "deadeye": "bullet", "quarrel": "bolt", "venom": "kunai", "outlaw": "bullet", "warlock": "spirit",
-    "necro": "spirit", "totem": "orb",
+    "necro": "spirit", "totem": "orb", "forge": "bullet",
 }
+# Summoner champions — they keep a persistent companion minion on the field and
+# their ult is a summon. Kept in one place so the renderer can treat them alike.
+_SUMMONER_IDS = frozenset({"warlock", "necro", "totem", "forge"})
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
 # same feet-landing line the simulation uses, or the camera and floor will
@@ -390,6 +393,49 @@ def _draw_aura(surf: pygame.Surface, cx: int, cy: int, color: tuple,
         pygame.draw.circle(mote, (*color, ma), (5, 5), 4)
         pygame.draw.circle(mote, (255, 255, 255, ma), (5, 5), 2)
         surf.blit(mote, (mx - 5, my - 5), special_flags=pygame.BLEND_RGB_ADD)
+
+
+def _draw_companion(surf, hx, hy, opp_x, opp_y, lunge, color, kind, age):
+    """A persistent summoned minion that floats by its master the whole fight and
+    DARTS at the opponent when the master lands a hit. `lunge` is 0..1 (1 = mid-
+    strike). `kind`: 'wisp' (spirit summoners) or 'drone' (the machinist Forge)."""
+    def ac(x, y, r, col, al):
+        if al <= 0:
+            return
+        s = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
+        pygame.draw.circle(s, (*col, al), (r + 2, r + 2), r)
+        surf.blit(s, (int(x) - r - 2, int(y) - r - 2), special_flags=pygame.BLEND_RGB_ADD)
+
+    bob_x = hx + math.cos(age * 0.12) * 6          # idle bob near the master
+    bob_y = hy + math.sin(age * 0.18) * 5
+    lx = bob_x + (opp_x - bob_x) * (0.85 * lunge)  # lunge toward the opponent's chest
+    ly = bob_y + (opp_y - bob_y) * (0.85 * lunge)
+    glow = tuple(min(255, c + 90) for c in color)
+    ac(lx, ly, 16, color, 55)                      # soft aura so it always reads
+    if lunge > 0.25:                               # motion trail behind the dart
+        ac(bob_x + (opp_x - bob_x) * 0.45 * lunge,
+           bob_y + (opp_y - bob_y) * 0.45 * lunge, 6, color, int(140 * lunge))
+    if kind == "drone":                            # little mechanical sentry-drone
+        pygame.draw.rect(surf, (165, 172, 182), (int(lx) - 9, int(ly) - 6, 18, 12), border_radius=2)
+        pygame.draw.rect(surf, (60, 66, 74), (int(lx) - 9, int(ly) - 6, 18, 12), 2)
+        rx = math.cos(age * 0.6) * 13              # spinning rotor bar
+        pygame.draw.line(surf, (120, 128, 138), (int(lx - rx), int(ly - 9)),
+                         (int(lx + rx), int(ly - 9)), 2)
+        ac(lx + 3, ly, 4, color, 240)             # orange optic
+        ac(lx, ly + 6, 4, glow, 120)              # thruster glow
+        if lunge > 0.5:
+            ac(lx + 11, ly, 6, glow, int(240 * lunge))  # muzzle flash on strike
+    else:                                          # spirit wisp
+        ac(lx, ly, 11, color, 130)                # ghostly body
+        ac(lx, ly - 2, 6, glow, 235)              # bright core
+        ac(lx - 3, ly - 3, 2, (255, 255, 255), 235)   # eye glint
+        ac(lx + 3, ly - 3, 2, (255, 255, 255), 235)
+        ac(lx, ly + 9, 4, glow, 120)              # wispy tail
+        ac(lx, ly + 15, 3, glow, 70)
+        if lunge > 0.6:                            # fanged snap on the bite
+            s2 = pygame.Surface((24, 24), pygame.SRCALPHA)
+            pygame.draw.circle(s2, (255, 255, 255, int(210 * lunge)), (12, 12), 8, 2)
+            surf.blit(s2, (int(lx) - 12, int(ly) - 12), special_flags=pygame.BLEND_RGB_ADD)
 
 
 def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
@@ -754,6 +800,50 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
                                  max(2, int(w_ * (1.0 - 0.3 * ph))))
             add_ring(cx, iy, int(30 + 260 * ph), spirit, int(170 * fade), 7)
             add_ring(cx, iy, int(18 + 180 * ph), W, int(130 * fade), 3)
+    elif aid == "forge":              # FORGE — a heavy SENTRY turret deploys and unloads
+        steel = (150, 158, 168); steeld = (84, 90, 100); ember = (255, 150, 50)
+        spark = (255, 210, 120)
+        gy = ground_y
+        side = -1 if cx > WIDTH * 0.5 else 1     # turret stands toward screen centre
+        tx = cx + side * 130
+        deploy = min(1.0, t / 0.28)
+        th = int(118 * deploy); ty2 = gy - th
+        add_circle(tx, gy - 4, int(40 + 70 * deploy), ember, int(60 * fade))   # deploy glow
+        for ls in (-1, 0, 1):                    # tripod legs splay as it lands
+            pygame.draw.line(surf, steeld, (tx, ty2 + th - 30),
+                             (tx + ls * int(26 * deploy), gy - 2), 5)
+        pygame.draw.rect(surf, steeld, (tx - 16, ty2 + 34, 32, max(2, th - 34)))   # mast
+        pygame.draw.rect(surf, steel, (tx - 20, ty2 + 18, 40, 30), border_radius=3)  # head
+        pygame.draw.rect(surf, (40, 46, 54), (tx - 20, ty2 + 18, 40, 30), 2)
+        add_circle(tx, ty2 + 33, 6, ember, int(230 * fade))          # glowing power core
+        bx0, by0 = tx + side * 16, ty2 + 30
+        if deploy >= 1.0 and t < 0.9:            # twin barrels strobe-fire at the victim
+            firing = ((age // 2) % 2 == 0)
+            for bo in (-6, 6):
+                pygame.draw.line(surf, steeld, (tx, ty2 + 30 + bo),
+                                 (bx0 + side * 22, by0 + bo), 5)
+                if firing:
+                    mz = (bx0 + side * 24, by0 + bo)
+                    add_circle(mz[0], mz[1], 7, ember, int(230 * fade))      # muzzle flash
+                    add_circle(mz[0], mz[1], 4, W, int(230 * fade))
+                    pygame.draw.line(surf, spark, mz, (cx, iy + bo), 2)      # tracer
+            if firing:
+                add_circle(cx, iy, 9, ember, int(200 * fade))               # impacts land
+                add_circle(cx, iy, 4, W, int(220 * fade))
+                for sp in range(4):
+                    sa = sp * 90 + age * 7
+                    add_circle(cx + math.cos(math.radians(sa)) * 16,
+                               iy + math.sin(math.radians(sa)) * 16, 2, spark, int(200 * fade))
+        for i in range(3):                       # hovering drones circling the turret
+            da = age * 0.16 + i * (2 * math.pi / 3)
+            dx = tx + math.cos(da) * 46; dy = (ty2 + 24) + math.sin(da) * 22
+            pygame.draw.rect(surf, steel, (int(dx) - 5, int(dy) - 4, 10, 8), border_radius=2)
+            add_circle(dx + side * 2, dy, 2, ember, int(220 * fade))
+        if t > 0.78:                             # overcharge — heavy shell + shockwave
+            ph = (t - 0.78) / 0.22
+            add_ring(cx, iy, int(30 + 250 * ph), ember, int(170 * fade), 8)
+            add_ring(cx, iy, int(18 + 180 * ph), W, int(130 * fade), 3)
+            add_circle(cx, iy, int(26 * (1 - ph)) + 6, ember, int(180 * fade))
     else:                              # default — a champion-colour star burst
         for a in range(0, 360, 30):
             ln = int(40 + 280 * t)
@@ -1055,7 +1145,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     ULT_SIG_LIFE = 68
     # Summon ults (the warlock colossus) linger longer so the minion can stomp
     # twice and the spirit wisps get screen time — a summon should DWELL, not flash.
-    _ULT_SIG_LIFE_MULT = {"warlock": 1.7, "necro": 1.6, "totem": 1.55}
+    _ULT_SIG_LIFE_MULT = {"warlock": 1.7, "necro": 1.6, "totem": 1.55, "forge": 1.6}
+    # Persistent companion-minion lunge (0..1, set to 1 on the master's hit, decays)
+    _comp_lunge_left = 0.0
+    _comp_lunge_right = 0.0
     BEAM_LIFE, SPIN_LIFE, AURA_LIFE = 10, 34, 46   # spin/aura linger longer to read
     prev_on_ground_left = env.left.on_ground
     prev_on_ground_right = env.right.on_ground
@@ -1166,6 +1259,12 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         left_flash_frames = max(left_flash_frames, 8)
                     else:
                         right_flash_frames = max(right_flash_frames, 8)
+                    # Summoner's companion minion darts in to "assist" on the hit.
+                    if attacker.id in _SUMMONER_IDS:
+                        if attacker is env.left:
+                            _comp_lunge_left = 1.0
+                        else:
+                            _comp_lunge_right = 1.0
                     # ── Spark SPRAY at the contact point — graded by hit weight. ──
                     impact_fx.spawn_hit_spark(
                         x=int(defender.pos_x), y=int(defender.pos_y) - 78,
@@ -1736,6 +1835,19 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                        opp_x=float(env.left.pos_x))
             draw_effect_indicators(world, env.left, current_ms=int(frame * RENDER_MS))
             draw_effect_indicators(world, env.right, current_ms=int(frame * RENDER_MS))
+            # Persistent summoned companions — float by each summoner all fight,
+            # dart at the opponent whenever their master lands a hit.
+            for _me, _mx, _my, _ox, _oy, _lng in (
+                (env.left, _draw_left_x, _draw_left_y, _draw_right_x, _draw_right_y, _comp_lunge_left),
+                (env.right, _draw_right_x, _draw_right_y, _draw_left_x, _draw_left_y, _comp_lunge_right)):
+                if _me.id in _SUMMONER_IDS:
+                    _face = 1.0 if _ox >= _mx else -1.0
+                    _ckind = "drone" if _me.id == "forge" else "wisp"
+                    _ccol = getattr(_me, "brand_color", getattr(_me, "color", (180, 220, 160)))
+                    _draw_companion(world, _mx - _face * 28, _my - 118,
+                                    _ox, _oy - 90, _lng, _ccol, _ckind, frame)
+            _comp_lunge_left *= 0.86
+            _comp_lunge_right *= 0.86
         finally:
             _restore_draw_pos(env.left)
             _restore_draw_pos(env.right)
