@@ -57,6 +57,8 @@ _PROJECTILE_KIND = {
 _SUMMONER_IDS = frozenset({"warlock", "necro", "totem", "forge"})
 # Each summoner's companion minion has its OWN look (not one shared wisp).
 _COMPANION_KIND = {"warlock": "wisp", "necro": "skull", "totem": "idol", "forge": "drone"}
+# Summoner ultimates get their own deep summoning rumble instead of the generic ult cue.
+_SUMMON_ULT_SFX = frozenset({"summon_colossus", "raise_dead", "totem_ring", "deploy_sentry"})
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
 # same feet-landing line the simulation uses, or the camera and floor will
@@ -148,7 +150,7 @@ def _get_hud_font(size: int = 14) -> pygame.font.Font:
 # ── Background / arena themes ─────────────────────────────────────────────────
 # Per-script selectable arena. set_arena() is called from the renderer entry
 # (play_scripted) before a fight; the batch rotates themes so the reel varies.
-_ARENA_THEMES = ("dusk", "dojo", "ruins", "magma")
+_ARENA_THEMES = ("dusk", "dojo", "ruins", "magma", "frost")
 _ARENA_THEME = "ruins"
 
 
@@ -267,6 +269,35 @@ def _back_magma(surf, frame: int) -> None:
         surf.blit(s, (ex, ey))
 
 
+def _back_frost(surf, frame: int) -> None:
+    """Twilight snowfield: pale-blue sky, aurora ribbons, snow peaks, falling snow.
+    The only LIGHT arena — dark fighters pop hard against it in a feed."""
+    _vgrad(surf, (40, 54, 78), (120, 144, 172))
+    for bi, col in ((0.18, (90, 220, 180)), (0.30, (120, 160, 240))):   # aurora ribbons
+        s = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        prev = None
+        for x in range(0, WIDTH + 1, 24):
+            y = int(GROUND_Y * bi + 22 * math.sin(x * 0.02 + frame * 0.03))
+            if prev:
+                pygame.draw.line(s, (*col, 50), prev, (x, y), 9)
+            prev = (x, y)
+        surf.blit(s, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+    _soft_glow(surf, 80, 80, [(46, (200, 220, 245, 30)),
+                              (28, (215, 230, 248, 55)), (15, (235, 244, 255, 120))])
+    pygame.draw.circle(surf, (235, 244, 255), (80, 80), 13)             # cool moon
+    for px, h in ((10, 0.34), (150, 0.46), (310, 0.38), (440, 0.50)):   # snow peaks
+        top = int(GROUND_Y * (1 - h))
+        pygame.draw.polygon(surf, (54, 68, 92), [(px - 95, GROUND_Y), (px, top), (px + 95, GROUND_Y)])
+        pygame.draw.polygon(surf, (208, 222, 240),
+                            [(px - 26, top + 32), (px, top), (px + 26, top + 32)])
+    for i in range(48):                                                 # falling snow
+        sx = int((i * 53 + 10 * math.sin((frame + i * 15) / 40.0)) % WIDTH)
+        sy = (i * 61 + frame * 3) % GROUND_Y
+        s = pygame.Surface((3, 3), pygame.SRCALPHA)
+        pygame.draw.circle(s, (235, 244, 255, 205), (1, 1), 1)
+        surf.blit(s, (sx, sy))
+
+
 def _draw_back_wall(surf: pygame.Surface, frame: int = 0) -> None:
     """Themed backdrop above the floor (gradient + parallax + particles)."""
     if _ARENA_THEME == "dusk":
@@ -275,6 +306,8 @@ def _draw_back_wall(surf: pygame.Surface, frame: int = 0) -> None:
         _back_dojo(surf, frame)
     elif _ARENA_THEME == "magma":
         _back_magma(surf, frame)
+    elif _ARENA_THEME == "frost":
+        _back_frost(surf, frame)
     else:
         _back_ruins(surf, frame)
 
@@ -305,6 +338,15 @@ def _draw_floor(surf: pygame.Surface, frame: int = 0) -> None:
             pygame.draw.line(surf, (255, 165, 60), (ox, GROUND_Y + 16), (ox + 18, GROUND_Y + 16), 1)
         for x in range(0, WIDTH, 90):                     # basalt cracks
             pygame.draw.line(surf, (50, 22, 16), (x, GROUND_Y), (x + 6, HEIGHT), 1)
+    elif _ARENA_THEME == "frost":
+        pygame.draw.rect(surf, (182, 202, 224), (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))  # snow
+        pygame.draw.line(surf, (232, 242, 252), (0, GROUND_Y), (WIDTH, GROUND_Y), 3)
+        pygame.draw.line(surf, (150, 180, 215), (0, GROUND_Y + 4), (WIDTH, GROUND_Y + 4), 1)
+        for x in range(0, WIDTH, 64):                     # ice cracks
+            pygame.draw.line(surf, (150, 175, 205), (x, GROUND_Y + 16), (x + 30, GROUND_Y + 22), 1)
+        for i in range(10):                               # sparkle glints on snow
+            gx = (i * 101 + frame) % WIDTH
+            pygame.draw.circle(surf, (255, 255, 255), (gx, GROUND_Y + 10 + (i * 7) % 30), 1)
     else:
         pygame.draw.rect(surf, (28, 34, 56), (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))
         pygame.draw.line(surf, (90, 110, 170), (0, GROUND_Y), (WIDTH, GROUND_Y), 3)
@@ -315,7 +357,9 @@ def _draw_floor(surf: pygame.Surface, frame: int = 0) -> None:
 
 
 def _draw_shadow(surf: pygame.Surface, char) -> None:
-    """Translucent black ellipse under the character; shrinks when airborne."""
+    """Layered soft contact shadow — a wide faint penumbra + a tight darker core,
+    so figures sit grounded (and read on the light frost floor, not just dark ones).
+    Shrinks/softens when airborne."""
     ground = GROUND_Y
     air_height = max(0, ground - int(char.pos_y))
     scale = max(0.35, 1.0 - air_height / 250.0)
@@ -323,9 +367,13 @@ def _draw_shadow(surf: pygame.Surface, char) -> None:
     h = int(9 * scale)
     if w < 6 or h < 2:
         return
-    shadow = pygame.Surface((w * 2, h * 2), pygame.SRCALPHA)
-    pygame.draw.ellipse(shadow, (0, 0, 0, 110), (0, 0, w * 2, h * 2))
-    surf.blit(shadow, (int(char.pos_x) - w, ground - h))
+    pw, ph = int(w * 2.6), int(h * 2.6)               # soft penumbra
+    pen = pygame.Surface((pw, ph), pygame.SRCALPHA)
+    pygame.draw.ellipse(pen, (0, 0, 0, 52), (0, 0, pw, ph))
+    surf.blit(pen, (int(char.pos_x) - pw // 2, ground - ph // 2))
+    core = pygame.Surface((w * 2, h * 2), pygame.SRCALPHA)   # tight darker core
+    pygame.draw.ellipse(core, (0, 0, 0, 120), (0, 0, w * 2, h * 2))
+    surf.blit(core, (int(char.pos_x) - w, ground - h))
 
 
 def _draw_shockwave(surf: pygame.Surface, x: int, y: int,
@@ -454,6 +502,10 @@ def _draw_companion(surf, hx, hy, opp_x, opp_y, lunge, color, kind, age):
     bob_y = hy + math.sin(age * 0.18) * 5
     lx = bob_x + (opp_x - bob_x) * (0.85 * lunge)  # lunge toward the opponent's chest
     ly = bob_y + (opp_y - bob_y) * (0.85 * lunge)
+    harass = max(0.0, lunge - 0.55)                # once detached, circle the opponent
+    if harass > 0:
+        lx += math.cos(age * 0.35) * 18 * harass
+        ly += math.sin(age * 0.35) * 12 * harass
     ix, iy2 = int(lx), int(ly)
     glow = tuple(min(255, c + 90) for c in color)
     ac(lx, ly, 16, color, 55)                      # soft aura so it always reads
@@ -995,7 +1047,8 @@ def _route_audio_for_events(events, event_video_ms, mixer):
         elif type_val == "ko":
             sfx_name = "ko"
         elif type_val == "ultimate_start":
-            sfx_name = "ultimate"
+            sk = (ev.extra or {}).get("skill_id", "")
+            sfx_name = "summon" if sk in _SUMMON_ULT_SFX else "ultimate"
         elif type_val == "attack_windup":
             kind = (ev.extra or {}).get("skill_type", "")
             sfx_name = f"cast_{kind}"
@@ -1219,9 +1272,12 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     # Summon ults (the warlock colossus) linger longer so the minion can stomp
     # twice and the spirit wisps get screen time — a summon should DWELL, not flash.
     _ULT_SIG_LIFE_MULT = {"warlock": 1.7, "necro": 1.6, "totem": 1.55, "forge": 1.6}
-    # Persistent companion-minion lunge (0..1, set to 1 on the master's hit, decays)
-    _comp_lunge_left = 0.0
+    # Persistent companion-minion: on the master's hit it DETACHES and roams toward
+    # the opponent for a beat (roam timer, ms), harassing, then drifts home.
+    _comp_lunge_left = 0.0          # 0..1 how far out toward the opponent it is
     _comp_lunge_right = 0.0
+    _comp_roam_left = 0.0           # ms of roam (out-and-harass) remaining
+    _comp_roam_right = 0.0
     BEAM_LIFE, SPIN_LIFE, AURA_LIFE = 10, 34, 46   # spin/aura linger longer to read
     prev_on_ground_left = env.left.on_ground
     prev_on_ground_right = env.right.on_ground
@@ -1335,9 +1391,9 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     # Summoner's companion minion darts in to "assist" on the hit.
                     if attacker.id in _SUMMONER_IDS:
                         if attacker is env.left:
-                            _comp_lunge_left = 1.0
+                            _comp_roam_left = max(_comp_roam_left, 1400.0)
                         else:
-                            _comp_lunge_right = 1.0
+                            _comp_roam_right = max(_comp_roam_right, 1400.0)
                     # ── Spark SPRAY at the contact point — graded by hit weight. ──
                     impact_fx.spawn_hit_spark(
                         x=int(defender.pos_x), y=int(defender.pos_y) - 78,
@@ -1919,8 +1975,18 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     _ccol = getattr(_me, "brand_color", getattr(_me, "color", (180, 220, 160)))
                     _draw_companion(world, _mx - _face * 28, _my - 118,
                                     _ox, _oy - 90, _lng, _ccol, _ckind, frame)
-            _comp_lunge_left *= 0.86
-            _comp_lunge_right *= 0.86
+            # Roam envelope: while roaming, ease OUT to the opponent; once the timer
+            # runs out, drift back HOME. Gives a few-second detached harass per hit.
+            if _comp_roam_left > 0:
+                _comp_roam_left -= RENDER_MS
+                _comp_lunge_left += (1.0 - _comp_lunge_left) * 0.20
+            else:
+                _comp_lunge_left *= 0.90
+            if _comp_roam_right > 0:
+                _comp_roam_right -= RENDER_MS
+                _comp_lunge_right += (1.0 - _comp_lunge_right) * 0.20
+            else:
+                _comp_lunge_right *= 0.90
         finally:
             _restore_draw_pos(env.left)
             _restore_draw_pos(env.right)

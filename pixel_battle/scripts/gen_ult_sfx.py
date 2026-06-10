@@ -82,11 +82,39 @@ def _gen_force_update() -> np.ndarray:
     return samples
 
 
+def _gen_summon() -> np.ndarray:
+    """Deep SUMMONING rumble for summoner ultimates: a rising sub-bass swell +
+    a building low 'earth-tearing' noise rush + a low boom as the summon lands.
+    All low-frequency content (no ringing high tones). ~1.0s."""
+    duration = 1.0
+    n = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, n, endpoint=False)
+    # Rising sub-bass 45→90Hz over the first 700ms (the summon wells up)
+    f0 = 45 + (90 - 45) * np.clip(t / 0.7, 0, 1)
+    phase = 2 * np.pi * np.cumsum(f0) / SAMPLE_RATE
+    sub = np.sin(phase)
+    sub2 = np.sin(phase * 2) * 0.4                       # an octave up for body
+    sub_env = np.clip(t / 0.25, 0, 1) * np.exp(-np.clip(t - 0.7, 0, None) * 3.0)
+    # Building low-passed noise rush
+    noise = np.random.uniform(-1, 1, n)
+    noise_lp = np.convolve(noise, np.ones(140) / 140, mode="same")   # heavy low-pass = rumble
+    rush_env = (np.clip(t / 0.7, 0, 1) ** 2) * np.where(t < 0.78, 1.0, np.exp(-(t - 0.78) * 6))
+    # Low boom impact at ~0.70s (the summon lands)
+    boom = np.sin(2 * np.pi * 60 * t)
+    boom_env = np.where(t >= 0.70, np.exp(-(t - 0.70) * 7.0), 0.0)
+    boom_noise = noise * np.where((t >= 0.70) & (t < 0.78), 1.0, 0.0) * 0.5
+    samples = ((sub + sub2) * sub_env * 0.55
+               + noise_lp * rush_env * 0.30
+               + (boom + boom_noise) * boom_env * 0.5)
+    return np.tanh(samples * 1.2)                        # soft clip for glue
+
+
 def main() -> None:
     np.random.seed(42)  # deterministic for re-runs
     SFX_DIR.mkdir(parents=True, exist_ok=True)
     _write_wav(SFX_DIR / "indestructible_throw.wav", _gen_indestructible_throw())
     _write_wav(SFX_DIR / "force_update.wav", _gen_force_update())
+    _write_wav(SFX_DIR / "summon.wav", _gen_summon())
     print(f"Generated SFX in {SFX_DIR}")
 
 

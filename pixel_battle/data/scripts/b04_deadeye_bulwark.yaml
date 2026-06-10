@@ -260,4 +260,4 @@ right_timeline:
   - {t: 43720, do: jump}
   - {t: 44080, do: advance}
   - {t: 44320, do: "attack:cd"}
-arena: dusk
+arena: frost
