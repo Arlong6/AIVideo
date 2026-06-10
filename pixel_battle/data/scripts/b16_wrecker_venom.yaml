@@ -261,4 +261,4 @@ right_timeline:
   - {t: 43820, do: advance}
   - {t: 44100, do: "attack:basic"}
   - {t: 44440, do: retreat}
-arena: dusk
+arena: magma

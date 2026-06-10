@@ -148,7 +148,7 @@ def _get_hud_font(size: int = 14) -> pygame.font.Font:
 # ── Background / arena themes ─────────────────────────────────────────────────
 # Per-script selectable arena. set_arena() is called from the renderer entry
 # (play_scripted) before a fight; the batch rotates themes so the reel varies.
-_ARENA_THEMES = ("dusk", "dojo", "ruins")
+_ARENA_THEMES = ("dusk", "dojo", "ruins", "magma")
 _ARENA_THEME = "ruins"
 
 
@@ -239,12 +239,42 @@ def _back_ruins(surf, frame: int) -> None:
         pygame.draw.line(surf, (120, 140, 190), (rx, ry), (rx - 6, ry + 14), 1)
 
 
+def _back_magma(surf, frame: int) -> None:
+    """Volcanic cavern: near-black rock, pulsing lava seams & glow pools,
+    hanging stalactites, rising red embers."""
+    _vgrad(surf, (30, 10, 8), (60, 16, 10))
+    pulse = 0.5 + 0.5 * math.sin(frame * 0.05)
+    for gx in (90, WIDTH // 2, WIDTH - 110):              # distant lava glow pools
+        _soft_glow(surf, gx, int(GROUND_Y * 0.82),
+                   [(54, (180, 60, 20, int(28 + 26 * pulse))),
+                    (30, (230, 90, 30, int(50 + 30 * pulse)))])
+    for sx, y0f, y1f in ((40, 0.20, 0.62), (185, 0.0, 0.5),    # glowing cracks in the wall
+                         (305, 0.30, 0.72), (WIDTH - 58, 0.12, 0.56)):
+        y0 = int(GROUND_Y * y0f); y1 = int(GROUND_Y * y1f)
+        prev = (sx, y0)
+        for yy in range(y0, y1, 18):
+            nx = sx + int(14 * math.sin(yy * 0.3 + sx))
+            pygame.draw.line(surf, (255, int(110 + 90 * pulse), 40), prev, (nx, yy), 2)
+            prev = (nx, yy)
+    for sx, h in ((30, 60), (120, 40), (240, 70), (340, 45), (430, 55)):   # stalactites
+        pygame.draw.polygon(surf, (18, 8, 8), [(sx - 12, 0), (sx + 12, 0), (sx, h)])
+    for i in range(28):                                   # rising embers
+        ex = int((i * 47 + 8 * math.sin((frame + i * 18) / 35.0)) % WIDTH)
+        ey = GROUND_Y - ((frame * 2 + i * 39) % GROUND_Y)
+        a = max(0, 210 - int(180 * (GROUND_Y - ey) / GROUND_Y))
+        s = pygame.Surface((3, 3), pygame.SRCALPHA)
+        pygame.draw.circle(s, (255, 130, 40, a), (1, 1), 1)
+        surf.blit(s, (ex, ey))
+
+
 def _draw_back_wall(surf: pygame.Surface, frame: int = 0) -> None:
     """Themed backdrop above the floor (gradient + parallax + particles)."""
     if _ARENA_THEME == "dusk":
         _back_dusk(surf, frame)
     elif _ARENA_THEME == "dojo":
         _back_dojo(surf, frame)
+    elif _ARENA_THEME == "magma":
+        _back_magma(surf, frame)
     else:
         _back_ruins(surf, frame)
 
@@ -264,6 +294,17 @@ def _draw_floor(surf: pygame.Surface, frame: int = 0) -> None:
             pygame.draw.line(surf, (44, 30, 20), (0, y), (WIDTH, y), 1)
         for x in range(0, WIDTH, 80):
             pygame.draw.line(surf, (44, 30, 20), (x, GROUND_Y), (x, HEIGHT), 1)
+    elif _ARENA_THEME == "magma":
+        pygame.draw.rect(surf, (24, 12, 10), (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))
+        pulse = 0.5 + 0.5 * math.sin(frame * 0.05)
+        pygame.draw.line(surf, (255, int(110 + 90 * pulse), 40),
+                         (0, GROUND_Y), (WIDTH, GROUND_Y), 3)
+        for sx in range(0, WIDTH, 70):                    # glowing lava seams in the basalt
+            ox = sx + int(10 * math.sin(sx * 0.5 + frame * 0.04))
+            pygame.draw.line(surf, (220, 80, 30), (ox, GROUND_Y + 16), (ox + 36, GROUND_Y + 16), 2)
+            pygame.draw.line(surf, (255, 165, 60), (ox, GROUND_Y + 16), (ox + 18, GROUND_Y + 16), 1)
+        for x in range(0, WIDTH, 90):                     # basalt cracks
+            pygame.draw.line(surf, (50, 22, 16), (x, GROUND_Y), (x + 6, HEIGHT), 1)
     else:
         pygame.draw.rect(surf, (28, 34, 56), (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))
         pygame.draw.line(surf, (90, 110, 170), (0, GROUND_Y), (WIDTH, GROUND_Y), 3)
