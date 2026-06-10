@@ -55,6 +55,8 @@ _PROJECTILE_KIND = {
 # Summoner champions — they keep a persistent companion minion on the field and
 # their ult is a summon. Kept in one place so the renderer can treat them alike.
 _SUMMONER_IDS = frozenset({"warlock", "necro", "totem", "forge"})
+# Each summoner's companion minion has its OWN look (not one shared wisp).
+_COMPANION_KIND = {"warlock": "wisp", "necro": "skull", "totem": "idol", "forge": "drone"}
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
 # same feet-landing line the simulation uses, or the camera and floor will
@@ -398,7 +400,8 @@ def _draw_aura(surf: pygame.Surface, cx: int, cy: int, color: tuple,
 def _draw_companion(surf, hx, hy, opp_x, opp_y, lunge, color, kind, age):
     """A persistent summoned minion that floats by its master the whole fight and
     DARTS at the opponent when the master lands a hit. `lunge` is 0..1 (1 = mid-
-    strike). `kind`: 'wisp' (spirit summoners) or 'drone' (the machinist Forge)."""
+    strike). `kind` gives each summoner its OWN minion: 'wisp' (warlock demon),
+    'skull' (necro), 'idol' (totem spirit), 'drone' (forge machinist)."""
     def ac(x, y, r, col, al):
         if al <= 0:
             return
@@ -410,32 +413,61 @@ def _draw_companion(surf, hx, hy, opp_x, opp_y, lunge, color, kind, age):
     bob_y = hy + math.sin(age * 0.18) * 5
     lx = bob_x + (opp_x - bob_x) * (0.85 * lunge)  # lunge toward the opponent's chest
     ly = bob_y + (opp_y - bob_y) * (0.85 * lunge)
+    ix, iy2 = int(lx), int(ly)
     glow = tuple(min(255, c + 90) for c in color)
     ac(lx, ly, 16, color, 55)                      # soft aura so it always reads
     if lunge > 0.25:                               # motion trail behind the dart
         ac(bob_x + (opp_x - bob_x) * 0.45 * lunge,
            bob_y + (opp_y - bob_y) * 0.45 * lunge, 6, color, int(140 * lunge))
+
+    def snap_ring():                               # white "strike" flash on the lunge
+        if lunge > 0.6:
+            s2 = pygame.Surface((24, 24), pygame.SRCALPHA)
+            pygame.draw.circle(s2, (255, 255, 255, int(210 * lunge)), (12, 12), 8, 2)
+            surf.blit(s2, (ix - 12, iy2 - 12), special_flags=pygame.BLEND_RGB_ADD)
+
     if kind == "drone":                            # little mechanical sentry-drone
-        pygame.draw.rect(surf, (165, 172, 182), (int(lx) - 9, int(ly) - 6, 18, 12), border_radius=2)
-        pygame.draw.rect(surf, (60, 66, 74), (int(lx) - 9, int(ly) - 6, 18, 12), 2)
+        pygame.draw.rect(surf, (165, 172, 182), (ix - 9, iy2 - 6, 18, 12), border_radius=2)
+        pygame.draw.rect(surf, (60, 66, 74), (ix - 9, iy2 - 6, 18, 12), 2)
         rx = math.cos(age * 0.6) * 13              # spinning rotor bar
-        pygame.draw.line(surf, (120, 128, 138), (int(lx - rx), int(ly - 9)),
-                         (int(lx + rx), int(ly - 9)), 2)
+        pygame.draw.line(surf, (120, 128, 138), (int(lx - rx), iy2 - 9),
+                         (int(lx + rx), iy2 - 9), 2)
         ac(lx + 3, ly, 4, color, 240)             # orange optic
         ac(lx, ly + 6, 4, glow, 120)              # thruster glow
         if lunge > 0.5:
             ac(lx + 11, ly, 6, glow, int(240 * lunge))  # muzzle flash on strike
-    else:                                          # spirit wisp
+    elif kind == "skull":                          # NECRO — a chattering floating skull
+        pygame.draw.circle(surf, (225, 222, 205), (ix, iy2), 8)
+        pygame.draw.circle(surf, (175, 174, 158), (ix, iy2), 8, 1)
+        pygame.draw.circle(surf, (28, 36, 26), (ix - 3, iy2 - 1), 2)   # sockets
+        pygame.draw.circle(surf, (28, 36, 26), (ix + 3, iy2 - 1), 2)
+        ac(lx - 3, ly - 1, 3, glow, 230); ac(lx + 3, ly - 1, 3, glow, 230)   # eye glow
+        jaw = 3 + int(2 * (1 + math.sin(age * 0.4)))   # jaw chatters open/closed
+        pygame.draw.line(surf, (210, 208, 192), (ix - 4, iy2 + 5), (ix + 4, iy2 + 5), 1)
+        pygame.draw.line(surf, (180, 178, 164), (ix - 3, iy2 + 5), (ix - 3, iy2 + jaw), 1)
+        pygame.draw.line(surf, (180, 178, 164), (ix + 3, iy2 + 5), (ix + 3, iy2 + jaw), 1)
+        snap_ring()
+    elif kind == "idol":                           # TOTEM — a tiny carved spirit-mask
+        pygame.draw.polygon(surf, (140, 104, 64),
+                            [(ix - 7, iy2 - 7), (ix + 7, iy2 - 7), (ix + 5, iy2 + 8), (ix - 5, iy2 + 8)])
+        pygame.draw.polygon(surf, (90, 66, 44),
+                            [(ix - 7, iy2 - 7), (ix + 7, iy2 - 7), (ix + 5, iy2 + 8), (ix - 5, iy2 + 8)], 1)
+        ac(lx - 3, ly - 1, 2, glow, 235); ac(lx + 3, ly - 1, 2, glow, 235)   # carved eyes
+        pygame.draw.line(surf, (70, 52, 34), (ix - 3, iy2 + 4), (ix + 3, iy2 + 4), 1)   # mouth slit
+        for fk in (-1, 1):                         # little spirit feathers on top
+            ac(lx + fk * 4, ly - 11 + math.sin(age * 0.2 + fk) * 2, 2, glow, 150)
+        snap_ring()
+    else:                                          # WARLOCK — a horned demon wisp
         ac(lx, ly, 11, color, 130)                # ghostly body
         ac(lx, ly - 2, 6, glow, 235)              # bright core
-        ac(lx - 3, ly - 3, 2, (255, 255, 255), 235)   # eye glint
+        for hs in (-1, 1):                         # tiny horns
+            pygame.draw.line(surf, glow, (ix + hs * 4, iy2 - 6),
+                             (ix + hs * 7, iy2 - 12), 2)
+        ac(lx - 3, ly - 3, 2, (255, 255, 255), 235)   # eye glints
         ac(lx + 3, ly - 3, 2, (255, 255, 255), 235)
         ac(lx, ly + 9, 4, glow, 120)              # wispy tail
         ac(lx, ly + 15, 3, glow, 70)
-        if lunge > 0.6:                            # fanged snap on the bite
-            s2 = pygame.Surface((24, 24), pygame.SRCALPHA)
-            pygame.draw.circle(s2, (255, 255, 255, int(210 * lunge)), (12, 12), 8, 2)
-            surf.blit(s2, (int(lx) - 12, int(ly) - 12), special_flags=pygame.BLEND_RGB_ADD)
+        snap_ring()
 
 
 def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
@@ -1842,7 +1874,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 (env.right, _draw_right_x, _draw_right_y, _draw_left_x, _draw_left_y, _comp_lunge_right)):
                 if _me.id in _SUMMONER_IDS:
                     _face = 1.0 if _ox >= _mx else -1.0
-                    _ckind = "drone" if _me.id == "forge" else "wisp"
+                    _ckind = _COMPANION_KIND.get(_me.id, "wisp")
                     _ccol = getattr(_me, "brand_color", getattr(_me, "color", (180, 220, 160)))
                     _draw_companion(world, _mx - _face * 28, _my - 118,
                                     _ox, _oy - 90, _lng, _ccol, _ckind, frame)
