@@ -59,6 +59,21 @@ _SUMMONER_IDS = frozenset({"warlock", "necro", "totem", "forge"})
 _COMPANION_KIND = {"warlock": "wisp", "necro": "skull", "totem": "idol", "forge": "drone"}
 # Summoner ultimates get their own deep summoning rumble instead of the generic ult cue.
 _SUMMON_ULT_SFX = frozenset({"summon_colossus", "raise_dead", "totem_ring", "deploy_sentry"})
+
+# Classic per-weapon-family combat sounds — sword CLASH, spell shimmer, bow
+# TWANG, gunshot crack — routed by the attacker's weapon kind so a fencer, a
+# mage, an archer and a boxer each SOUND like what they are.
+_CLASH_KINDS = frozenset({"greatsword", "katana", "daggers", "scythe", "axe",
+                          "spear", "kunai"})        # blade connects → metal clash
+_BOW_KINDS = frozenset({"bow", "crossbow"})
+_GUN_KINDS = frozenset({"pistols", "revolver", "cannon"})
+_STAFF_KINDS = frozenset({"staff", "fire_staff"})
+
+
+def _weapon_kind(char_id: str) -> str:
+    from pixel_battle.rl.weapons import get_weapon
+    w = get_weapon(char_id)
+    return w.kind if w is not None else ""
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
 # same feet-landing line the simulation uses, or the camera and floor will
@@ -1075,7 +1090,18 @@ def _route_audio_for_events(events, event_video_ms, mixer):
         type_val = ev.type.value
         sfx_name = None
         if type_val == "hit":
-            sfx_name = "crit" if (ev.extra or {}).get("crit") else "hit"
+            if (ev.extra or {}).get("crit"):
+                sfx_name = "crit"
+            else:
+                wk = _weapon_kind(ev.actor)
+                if wk in _CLASH_KINDS:
+                    sfx_name = "sword_hit"      # metal CLASH
+                elif wk in _BOW_KINDS:
+                    sfx_name = "arrow_hit"      # wooden thunk
+                elif wk in _STAFF_KINDS:
+                    sfx_name = "magic_hit"      # arcane burst
+                else:
+                    sfx_name = "hit"            # fists / blunt → boxing thud
         elif type_val == "crit":
             sfx_name = "crit"
         elif type_val == "ko":
@@ -1085,15 +1111,27 @@ def _route_audio_for_events(events, event_video_ms, mixer):
             sfx_name = "summon" if sk in _SUMMON_ULT_SFX else "ultimate"
         elif type_val == "attack_windup":
             kind = (ev.extra or {}).get("skill_type", "")
-            sfx_name = f"cast_{kind}"
+            if kind == "ultimate":
+                sfx_name = None                 # the ultimate cue covers it
+            else:
+                wk = _weapon_kind(ev.actor)
+                if wk in _STAFF_KINDS:
+                    sfx_name = "magic_cast"     # spell shimmer
+                elif wk in _BOW_KINDS:
+                    sfx_name = "bow_shot"       # string twang per arrow
+                elif wk in _GUN_KINDS:
+                    sfx_name = "gun_shot"       # crack per shot
+                else:
+                    sfx_name = "sword_swing"    # melee whoosh
         if not sfx_name:
             continue
         samp = _load_sfx_samples_or_none(sfx_name, mixer.sr)
         if samp is None:
             continue
-        if sfx_name in ("hit", "crit", "ko"):
+        if sfx_name in ("hit", "crit", "ko", "sword_hit", "arrow_hit", "magic_hit"):
             mixer.hit_bus.add(samp, pos)
-        elif sfx_name.startswith("cast_"):
+        elif sfx_name.startswith("cast_") or sfx_name in (
+                "sword_swing", "magic_cast", "bow_shot", "gun_shot"):
             mixer.cast_bus.add(samp, pos)
         else:
             mixer.ult_bus.add(samp, pos)
