@@ -77,10 +77,16 @@ def main():
          "stream=index", "-of", "csv=p=0", raw],
         capture_output=True, text=True).stdout.strip())
 
-    # scale fight -> vertical, overlay hook (fades by HOOK_SECS), then winner band.
+    # scale fight -> vertical with a polish chain (deband the gradient skies,
+    # light sharpen to recover crispness after the upscale, a whisper of film
+    # grain so flat fills feel produced) — all BEFORE the text overlays so the
+    # hook/winner typography stays pristine. Then hook + winner band.
     fc = (
         f"[0:v]trim={cut_start},setpts=PTS-STARTPTS,"
-        f"scale={W}:{H}:flags=lanczos[v];"
+        f"scale={W}:{H}:flags=lanczos,"
+        f"gradfun=1.2:16,"
+        f"unsharp=5:5:0.35:5:5:0.0,"
+        f"noise=alls=2:allf=t[v];"
         f"[v][1:v]overlay=0:0:enable='lt(t,{HOOK_SECS})'[v1];"
         f"[v1][2:v]overlay=0:0:enable='gte(t,{win_start})'[vo]"
     )
@@ -89,11 +95,11 @@ def main():
         # Trim the audio in lock-step with the video so SFX stay synced.
         fc += f";[0:a]atrim={cut_start},asetpts=PTS-STARTPTS[a]"
         cmd += ["-filter_complex", fc, "-map", "[vo]", "-map", "[a]",
-                "-c:a", "aac", "-b:a", "160k"]
+                "-c:a", "aac", "-b:a", "192k"]
     else:
         cmd += ["-filter_complex", fc, "-map", "[vo]"]
     cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
-            "-profile:v", "high", "-crf", "19", out]
+            "-profile:v", "high", "-preset", "slow", "-crf", "18", out]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         print(r.stderr[-1500:]); sys.exit(1)

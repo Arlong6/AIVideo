@@ -356,6 +356,40 @@ def _draw_floor(surf: pygame.Surface, frame: int = 0) -> None:
             pygame.draw.line(surf, (50, 60, 95), (x, GROUND_Y + 22), (x + 20, GROUND_Y + 22), 1)
 
 
+def _apply_bloom(world: pygame.Surface) -> None:
+    """Cheap two-step bloom: bright-pass threshold, downscale blur, additive glow.
+    The whole aesthetic is glowing VFX on dark arenas — this makes every beam,
+    aura and ult flourish halo softly like a post-processed render."""
+    q = pygame.transform.smoothscale(world, (WIDTH // 4, HEIGHT // 4))
+    q.fill((70, 70, 70), special_flags=pygame.BLEND_RGB_SUB)      # keep only brights
+    o = pygame.transform.smoothscale(q, (WIDTH // 8, HEIGHT // 8))  # widen the blur
+    glow = pygame.transform.smoothscale(o, (WIDTH, HEIGHT))
+    glow.fill((170, 170, 170), special_flags=pygame.BLEND_RGB_MULT)  # ~0.67 strength
+    world.blit(glow, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+
+_VIGNETTE_CACHE: pygame.Surface | None = None
+
+
+def _get_vignette() -> pygame.Surface:
+    """Subtle always-on cinematic vignette (precomputed radial darkening)."""
+    global _VIGNETTE_CACHE
+    if _VIGNETTE_CACHE is None:
+        import numpy as _np
+        import pygame.surfarray as _sa
+        vig = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        yy, xx = _np.mgrid[0:HEIGHT, 0:WIDTH]
+        cx, cy = WIDTH / 2.0, HEIGHT * 0.45
+        r = _np.sqrt(((xx - cx) / (WIDTH * 0.78)) ** 2
+                     + ((yy - cy) / (HEIGHT * 0.62)) ** 2)
+        a = (_np.clip((r - 0.72) / 0.55, 0, 1) ** 1.5) * 88
+        alpha = _sa.pixels_alpha(vig)
+        alpha[:, :] = a.T.astype(_np.uint8)
+        del alpha
+        _VIGNETTE_CACHE = vig
+    return _VIGNETTE_CACHE
+
+
 def _draw_shadow(surf: pygame.Surface, char) -> None:
     """Layered soft contact shadow — a wide faint penumbra + a tight darker core,
     so figures sit grounded (and read on the light frost floor, not just dark ones).
@@ -2058,6 +2092,9 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             world.blit(blur_overlay, (0, 0))
         prev_world = world.copy()
 
+        # ── Post-process: soft bloom over the whole world (VFX halo softly) ──
+        _apply_bloom(world)
+
         # ── Ultimate zoom: advance age and compute zoom factor ───────────────
         _ult_zoom_age_ms += RENDER_MS
         if _ult_zoom_age_ms < _ULT_ZOOM_TOTAL_MS:
@@ -2109,7 +2146,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         cam_view_y_adjusted = GROUND_Y - int(view_h * 0.82)
         view_y = max(0, min(HEIGHT - view_h, cam_view_y_adjusted + sy))
         sub = world.subsurface((view_x, view_y, view_w, view_h))
-        pygame.transform.scale(sub, (WIDTH, HEIGHT), surf)
+        # smoothscale (not scale): zoomed shots upscale the crop — bilinear keeps
+        # edges clean instead of blocky nearest-neighbour jaggies.
+        pygame.transform.smoothscale(sub, (WIDTH, HEIGHT), surf)
+        surf.blit(_get_vignette(), (0, 0))            # subtle cinematic vignette
         if shake_frames > 0:
             shake_frames -= 1
 
@@ -2179,9 +2219,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 _vy = max(0, min(HEIGHT - _vh, _cam_view_y_ko))
                 try:
                     _sub = world.subsurface((_vx, _vy, _vw, _vh))
-                    pygame.transform.scale(_sub, (WIDTH, HEIGHT), surf)
+                    pygame.transform.smoothscale(_sub, (WIDTH, HEIGHT), surf)
                 except Exception:
                     surf.blit(ko_surf_base, (0, 0))
+                surf.blit(_get_vignette(), (0, 0))
 
                 hud_overlay.draw(surf, env.battle, elapsed_ms=int(frame * RENDER_MS))
                 impact_fx.update_and_draw(surf, dt_ms=RENDER_MS)

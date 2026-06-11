@@ -25,8 +25,10 @@ class FrameRecorder:
             "-an",
             "-vcodec", "libx264",
             "-pix_fmt", "yuv420p",
-            "-preset", "veryfast",
-            "-crf", "22",
+            # Near-lossless intermediate — this raw gets re-encoded by
+            # build_short, so artifacts here would compound downstream.
+            "-preset", "fast",
+            "-crf", "16",
             self.output_path,
         ]
         self._proc = subprocess.Popen(
