@@ -16849,7 +16849,7 @@
         },
         {
           "date": "2026-06-12",
-          "views": 77,
+          "views": 78,
           "likes": 0,
           "comments": 1
         }
@@ -25714,7 +25714,7 @@
         },
         {
           "date": "2026-06-12",
-          "views": 9,
+          "views": 12,
           "likes": 0,
           "comments": 1
         }
@@ -25736,7 +25736,7 @@
         },
         {
           "date": "2026-06-12",
-          "views": 6,
+          "views": 9,
           "likes": 0,
           "comments": 1
         }
@@ -25758,6 +25758,22 @@
         }
       ],
       "series_tag": "political"
+    },
+    {
+      "video_id": "xe8hcPjMUiY",
+      "topic": "韓國 - 新亭洞連續殺人案：被稱為「信號」原型之一的韓國懸案，在沉寂多年後終於確認兇手已身亡的真相",
+      "slot": 1,
+      "duration_s": 80,
+      "publish_at": "2026-06-13T10:00:00+08:00",
+      "uploaded_at": "2026-06-12T20:29:18.951318+00:00",
+      "stats": [
+        {
+          "date": "2026-06-12",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
