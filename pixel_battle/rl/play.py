@@ -1381,6 +1381,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     _ult_afterglow_frames = 0       # brand-tinted screen glow right after the white pop
     _ult_afterglow_col = (255, 255, 255)
     _ult_ember_frames = 0           # frames of ember rain left around the impact
+    # ── Skill background theatrics: anime speed-lines + heavy-hit bg pulse ──
+    _speed_lines_frames = 0         # radial action lines after the ult release
+    _bg_pulse_frames = 0            # background flashes the attacker's colour
+    _bg_pulse_col = (255, 255, 255)
 
     # Persistent companion-minion: on the master's hit it DETACHES and roams toward
     # the opponent for a beat (roam timer, ms), harassing, then drifts home.
@@ -1508,11 +1512,14 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     impact_fx.spawn_hit_spark(
                         x=int(defender.pos_x), y=int(defender.pos_y) - 78,
                         damage=(12 if is_crit else (9 if heavy else 6)), color=burst_color)
-                    # Heavy hits add an expanding shockwave ring for extra punch.
+                    # Heavy hits add an expanding shockwave ring for extra punch,
+                    # and the BACKGROUND pulses the attacker's colour for a beat.
                     if heavy:
                         active_shockwaves.append([
                             int(defender.pos_x), int(defender.pos_y) - 80,
                             burst_color, 0, 14, 220])
+                        _bg_pulse_frames = 3
+                        _bg_pulse_col = burst_color
                     # quick white impact pop
                     impact_fx.flash_screen(color=(255, 255, 255),
                                            alpha=(170 if is_crit else (110 if heavy else 70)))
@@ -1923,6 +1930,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 _ult_afterglow_frames = 12
                 _ult_afterglow_col = _ult_brand_col
                 _ult_ember_frames = 28
+                _speed_lines_frames = 18     # anime radial action lines
                 # Camera shake + flash on release — clean white-gold (an ultimate
                 # discharge), NOT the red hit-flash that read as "getting punched".
                 impact_fx.flash_screen(color=(255, 244, 210), alpha=230)
@@ -1978,6 +1986,31 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         world.fill(BG)
         _draw_back_wall(world, frame)
         _draw_floor(world, frame)
+
+        # ── SKILL BACKGROUND THEATRICS ────────────────────────────────────
+        # Ultimate anticipation: the arena dims to near-black (the classic
+        # super-freeze — fighters drawn after stay lit) while the champion's
+        # energy climbs the dark as rising brand-colour streaks.
+        if ult_result.phase is not None and ult_result.phase.value == "anticipation":
+            dk = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            dk.fill((5, 3, 12, min(175, 60 + int(ult_result.vignette_alpha * 1.1))))
+            world.blit(dk, (0, 0))
+            es = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            for i in range(12):
+                ex_ = int((i * 41 + frame * 2.5) % WIDTH)
+                ey_ = GROUND_Y + 20 - ((frame * 6 + i * 73) % (GROUND_Y + 40))
+                ln_ = 26 + (i % 3) * 16
+                pygame.draw.line(es, (*_ult_brand_col, 140),
+                                 (ex_, ey_), (ex_, ey_ + ln_), 2)
+                pygame.draw.line(es, (255, 255, 255, 70),
+                                 (ex_, ey_ + ln_ // 3), (ex_, ey_ + ln_ // 2), 1)
+            world.blit(es, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+        # Heavy-hit pulse: the whole backdrop flashes the attacker's colour.
+        if _bg_pulse_frames > 0:
+            bp = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            bp.fill((*_bg_pulse_col, 22 * _bg_pulse_frames))
+            world.blit(bp, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+            _bg_pulse_frames -= 1
 
         # Temporarily override pos_x/pos_y with interpolated values for drawing only
         def _set_draw_pos(char, ix, iy):
@@ -2253,6 +2286,24 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         # edges clean instead of blocky nearest-neighbour jaggies.
         pygame.transform.smoothscale(sub, (WIDTH, HEIGHT), surf)
         surf.blit(_get_vignette(), (0, 0))            # subtle cinematic vignette
+        # Anime SPEED LINES — flickering radial action lines from the screen
+        # edges right after the ultimate fires (manga finish framing).
+        if _speed_lines_frames > 0:
+            if (_speed_lines_frames + frame) % 2 == 0:    # flicker
+                sl = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+                ccx, ccy = WIDTH / 2.0, HEIGHT * 0.45
+                _r_out = float(max(WIDTH, HEIGHT))
+                a_ = int(120 * _speed_lines_frames / 18)
+                for _k in range(26):
+                    ang_ = random.uniform(0, 2 * math.pi)
+                    r_in_ = random.uniform(0.42, 0.72) * _r_out * 0.5
+                    pygame.draw.line(
+                        sl, (255, 255, 255, a_),
+                        (ccx + math.cos(ang_) * _r_out, ccy + math.sin(ang_) * _r_out),
+                        (ccx + math.cos(ang_) * r_in_, ccy + math.sin(ang_) * r_in_),
+                        random.randint(2, 4))
+                surf.blit(sl, (0, 0))
+            _speed_lines_frames -= 1
         if shake_frames > 0:
             shake_frames -= 1
 
