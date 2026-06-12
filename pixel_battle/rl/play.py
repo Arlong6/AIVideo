@@ -535,6 +535,29 @@ def _draw_aura(surf: pygame.Surface, cx: int, cy: int, color: tuple,
         surf.blit(mote, (mx - 5, my - 5), special_flags=pygame.BLEND_RGB_ADD)
 
 
+_ULT_RAY_LIFE = 26
+
+
+def _draw_ult_rays(surf, cx, cy, color, age, life=_ULT_RAY_LIFE):
+    """Radial god-ray burst at the ultimate's impact — 14 additive light spokes
+    shooting out and fading, the classic super-finish flourish."""
+    t = age / max(1, life)
+    if t >= 1.0:
+        return
+    fade = (1.0 - t) ** 1.3
+    ln = 60 + 340 * (t ** 0.55)                  # fast out, easing
+    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    for k in range(14):
+        ang = math.radians(k * (360 / 14) + age * 1.7)
+        ex = cx + math.cos(ang) * ln
+        ey = cy + math.sin(ang) * ln * 0.86
+        w = max(2, int(7 * fade))
+        pygame.draw.line(layer, (*color, int(150 * fade)), (cx, cy), (ex, ey), w)
+        pygame.draw.line(layer, (255, 255, 255, int(90 * fade)), (cx, cy),
+                         (cx + (ex - cx) * 0.6, cy + (ey - cy) * 0.6), max(1, w // 2))
+    surf.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+
 def _draw_companion(surf, hx, hy, opp_x, opp_y, lunge, color, kind, age):
     """A persistent summoned minion that floats by its master the whole fight and
     DARTS at the opponent when the master lands a hit. `lunge` is 0..1 (1 = mid-
@@ -1107,8 +1130,17 @@ def _route_audio_for_events(events, event_video_ms, mixer):
         elif type_val == "ko":
             sfx_name = "ko"
         elif type_val == "ultimate_start":
+            # KOF-style super-move arc: activation STAB + tension riser play
+            # now; the payoff BLAST (or the summon's landing rumble) is
+            # scheduled at the cinematic release point (+ANTICIPATION_MS).
+            from pixel_battle.rl.ultimate_sequence import ANTICIPATION_MS as _ANT_MS
             sk = (ev.extra or {}).get("skill_id", "")
-            sfx_name = "summon" if sk in _SUMMON_ULT_SFX else "ultimate"
+            payoff = "summon" if sk in _SUMMON_ULT_SFX else "ult_blast"
+            for _nm, _off in (("ult_flash", 0), ("ult_riser", 0), (payoff, _ANT_MS)):
+                _samp = _load_sfx_samples_or_none(_nm, mixer.sr)
+                if _samp is not None:
+                    mixer.ult_bus.add(_samp, pos + _off)
+            continue
         elif type_val == "attack_windup":
             kind = (ev.extra or {}).get("skill_type", "")
             if kind == "ultimate":
@@ -1344,6 +1376,12 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     # Summon ults (the warlock colossus) linger longer so the minion can stomp
     # twice and the spirit wisps get screen time — a summon should DWELL, not flash.
     _ULT_SIG_LIFE_MULT = {"warlock": 1.7, "necro": 1.6, "totem": 1.55, "forge": 1.6}
+    # ── Ultimate release pyro: god-rays, brand-colour afterglow, ember rain ──
+    active_ult_rays: list = []      # [cx, cy, color, age]
+    _ult_afterglow_frames = 0       # brand-tinted screen glow right after the white pop
+    _ult_afterglow_col = (255, 255, 255)
+    _ult_ember_frames = 0           # frames of ember rain left around the impact
+
     # Persistent companion-minion: on the master's hit it DETACHES and roams toward
     # the opponent for a beat (roam timer, ms), harassing, then drifts home.
     _comp_lunge_left = 0.0          # 0..1 how far out toward the opponent it is
@@ -1875,12 +1913,22 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 # on top of the sequence's own dt_scale).
                 _slowmo_remaining_ms = max(_slowmo_remaining_ms, 150.0)
                 _slowmo_dt_scale = min(_slowmo_dt_scale, 0.3)
+                # ── SUPER-FINISH pyro: god-ray burst, a third HUGE shockwave,
+                # brand-colour afterglow chasing the white pop, ember rain. ──
+                active_ult_rays.append([int(_ult_target_x),
+                                        int(_ult_target_y) - 90, _ult_brand_col, 0])
+                active_shockwaves.append([
+                    int(_ult_target_x), int(_ult_target_y) - 90,
+                    (255, 255, 255), 0, 30, 700])
+                _ult_afterglow_frames = 12
+                _ult_afterglow_col = _ult_brand_col
+                _ult_ember_frames = 28
                 # Camera shake + flash on release — clean white-gold (an ultimate
                 # discharge), NOT the red hit-flash that read as "getting punched".
-                impact_fx.flash_screen(color=(255, 244, 210), alpha=210)
-                impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=200.0)
-                screen_shake_frames_left = max(screen_shake_frames_left, 32)
-                screen_shake_mag = max(screen_shake_mag, 11)
+                impact_fx.flash_screen(color=(255, 244, 210), alpha=230)
+                impact_fx.camera_shake.trigger(magnitude_px=7.0, duration_ms=260.0)
+                screen_shake_frames_left = max(screen_shake_frames_left, 44)
+                screen_shake_mag = max(screen_shake_mag, 14)
                 # Blast the defender off their feet — away from the caster, up,
                 # then gravity + wall collision carry them down over the aftermath.
                 _launch_active = True
@@ -2110,6 +2158,23 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 live_sigs.append(sg)
         active_ult_sigs = live_sigs
 
+        live_rays = []
+        for ry_ in active_ult_rays:
+            _draw_ult_rays(world, ry_[0], ry_[1], ry_[2], ry_[3])
+            ry_[3] += 1
+            if ry_[3] < _ULT_RAY_LIFE:
+                live_rays.append(ry_)
+        active_ult_rays = live_rays
+
+        # Ember rain — sparks sputtering around the impact after the blast
+        if _ult_ember_frames > 0:
+            _ult_ember_frames -= 1
+            for _ in range(2):
+                impact_fx.spawn_hit_spark(
+                    x=int(_ult_target_x + random.uniform(-70, 70)),
+                    y=int(_ult_target_y - 90 + random.uniform(-50, 30)),
+                    damage=4, color=_ult_brand_col)
+
         live_auras = []
         for au in active_auras:
             _draw_aura(world, au[0], au[1], au[2], au[3], AURA_LIFE)
@@ -2197,6 +2262,13 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
             flash.fill((255, 255, 255, 100))
             surf.blit(flash, (0, 0))
             flash_frames_left -= 1
+        # Brand-colour afterglow chasing the ultimate's white pop — the screen
+        # breathes the champion's colour for a few frames (super-finish tint).
+        if _ult_afterglow_frames > 0:
+            ag = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            ag.fill((*_ult_afterglow_col, int(11 * _ult_afterglow_frames)))
+            surf.blit(ag, (0, 0))
+            _ult_afterglow_frames -= 1
 
         # Single KOF-style HUD (HP green->red + thin blue MP + names + timer).
         # The old two-corner _draw_hud was removed — drawing both stacked their
