@@ -27858,7 +27858,7 @@
         },
         {
           "date": "2026-06-15",
-          "views": 34,
+          "views": 38,
           "likes": 0,
           "comments": 0
         }
@@ -27921,7 +27921,7 @@
         },
         {
           "date": "2026-06-15",
-          "views": 7,
+          "views": 10,
           "likes": 0,
           "comments": 1
         }
@@ -27943,7 +27943,7 @@
         },
         {
           "date": "2026-06-15",
-          "views": 15,
+          "views": 16,
           "likes": 0,
           "comments": 1
         }
@@ -27965,6 +27965,22 @@
         }
       ],
       "series_tag": "political"
+    },
+    {
+      "video_id": "B4ybuPEkWR0",
+      "topic": "佛羅倫斯殺人魔：長達數十年的連環兇殺案，義大利至今未解的撒旦儀式懸案",
+      "slot": 1,
+      "duration_s": 83,
+      "publish_at": "2026-06-16T10:00:00+08:00",
+      "uploaded_at": "2026-06-15T21:22:34.127622+00:00",
+      "stats": [
+        {
+          "date": "2026-06-15",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
