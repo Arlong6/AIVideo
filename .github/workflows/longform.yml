@@ -214,7 +214,7 @@ jobs:
         run: |
           git config user.name "AI Video Bot"
           git config user.email "bot@aivideo.local"
-          git add used_topics.json video_log.json today_topics.json pending_comments.json || true
+          git add used_topics.json topics.json pexels_seen_ids.json video_log.json today_topics.json pending_comments.json || true
           git diff --staged --quiet || git commit -m "chore: update data files after long-form generation"
-          git pull --rebase || true
+          git pull --rebase --autostash || true
           git push || true
