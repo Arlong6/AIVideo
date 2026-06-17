@@ -9461,7 +9461,7 @@
         },
         {
           "date": "2026-06-17",
-          "views": 1,
+          "views": 2,
           "likes": 0,
           "comments": 0
         }
@@ -13081,7 +13081,7 @@
         },
         {
           "date": "2026-06-17",
-          "views": 172,
+          "views": 173,
           "likes": 2,
           "comments": 0
         }
@@ -28313,7 +28313,7 @@
         },
         {
           "date": "2026-06-17",
-          "views": 15,
+          "views": 19,
           "likes": 0,
           "comments": 1
         }
@@ -29462,7 +29462,7 @@
         },
         {
           "date": "2026-06-17",
-          "views": 36,
+          "views": 45,
           "likes": 0,
           "comments": 1
         }
@@ -29484,6 +29484,22 @@
         }
       ],
       "series_tag": "default"
+    },
+    {
+      "video_id": "oOHm9h4QJok",
+      "topic": "彰化桶屍案 (2021)",
+      "slot": 1,
+      "duration_s": 90,
+      "publish_at": "2026-06-18T10:00:00+08:00",
+      "uploaded_at": "2026-06-17T20:33:48.102735+00:00",
+      "stats": [
+        {
+          "date": "2026-06-17",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
