@@ -11503,7 +11503,7 @@
         },
         {
           "date": "2026-06-19",
-          "views": 123,
+          "views": 124,
           "likes": 0,
           "comments": 0
         }
@@ -19117,7 +19117,7 @@
         },
         {
           "date": "2026-06-19",
-          "views": 96,
+          "views": 98,
           "likes": 0,
           "comments": 1
         }
@@ -29561,7 +29561,7 @@
         },
         {
           "date": "2026-06-19",
-          "views": 21,
+          "views": 23,
           "likes": 0,
           "comments": 1
         }
@@ -29779,7 +29779,7 @@
         },
         {
           "date": "2026-06-19",
-          "views": 201,
+          "views": 204,
           "likes": 3,
           "comments": 1
         }
@@ -30904,7 +30904,7 @@
         },
         {
           "date": "2026-06-19",
-          "views": 1,
+          "views": 2,
           "likes": 1,
           "comments": 1
         }
@@ -30938,7 +30938,7 @@
         },
         {
           "date": "2026-06-19",
-          "views": 89,
+          "views": 90,
           "likes": 1,
           "comments": 1
         }
@@ -31017,7 +31017,7 @@
         },
         {
           "date": "2026-06-19",
-          "views": 4,
+          "views": 9,
           "likes": 0,
           "comments": 1
         }
@@ -31039,6 +31039,22 @@
         }
       ],
       "series_tag": "default"
+    },
+    {
+      "video_id": "B0NVmGrwuBk",
+      "topic": "台灣華城兒童命案 (軍營男童兇殺懸案)",
+      "slot": 1,
+      "duration_s": 77,
+      "publish_at": "2026-06-20T10:00:00+08:00",
+      "uploaded_at": "2026-06-19T20:06:42.636780+00:00",
+      "stats": [
+        {
+          "date": "2026-06-19",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
