@@ -28910,7 +28910,7 @@
         },
         {
           "date": "2026-06-22",
-          "views": 34,
+          "views": 35,
           "likes": 0,
           "comments": 1
         }
@@ -31433,7 +31433,7 @@
         },
         {
           "date": "2026-06-22",
-          "views": 33,
+          "views": 34,
           "likes": 0,
           "comments": 1
         }
@@ -31687,7 +31687,7 @@
         },
         {
           "date": "2026-06-22",
-          "views": 206,
+          "views": 208,
           "likes": 3,
           "comments": 1
         }
@@ -33354,7 +33354,7 @@
         },
         {
           "date": "2026-06-22",
-          "views": 82,
+          "views": 83,
           "likes": 1,
           "comments": 1
         }
@@ -33382,7 +33382,7 @@
         },
         {
           "date": "2026-06-22",
-          "views": 104,
+          "views": 106,
           "likes": 1,
           "comments": 1
         }
@@ -33426,6 +33426,22 @@
         }
       ],
       "series_tag": "unsolved"
+    },
+    {
+      "video_id": "RSkXLvPnfJM",
+      "topic": "台灣北捷隨機殺人案 (2024張文案)",
+      "slot": 1,
+      "duration_s": 81,
+      "publish_at": "2026-06-23T10:00:00+08:00",
+      "uploaded_at": "2026-06-22T21:17:33.013558+00:00",
+      "stats": [
+        {
+          "date": "2026-06-22",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
