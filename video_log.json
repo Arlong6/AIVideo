@@ -20737,7 +20737,7 @@
         },
         {
           "date": "2026-06-24",
-          "views": 105,
+          "views": 107,
           "likes": 0,
           "comments": 1
         }
@@ -31607,7 +31607,7 @@
         },
         {
           "date": "2026-06-24",
-          "views": 118,
+          "views": 120,
           "likes": 0,
           "comments": 1
         }
@@ -32681,7 +32681,7 @@
         },
         {
           "date": "2026-06-24",
-          "views": 35,
+          "views": 37,
           "likes": 0,
           "comments": 1
         }
@@ -33462,7 +33462,7 @@
         },
         {
           "date": "2026-06-24",
-          "views": 183,
+          "views": 184,
           "likes": 0,
           "comments": 1
         }
@@ -33574,7 +33574,7 @@
         },
         {
           "date": "2026-06-24",
-          "views": 36,
+          "views": 37,
           "likes": 0,
           "comments": 0
         }
@@ -34930,7 +34930,7 @@
         },
         {
           "date": "2026-06-24",
-          "views": 116,
+          "views": 117,
           "likes": 1,
           "comments": 1
         }
@@ -34992,7 +34992,7 @@
         },
         {
           "date": "2026-06-24",
-          "views": 70,
+          "views": 72,
           "likes": 1,
           "comments": 0
         }
@@ -35021,7 +35021,7 @@
         },
         {
           "date": "2026-06-24",
-          "views": 24,
+          "views": 31,
           "likes": 0,
           "comments": 1
         }
@@ -35065,6 +35065,22 @@
         }
       ],
       "series_tag": "wrongful_conviction"
+    },
+    {
+      "video_id": "2N0zlhruNIA",
+      "topic": "羅伯特·達斯特案：億萬富翁的黑色豪門疑案與真實世界逮捕",
+      "slot": 1,
+      "duration_s": 79,
+      "publish_at": "2026-06-25T10:00:00+08:00",
+      "uploaded_at": "2026-06-24T20:06:27.939329+00:00",
+      "stats": [
+        {
+          "date": "2026-06-24",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
