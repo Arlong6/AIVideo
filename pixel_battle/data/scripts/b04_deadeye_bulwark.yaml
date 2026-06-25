@@ -5,8 +5,8 @@ right: bulwark
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 138
-right_start_hp: 140
+left_start_hp: 175
+right_start_hp: 143
 left_timeline:
   - {t: 400, do: "attack:basic"}
   - {t: 740, do: "attack:cd"}
@@ -140,7 +140,7 @@ right_timeline:
   - {t: 3120, do: jump}
   - {t: 3480, do: advance}
   - {t: 3720, do: "attack:cd"}
-  - {t: 4120, do: "attack:basic"}
+  - {t: 4120, do: "cast:guard_break"}
   - {t: 4480, do: crouch}
   - {t: 4760, do: advance}
   - {t: 5000, do: "attack:basic"}
@@ -152,7 +152,7 @@ right_timeline:
   - {t: 7180, do: jump}
   - {t: 7540, do: advance}
   - {t: 7780, do: "attack:cd"}
-  - {t: 8180, do: "attack:basic"}
+  - {t: 8180, do: "cast:aegis"}
   - {t: 8540, do: crouch}
   - {t: 8820, do: advance}
   - {t: 9060, do: "attack:basic"}
@@ -164,7 +164,7 @@ right_timeline:
   - {t: 11240, do: jump}
   - {t: 11600, do: advance}
   - {t: 11840, do: "attack:cd"}
-  - {t: 12240, do: "attack:basic"}
+  - {t: 12240, do: "cast:guard_break"}
   - {t: 12600, do: crouch}
   - {t: 12880, do: advance}
   - {t: 13120, do: "attack:basic"}
@@ -176,7 +176,7 @@ right_timeline:
   - {t: 15300, do: jump}
   - {t: 15660, do: advance}
   - {t: 15900, do: "attack:cd"}
-  - {t: 16300, do: "attack:basic"}
+  - {t: 16300, do: "cast:aegis"}
   - {t: 16660, do: crouch}
   - {t: 16940, do: advance}
   - {t: 17180, do: "attack:basic"}
@@ -188,7 +188,7 @@ right_timeline:
   - {t: 19360, do: jump}
   - {t: 19720, do: advance}
   - {t: 19960, do: "attack:cd"}
-  - {t: 20360, do: "attack:basic"}
+  - {t: 20360, do: "cast:guard_break"}
   - {t: 20720, do: crouch}
   - {t: 21000, do: advance}
   - {t: 21240, do: "attack:basic"}
@@ -200,7 +200,7 @@ right_timeline:
   - {t: 23420, do: jump}
   - {t: 23780, do: advance}
   - {t: 24020, do: "attack:cd"}
-  - {t: 24420, do: "attack:basic"}
+  - {t: 24420, do: "cast:aegis"}
   - {t: 24780, do: crouch}
   - {t: 25060, do: advance}
   - {t: 25300, do: "attack:basic"}
@@ -212,7 +212,7 @@ right_timeline:
   - {t: 27480, do: jump}
   - {t: 27840, do: advance}
   - {t: 28080, do: "attack:cd"}
-  - {t: 28480, do: "attack:basic"}
+  - {t: 28480, do: "cast:guard_break"}
   - {t: 28840, do: crouch}
   - {t: 29120, do: advance}
   - {t: 29360, do: "attack:basic"}
@@ -224,7 +224,7 @@ right_timeline:
   - {t: 31540, do: jump}
   - {t: 31900, do: advance}
   - {t: 32140, do: "attack:cd"}
-  - {t: 32540, do: "attack:basic"}
+  - {t: 32540, do: "cast:aegis"}
   - {t: 32900, do: crouch}
   - {t: 33180, do: advance}
   - {t: 33420, do: "attack:basic"}
@@ -236,7 +236,7 @@ right_timeline:
   - {t: 35600, do: jump}
   - {t: 35960, do: advance}
   - {t: 36200, do: "attack:cd"}
-  - {t: 36600, do: "attack:basic"}
+  - {t: 36600, do: "cast:guard_break"}
   - {t: 36960, do: crouch}
   - {t: 37240, do: advance}
   - {t: 37480, do: "attack:basic"}
@@ -248,7 +248,7 @@ right_timeline:
   - {t: 39660, do: jump}
   - {t: 40020, do: advance}
   - {t: 40260, do: "attack:cd"}
-  - {t: 40660, do: "attack:basic"}
+  - {t: 40660, do: "cast:aegis"}
   - {t: 41020, do: crouch}
   - {t: 41300, do: advance}
   - {t: 41540, do: "attack:basic"}

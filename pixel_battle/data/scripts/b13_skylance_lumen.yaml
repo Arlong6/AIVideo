@@ -5,8 +5,8 @@ right: lux
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 154
-right_start_hp: 145
+left_start_hp: 140
+right_start_hp: 160
 left_timeline:
   - {t: 400, do: advance}
   - {t: 640, do: "attack:basic"}
@@ -23,7 +23,7 @@ left_timeline:
   - {t: 4460, do: advance}
   - {t: 4700, do: "attack:basic"}
   - {t: 5040, do: "attack:cd"}
-  - {t: 5460, do: "attack:basic"}
+  - {t: 5460, do: "cast:pike_sweep"}
   - {t: 5820, do: "attack:cd"}
   - {t: 6220, do: retreat}
   - {t: 6520, do: retreat}
@@ -42,12 +42,12 @@ left_timeline:
   - {t: 10940, do: jump}
   - {t: 11300, do: advance}
   - {t: 11540, do: "attack:cd"}
-  - {t: 11940, do: "cast:pike_sweep"}
+  - {t: 11940, do: "attack:basic"}
   - {t: 12300, do: crouch}
   - {t: 12580, do: advance}
-  - {t: 12820, do: "attack:basic"}
+  - {t: 12820, do: "cast:phalanx"}
   - {t: 13160, do: "attack:cd"}
-  - {t: 13580, do: "cast:phalanx"}
+  - {t: 13580, do: "attack:basic"}
   - {t: 13940, do: "attack:cd"}
   - {t: 14340, do: retreat}
   - {t: 14640, do: retreat}
@@ -57,7 +57,7 @@ left_timeline:
   - {t: 16000, do: "attack:basic"}
   - {t: 16360, do: crouch}
   - {t: 16640, do: advance}
-  - {t: 16880, do: "cast:pike_sweep"}
+  - {t: 16880, do: "attack:basic"}
   - {t: 17220, do: "attack:cd"}
   - {t: 17640, do: "attack:basic"}
   - {t: 18000, do: "attack:cd"}
@@ -66,7 +66,7 @@ left_timeline:
   - {t: 19060, do: jump}
   - {t: 19420, do: advance}
   - {t: 19660, do: "attack:cd"}
-  - {t: 20060, do: "attack:basic"}
+  - {t: 20060, do: "cast:pike_sweep"}
   - {t: 20420, do: crouch}
   - {t: 20700, do: advance}
   - {t: 20940, do: "attack:basic"}
@@ -83,7 +83,7 @@ left_timeline:
   - {t: 24760, do: advance}
   - {t: 25000, do: "attack:basic"}
   - {t: 25340, do: "attack:cd"}
-  - {t: 25760, do: "attack:basic"}
+  - {t: 25760, do: "cast:phalanx"}
   - {t: 26120, do: "attack:cd"}
   - {t: 26520, do: retreat}
   - {t: 26820, do: retreat}
@@ -102,12 +102,12 @@ left_timeline:
   - {t: 31240, do: jump}
   - {t: 31600, do: advance}
   - {t: 31840, do: "attack:cd"}
-  - {t: 32240, do: "cast:phalanx"}
+  - {t: 32240, do: "attack:basic"}
   - {t: 32600, do: crouch}
   - {t: 32880, do: advance}
-  - {t: 33120, do: "attack:basic"}
+  - {t: 33120, do: "cast:pike_sweep"}
   - {t: 33460, do: "attack:cd"}
-  - {t: 33880, do: "cast:pike_sweep"}
+  - {t: 33880, do: "attack:basic"}
   - {t: 34240, do: "attack:cd"}
   - {t: 34640, do: retreat}
   - {t: 34940, do: retreat}
@@ -149,27 +149,27 @@ right_timeline:
   - {t: 2160, do: "attack:basic"}
   - {t: 2500, do: "attack:cd"}
   - {t: 2900, do: advance}
-  - {t: 3180, do: "attack:basic"}
+  - {t: 3180, do: "cast:nova_core"}
   - {t: 3520, do: retreat}
   - {t: 3860, do: "attack:cd"}
   - {t: 4420, do: "attack:basic"}
   - {t: 4760, do: "attack:cd"}
   - {t: 5140, do: retreat}
   - {t: 5500, do: jump}
-  - {t: 5880, do: "cast:nova_core"}
+  - {t: 5880, do: "attack:basic"}
   - {t: 6220, do: "attack:cd"}
   - {t: 6620, do: advance}
   - {t: 6900, do: "cast:prism_guard"}
   - {t: 7240, do: retreat}
   - {t: 7580, do: "attack:cd"}
-  - {t: 8140, do: "cast:nova_core"}
+  - {t: 8140, do: "attack:basic"}
   - {t: 8480, do: "attack:cd"}
   - {t: 8860, do: retreat}
   - {t: 9220, do: jump}
   - {t: 9600, do: "attack:basic"}
   - {t: 9940, do: "attack:cd"}
   - {t: 10340, do: advance}
-  - {t: 10620, do: "attack:basic"}
+  - {t: 10620, do: "cast:nova_core"}
   - {t: 10960, do: retreat}
   - {t: 11300, do: "attack:cd"}
   - {t: 11860, do: "attack:basic"}
@@ -179,27 +179,27 @@ right_timeline:
   - {t: 13320, do: "attack:basic"}
   - {t: 13660, do: "attack:cd"}
   - {t: 14060, do: advance}
-  - {t: 14340, do: "attack:basic"}
+  - {t: 14340, do: "cast:prism_guard"}
   - {t: 14680, do: retreat}
   - {t: 15020, do: "attack:cd"}
   - {t: 15580, do: "attack:basic"}
   - {t: 15920, do: "attack:cd"}
   - {t: 16300, do: retreat}
   - {t: 16660, do: jump}
-  - {t: 17040, do: "cast:prism_guard"}
+  - {t: 17040, do: "attack:basic"}
   - {t: 17380, do: "attack:cd"}
   - {t: 17780, do: advance}
   - {t: 18060, do: "cast:nova_core"}
   - {t: 18400, do: retreat}
   - {t: 18740, do: "attack:cd"}
-  - {t: 19300, do: "cast:prism_guard"}
+  - {t: 19300, do: "attack:basic"}
   - {t: 19640, do: "attack:cd"}
   - {t: 20020, do: retreat}
   - {t: 20380, do: jump}
   - {t: 20760, do: "attack:basic"}
   - {t: 21100, do: "attack:cd"}
   - {t: 21500, do: advance}
-  - {t: 21780, do: "attack:basic"}
+  - {t: 21780, do: "cast:prism_guard"}
   - {t: 22120, do: retreat}
   - {t: 22460, do: "attack:cd"}
   - {t: 23020, do: "attack:basic"}
@@ -209,27 +209,27 @@ right_timeline:
   - {t: 24480, do: "attack:basic"}
   - {t: 24820, do: "attack:cd"}
   - {t: 25220, do: advance}
-  - {t: 25500, do: "attack:basic"}
+  - {t: 25500, do: "cast:nova_core"}
   - {t: 25840, do: retreat}
   - {t: 26180, do: "attack:cd"}
   - {t: 26740, do: "attack:basic"}
   - {t: 27080, do: "attack:cd"}
   - {t: 27460, do: retreat}
   - {t: 27820, do: jump}
-  - {t: 28200, do: "cast:nova_core"}
+  - {t: 28200, do: "attack:basic"}
   - {t: 28540, do: "attack:cd"}
   - {t: 28940, do: advance}
   - {t: 29220, do: "cast:prism_guard"}
   - {t: 29560, do: retreat}
   - {t: 29900, do: "attack:cd"}
-  - {t: 30460, do: "cast:nova_core"}
+  - {t: 30460, do: "attack:basic"}
   - {t: 30800, do: "attack:cd"}
   - {t: 31180, do: retreat}
   - {t: 31540, do: jump}
   - {t: 31920, do: "attack:basic"}
   - {t: 32260, do: "attack:cd"}
   - {t: 32660, do: advance}
-  - {t: 32940, do: "attack:basic"}
+  - {t: 32940, do: "cast:nova_core"}
   - {t: 33280, do: retreat}
   - {t: 33620, do: "attack:cd"}
   - {t: 34180, do: "attack:basic"}
@@ -239,26 +239,26 @@ right_timeline:
   - {t: 35640, do: "attack:basic"}
   - {t: 35980, do: "attack:cd"}
   - {t: 36380, do: advance}
-  - {t: 36660, do: "attack:basic"}
+  - {t: 36660, do: "cast:prism_guard"}
   - {t: 37000, do: retreat}
   - {t: 37340, do: "attack:cd"}
   - {t: 37900, do: "attack:basic"}
   - {t: 38240, do: "attack:cd"}
   - {t: 38620, do: retreat}
   - {t: 38980, do: jump}
-  - {t: 39360, do: "cast:prism_guard"}
+  - {t: 39360, do: "attack:basic"}
   - {t: 39700, do: "attack:cd"}
   - {t: 40100, do: advance}
   - {t: 40380, do: "cast:nova_core"}
   - {t: 40720, do: retreat}
   - {t: 41060, do: "attack:cd"}
-  - {t: 41620, do: "cast:prism_guard"}
+  - {t: 41620, do: "attack:basic"}
   - {t: 41960, do: "attack:cd"}
   - {t: 42340, do: retreat}
   - {t: 42700, do: jump}
   - {t: 43080, do: "attack:basic"}
   - {t: 43420, do: "attack:cd"}
   - {t: 43820, do: advance}
-  - {t: 44100, do: "attack:basic"}
+  - {t: 44100, do: "cast:prism_guard"}
   - {t: 44440, do: retreat}
 arena: frost
