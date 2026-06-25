@@ -823,7 +823,8 @@ def _draw_cape(surf, geo, style, time_ms: float, vel_x: float) -> None:
 
 def draw_stick_figure(surf, char, color, dt_ms: float = _RENDER_TICK_MS,
                       time_ms: float = 0.0,
-                      opponent_x: Optional[float] = None):
+                      opponent_x: Optional[float] = None,
+                      squash: float = 0.0):
     """Draw a jointed stick figure for `char` onto `surf` in `color`.
 
     `dt_ms` should match the render tick interval (default 8.333 ms = 120 fps).
@@ -868,6 +869,26 @@ def draw_stick_figure(surf, char, color, dt_ms: float = _RENDER_TICK_MS,
             back_foot=_shift(geo.back_foot),
             weapon_deg=geo.weapon_deg,
             facing=geo.facing,
+        )
+
+    # ── Impact squash-and-stretch: compress the body vertically toward the
+    #    planted foot and bulge it horizontally about the hip, so a landed hit
+    #    reads with weight. Renderer-only deformation; feet stay grounded. ──
+    if squash > 0.0:
+        from pixel_battle.rl.poses import FigureGeometry as _FGsq
+        _foot_y = max(geo.front_foot[1], geo.back_foot[1])
+        _hx = geo.hip[0]
+        _sy = 1.0 - squash
+        _sx = 1.0 + squash * 0.6
+        def _sq(pt):
+            return (_hx + (pt[0] - _hx) * _sx, _foot_y + (pt[1] - _foot_y) * _sy)
+        geo = _FGsq(
+            head_center=_sq(geo.head_center), shoulder=_sq(geo.shoulder),
+            hip=_sq(geo.hip), front_elbow=_sq(geo.front_elbow),
+            front_hand=_sq(geo.front_hand), back_elbow=_sq(geo.back_elbow),
+            back_hand=_sq(geo.back_hand), front_knee=_sq(geo.front_knee),
+            front_foot=_sq(geo.front_foot), back_knee=_sq(geo.back_knee),
+            back_foot=_sq(geo.back_foot), weapon_deg=geo.weapon_deg, facing=geo.facing,
         )
 
     # Motion-afterimage ghosts: update snapshot queue, then draw behind figure

@@ -95,6 +95,9 @@ CAM_MIN_VIEW_W = 300       # tightest crop: 480/300 = 1.6× — close-quarters r
 CAM_FRAME_MARGIN = 60      # just enough headroom past each fighter so the fit-zoom actually engages
 CAM_ZOOM_LERP = 0.045      # ease the dynamic zoom so it glides, never snaps (zoom-IN, intimate)
 CAM_ZOOM_OUT_LERP = 0.27   # zoom OUT fast (reveal) so a fast-separating fighter never leaves frame
+CAM_HIT_ZOOM_DECAY = 0.82  # per-frame fade of the transient punch-in zoom on hits (snap in, ease out)
+IMPACT_SQUASH_MS = 140.0   # how long the defender's squash-and-stretch lasts after a hit
+IMPACT_SQUASH_PEAK = 0.13  # max vertical compression fraction at the moment of impact
 
 # ── Ultimate knockback ───────────────────────────────────────────────────────
 # When the ultimate connects, the renderer blasts the DEFENDER away from the
@@ -1357,6 +1360,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     projectiles = ProjectileLayer()
     # Attacker-recoil cache: maps id(char) -> remaining_ms for the near-hand recoil nudge
     _attacker_recoil: dict = {}
+    _impact_squash: dict = {}
     # Old full-screen shake — now used only for "beam" windup and "ultimate_start".
     # Crits and hits use the newer camera_shake_offset system (world-space, HUD stable).
     screen_shake_frames_left = 0
@@ -1398,6 +1402,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     prev_on_ground_right = env.right.on_ground
     cam_x = (env.left.pos_x + env.right.pos_x) / 2.0
     _cam_zoom_smooth = 1.0     # eased dynamic zoom (fit both fighters)
+    _hit_zoom = 0.0            # transient additive punch-in zoom on each hit
     shake_frames = 0
     n_written = 0
 
@@ -1531,6 +1536,9 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         impact_fx.camera_shake.trigger(magnitude_px=5.0, duration_ms=180.0)
                     else:
                         impact_fx.camera_shake.trigger(magnitude_px=3.0, duration_ms=130.0)
+                    # ── Punch-in: camera snaps a touch tighter on impact (graded),
+                    #    then eases back out. max() so a combo holds the tight shot. ──
+                    _hit_zoom = max(_hit_zoom, 0.20 if is_crit else (0.14 if heavy else 0.08))
                     # ── Hit-confirm ring at defender's hip ──
                     impact_fx.spawn_hit_ring(
                         x=int(defender.pos_x),
@@ -1538,6 +1546,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         color=burst_color)
                     # ── Attacker recoil: mark near-hand kick-back for 100 ms ──
                     _attacker_recoil[id(attacker)] = 100
+                    # ── Defender squash: body compresses on impact (graded by
+                    #    weight) then springs back, giving the hit real weight. ──
+                    _impact_squash[id(defender)] = IMPACT_SQUASH_MS * (
+                        1.4 if is_crit else (1.15 if heavy else 1.0))
                     # ── Brief HITSTOP — a ~45ms near-freeze on contact gives the
                     #    "thunk" of a real hit (short, so it stays punchy not sluggish). ──
                     _slowmo_remaining_ms = max(_slowmo_remaining_ms, 45.0)
@@ -2072,22 +2084,30 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     _attacker_recoil[cid] = max(0, _attacker_recoil[cid] - int(RENDER_MS))
                     if _attacker_recoil[cid] == 0:
                         del _attacker_recoil[cid]
+                if cid in _impact_squash:
+                    _impact_squash[cid] -= RENDER_MS
+                    if _impact_squash[cid] <= 0:
+                        del _impact_squash[cid]
             # Apply the recoil nudge: temporarily shift pos_y by +4 px (downward = arm kick-back).
             _cur_time_ms = frame * RENDER_MS
 
             def _draw_with_recoil(surf, char, color, opp_x):
                 cid = id(char)
+                sq = 0.0
+                if cid in _impact_squash:
+                    sq = IMPACT_SQUASH_PEAK * max(0.0, min(1.0,
+                        _impact_squash[cid] / IMPACT_SQUASH_MS))
                 if cid in _attacker_recoil:
                     orig_y = char.pos_y
                     char.pos_y = orig_y + 4
                     try:
                         draw_stick_figure(surf, char, color, time_ms=_cur_time_ms,
-                                          opponent_x=opp_x)
+                                          opponent_x=opp_x, squash=sq)
                     finally:
                         char.pos_y = orig_y
                 else:
                     draw_stick_figure(surf, char, color, time_ms=_cur_time_ms,
-                                      opponent_x=opp_x)
+                                      opponent_x=opp_x, squash=sq)
 
             def _draw_char(surf, char, color, opp_x):
                 # JUDGMENT whirlwind: render the WHOLE figure (body + blade) to a
@@ -2269,14 +2289,18 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         # quickly when the fighters separate, so neither ever leaves the crop.
         _zlerp = CAM_ZOOM_LERP if _dyn_zoom >= _cam_zoom_smooth else CAM_ZOOM_OUT_LERP
         _cam_zoom_smooth += (_dyn_zoom - _cam_zoom_smooth) * _zlerp
+        _hit_zoom *= CAM_HIT_ZOOM_DECAY            # transient punch-in eases out
+        if _hit_zoom < 0.005:
+            _hit_zoom = 0.0
         # KO zoom and ultimate zoom keep their dramatic FIXED framing (override the
-        # dynamic base); normal play uses the eased fit-to-fighters zoom.
+        # dynamic base); normal play uses the eased fit-to-fighters zoom + a brief
+        # per-hit punch-in so the camera visibly reacts to impact.
         if ko_result.zoom > 1.0:
             frame_zoom = ko_result.zoom * CAM_ZOOM
         elif _uz_factor > 1.0:
             frame_zoom = _uz_factor * CAM_ZOOM
         else:
-            frame_zoom = _cam_zoom_smooth
+            frame_zoom = _cam_zoom_smooth + _hit_zoom
         view_w = int(WIDTH / frame_zoom)
         view_h = int(HEIGHT / frame_zoom)
         view_w = max(1, min(WIDTH, view_w))
