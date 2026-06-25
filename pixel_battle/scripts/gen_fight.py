@@ -117,11 +117,19 @@ def side_actions(arch, is_caster, cid):
         cast_until = 0 if arch == "ranged" else (ULT_T - 8500)
     else:
         cast_until = end
+    # Inject a special on every Nth BASIC attack (counted), NOT every Nth phrase
+    # step. The old `pi % period` gate keyed on phrase index — and a melee
+    # defender's basics (phrase indices 1,3,10) never coincide with pi%3==2, so
+    # melee defenders got ZERO mid-fight casts and the fight showed only the final
+    # ult. Counting basics guarantees every archetype rotates through its kit.
     period = 5 if is_caster else 3
+    basic_n = 0
     while t < end:
         act, gap = phrase[pi % len(phrase)]
-        if sp and act == "attack:basic" and pi % period == period - 1 and t < cast_until:
-            act = f"cast:{sp[si % len(sp)]}"; si += 1   # cycle through the whole kit
+        if sp and act == "attack:basic" and t < cast_until:
+            basic_n += 1
+            if basic_n % period == 0:
+                act = f"cast:{sp[si % len(sp)]}"; si += 1   # cycle through the whole kit
         rows.append((t, act)); t += gap; pi += 1
     return rows
 

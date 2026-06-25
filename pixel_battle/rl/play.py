@@ -91,9 +91,10 @@ CAM_FOLLOW = 0.12                              # lerp factor for x tracking
 # (melee reads big and punchy); far apart -> pull back to reveal the whole arena
 # (kiting/separation reads as real space). Fixes the "everything clumped in the
 # middle" look of a static wide shot.
-CAM_MIN_VIEW_W = 465       # near-never zoom in (480/465 = 1.03×) — fighters stay small, arena stays wide
-CAM_FRAME_MARGIN = 220     # more breathing room beyond each fighter ⇒ more visible separation
-CAM_ZOOM_LERP = 0.045      # ease the dynamic zoom so it glides, never snaps
+CAM_MIN_VIEW_W = 300       # tightest crop: 480/300 = 1.6× — close-quarters reads BIG on a phone
+CAM_FRAME_MARGIN = 60      # just enough headroom past each fighter so the fit-zoom actually engages
+CAM_ZOOM_LERP = 0.045      # ease the dynamic zoom so it glides, never snaps (zoom-IN, intimate)
+CAM_ZOOM_OUT_LERP = 0.27   # zoom OUT fast (reveal) so a fast-separating fighter never leaves frame
 
 # ── Ultimate knockback ───────────────────────────────────────────────────────
 # When the ultimate connects, the renderer blasts the DEFENDER away from the
@@ -2264,7 +2265,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         _span = abs(_draw_left_x - _draw_right_x)
         _target_w = max(CAM_MIN_VIEW_W, min(WIDTH, _span + CAM_FRAME_MARGIN * 2))
         _dyn_zoom = WIDTH / _target_w
-        _cam_zoom_smooth += (_dyn_zoom - _cam_zoom_smooth) * CAM_ZOOM_LERP
+        # Asymmetric ease: glide in slowly (intimate close-ups) but pull out
+        # quickly when the fighters separate, so neither ever leaves the crop.
+        _zlerp = CAM_ZOOM_LERP if _dyn_zoom >= _cam_zoom_smooth else CAM_ZOOM_OUT_LERP
+        _cam_zoom_smooth += (_dyn_zoom - _cam_zoom_smooth) * _zlerp
         # KO zoom and ultimate zoom keep their dramatic FIXED framing (override the
         # dynamic base); normal play uses the eased fit-to-fighters zoom.
         if ko_result.zoom > 1.0:
