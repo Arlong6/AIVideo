@@ -3,7 +3,11 @@
 # World — characters live in a horizontal arena 480 wide
 ARENA_LEFT = 10
 ARENA_RIGHT = 470
-GROUND_Y = 530  # feet landing position; matches renderer HORIZON_Y
+GROUND_Y = 700  # feet landing position (= HEIGHT*0.82) so the floor sits ~82% down
+                # at EVERY zoom — kills the bottom dead-band even when ranged
+                # fighters are far apart and the camera is at base zoom. Pure
+                # vertical shift of the whole scene; combat is horizontal so this
+                # does not change gameplay (verified: event-log invariant).
 
 # Engagement zone — kept at the original 60-420 range.
 # Used by: (1) AI retreat/wall-stuck checks in battle.py so the AI still
