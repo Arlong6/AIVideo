@@ -41,13 +41,20 @@ def produce_longform(topic: str, output_base: str = "output",
 
     # Wrap entire pipeline in try/except for failure alerts
     from agents.llm import ContentBlockedError
+    from agents.research_agent import ThinSourceError
 
     try:
         return _run_pipeline(topic, output_dir, upload, slot, source=source)
-    except ContentBlockedError as e:
-        print(f"\n⚠️ Topic blocked by safety filter: {topic}")
+    except (ContentBlockedError, ThinSourceError) as e:
+        # FAIL-CLOSED: a topic with too few verifiable sources is skipped rather
+        # than written from memory (which is how fabrications got uploaded).
+        if isinstance(e, ThinSourceError):
+            print(f"\n⚠️ Thin/unverifiable sources — skipping topic: {topic}")
+            notify_failure("來源不足", f"查無足夠可信來源，自動換題：{topic[:30]}", topic)
+        else:
+            print(f"\n⚠️ Topic blocked by safety filter: {topic}")
+            notify_failure("安全過濾", f"題材被封鎖，自動換題：{topic[:30]}", topic)
         print(f"  Reason: {e}")
-        notify_failure("安全過濾", f"題材被封鎖，自動換題：{topic[:30]}", topic)
 
         # Auto-switch to next topic
         from topic_manager import pick_topic, save_today_reserved

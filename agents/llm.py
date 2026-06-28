@@ -94,6 +94,55 @@ def ask(prompt: str, json_mode: bool = True) -> dict | str:
     raise RuntimeError(f"Gemini call failed after all retries: {last_exc}")
 
 
+def ask_grounded(prompt: str) -> tuple[str, list[dict]]:
+    """Gemini answer GROUNDED in live Google Search.
+
+    Returns (prose_text, sources) where sources is a list of
+    {"title", "uri"}. Grounding is INCOMPATIBLE with forced-JSON, so this
+    returns prose — structure it with a follow-up ask() if you need JSON.
+
+    This is the retrieval front-door: it pulls REAL source text before any
+    writing happens, so the script (and the verifier) stand on retrieved facts
+    instead of the model's own memory. Raises if Gemini/grounding is unavailable
+    — callers MUST fail closed (skip the topic), never fall back to memory.
+    """
+    if not _gemini:
+        raise RuntimeError("Gemini not configured — grounding requires Gemini")
+    from google.genai import types
+    cfg = types.GenerateContentConfig(
+        tools=[types.Tool(google_search=types.GoogleSearch())])
+    last_exc: Exception | None = None
+    for model in ["gemini-2.5-flash", "gemini-2.0-flash"]:
+        for attempt in range(3):
+            try:
+                r = _gemini.models.generate_content(
+                    model=model, contents=prompt, config=cfg)
+                text = (r.text or "").strip()
+                sources: list[dict] = []
+                try:
+                    gm = r.candidates[0].grounding_metadata
+                    for ch in (getattr(gm, "grounding_chunks", None) or []):
+                        web = getattr(ch, "web", None)
+                        uri = getattr(web, "uri", None) if web else None
+                        if uri:
+                            sources.append(
+                                {"title": getattr(web, "title", ""), "uri": uri})
+                except Exception:
+                    pass
+                if text:
+                    return text, sources
+                # empty text — retry / next model
+            except Exception as e:
+                last_exc = e
+                if "429" in str(e):
+                    time.sleep(20)
+                    continue
+                if attempt == 2:
+                    break
+                time.sleep(5)
+    raise RuntimeError(f"Grounded call failed after all retries: {last_exc}")
+
+
 CLAUDE_USAGE_FILE = os.path.join(os.path.dirname(__file__), "..", "claude_daily_usage.json")
 
 

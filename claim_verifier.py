@@ -67,7 +67,15 @@ def verify_script_claims(script_text: str, case_data: dict) -> dict:
             "unverified": list[{"type", "value"}],
         }
     """
-    case_text = json.dumps(case_data, ensure_ascii=False)
+    # Verify against the GROUNDED CORPUS (real retrieved source text) when
+    # available — NOT against json.dumps(case_data), which is the same LLM's
+    # own output and makes a shared hallucination self-verify at 1.0. The corpus
+    # is the actual firewall: a script claim absent from retrieved sources is a
+    # genuine red flag. Fall back to case_data only for legacy/un-grounded runs.
+    corpus = ""
+    if isinstance(case_data, dict):
+        corpus = case_data.get("_grounding_corpus", "") or ""
+    case_text = corpus if corpus else json.dumps(case_data, ensure_ascii=False)
 
     claims = []
     for y in _extract_years(script_text):
