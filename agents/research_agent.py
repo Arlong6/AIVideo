@@ -14,10 +14,16 @@ fabrication takedowns).
 """
 from agents.llm import ask, ask_grounded
 
-# Fail-closed thresholds — below these the retrieved corpus is too thin to
-# write a truthful video from, so the topic is skipped.
-MIN_CORPUS_CHARS = 1200
-MIN_SOURCES = 3
+# Fail-closed thresholds. The PRIMARY signal that a case is real & verifiable is
+# the SOURCE COUNT — a dry-run over 12 real cases showed every one returned
+# 11-19 sources, while a fabricated topic returned 0. Corpus LENGTH is just how
+# verbose the model's summary happened to be (a famous case summarized tersely at
+# 777 chars is still real), so it is only a floor to catch genuinely-empty
+# retrieval — never the main gate. A terse-but-well-sourced corpus is ENRICHED
+# with a second retrieval pass instead of skipped.
+MIN_SOURCES = 3          # < this ⇒ topic is unverifiable ⇒ skip (fail-closed)
+ENRICH_BELOW = 1100      # corpus shorter than this ⇒ pull a 2nd, deeper pass
+MIN_CORPUS_CHARS = 500   # final floor: only truly-empty retrieval fails closed
 
 
 class ThinSourceError(Exception):
@@ -68,17 +74,41 @@ def investigate_and_plan(topic: str) -> dict:
 
     # ── 1. RETRIEVE real source text ─────────────────────────────────────
     corpus, sources = ask_grounded(
-        f"""請用繁體中文，根據網路搜尋到的『真實、可查證』資料，詳細整理以下案件的事實。
-盡可能涵蓋：涉案人物的姓名與年齡、案發的時間與地點、事件經過、調查與審判、判決結果、
-以及社會影響。只陳述搜尋結果中確實存在的事實；無法查證的細節不要寫、不要推測、不要編造。
+        f"""請用繁體中文，根據網路搜尋到的『真實、可查證』資料，詳細整理以下案件的事實，
+至少 800 字。盡可能涵蓋：涉案人物的姓名與年齡、案發的時間與地點、完整事件經過、調查與
+審判、判決結果、以及社會影響。只陳述搜尋結果中確實存在的事實；無法查證的細節不要寫、
+不要推測、不要編造。
 
 案件：{topic}""")
 
-    # ── 2. FAIL CLOSED on thin sources ───────────────────────────────────
-    if len(corpus) < MIN_CORPUS_CHARS or len(sources) < MIN_SOURCES:
+    # ── 2. FAIL CLOSED on unverifiable topics (no real sources) ──────────
+    if len(sources) < MIN_SOURCES:
         raise ThinSourceError(
-            f"來源不足（corpus={len(corpus)}字, sources={len(sources)}），"
+            f"查無足夠可信來源（sources={len(sources)}），"
             f"跳過題材以避免憑空杜撰：{topic}")
+
+    # ── 2b. ENRICH a terse-but-well-sourced corpus (don't skip a real case
+    #        just because the first summary was short) ────────────────────
+    if len(corpus) < ENRICH_BELOW:
+        try:
+            more, more_src = ask_grounded(
+                f"""請用繁體中文，根據網路搜尋結果，補充以下案件的更多『可查證』細節：
+完整時間線（日期與事件）、涉案人物的姓名與背景、調查與審判過程、最終判決、後續影響與
+爭議。只寫搜尋結果中確實存在的事實，不要重複、不要編造。
+
+案件：{topic}""")
+            if more:
+                corpus = corpus + "\n\n" + more
+            seen = {s["uri"] for s in sources}
+            sources += [s for s in more_src if s.get("uri") not in seen]
+        except Exception as e:
+            print(f"  [Research] enrichment pass skipped ({e})")
+
+    # final floor — only a genuinely-empty retrieval fails closed
+    if len(corpus) < MIN_CORPUS_CHARS:
+        raise ThinSourceError(
+            f"檢索內容過少（corpus={len(corpus)}字, sources={len(sources)}），"
+            f"跳過題材：{topic}")
 
     print(f"  [Research] Grounded: {len(corpus)} chars from {len(sources)} sources")
 
