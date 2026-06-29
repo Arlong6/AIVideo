@@ -278,3 +278,114 @@ def send_daily_report(youtube=None):
                      json={"chat_id": chat_id, "text": msg}, timeout=10)
 
     print("  📊 Daily report sent to Telegram")
+
+
+# ── Audience retention (manual YT Studio CSV ingestion) ─────────────────────────
+# The Analytics API is blocked (not enabled + lost OAuth on AL_Story), so the
+# retention learning loop ships as a MANUAL slice: export the "Audience retention"
+# CSV from YT Studio, run this, and the worst drop-off lands in video_log.json +
+# a Telegram alert. Keeps the operator in the loop (no auto prompt-mutation on n=1).
+
+def _mmss(seconds: float) -> str:
+    s = max(0, int(round(seconds)))
+    return f"{s // 60}:{s % 60:02d}"
+
+
+def parse_retention_csv(csv_path: str, duration_s: float = 0.0) -> dict:
+    """Parse a YouTube Studio audience-retention CSV into a retention summary.
+
+    Tolerant to EN/ZH column naming: needs a position column (% or seconds) and a
+    retention column (absolute preferred, else relative/any %).
+    """
+    import csv as _csv
+    rows = []
+    with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
+        reader = _csv.reader(f)
+        header = next(reader, [])
+
+        def _find(keys):
+            for i, h in enumerate(header):
+                hl = h.strip().lower()
+                if any(k.lower() in hl for k in keys):
+                    return i
+            return -1
+
+        pos_i = _find(["position", "elapsed", "time", "位置", "時間"])
+        ret_i = _find(["absolute", "絕對"])
+        if ret_i < 0:
+            ret_i = _find(["relative", "相對"])
+        if ret_i < 0:
+            ret_i = _find(["retention", "watched", "續看", "比率", "%"])
+        if pos_i < 0 or ret_i < 0:
+            raise ValueError(f"無法辨識 retention CSV 欄位 (header={header})")
+        for r in reader:
+            if len(r) <= max(pos_i, ret_i):
+                continue
+            try:
+                pos = float(str(r[pos_i]).replace("%", "").strip())
+                ret = float(str(r[ret_i]).replace("%", "").strip())
+            except ValueError:
+                continue
+            rows.append((pos, ret))
+
+    if len(rows) < 2:
+        raise ValueError("retention CSV 資料點不足")
+
+    max_pos = max(p for p, _ in rows)
+    if max_pos <= 1.5:                              # position is a 0-1 fraction
+        rows = [(p * 100.0, r) for p, r in rows]
+    elif duration_s and max_pos > 100.5:           # position is in seconds
+        rows = [(p / duration_s * 100.0, r) for p, r in rows]
+    if max(r for _, r in rows) <= 1.5:             # retention is a 0-1 fraction
+        rows = [(p, r * 100.0) for p, r in rows]
+
+    worst_delta, worst_at = 0.0, rows[0][0]
+    for (p0, r0), (p1, r1) in zip(rows, rows[1:]):
+        if (r1 - r0) < worst_delta:
+            worst_delta, worst_at = (r1 - r0), p1
+    worst_sec = (worst_at / 100.0) * duration_s if duration_s else 0.0
+    return {
+        "points": len(rows),
+        "curve": [[round(p, 1), round(r, 1)] for p, r in rows],
+        "worst_drop_pct": round(worst_delta, 1),
+        "worst_drop_at_pct": round(worst_at, 1),
+        "worst_drop_at_mmss": _mmss(worst_sec) if duration_s else "",
+        "start_retention": round(rows[0][1], 1),
+        "end_retention": round(rows[-1][1], 1),
+    }
+
+
+def ingest_retention_csv(video_id: str, csv_path: str, notify: bool = True) -> dict | None:
+    """Parse a retention CSV, store the summary on the video_log entry, alert TG."""
+    data = _load_log()
+    entry = next((v for v in data["videos"] if v["video_id"] == video_id), None)
+    if entry is None:
+        print(f"  [retention] video_id {video_id} 不在 video_log 中")
+        return None
+    summary = parse_retention_csv(csv_path, float(entry.get("duration_s", 0) or 0))
+    entry["retention"] = summary
+    _save_log(data)
+    where = summary["worst_drop_at_mmss"] or f"{summary['worst_drop_at_pct']}%"
+    print(f"  📉 retention: 開頭 {summary['start_retention']}% → 結尾 "
+          f"{summary['end_retention']}%, 最大流失 {summary['worst_drop_pct']}% @ {where}")
+    if notify:
+        try:
+            from telegram_notify import _send_raw
+            _send_raw(
+                f"📉 <b>留存分析</b> {entry.get('topic','')[:30]}\n"
+                f"開頭 {summary['start_retention']}% → 結尾 {summary['end_retention']}%\n"
+                f"最大流失點: {where} ({summary['worst_drop_pct']}%)\n"
+                f"→ 檢視該段腳本/視覺是否該調整")
+        except Exception as e:
+            print(f"  [retention] Telegram alert failed: {e}")
+    return summary
+
+
+if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser(description="Ingest a YT Studio audience-retention CSV")
+    ap.add_argument("video_id")
+    ap.add_argument("csv_path")
+    ap.add_argument("--no-notify", action="store_true")
+    _a = ap.parse_args()
+    ingest_retention_csv(_a.video_id, _a.csv_path, notify=not _a.no_notify)
