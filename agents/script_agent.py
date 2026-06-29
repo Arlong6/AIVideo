@@ -8,6 +8,19 @@ from agents.llm import ask
 from title_dna import get_title_prompt_insert
 
 
+# A consistent narrator persona — the single biggest lever against the flat,
+# encyclopedic "Wikipedia voice". Prepended to BOTH writing passes so the whole
+# video sounds like ONE storyteller, not a summary.
+NARRATOR_PERSONA = """【敘事者人格 — 整支影片必須是同一個說書人的聲音】
+你是一個冷靜、克制、帶點低沉宿命感的真實犯罪說書人（不是亢奮的播報員，也不是百科條目）。
+- 用「說一個真實發生過的黑暗故事」的口吻，而不是「條列資訊」。
+- 多用具體的人、時間、地點、動作堆出「場景」來帶出事實；少用「根據資料顯示」「本案是…」這種百科句式。
+- 短句製造節奏與壓迫感；在關鍵處停頓、留白。
+- 冷靜的距離感，不煽情、不說教；讓事實本身的重量說話。
+- 從開場到結語，語氣必須一致。
+"""
+
+
 def generate_script(case_data: dict) -> dict:
     """Generate a full long-form script based on researched case data."""
     topic = case_data.get("case_name", "")
@@ -18,6 +31,7 @@ def generate_script(case_data: dict) -> dict:
     # Pass 1: First 4 sections
     p1 = ask(f"""你是百萬訂閱犯罪紀實 YouTube 頻道的腳本作家。
 
+{NARRATOR_PERSONA}
 {title_dna}
 
 === 案件資料（經過事實查核）===
@@ -30,6 +44,9 @@ def generate_script(case_data: dict) -> dict:
 關鍵事實：{case_data.get('key_facts', [])}
 結案狀態：{case_data.get('status', '')}
 社會影響：{case_data.get('social_impact', '')}
+
+=== 檢索到的原始資料（細節來源；可用來豐富場景與血肉，讓敘事不像百科，但同樣不可超出此範圍編造）===
+{(case_data.get('_grounding_corpus', '') or '')[:1800]}
 
 === 任務：生成前半部（4段，約 1300字 → 影片 7-8 分鐘）===
 ※ 2026-05-07 起改為 8-12 分鐘策略（光暗雜學館的甜蜜點），
@@ -62,9 +79,21 @@ def generate_script(case_data: dict) -> dict:
    opening_card (≤8 字) 應該是 Beat 1 的核心字詞 (e.g.「37年冤獄」「39 個大人」),
    會以黑底大字呈現 0-1.5 秒.
 
+   cold_open_text（15-25 字，可留空）：一句敘事感的冷開場 tagline，會在影片最開頭約 3 秒
+   純黑、純靜音時出現（紀錄片式冷開場），比 opening_card 更長、更有畫面感.
+   範例:「她殺了七個小孩，然後回到市場賣菜.」「血案那晚，警車來得太晚.」
+   想不出夠有力的句子就回傳空字串，不要寫空泛的話.
+
 【2. 背景（300-400字）】介紹受害者，建立情感連結
 【3. 案件經過（400-500字）】時間線還原，短句製造緊張
 【4. 調查過程（300-400字）】警方行動、線索、嫌疑人
+
+【留住觀眾的「開放迴圈」規則 — 必須完全基於上方案件資料/時間線，不可編造新情節】
+- 第 2 段（背景）最後一句用前導懸念收尾，暗示恐怖即將發生.
+  例:「但沒有人知道，這只是噩夢的開始…」「然而那天等著她的，是她想都不敢想的事.」
+- 第 3 段（案件經過）開頭第一句給一個二次鉤子：獎勵看到這裡的觀眾一個新的震撼反差事實.
+- 第 4 段（調查過程）最後一句暗示轉折即將到來.
+  例:「但警方在他家發現的東西，才是這案子真正可怕的地方…」
 
 語言要求：繁體中文、台灣用語、短句、英文人名保留原文
 
@@ -91,6 +120,7 @@ visual_hints 是 Imagen 生圖的 prompt,跟旁白文本不同要求:
 {{
   "title": "影片標題（使用標題DNA公式，30字以內）",
   "opening_card": "開場字卡（8字以內）",
+  "cold_open_text": "15-25字敘事冷開場tagline（想不出就留空字串）",
   "sections": [
     {{"name": "hook", "script": "全文", "visual_hints": ["English oblique scene 1", "scene 2"]}},
     {{"name": "background", "script": "全文", "visual_hints": ["English oblique scene"]}},
@@ -106,7 +136,8 @@ visual_hints 是 Imagen 生圖的 prompt,跟旁白文本不同要求:
     sections_context = "\n".join(
         f"【{s['name']}】{s['script'][:150]}..." for s in p1.get("sections", []))
 
-    p2 = ask(f"""繼續生成後半部（4段，約 1000字）+ YouTube 描述欄。
+    p2 = ask(f"""{NARRATOR_PERSONA}
+繼續生成後半部（4段，約 1000字）+ YouTube 描述欄。延續同一個說書人的聲音，語氣與前半部一致。
 
 案件：{case_data.get('case_name', '')}
 前半部摘要：{sections_context}
@@ -167,6 +198,7 @@ visual_hints 是 Imagen 生圖的 prompt,跟旁白文本不同要求:
     result = {
         "title": p1.get("title", case_data.get("case_name", "")),
         "opening_card": p1.get("opening_card", ""),
+        "cold_open_text": p1.get("cold_open_text", ""),
         "sections": all_sections,
         "script": full_script,
         "visual_scenes": visual_scenes,
