@@ -20191,7 +20191,7 @@
         },
         {
           "date": "2026-06-29",
-          "views": 31,
+          "views": 32,
           "likes": 0,
           "comments": 0
         }
@@ -22357,7 +22357,7 @@
         },
         {
           "date": "2026-06-29",
-          "views": 123,
+          "views": 127,
           "likes": 0,
           "comments": 1
         }
@@ -32606,7 +32606,7 @@
         },
         {
           "date": "2026-06-29",
-          "views": 39,
+          "views": 40,
           "likes": 0,
           "comments": 1
         }
@@ -36299,7 +36299,7 @@
         },
         {
           "date": "2026-06-29",
-          "views": 1,
+          "views": 2,
           "likes": 0,
           "comments": 0
         }
@@ -38800,7 +38800,7 @@
         },
         {
           "date": "2026-06-29",
-          "views": 117,
+          "views": 118,
           "likes": 1,
           "comments": 1
         }
@@ -39033,7 +39033,7 @@
         },
         {
           "date": "2026-06-29",
-          "views": 0,
+          "views": 1,
           "likes": 0,
           "comments": 1
         }
@@ -39235,7 +39235,7 @@
         },
         {
           "date": "2026-06-29",
-          "views": 71,
+          "views": 81,
           "likes": 0,
           "comments": 1
         }
@@ -39263,7 +39263,7 @@
         },
         {
           "date": "2026-06-29",
-          "views": 26,
+          "views": 28,
           "likes": 0,
           "comments": 1
         }
@@ -39285,7 +39285,7 @@
         },
         {
           "date": "2026-06-29",
-          "views": 13,
+          "views": 14,
           "likes": 0,
           "comments": 1
         }
@@ -39307,6 +39307,22 @@
         }
       ],
       "series_tag": "unsolved"
+    },
+    {
+      "video_id": "GGZlZkTYro8",
+      "topic": "義大利 - 佛羅倫斯殺人魔：50年未解的撒旦儀式懸案，義大利的血色迷霧",
+      "slot": 1,
+      "duration_s": 82,
+      "publish_at": "2026-06-30T10:00:00+08:00",
+      "uploaded_at": "2026-06-29T20:17:27.159514+00:00",
+      "stats": [
+        {
+          "date": "2026-06-29",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
