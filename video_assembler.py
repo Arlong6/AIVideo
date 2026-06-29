@@ -1199,18 +1199,26 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
             "ffmpeg", "-y",
             "-stream_loop", "-1", "-i", music_path,
             "-t", str(duration),
-            "-af", "volume=0.30",
-            music_loop_path,
+            music_loop_path,          # full-level loop — ducking is now dynamic (below)
         ], capture_output=True, check=True)
-        # Mix voiceover + music (+ SFX if available), combine with video
+        # Sidechain-DUCK the music under the voiceover (music dips while narration
+        # plays, swells back in the gaps) instead of a flat -9.5dB bed, then
+        # loudnorm the whole mix to broadcast -14 LUFS. SFX/booms stay full-level
+        # so transitions still punch through. inputs: 0=video 1=VO 2=music 3=SFX.
         inputs = ["-i", concat_path, "-i", voiceover_path, "-i", music_loop_path]
-        if sfx_path and os.path.exists(sfx_path):
+        _duck = ("[1:a]asplit=2[vo][vokey];"
+                 "[2:a]volume=0.55[mus];"
+                 "[mus][vokey]sidechaincompress=threshold=0.04:ratio=8:attack=15:release=350[mduck];")
+        has_sfx = bool(sfx_path and os.path.exists(sfx_path))
+        if has_sfx:
             inputs += ["-i", sfx_path]
-            n_audio = 3
-            mix_filter = "[1:a][2:a][3:a]amix=inputs=3:duration=first[aout]"
+            mix_filter = (_duck +
+                          "[vo][mduck][3:a]amix=inputs=3:duration=first:normalize=0[mix];"
+                          "[mix]loudnorm=I=-14:TP=-1.5:LRA=11[aout]")
         else:
-            n_audio = 2
-            mix_filter = "[1:a][2:a]amix=inputs=2:duration=first[aout]"
+            mix_filter = (_duck +
+                          "[vo][mduck]amix=inputs=2:duration=first:normalize=0[mix];"
+                          "[mix]loudnorm=I=-14:TP=-1.5:LRA=11[aout]")
 
         subprocess.run([
             "ffmpeg", "-y",
@@ -1220,11 +1228,11 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
             "-map", "[aout]",
             "-t", str(duration),
             "-c:v", "copy",
-            "-c:a", "aac",
+            "-c:a", "aac", "-b:a", "192k",
             temp_path,
         ], capture_output=True, check=True)
         os.remove(music_loop_path)
-        if sfx_path and os.path.exists(sfx_path):
+        if has_sfx:
             os.remove(sfx_path)
     else:
         subprocess.run([
