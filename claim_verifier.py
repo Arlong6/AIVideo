@@ -112,7 +112,8 @@ def check_and_warn(script_text: str, case_data: dict, topic: str = "") -> bool:
     ratio = result["verified_ratio"]
     total = result["total"]
 
-    print(f"  [Claims] {result['verified']}/{total} 經 case_data 驗證 ({ratio:.0%})")
+    _src = "檢索原文" if (isinstance(case_data, dict) and case_data.get("_grounding_corpus")) else "case_data"
+    print(f"  [Claims] {result['verified']}/{total} 經{_src}驗證 ({ratio:.0%})")
 
     if total < 5:
         print(f"  [Claims] sample 太小 (<5),跳過警示")
