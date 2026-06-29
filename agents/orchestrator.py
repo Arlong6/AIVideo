@@ -118,7 +118,12 @@ def _run_pipeline(topic, output_dir, upload, slot, source=""):
     # Claim verification — flag if script contains unverified specific claims
     try:
         from claim_verifier import check_and_warn
-        check_and_warn(script_data.get("script", ""), case_data, topic)
+        # Include the TITLE in verification — it's CTR-driven and bypassed the
+        # firewall before, so a wrong name/year/place/number in the title went
+        # unchecked. Warn-only (curiosity hooks like "99%沒看懂" carry no
+        # extractable entity, so only hard factual slips get flagged).
+        _verify_text = script_data.get("title", "") + "。" + script_data.get("script", "")
+        check_and_warn(_verify_text, case_data, topic)
     except Exception as e:
         print(f"   [Claims] verifier failed (non-blocking): {e}")
 
