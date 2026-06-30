@@ -175,6 +175,7 @@ def _run_pipeline(topic, output_dir, upload, slot, source=""):
         scene_pacing=script_data.get("scene_pacing"),
         fmt="long",
         info_cards=visual_results.get("info_cards"),
+        section_timings=audio_results.get("section_timings"),
     )
 
     # ── Gecko narrator overlay ─────────────────────────────────────

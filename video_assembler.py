@@ -753,17 +753,57 @@ def _insert_section_titles(cut_paths: list[str], output_dir: str,
     return result, section_positions
 
 
-def _interleave_wiki_clips(cut_paths: list[str], wiki_clips: list[str]) -> list[str]:
+def _interleave_wiki_clips(cut_paths: list[str], wiki_clips: list[str],
+                           section_timings: list | None = None,
+                           total_duration: float = 0.0) -> list[str]:
     """
-    Insert wiki archive clips evenly throughout the video.
+    Insert wiki archive clips throughout the video.
     For long-form (many wiki clips), they become the PRIMARY visual content,
     with Pexels clips as transitions between wiki images.
+
+    When section_timings is supplied, Imagen stills (imagen_s{idx}_*) are
+    BEAT-LOCKED to the cut nearest their section's narration-start time, and the
+    rest spread evenly. Pure placement change — clip count/durations (hence the
+    total video duration) are unchanged, so the voiceover-length invariant holds.
     """
     if not wiki_clips:
         return cut_paths
 
     n_cuts = len(cut_paths)
     n_wiki = len(wiki_clips)
+
+    # ── Beat-lock path: pin each Imagen still to its section's narration time ──
+    sec_start = {}
+    if section_timings and total_duration > 0:
+        for _i, _item in enumerate(section_timings):
+            try:
+                sec_start[_i] = float(_item[1])
+            except (TypeError, ValueError, IndexError):
+                pass
+    if sec_start:
+        import re as _re
+
+        def _imagen_sec(p):
+            m = _re.search(r'imagen_s(\d+)_', os.path.basename(p))
+            return int(m.group(1)) if m else None
+
+        placements = []   # (base_cut_index, clip)
+        floating = []
+        for clip in wiki_clips:
+            si = _imagen_sec(clip)
+            if si is not None and si in sec_start:
+                frac = max(0.0, min(1.0, sec_start[si] / total_duration))
+                placements.append((int(round(frac * n_cuts)), clip))
+            else:
+                floating.append(clip)
+        for k, clip in enumerate(floating):
+            frac = (k + 1) / (len(floating) + 1)
+            placements.append((int(round(frac * n_cuts)), clip))
+        # insert high index → low so earlier insertion points stay valid
+        result = list(cut_paths)
+        for idx, clip in sorted(placements, key=lambda x: x[0], reverse=True):
+            result.insert(max(0, min(idx, len(result))), clip)
+        return result
 
     # If we have lots of wiki clips (long-form), distribute evenly
     # Every N cuts, insert a wiki clip
@@ -973,7 +1013,8 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
                    scene_pacing: list | None = None, fmt: str = "short",
                    info_cards: dict | None = None,
                    direct_cut_paths: list[str] | None = None,
-                   skip_cinematic: bool = False) -> str | None:
+                   skip_cinematic: bool = False,
+                   section_timings: list | None = None) -> str | None:
     """Assemble final video from clips + voiceover + music.
 
     direct_cut_paths (v5 sentence-pair path):
@@ -1087,7 +1128,9 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
 
     # Interleave Wikimedia archive clips at key story positions
     if wiki_clips:
-        cut_paths = _interleave_wiki_clips(cut_paths, wiki_clips)
+        cut_paths = _interleave_wiki_clips(cut_paths, wiki_clips,
+                                       section_timings=section_timings,
+                                       total_duration=duration)
         print(f"  Inserted {len(wiki_clips)} wiki archive clips")
 
     # Insert info cards at section boundaries (long-form only)
