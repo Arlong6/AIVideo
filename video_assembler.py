@@ -443,34 +443,55 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
             return pacing_table.get(scene_pacing[scene_idx], default_interval)
         return default_interval
 
-    # Pre-compute cut plan — each clip used ONCE, no repeats
-    # If not enough clips, extend each clip's duration (slow down) instead of looping
+    # Pre-compute cut plan — each clip used ONCE, no repeats.
+    # Per-clip HOLD time is modulated by SCENE PACING (climax scenes hold short,
+    # slow/background scenes linger) via _scene_duration — previously dead code —
+    # then rescaled so the cuts still fill the voiceover EXACTLY (the -t mux wall
+    # stays the final duration backstop; long-form max 35s avoids the black-tail
+    # observed 2026-04-09). Falls back to uniform pacing when none is supplied.
     total_clips = sum(len(g) for g in scene_groups)
-    if total_clips > 0:
-        # Target duration per clip to fill the entire video without repeats
-        target_per_clip = total_duration / total_clips
-        min_dur = 3.0
-        # Long-form allows much longer clips — books channel generates exactly
-        # one high-quality illustration per scene (44 for a 21-min video =
-        # ~30s each). Shorts stays at the faster 15s cap. Without this fix
-        # long-form video falls short of voiceover duration and the tail
-        # renders as a black screen (observed 2026-04-09 Churchill v3).
-        max_dur = 35.0 if fmt == "long" else 15.0
-        per_clip_dur = max(min_dur, min(max_dur, target_per_clip))
+    min_dur = 3.0
+    max_dur = 35.0 if fmt == "long" else 15.0
+
+    if total_clips > 0 and scene_pacing:
+        raw = []
+        for si, group in enumerate(scene_groups):
+            sd = max(0.1, _scene_duration(si))
+            for cp in range(len(group)):
+                raw.append([si, cp, sd])
+        scale = total_duration / (sum(d for _, _, d in raw) or 1.0)
+        for r in raw:
+            r[2] = min(max_dur, max(min_dur, r[2] * scale))
+        # iteratively push residual from clamping onto clips that still have
+        # headroom (up to max when filling, down to min when trimming) so the
+        # total converges to == total_duration even when slow scenes hit the cap
+        for _ in range(8):
+            resid = total_duration - sum(d for _, _, d in raw)
+            if abs(resid) < 0.05:
+                break
+            adj = [r for r in raw
+                   if (r[2] < max_dur if resid > 0 else r[2] > min_dur)]
+            if not adj:
+                break
+            per = resid / len(adj)
+            for r in adj:
+                r[2] = min(max_dur, max(min_dur, r[2] + per))
+        clip_durs = [(si, cp, d) for si, cp, d in raw]
     else:
-        per_clip_dur = default_interval
+        per_clip_dur = (max(min_dur, min(max_dur, total_duration / total_clips))
+                        if total_clips > 0 else default_interval)
+        clip_durs = [(si, cp, per_clip_dur)
+                     for si, group in enumerate(scene_groups)
+                     for cp in range(len(group))]
 
     plan = []
     t = 0.0
-    for si, group in enumerate(scene_groups):
-        for cp, clip_path in enumerate(group):
-            if t >= total_duration - 0.05:
-                break
-            chunk = min(per_clip_dur, total_duration - t)
-            plan.append((si, cp, chunk))
-            t += chunk
+    for si, cp, chunk in clip_durs:
         if t >= total_duration - 0.05:
             break
+        chunk = min(chunk, total_duration - t)
+        plan.append((si, cp, chunk))
+        t += chunk
 
     avg_cut = sum(c for _, _, c in plan) / len(plan) if plan else default_interval
     print(f"  {len(scene_groups)} scenes, {total_clips} clips, "
