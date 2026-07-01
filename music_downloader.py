@@ -66,8 +66,23 @@ def _search_pixabay_music(query: str, api_key: str) -> list[dict]:
         return []
 
 
+def _has_audio_stream(path: str) -> bool:
+    """True if the file actually contains an audio stream — guards against a
+    non-audio response (HTML error page / image) being saved as .mp3, which later
+    crashes the ffmpeg music mix. (Seen: an 11KB mjpeg cached as pixabay_*.mp3.)"""
+    try:
+        import subprocess
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "a",
+             "-show_entries", "stream=codec_type", "-of", "csv=p=0", path],
+            capture_output=True, text=True, timeout=15).stdout.strip()
+        return "audio" in out
+    except Exception:
+        return False
+
+
 def _download_pixabay_track(track: dict, cache_path: str) -> bool:
-    """Download a Pixabay music track to cache."""
+    """Download a Pixabay music track to cache (only if it's genuinely audio)."""
     audio_url = track.get("audio", "") or track.get("previewURL", "")
     if not audio_url:
         return False
@@ -76,7 +91,13 @@ def _download_pixabay_track(track: dict, cache_path: str) -> bool:
         if resp.status_code == 200 and len(resp.content) > 10000:
             with open(cache_path, "wb") as f:
                 f.write(resp.content)
-            return True
+            if _has_audio_stream(cache_path):
+                return True
+            print(f"  [WARN] Pixabay payload has no audio stream — discarding junk")
+            try:
+                os.remove(cache_path)
+            except OSError:
+                pass
     except Exception as e:
         print(f"  [WARN] Track download failed: {e}")
     return False
@@ -103,7 +124,8 @@ def _get_pixabay_music(output_dir: str, queries: list[str] | None = None) -> str
         for track in tracks[:3]:
             name = track.get("tags", query).replace(",", "").replace(" ", "_")[:30]
             cache_path = os.path.join(MUSIC_CACHE_DIR, f"pixabay_{name}.mp3")
-            if os.path.exists(cache_path) and os.path.getsize(cache_path) > 10000:
+            if (os.path.exists(cache_path) and os.path.getsize(cache_path) > 10000
+                    and _has_audio_stream(cache_path)):
                 print(f"  Using cached Pixabay track: {name}")
             elif _download_pixabay_track(track, cache_path):
                 print(f"  Downloaded Pixabay track: {name}")

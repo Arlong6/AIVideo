@@ -1009,6 +1009,21 @@ def _make_opening_card(text: str, output_path: str, duration: float = 2.0,
     os.remove(frame_path)
 
 
+def _audio_stream_ok(path: str) -> bool:
+    """Guard: does this file actually contain an audio stream? Skips junk music
+    (e.g. an image saved as .mp3) that would otherwise crash the ffmpeg mix —
+    the assembler then falls through to the safe no-music branch."""
+    try:
+        import subprocess
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "a",
+             "-show_entries", "stream=codec_type", "-of", "csv=p=0", path],
+            capture_output=True, text=True, timeout=15).stdout.strip()
+        return "audio" in out
+    except Exception:
+        return False
+
+
 def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = None,
                    scene_pacing: list | None = None, fmt: str = "short",
                    info_cards: dict | None = None,
@@ -1256,7 +1271,7 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
 
     # Mix audio + combine with video using ffmpeg only (no MoviePy re-render = no OOM)
     print("  Mixing audio with ffmpeg...")
-    if os.path.exists(music_path):
+    if os.path.exists(music_path) and _audio_stream_ok(music_path):
         # Build looped music file first so ffmpeg doesn't need complex filter looping
         music_loop_path = os.path.join(output_dir, "_music_loop.mp3")
         subprocess.run([
