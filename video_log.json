@@ -2461,7 +2461,7 @@
         },
         {
           "date": "2026-07-01",
-          "views": 42,
+          "views": 45,
           "likes": 1,
           "comments": 1
         }
@@ -23005,7 +23005,7 @@
         },
         {
           "date": "2026-07-01",
-          "views": 129,
+          "views": 130,
           "likes": 0,
           "comments": 1
         }
@@ -33662,7 +33662,7 @@
         },
         {
           "date": "2026-07-01",
-          "views": 40,
+          "views": 41,
           "likes": 0,
           "comments": 1
         }
@@ -37411,7 +37411,7 @@
         },
         {
           "date": "2026-07-01",
-          "views": 221,
+          "views": 222,
           "likes": 3,
           "comments": 1
         }
@@ -40891,7 +40891,7 @@
         },
         {
           "date": "2026-07-01",
-          "views": 109,
+          "views": 119,
           "likes": 0,
           "comments": 1
         }
@@ -41022,7 +41022,7 @@
         },
         {
           "date": "2026-07-01",
-          "views": 3,
+          "views": 4,
           "likes": 0,
           "comments": 1
         }
@@ -41066,6 +41066,22 @@
         }
       ],
       "series_tag": "unsolved"
+    },
+    {
+      "video_id": "BNfdx4NX_c8",
+      "topic": "台中捷運隨機殺人事件 (2024)",
+      "slot": 1,
+      "duration_s": 76,
+      "publish_at": "2026-07-02T10:00:00+08:00",
+      "uploaded_at": "2026-07-01T20:13:12.625588+00:00",
+      "stats": [
+        {
+          "date": "2026-07-01",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ]
     }
   ]
 }
