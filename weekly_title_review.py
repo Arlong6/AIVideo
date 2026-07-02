@@ -13,7 +13,8 @@ from dotenv import load_dotenv
 from googleapiclient.discovery import build
 
 from telegram_notify import _send_raw
-from title_dna import POWER_WORDS, TITLE_DNA
+from title_dna import (POWER_WORDS, TITLE_DNA, _load_recent_titles_from_log,
+                       compute_overused_triggers)
 
 load_dotenv()
 
@@ -192,6 +193,17 @@ def _build_report(videos: list[dict]) -> str:
             short = title[:30] + ("…" if len(title) > 30 else "")
             lines.append(f"  「{short}」views={views}")
             lines.append(f"     缺：{', '.join(failed)}")
+
+    # Fatigue guard status — what the generator is currently banned from using
+    # (same computation title_dna injects at generation time)
+    fatigue = compute_overused_triggers(_load_recent_titles_from_log())
+    lines.append("")
+    lines.append("<b>🛡️ 標題疲勞防護（生成端目前禁用）</b>")
+    if fatigue:
+        for word, count in fatigue:
+            lines.append(f"  ❌ 「{word}」近 20 部用了 {count} 次 → 已自動禁用")
+    else:
+        lines.append("  ✅ 無飽和觸發詞，標題多樣性健康")
 
     # Top + bottom title examples
     sorted_v = sorted(videos, key=lambda x: -x["views"])

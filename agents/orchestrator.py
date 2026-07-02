@@ -251,7 +251,8 @@ def _run_pipeline(topic, output_dir, upload, slot, source=""):
             notify_upload(topic, youtube_url, slot, pub_str)
             video_id = youtube_url.split("youtu.be/")[-1].split("?")[0]
             log_video(video_id, topic, slot, audio_results["duration"], publish_at,
-                      source=source, series_tag=upload_meta.get("series_tag", ""))
+                      source=source, series_tag=upload_meta.get("series_tag", ""),
+                      title=upload_meta.get("title", ""))
 
     # ── Summary ───────────────────────────────────────────────────
     print(f"\n{'=' * 60}")

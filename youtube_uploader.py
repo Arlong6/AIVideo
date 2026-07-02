@@ -28,6 +28,34 @@ def _sanitize_description(text: str) -> str:
     return text
 
 
+def _build_tags(metadata: dict) -> list[str]:
+    """Search-intent tags: static niche tags + case-specific terms.
+
+    YouTube caps tags at 500 chars total / 100 per tag. The title itself is
+    the strongest case-specific search phrase we have (case names, places,
+    years) — include it whole, plus extracted years, so the video can rank
+    for「<案名>」and「<年份> <地名> 案」queries instead of only generic tags.
+    """
+    import re
+    tags = [h.lstrip("#") for h in metadata.get("hashtags", [])]
+    tags += ["真實犯罪", "犯罪故事", "懸案", "台灣犯罪", "真實案件",
+             "Shorts", "shorts"]
+    title = metadata.get("title", "")
+    if title:
+        # Strip punctuation so the tag is a searchable phrase
+        clean = re.sub(r"[！？!?：:，,。.…「」『』\s]+", " ", title).strip()
+        if clean:
+            tags.append(clean[:100])
+        tags += re.findall(r"(?:19|20)\d{2}", title)
+    seen, out, budget = set(), [], 480
+    for t in tags:
+        if t and t not in seen and budget - len(t) > 0:
+            seen.add(t)
+            out.append(t)
+            budget -= len(t)
+    return out
+
+
 def _build_full_description(desc: str, hashtags: list, metadata: dict,
                             video_path: str) -> str:
     """Build YouTube description with proper attribution and disclosures."""
@@ -185,7 +213,7 @@ def upload_video(video_path: str, metadata: dict, privacy: str = "private",
     title = metadata.get("title", "True Crime Story")
     description = metadata.get("description", "")
     hashtags = metadata.get("hashtags", [])
-    tags = [h.lstrip("#") for h in hashtags] + ["真實犯罪", "犯罪故事", "懸案", "Shorts", "shorts"]
+    tags = _build_tags(metadata)
 
     # Build full YouTube description with attribution and disclosures
     full_desc = _build_full_description(description, hashtags, metadata, video_path)

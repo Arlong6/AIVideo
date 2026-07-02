@@ -31,12 +31,15 @@ def _save_log(data: dict):
 
 
 def log_video(video_id: str, topic: str, slot: int, duration_s: float,
-              publish_at: str = "", source: str = "", series_tag: str = ""):
+              publish_at: str = "", source: str = "", series_tag: str = "",
+              title: str = ""):
     """Record a newly uploaded video.
 
     source: optional tag like "shorts_upgrade" to track origin (manual vs
     automated, regenerated from a top-performing Short, etc.)
     series_tag: optional tag for series ("wrongful_conviction", "campus", etc.)
+    title: the published YouTube title — feeds the title fatigue guard
+    (title_dna.get_title_prompt_insert reads it back at generation time).
     """
     data = _load_log()
     if any(v["video_id"] == video_id for v in data["videos"]):
@@ -50,6 +53,8 @@ def log_video(video_id: str, topic: str, slot: int, duration_s: float,
         "uploaded_at": datetime.now(timezone.utc).isoformat(),
         "stats": [],
     }
+    if title:
+        entry["title"] = title
     if source:
         entry["source"] = source
     if series_tag:

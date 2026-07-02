@@ -232,7 +232,7 @@ def main():
                           engine=VIDEO_ENGINE, duration_s=_dur,
                           verified=use_remotion)
             log_video(video_id, topic, args.slot or 1, _dur, publish_at or "",
-                      source=args.source)
+                      source=args.source, title=scripts["zh"].get("title", ""))
         else:
             # Audit 2026-04-30 important: render-then-no-upload used to be
             # silent. Now Telegram pings so the operator knows the file is
@@ -390,7 +390,7 @@ def _generate_long(args):
             notify_upload(topic, youtube_url, args.slot or 1, pub_str)
             video_id = youtube_url.split("youtu.be/")[-1].split("?")[0]
             log_video(video_id, topic, args.slot or 1, actual_duration, publish_at or "",
-                      source=args.source)
+                      source=args.source, title=upload_meta.get("title", ""))
 
     # Upload extracted Shorts
     if args.upload and shorts_results:

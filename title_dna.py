@@ -216,19 +216,89 @@ SECTION_NAMES = {
 }
 
 
-def get_title_prompt_insert() -> str:
-    """Return Title DNA guidance for Claude/Gemini prompt injection."""
+def _load_recent_titles_from_log(n: int = 20) -> list[str]:
+    """Read the last N uploaded video titles from video_log.json.
+
+    Entries logged before 2026-07-02 have no `title` field (only `topic`) —
+    those are skipped, so the fatigue guard only sees real published titles.
+    Returns [] on any problem: the guard then simply injects no ban list.
+    """
+    import json
+    import os
+    if not os.path.exists("video_log.json"):
+        return []
+    try:
+        with open("video_log.json") as f:
+            data = json.load(f)
+        titles = [v["title"] for v in data.get("videos", []) if v.get("title")]
+        return titles[-n:]
+    except Exception:
+        return []
+
+
+def compute_overused_triggers(recent_titles: list[str],
+                              threshold: float = 0.30,
+                              min_titles: int = 8) -> list[tuple[str, int]]:
+    """Return [(trigger_word, count)] for POWER_WORDS whose usage in the
+    recent titles exceeds `threshold` — the channel-level fatigue signal.
+
+    2026-07-02 diagnosis: the 5/10 TIER-S hard rule pushed 「99%」+「崩潰」
+    into ~70% of titles; 30-day shorts views then halved (10.8k → 5.4k) and
+    the two all-time top titles contain ZERO tier-s words. Per-title CTR
+    boosts do not survive channel-level saturation.
+    """
+    if len(recent_titles) < min_titles:
+        return []
+    # POWER_WORDS keys don't always literally appear in titles
+    # (e.g. key「99%的人」but titles say「99%人不知」) — match the core token.
+    aliases = {"99%的人": ["99%"]}
+    overused = []
+    for word in POWER_WORDS:
+        variants = aliases.get(word) or [w.strip() for w in word.split("/") if w.strip()]
+        if word == "年份數字":
+            continue  # years are specificity, not a template — never ban
+        count = sum(1 for t in recent_titles if any(v in t for v in variants))
+        if count / len(recent_titles) > threshold:
+            overused.append((word, count))
+    overused.sort(key=lambda x: -x[1])
+    return overused
+
+
+def get_title_prompt_insert(recent_titles: list[str] | None = None) -> str:
+    """Return Title DNA guidance for Claude/Gemini prompt injection.
+
+    recent_titles: last ~20 published titles, used to ban overused trigger
+    words and rotate formulas. Defaults to reading video_log.json.
+    """
+    if recent_titles is None:
+        recent_titles = _load_recent_titles_from_log()
+
     lines = ["=== 標題 DNA 公式（從腦洞烏托邦 252萬訂閱頻道 49 部爆款影片提取）===\n"]
 
-    # ⭐⭐⭐ HARD REQUIREMENT (2026-05-10): 從「優先嘗試」升級為「必嵌入」
-    # 5/9 review: 99% trigger 採用率僅 1/20, 為了 1/20, 就剛剛/崩潰 0/20
-    # LLM 把這些當「可選」, 必須改為硬性 rule.
-    lines.append("⭐⭐⭐ HARD REQUIREMENT — 高 ROI trigger words ⭐⭐⭐")
-    lines.append("從以下 4 個 TIER-S trigger 中**必須採用至少 2 個**(不是 1 個):")
-    lines.append("  1. 「99%的人」/「99%人不知道」/「99%沒人說」 (ROI 8×, 720 views 爆款)")
-    lines.append("  2. 「為了」+ 微小荒誕誘因 (e.g. 為了一張購物卡 → 364k views)")
-    lines.append("  3. 「就剛剛」/「最新進展」(即時感, 4× 中位數)")
-    lines.append("  4. 「崩潰」/「震怒」第三方情緒佐證 (3.3× boost)")
+    # ⭐⭐⭐ 疲勞防護 (2026-07-02): 取代 5/10 的「TIER-S 必用 2 個」硬規則.
+    # 那條規則讓 ~70% 標題塌縮成「99%人不知+崩潰」模板, 與 6 月流量腰斬同步;
+    # 歷史 Top 2 標題(1599/1087 views)都不含任何 TIER-S 詞. 教訓: 單題 CTR
+    # 加成撐不過頻道級同質化. trigger words 降級為「工具箱」, 過度使用直接禁用.
+    overused = compute_overused_triggers(recent_titles)
+    if overused:
+        lines.append("⭐⭐⭐ HARD REQUIREMENT — 標題疲勞防護 ⭐⭐⭐")
+        lines.append(f"以下觸發詞在本頻道最近 {len(recent_titles)} 部影片被過度使用，"
+                     "觀眾與演算法已疲勞，**本次標題絕對禁止使用**：")
+        for word, count in overused:
+            lines.append(f"  ❌ 「{word}」(近期已用 {count} 次)")
+        lines.append("請從其他公式/觸發詞另闢蹊徑，或完全不用觸發詞、靠具體事實本身的荒誕感取勝。")
+        lines.append("")
+    if recent_titles:
+        sample = "、".join(f"「{t}」" for t in recent_titles[-6:])
+        lines.append(f"【頻道最近的標題（你的標題必須和它們「長得不一樣」）】{sample}")
+        lines.append("")
+
+    lines.append("⭐⭐⭐ 公式輪替規則 ⭐⭐⭐")
+    lines.append("從下方 8 個公式中，選擇**最貼合本案件本質**的 1 個（不是最聳動的那個）。")
+    lines.append("同一個公式/句型連續使用會讓整個頻道首頁看起來像複製貼上 — 演算法與觀眾都會疲勞。")
+    lines.append("觸發詞是調味料不是主菜：每個標題**最多 1 個**觸發詞，能不用就不用。")
+    lines.append("本頻道歷史第 1 名標題是「日本毒咖哩：夏日祭典變煉獄，真兇是誰？」(1599 views) —")
+    lines.append("零模板詞，靠「祭典 vs 煉獄」的具體反差取勝。以此為金標準。")
     lines.append("")
     lines.append("⭐⭐⭐ HARD REQUIREMENT — 標題具體化 ⭐⭐⭐")
     lines.append("標題**必須包含至少 1 項**:")
@@ -247,8 +317,11 @@ def get_title_prompt_insert() -> str:
             lines.append(f"  實例：{title} → {views:,} views")
         lines.append("")
 
-    lines.append("【高效觸發詞（必須至少使用 1 個）】")
+    banned = {w for w, _ in overused}
+    lines.append("【觸發詞工具箱（可選，每題最多 1 個；被疲勞防護禁用的除外）】")
     for word, info in POWER_WORDS.items():
+        if word in banned:
+            continue
         lines.append(f"  「{word}」觀看加成 {info['view_boost']}")
 
     lines.append("\n【必須避免的失敗模式】")
@@ -263,8 +336,10 @@ def get_title_prompt_insert() -> str:
     lines.append("  壞的例子：「陳金火案：2003年駭人聽聞的殺人分屍焚屍案其殘忍手法...」(54字)")
 
     lines.append("\n【標題自檢清單（生成後必須通過全部）】")
-    lines.append("  ✅ **HARD**: 至少 2 個 TIER-S trigger (99%/為了/就剛剛/崩潰) 之中採用 ≥2")
+    lines.append("  ✅ **HARD**: 不含任何被疲勞防護禁用的觸發詞")
     lines.append("  ✅ **HARD**: 含具體數字 OR 台灣地名 OR 機構/職業 (有 1 個就行)")
+    lines.append("  ✅ **HARD**: 與「頻道最近的標題」句型明顯不同（不是換名詞的同一句話）")
+    lines.append("  ✅ 觸發詞 ≤1 個")
     lines.append("  ✅ ≤25 字（含標點）")
     lines.append("  ✅ 不是「案件名：說明」的冒號格式")
     lines.append("  ✅ 製造好奇缺口（讀完標題想知道更多）")
@@ -274,6 +349,7 @@ def get_title_prompt_insert() -> str:
     lines.append("  📌 荒誕小因前置：把案件中最荒誕、最不成比例的微小細節放標題前半")
     lines.append("     範例：「為了一張購物卡，媽媽把女兒…」(364k views)")
     lines.append("  📌 保護者反轉：父母/老師/醫生/警察當加害者時，標題要明示身份落差(用「竟」「卻」)")
-    lines.append("  📌 第三方情緒佐證：用「驗屍官崩潰」「全美轟動」比直接寫殘忍更有衝擊")
+    lines.append("  📌 第三方情緒佐證：用「驗屍官崩潰」「全美轟動」比直接寫殘忍更有衝擊"
+                 "（前提：該詞未被上方疲勞防護禁用）")
 
     return "\n".join(lines)
