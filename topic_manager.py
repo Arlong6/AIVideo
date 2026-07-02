@@ -329,6 +329,29 @@ def add_topics_to_bank(new_topics: list[str]):
 
 # ── Main entry point ───────────────────────────────────────────────────────────
 
+# Recognizable, well-documented cases — the ONE variable the real data shows
+# actually moves views (famous-case Shorts median ~176 vs ~39 for obscure; every
+# >500 breakout was a famous case). The picker SEEDS these into the candidate pool
+# and score-boosts any match, so famous cases are chosen first. All are real,
+# verifiable events; the search-grounding pass fact-checks each before writing.
+# EXPAND this list (aim ~40) — it is the highest-leverage lever for this channel.
+FAMOUS_WHITELIST = [
+    "林宅血案", "鄭捷 台北捷運隨機殺人案", "洪仲丘事件", "江國慶案",
+    "彭婉如命案", "白曉燕命案", "陳進興 白案", "劉邦友血案", "尹清楓命案",
+    "小燈泡案 王景玉", "華山分屍案", "媽媽嘴八里雙屍命案", "台中耕讀園槍擊案",
+    "白米炸彈客", "澎湖七一三事件", "陸正綁架案", "清大王水溶屍案",
+    "D.B. Cooper 劫機案", "韓國華城連環殺人案", "美國小丑殺手 John Wayne Gacy",
+    "日本秋葉原隨機殺人事件", "日本世田谷一家滅門案", "中國白銀連環殺人案",
+]
+# Short fragments for substring scoring against topics.json / news candidates.
+FAMOUS_KEYS = (
+    "林宅", "鄭捷", "洪仲丘", "江國慶", "彭婉如", "白曉燕", "陳進興", "劉邦友",
+    "尹清楓", "王景玉", "小燈泡", "華山分屍", "媽媽嘴", "八里雙屍", "耕讀園",
+    "白米炸彈", "澎湖七一三", "陸正", "王水溶屍", "Cooper", "華城", "Gacy",
+    "秋葉原", "世田谷", "白銀",
+)
+
+
 def pick_topic(refresh_news: bool = True) -> str:
     """
     Pick a fresh topic for today's video.
@@ -373,7 +396,10 @@ def pick_topic(refresh_news: bool = True) -> str:
     topic_bank = _load_topic_bank()
     unused_bank = [t for t in topic_bank if t not in used_topics]
 
-    candidates = suggestions + unused_bank
+    # Seed recognizable cases into the pool (skip ones already used) so a famous
+    # topic is always available for the score-boost below to float to the top.
+    famous_seed = [w for w in FAMOUS_WHITELIST if w not in used_topics]
+    candidates = suggestions + famous_seed + unused_bank
     if not candidates:
         raise RuntimeError("No unused topics available! Add more to topics.json.")
 
@@ -462,6 +488,8 @@ def pick_topic(refresh_news: bool = True) -> str:
 
     def _score_topic(t: str) -> int:
         s = 0
+        # Recognizability is the #1 view driver — dominate all other signals.
+        if any(k in t for k in FAMOUS_KEYS): s += 12
         if _is_taiwan(t): s += 5
         for trig in HIGH_ROI_TRIGGERS:
             if trig in t: s += 3
