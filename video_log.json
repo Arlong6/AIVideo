@@ -38786,7 +38786,7 @@
         },
         {
           "date": "2026-07-03",
-          "views": 222,
+          "views": 223,
           "likes": 3,
           "comments": 1
         }
@@ -42650,7 +42650,7 @@
         },
         {
           "date": "2026-07-03",
-          "views": 148,
+          "views": 156,
           "likes": 0,
           "comments": 1
         }
@@ -42891,7 +42891,7 @@
         },
         {
           "date": "2026-07-03",
-          "views": 7,
+          "views": 10,
           "likes": 0,
           "comments": 0
         }
@@ -42920,7 +42920,7 @@
         },
         {
           "date": "2026-07-03",
-          "views": 26,
+          "views": 34,
           "likes": 0,
           "comments": 1
         }
@@ -42943,7 +42943,7 @@
         },
         {
           "date": "2026-07-03",
-          "views": 58,
+          "views": 76,
           "likes": 0,
           "comments": 1
         }
@@ -42967,6 +42967,23 @@
       ],
       "title": "1998清大！高材生王水溶屍",
       "series_tag": "campus"
+    },
+    {
+      "video_id": "iMo6p4C7nsk",
+      "topic": "中國白銀連環殺人案",
+      "slot": 1,
+      "duration_s": 89,
+      "publish_at": "2026-07-04T10:00:00+08:00",
+      "uploaded_at": "2026-07-03T19:49:42.684396+00:00",
+      "stats": [
+        {
+          "date": "2026-07-03",
+          "views": 0,
+          "likes": 0,
+          "comments": 0
+        }
+      ],
+      "title": "28年懸案：白銀殺人魔竟是鄰居！震驚真相"
     }
   ]
 }
