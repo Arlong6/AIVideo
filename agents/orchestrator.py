@@ -142,13 +142,19 @@ def _run_pipeline(topic, output_dir, upload, slot, source=""):
     from video_assembler import assemble_video
     from thumbnail_generator import generate_thumbnail
 
-    # Thumbnail
+    # Thumbnail — object close-up needs an ENGLISH scene hint (Imagen reads
+    # Chinese titles poorly); the hook section's first visual_hints entry is
+    # already an oblique English object scene. Punch text = opening_card
+    # (semantic ≤8 字) instead of keyword-extracting the title.
     thumb_path = os.path.join(output_dir, "thumbnail.jpg")
     dur_min = int(audio_results["duration"] / 60)
     dur_sec = int(audio_results["duration"] % 60)
+    thumb_hint = (script_data.get("thumbnail_visual_hint", "")
+                  or (script_data.get("visual_scenes") or [""])[0])
     generate_thumbnail(script_data.get("title", topic), thumb_path,
                        fmt="long", duration_hint=f"{dur_min}:{dur_sec:02d}",
-                       visual_hint=script_data.get("thumbnail_visual_hint", ""))
+                       visual_hint=thumb_hint,
+                       punch_text=script_data.get("opening_card", ""))
 
     # Convert maps to video clips and add to wiki_clips
     map_clips = []
@@ -253,6 +259,12 @@ def _run_pipeline(topic, output_dir, upload, slot, source=""):
             log_video(video_id, topic, slot, audio_results["duration"], publish_at,
                       source=source, series_tag=upload_meta.get("series_tag", ""),
                       title=upload_meta.get("title", ""))
+            # Hand off the B thumbnail for manual YT Test & Compare — the
+            # runner is ephemeral, so Telegram is the only place B survives.
+            thumb_b = thumb_path.replace(".jpg", "_B.jpg")
+            if os.path.exists(thumb_b):
+                from telegram_notify import notify_thumbnail_variants
+                notify_thumbnail_variants(topic, thumb_path, thumb_b)
 
     # ── Summary ───────────────────────────────────────────────────
     print(f"\n{'=' * 60}")

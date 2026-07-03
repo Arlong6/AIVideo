@@ -336,7 +336,9 @@ def _generate_long(args):
     print("\n[6/9] Generating thumbnail...")
     thumb_path = os.path.join(output_dir, "thumbnail.jpg")
     zh_title = zh.get("title", topic)
-    generate_thumbnail(zh_title, thumb_path, fmt="long", duration_hint="15:00")
+    generate_thumbnail(zh_title, thumb_path, fmt="long", duration_hint="15:00",
+                       visual_hint=(zh.get("visual_scenes") or [""])[0],
+                       punch_text=zh.get("opening_card", ""))
 
     # Step 7: Assemble video (16:9 landscape)
     # Step 6.5: Generate info cards (case file, timeline, breaking news)

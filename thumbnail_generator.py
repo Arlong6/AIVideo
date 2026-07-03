@@ -137,6 +137,26 @@ def _apply_brand_lut(img: Image.Image) -> Image.Image:
     return img.convert("RGB")
 
 
+def _lift_shadows(img: Image.Image, target_mean: float = 68.0) -> Image.Image:
+    """Adaptive exposure lift so dark renders stay readable in the feed.
+
+    Imagen chiaroscuro + brand LUT + vignette each darken; stacked they can
+    push mean luminance under ~40 and the thumbnail reads as a black
+    rectangle at feed size (observed 2026-07-03). Gamma-lift toward
+    target_mean — gamma preserves the deep blacks (noir look) while opening
+    the midtones where the hero object lives. No-op when already bright.
+    """
+    gray = np.array(img.convert("L"), dtype=np.float32)
+    mean = float(gray.mean())
+    if mean >= target_mean:
+        return img
+    # Solve gamma so that (mean/255)^gamma ≈ target/255, capped for safety
+    gamma = max(0.45, np.log(target_mean / 255.0) / np.log(max(mean, 1.0) / 255.0))
+    arr = np.array(img, dtype=np.float32) / 255.0
+    arr = np.power(arr, gamma) * 255.0
+    return Image.fromarray(arr.clip(0, 255).astype(np.uint8))
+
+
 def _add_vignette(img: Image.Image) -> Image.Image:
     """Darken edges to focus attention on center text."""
     arr = np.array(img).astype(np.float32)
@@ -162,15 +182,18 @@ def _extract_punch(title: str) -> tuple[str, str]:
     """從 25-字標題抽出 4-8 字 punch text (long-form thumbnail 主視覺).
     @mystery2018 style: 縮圖只有大字 hook, 不放完整標題.
 
+    Fallback only — 正常情況 punch 來自腳本的 opening_card（語義化、
+    每案不同）。2026-07-03 起 HOOK_KEYS 移除 99%/為了/就剛剛/崩潰：
+    那 4 個詞被標題疲勞防護禁用後，縮圖不能反過來放大它們。
+
     Returns (punch_text, accent_keyword) — accent_keyword 用紅色強調.
     """
     # Priority hook keywords — 找到就以此為核心建構 punch
     HOOK_KEYS = [
-        ("99%", "99%"), ("為什麼", "為什麼"), ("水有多深", "水有多深"),
-        ("竟", "竟"), ("活活", "活活"), ("惡魔", "惡魔"),
-        ("人間蒸發", "人間蒸發"), ("真兇", "真兇"), ("封殺", "封殺"),
-        ("沒人敢說", "沒人敢說"), ("顛覆", "顛覆"), ("驚天", "驚天"),
-        ("為了", "為了"), ("就剛剛", "就剛剛"), ("崩潰", "崩潰"),
+        ("真兇", "真兇"), ("人間蒸發", "人間蒸發"), ("水有多深", "水有多深"),
+        ("為什麼", "為什麼"), ("惡魔", "惡魔"), ("活活", "活活"),
+        ("竟", "竟"), ("封殺", "封殺"), ("沒人敢說", "沒人敢說"),
+        ("顛覆", "顛覆"), ("驚天", "驚天"),
     ]
     for kw, accent in HOOK_KEYS:
         if kw in title:
@@ -190,16 +213,23 @@ def _extract_punch(title: str) -> tuple[str, str]:
 
 
 def _draw_title(img: Image.Image, title: str, fmt: str = "short",
-                duration_hint: str = "") -> Image.Image:
-    """Draw large Chinese title with stroke outline, background panel, and accent bars."""
+                duration_hint: str = "", punch_text: str = "") -> Image.Image:
+    """Draw large Chinese title with stroke outline, background panel, and accent bars.
+
+    punch_text: explicit ≤8 字 hero text (from the script's opening_card) —
+    semantic per-case punch beats keyword extraction from the title.
+    """
     draw = ImageDraw.Draw(img)
 
     # 2026-05-07: Long-form 用 4-8 字 punch text 而非完整標題
     # (短小才能放大, @mystery2018 367k median 的關鍵)
     accent_kw = ""
     if fmt == "long":
-        punch, accent_kw = _extract_punch(title)
-        title = punch
+        if punch_text.strip():
+            title = punch_text.strip()[:8]
+        else:
+            punch, accent_kw = _extract_punch(title)
+            title = punch
 
     # Split title into lines: prefer punctuation breaks, force-break at MAX_CHARS
     MAX_CHARS = 10
@@ -307,17 +337,20 @@ def _draw_title(img: Image.Image, title: str, fmt: str = "short",
 
 
 AI_STYLE_ANCHOR = (
-    # 2026-05-07 v2 — 強化 hero subject 戲劇感（@mystery2018 風格）
+    # 2026-07-03 v3 — 單一證物特寫（8-lens §7 縮圖重建）。
+    # v2 允許人影/連帽人 → 常產出泛用「陰森氛圍圖」，每張長一樣、
+    # 也撞 AI-slop 視覺類別。一個具體物件 = 一個具體好奇缺口。
+    # 注意：這裡不能放範例物件清單 — Imagen 會畫範例而不是場景
+    # (實測 2026-07-03: hint 給官邸鐵門, 卻畫出清單裡的鏽桶).
     "cinematic true crime documentary thumbnail, "
-    "ONE strong focal subject dominating left or center "
-    "(silhouette of person from behind, hooded figure in shadow, "
-    "key object like weapon/badge/evidence bag, single empty chair, "
-    "broken window, empty interrogation room), "
     "DRAMATIC chiaroscuro: 70% deep shadow + 30% hard rim light from upper side, "
     "dark teal and amber color grade, ultra high contrast, "
     "shallow depth of field with strong bokeh, 35mm film grain, "
-    "right-side area kept relatively dark/clean for text overlay, "
-    "no text, no watermark, no recognizable real people's faces"
+    "lower half kept relatively dark/clean for text overlay, "
+    "no people, no faces, no silhouettes, no text, no watermark — "
+    "EXTREME CLOSE-UP of the single most story-loaded object, "
+    "filling 60% of the frame, specific not generic, "
+    "faithful to this exact scene: "
 )
 
 
@@ -334,9 +367,10 @@ def _generate_ai_background(title: str, visual_hint: str = "",
     import requests
     from urllib.parse import quote
 
-    # Build prompt: style anchor + case-specific hint
+    # Build prompt: style anchor ends with "faithful to this exact scene:"
+    # so the case-specific hint lands as the close-up subject.
     hint = visual_hint.strip() if visual_hint else title[:30]
-    prompt = f"{hint}, {AI_STYLE_ANCHOR}"
+    prompt = f"{AI_STYLE_ANCHOR}{hint}"
 
     # --- Imagen Ultra (primary, 2026-05-07) ---
     # Phase 1 strategy: thumbnail 是最大短板,值得 1 Ultra 配額/部 ($0.06).
@@ -539,18 +573,23 @@ def _make_real_photo_thumbnail(search_term: str, punch_text: str) -> Image.Image
 def generate_thumbnail(title: str, output_path: str, fmt: str = "short",
                        duration_hint: str = "",
                        visual_hint: str = "",
-                       case_data: dict | None = None) -> str:
+                       case_data: dict | None = None,
+                       punch_text: str = "") -> str:
     """
     Generate a dark cinematic YouTube thumbnail.
 
     fmt='short': pure PIL (unchanged — Shorts use Remotion's own style).
     fmt='long': AI-generated background (Pollinations/Imagen) + PIL text overlay.
-                Falls back to PIL if AI fails.
+                Falls back to PIL if AI fails. Also writes a "_B" PIL variant
+                for YT Studio Test & Compare (manual A/B).
 
-    visual_hint: case-specific scene description from script_generator
-                 (e.g. "模糊老婦人背影 + 紅色電話聽筒特寫").
+    visual_hint: case-specific scene description — pass the script's first
+                 English visual_hints scene so Imagen gets an object to
+                 close-up on (Chinese titles render poorly as prompts).
+    punch_text:  ≤8 字 hero text (script opening_card); falls back to
+                 keyword extraction from the title.
 
-    Returns path to saved 1280×720 JPEG.
+    Returns path to saved 1280×720 JPEG (the A variant).
     """
     seed = hash(title) & 0xFFFFFFFF
 
@@ -578,30 +617,38 @@ def generate_thumbnail(title: str, output_path: str, fmt: str = "short",
         # graded image; text comes last so titles stay readable.
         img = _apply_brand_lut(ai_bg)
         img = _add_vignette(img)
-        img = _draw_title(img, title, fmt=fmt, duration_hint=duration_hint)
+        img = _lift_shadows(img)
+        img = _draw_title(img, title, fmt=fmt, duration_hint=duration_hint,
+                          punch_text=punch_text)
     else:
         # PIL fallback (also the only path for Shorts when real-photo failed)
         img = _make_dark_background()
         img = _add_city_lights(img, seed)
         img = _add_fog(img)
         img = _add_vignette(img)
-        img = _draw_title(img, title, fmt=fmt, duration_hint=duration_hint)
+        img = _draw_title(img, title, fmt=fmt, duration_hint=duration_hint,
+                          punch_text=punch_text)
         img = _add_blood_splatter(img, seed + 1)
 
     img.save(output_path, "JPEG", quality=95)
     print(f"  Thumbnail saved: {os.path.basename(output_path)}")
 
-    # Long-form: also save PIL version for A/B comparison
+    # Long-form B variant for YT Studio Test & Compare (manual A/B):
+    # same punch text (isolates the visual-style variable), PIL dark-city
+    # style vs the AI object close-up. Publish A, then add B in Studio →
+    # Test & Compare after the video goes live.
     if fmt == "long" and ai_bg:
-        pil_path = output_path.replace(".jpg", "_pil.jpg")
+        b_path = output_path.replace(".jpg", "_B.jpg")
         pil_img = _make_dark_background()
         pil_img = _add_city_lights(pil_img, seed)
         pil_img = _add_fog(pil_img)
         pil_img = _add_vignette(pil_img)
-        pil_img = _draw_title(pil_img, title, fmt=fmt, duration_hint=duration_hint)
+        pil_img = _draw_title(pil_img, title, fmt=fmt, duration_hint=duration_hint,
+                              punch_text=punch_text)
         pil_img = _add_blood_splatter(pil_img, seed + 1)
-        pil_img.save(pil_path, "JPEG", quality=95)
-        print(f"  Thumbnail saved (PIL backup): {os.path.basename(pil_path)}")
+        pil_img.save(b_path, "JPEG", quality=95)
+        print(f"  Thumbnail saved (B variant for Test & Compare): "
+              f"{os.path.basename(b_path)}")
 
     return output_path
 

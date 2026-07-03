@@ -46,6 +46,49 @@ def _send_raw(msg: str) -> bool:
         return False
 
 
+def _send_photo(photo_path: str, caption: str = "") -> bool:
+    """Send a photo file to the project chat. Same contract as _send_raw."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("  [telegram] skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID missing")
+        return False
+    if not os.path.exists(photo_path):
+        print(f"  [telegram] photo missing: {photo_path}")
+        return False
+    import requests
+    try:
+        with open(photo_path, "rb") as f:
+            resp = requests.post(
+                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto",
+                data={"chat_id": TELEGRAM_CHAT_ID, "caption": caption[:1000],
+                      "parse_mode": "HTML"},
+                files={"photo": f},
+                timeout=30,
+            )
+        if resp.status_code == 200:
+            return True
+        print(f"  [telegram] sendPhoto HTTP {resp.status_code}: {resp.text[:200]}")
+        return False
+    except Exception as e:
+        print(f"  [telegram] sendPhoto failed: {e}")
+        return False
+
+
+def notify_thumbnail_variants(topic: str, thumb_a: str, thumb_b: str):
+    """Push both long-form thumbnail variants for manual YT Test & Compare.
+
+    The pipeline publishes with variant A; arlong adds B in YT Studio →
+    影片 → 縮圖 → Test & Compare once the video is live. This notification
+    is the whole handoff — no other record of variant B exists off-runner.
+    """
+    ok_a = _send_photo(thumb_a, f"🖼 <b>{topic}</b> — 縮圖 A（已隨影片發布：AI 物件特寫）")
+    ok_b = _send_photo(thumb_b, f"🖼 <b>{topic}</b> — 縮圖 B（Test & Compare 用：PIL 夜色版）\n"
+                                f"👉 影片公開後到 YT Studio → 該影片 → 縮圖 → "
+                                f"Test & Compare 加入這張做 A/B")
+    if not (ok_a and ok_b):
+        print("  [telegram] thumbnail variants not fully delivered "
+              f"(A={ok_a}, B={ok_b})")
+
+
 def notify_upload(topic: str, youtube_url: str, slot: int, publish_time: str = "",
                   engine: str = "", duration_s: float = 0, verified: bool = False):
     """Notify after successful YouTube upload."""
