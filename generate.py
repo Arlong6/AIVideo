@@ -216,6 +216,17 @@ def main():
             publish_at = publish_dt.isoformat()
             print(f"  Scheduled publish: {publish_dt.strftime('%Y-%m-%d %H:%M')} (Taiwan)")
 
+        # 8-lens §6: a Short whose topic already has a long-form gets the
+        # long-form link in its pinned comment — the funnel's weakest hop
+        # is Short viewer → long-form.
+        from script_generator import find_longform_video_id
+        lf_id = find_longform_video_id(topic)
+        if lf_id:
+            link_line = f"完整版深度解析在這裡：https://youtu.be/{lf_id}"
+            pinned = scripts["zh"].get("pinned_comment") or ""
+            scripts["zh"]["pinned_comment"] = f"{pinned}\n\n{link_line}".strip()
+            print(f"  [funnel] Pinned comment links to long-form {lf_id}")
+
         privacy = "public" if args.public else "private"
         youtube_url = upload_video(final_path, scripts["zh"], privacy=privacy,
                                    thumb_path=thumb_path, publish_at=publish_at)
@@ -404,6 +415,11 @@ def _generate_long(args):
                     "description": short.get("description", ""),
                     "hashtags": short.get("hashtags", []),
                 }
+                # 8-lens §6: extracted Shorts always have a parent long-form —
+                # pin its link. Scheduled long-forms go live at the slot hour,
+                # so the link resolves within hours even if posted early.
+                if youtube_url:
+                    short_meta["pinned_comment"] = f"完整版深度解析在這裡：{youtube_url}"
                 s_url = upload_video(short["path"], short_meta, privacy="public",
                                      thumb_path=None, publish_at=None)
                 if s_url:

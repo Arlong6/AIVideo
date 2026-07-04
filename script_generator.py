@@ -353,22 +353,29 @@ def _verify_sources(sources: list) -> list:
     return verified
 
 
-def _has_existing_longform(topic: str) -> bool:
-    """Check video_log for a long-form covering the same topic. Used by the
-    Remotion CTA to decide whether to show "看完整版主頁" cross-promo line."""
+def find_longform_video_id(topic: str) -> str | None:
+    """Return the video_id of an existing long-form covering this topic, or None.
+    Newest match wins so pinned-comment links point at the latest re-cut."""
     try:
         import json as _json
         from shorts_to_longform_queue import _topic_key
         log = _json.load(open("video_log.json"))
         new_key = _topic_key(topic)
         if not new_key:
-            return False
+            return None
+        match = None
         for v in log.get("videos", []):
             if v.get("duration_s", 0) > 120 and _topic_key(v.get("topic", "")) == new_key:
-                return True
-        return False
+                match = v.get("video_id") or match
+        return match
     except Exception:
-        return False
+        return None
+
+
+def _has_existing_longform(topic: str) -> bool:
+    """Check video_log for a long-form covering the same topic. Used by the
+    Remotion CTA to decide whether to show "看完整版主頁" cross-promo line."""
+    return find_longform_video_id(topic) is not None
 
 
 def _get_recent_titles(days: int = 14) -> list[str]:
