@@ -244,6 +244,27 @@ def review_video(output_dir: str, expected_duration: float = 0,
             issues.append({"check": "音畫同步", "status": "PASS",
                            "detail": f"差距 {abs(duration-vo_dur):.1f}s ✓"})
 
+    # ── 5b. Frozen-tail guard ────────────────────────────────────────
+    # The container reports full length while the VIDEO stream can end
+    # minutes earlier (clip-supply shortfall in _build_video_clips) — the
+    # viewer then stares at a frozen last frame. Check 5 can't see this
+    # because container duration tracks the audio. Found on the 白銀案
+    # re-render 2026-07-06: stream 355s vs container 621s.
+    v_dur = None
+    try:
+        v_dur = float(video_stream.get("duration"))
+    except (TypeError, ValueError):
+        pass
+    if v_dur is not None:
+        tail = duration - v_dur
+        if tail > 5.0:
+            issues.append({"check": "凍結尾巴", "status": "FAIL", "severity": "critical",
+                           "detail": f"視訊流 {v_dur:.0f}s < 容器 {duration:.0f}s，"
+                                     f"結尾凍結 {tail:.0f}s"})
+        else:
+            issues.append({"check": "凍結尾巴", "status": "PASS",
+                           "detail": "視訊流覆蓋完整 ✓"})
+
     # ── 6. Subtitle checks ───────────────────────────────────────────
     if os.path.exists(srt_path):
         srt_size = os.path.getsize(srt_path)

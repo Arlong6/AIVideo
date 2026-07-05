@@ -494,10 +494,11 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
         plan.append((si, cp, chunk))
         t += chunk
 
-    # Beat-sync (BEAT_SYNC=1): nudge cut boundaries onto the BGM beat grid so
-    # cuts land on musical beats — pairs with the sidechain ducking that lets
-    # the music swell between narration.
-    if (os.getenv("BEAT_SYNC") == "1" and len(plan) > 2
+    # Beat-sync (approved 2026-07-06, default ON; BEAT_SYNC=0 to kill-switch):
+    # nudge cut boundaries onto the BGM beat grid so cuts land on musical
+    # beats — pairs with the sidechain ducking that lets the music swell
+    # between narration.
+    if (os.getenv("BEAT_SYNC", "1") == "1" and len(plan) > 2
             and music_path and os.path.exists(music_path)
             and _audio_stream_ok(music_path)):
         beats = _beat_grid(music_path, total_duration)
@@ -539,6 +540,54 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
         finally:
             if src is not None:
                 src.close()
+
+    # Frozen-tail backstop (2026-07-06): the plan can silently undershoot the
+    # voiceover — too few source clips × the max_dur cap, AND sources shorter
+    # than their planned hold ("use entire clip, no repeat" above). The concat
+    # then ends minutes before the audio and the viewer stares at a frozen
+    # frame (白銀案 re-render: video stream 355s vs 621s VO). Measure what the
+    # cuts actually cover and fill any gap by cycling copies of existing cuts
+    # in story order. qa_agent's 凍結尾巴 check guards the regression.
+    import shutil
+    import subprocess as _sp
+
+    def _cut_dur(p: str) -> float:
+        try:
+            out = _sp.run(["ffprobe", "-v", "error", "-show_entries",
+                           "format=duration", "-of", "default=nw=1:nk=1", p],
+                          capture_output=True, text=True, timeout=15)
+            return float(out.stdout.strip())
+        except Exception:
+            return 0.0
+
+    base_cuts = [(p, _cut_dur(p)) for p in temp_paths]
+    covered = sum(d for _, d in base_cuts)
+    shortfall = total_duration - covered
+    if shortfall > 2.0 and any(d > 0 for _, d in base_cuts):
+        print(f"  [WARN] cuts cover {covered:.0f}s of {total_duration:.0f}s VO "
+              f"— filling {shortfall:.0f}s by reusing clips in story order")
+        try:
+            from telegram_notify import notify_failure
+            notify_failure("clip_shortfall",
+                           f"素材不足：cuts 只覆蓋 {covered:.0f}s/{total_duration:.0f}s，"
+                           f"已重複既有 clip 補滿（畫面會重複，建議檢查素材供給）")
+        except Exception:
+            pass
+        k = 0
+        while shortfall > 0.5 and k < 300:
+            src_path, src_dur = base_cuts[k % len(base_cuts)]
+            if src_dur <= 0:
+                k += 1
+                continue
+            reuse_path = os.path.join(temp_dir, f"cut_r{k:03d}.mp4")
+            try:
+                shutil.copy(src_path, reuse_path)
+                temp_paths.append(reuse_path)
+                shortfall -= src_dur
+            except OSError as e:
+                print(f"  [WARN] reuse copy failed: {e}")
+                break
+            k += 1
 
     return temp_paths
 
@@ -1280,12 +1329,12 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         if added:
             print(f"  Inserted {added} section title cards")
 
-    # xfade section-boundary transitions — gated behind XFADE_SECTIONS=1
-    # until the sample render is approved. Boundary index = a title card's
-    # position in cut_paths; the crossfade plays (last clip of section →
+    # xfade section-boundary transitions — approved 2026-07-06 (all 5 styles),
+    # default ON; set XFADE_SECTIONS=0 to kill-switch. Boundary index = a title
+    # card's position in cut_paths; the crossfade plays (last clip of section →
     # title card), replacing the dip-to-black double fade at that seam.
     xfade_boundaries: set[int] = set()
-    if fmt == "long" and os.getenv("XFADE_SECTIONS") == "1":
+    if fmt == "long" and os.getenv("XFADE_SECTIONS", "1") == "1":
         xfade_boundaries = {p for p in section_positions.values()
                             if 0 < p < len(cut_paths)}
 
