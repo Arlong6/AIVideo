@@ -342,13 +342,37 @@ FAMOUS_WHITELIST = [
     "白米炸彈客", "澎湖七一三事件", "陸正綁架案", "清大王水溶屍案",
     "D.B. Cooper 劫機案", "韓國華城連環殺人案", "美國小丑殺手 John Wayne Gacy",
     "日本秋葉原隨機殺人事件", "日本世田谷一家滅門案", "中國白銀連環殺人案",
+    # 2026-07-05 expansion — 22 cases, each verified against 2+ independent
+    # sources (Wikipedia + mainstream media) before inclusion. High-risk
+    # framing notes live in data/whitelist_notes.md; the search-grounding
+    # pass still fact-checks every script.
+    # 台灣 政治/軍方/情治
+    "陳文成事件", "江南案 劉宜良", "三一九槍擊事件", "黃國章命案",
+    # 台灣 重大社會矚目
+    "李師科案", "蘇建和案", "徐自強案", "南迴搞軌案 李泰安",
+    "井口真理子命案", "張錫銘擄人勒贖案", "神話世界KTV縱火案 湯銘雄",
+    "螢橋國小潑酸案",
+    # 東亞知名懸案
+    "日本三億日圓事件", "日本格力高森永事件", "日本帝銀事件",
+    "日本和歌山毒咖哩事件", "香港Hello Kitty藏屍案", "香港雨夜屠夫林過雲",
+    "澳門八仙飯店滅門案", "中國朱令鉈中毒事件",
+    # 國際極知名
+    "美國黃道十二宮殺手", "開膛手傑克",
 ]
 # Short fragments for substring scoring against topics.json / news candidates.
+# Keys are chosen to avoid false substring hits ("江南案" not "江南",
+# "八仙飯店" not "八仙" which would match 八仙塵爆, no bare "森永"/"Hello Kitty").
 FAMOUS_KEYS = (
     "林宅", "鄭捷", "洪仲丘", "江國慶", "彭婉如", "白曉燕", "陳進興", "劉邦友",
     "尹清楓", "王景玉", "小燈泡", "華山分屍", "媽媽嘴", "八里雙屍", "耕讀園",
     "白米炸彈", "澎湖七一三", "陸正", "王水溶屍", "Cooper", "華城", "Gacy",
     "秋葉原", "世田谷", "白銀",
+    "陳文成", "江南案", "劉宜良", "三一九槍擊", "319槍擊", "黃國章",
+    "李師科", "王迎先", "蘇建和", "吳銘漢", "徐自強", "搞軌", "李泰安",
+    "井口真理", "張錫銘", "神話世界", "湯銘雄", "螢橋",
+    "三億日", "三億円", "格力高", "千面人", "帝銀", "毒咖哩", "林真須美",
+    "Kitty藏屍", "樊敏儀", "雨夜屠夫", "林過雲", "八仙飯店", "朱令", "鉈中毒",
+    "黃道十二宮", "Zodiac", "開膛手", "白教堂",
 )
 
 
