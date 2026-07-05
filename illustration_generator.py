@@ -363,6 +363,59 @@ def _make_ken_burns_clip(img: np.ndarray, duration: float = 8.0,
     return VideoClip(make_frame, duration=duration).set_fps(25)
 
 
+# ── DepthFlow 2.5D parallax (optional upgrade over Ken Burns) ─────────────────
+
+_DEPTHFLOW_PRESETS = ["orbital", "dolly", "horizontal"]
+
+
+def _depthflow_batch(jobs: list[dict]) -> set[str]:
+    """Render still→parallax clips via the DepthFlow sidecar venv.
+
+    DepthFlow needs Python 3.11+ (imgui-bundle has no cp310 wheel), so it
+    lives in its own venv (default ~/.venvs/depthflow, override with
+    DEPTHFLOW_PYTHON) and we batch every clip through ONE subprocess so the
+    torch/model load is paid once. Returns the set of clip paths that
+    rendered OK; the caller Ken-Burns-falls-back everything else, so a
+    missing venv or a dead subprocess can never break the pipeline.
+    """
+    # Approved 2026-07-06, default ON; DEPTHFLOW=0 to kill-switch. Where the
+    # sidecar venv doesn't exist (e.g. CI runners until provisioned) this
+    # skips instantly and Ken Burns takes over.
+    if os.getenv("DEPTHFLOW", "1") != "1" or not jobs:
+        return set()
+    py = os.path.expanduser(os.getenv("DEPTHFLOW_PYTHON",
+                                      "~/.venvs/depthflow/bin/python"))
+    if not os.path.exists(py):
+        print(f"  [depthflow] sidecar python missing ({py}) — Ken Burns fallback")
+        return set()
+    import json
+    import subprocess
+    import tempfile
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "scripts", "depthflow_render.py")
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+        json.dump(jobs, f)
+        jobs_path = f.name
+    try:
+        r = subprocess.run([py, script, jobs_path], capture_output=True,
+                           text=True, timeout=300 + 30 * len(jobs))
+        done = set()
+        for line in (r.stdout or "").splitlines():
+            if line.startswith("OK "):
+                done.add(line.split()[1])
+            elif line.startswith("FAIL "):
+                print(f"  [depthflow] {line}")
+        if not done:
+            print(f"  [depthflow] batch produced nothing: "
+                  f"{(r.stderr or '')[-300:]}")
+        return {p for p in done if os.path.exists(p)}
+    except subprocess.TimeoutExpired:
+        print("  [depthflow] batch timeout — Ken Burns fallback")
+        return set()
+    finally:
+        os.unlink(jobs_path)
+
+
 # ── Batch entry point ─────────────────────────────────────────────────────────
 
 def generate_illustrations_batch(
@@ -385,6 +438,7 @@ def generate_illustrations_batch(
     client = genai.Client(api_key=GEMINI_API_KEY)
     clip_paths: list[str] = []
     failures = 0
+    pending: list[tuple[int, str, str]] = []  # (idx, png, clip) awaiting motion
 
     for i, scene in enumerate(scenes):
         preview = scene[:60].replace("\n", " ")
@@ -399,7 +453,24 @@ def generate_illustrations_batch(
             failures += 1
             print(f"    ✗ Imagen failed, scene skipped")
             continue
+        pending.append((i, png_path, clip_path))
 
+    # Still → motion. DEPTHFLOW=1 upgrades stills to 2.5D parallax via the
+    # sidecar venv (whole batch in one process); anything it doesn't return
+    # falls back to the classic Ken Burns pan/zoom below.
+    parallax_done = _depthflow_batch([
+        {"image": png, "output": clip, "duration": duration_per_clip,
+         "preset": _DEPTHFLOW_PRESETS[i % len(_DEPTHFLOW_PRESETS)]}
+        for i, png, clip in pending
+    ])
+    if parallax_done:
+        print(f"  [depthflow] {len(parallax_done)}/{len(pending)} clips got 2.5D parallax")
+
+    for i, png_path, clip_path in pending:
+        if clip_path in parallax_done:
+            clip_paths.append(clip_path)
+            print(f"    ✓ s{i:02d}_clip1.mp4 (parallax)")
+            continue
         # Convert PNG → Ken Burns mp4 clip
         try:
             img = np.array(PILImage.open(png_path).convert("RGB"))
