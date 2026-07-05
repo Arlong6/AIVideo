@@ -422,7 +422,8 @@ def _group_clips_by_scene(clip_files: list) -> list[list]:
 
 def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
                        scene_pacing: list | None = None,
-                       fmt: str = "short") -> list[str]:
+                       fmt: str = "short",
+                       music_path: str | None = None) -> list[str]:
     """
     Build cut sequence in story order with no within-scene repetition.
     fmt='short': 9:16 vertical + per-frame dark grade (MoviePy)
@@ -492,6 +493,18 @@ def _build_video_clips(clip_files: list, total_duration: float, temp_dir: str,
         chunk = min(chunk, total_duration - t)
         plan.append((si, cp, chunk))
         t += chunk
+
+    # Beat-sync (BEAT_SYNC=1): nudge cut boundaries onto the BGM beat grid so
+    # cuts land on musical beats — pairs with the sidechain ducking that lets
+    # the music swell between narration.
+    if (os.getenv("BEAT_SYNC") == "1" and len(plan) > 2
+            and music_path and os.path.exists(music_path)
+            and _audio_stream_ok(music_path)):
+        beats = _beat_grid(music_path, total_duration)
+        if beats:
+            plan, moved = _snap_plan_to_beats(plan, beats, total_duration,
+                                              min_dur, max_dur)
+            print(f"  [beat-sync] {moved}/{len(plan)} cut points snapped to beats")
 
     avg_cut = sum(c for _, _, c in plan) / len(plan) if plan else default_interval
     print(f"  {len(scene_groups)} scenes, {total_clips} clips, "
@@ -687,6 +700,110 @@ def _build_sfx_track(total_duration: float, output_dir: str) -> str | None:
     except Exception as e:
         print(f"  [WARN] SFX track failed: {e}")
         return None
+
+
+def _beat_grid(music_path: str, total_duration: float) -> list[float] | None:
+    """Beat timestamps of the BGM, tiled across the looped duration.
+
+    librosa is an optional dependency — returns None (feature no-ops) when it
+    isn't installed or detection fails, so the pipeline never breaks on it.
+    """
+    try:
+        import librosa
+    except ImportError:
+        print("  [beat-sync] librosa not installed, skipping")
+        return None
+    try:
+        y, sr = librosa.load(music_path, mono=True)
+        track_len = len(y) / sr
+        _tempo, frames = librosa.beat.beat_track(y=y, sr=sr)
+        beats = list(librosa.frames_to_time(frames, sr=sr))
+        if len(beats) < 4 or track_len <= 0:
+            return None
+        # The mix loops the track end-to-end, so tile the grid the same way.
+        tiled, k = [], 0
+        while k * track_len < total_duration:
+            tiled.extend(b + k * track_len for b in beats)
+            k += 1
+        return [b for b in tiled if b <= total_duration]
+    except Exception as e:
+        print(f"  [beat-sync] beat detection failed: {e}")
+        return None
+
+
+def _snap_plan_to_beats(plan: list, beats: list[float], total_duration: float,
+                        min_dur: float, max_dur: float,
+                        tol: float = 0.4) -> tuple[list, int]:
+    """Nudge cut boundaries onto the nearest BGM beat (within ±tol seconds).
+
+    Each boundary moves independently against the ORIGINAL timeline, so error
+    never accumulates; the final clip absorbs the residual and the plan still
+    sums to total_duration exactly (the -t mux wall stays the backstop).
+    """
+    import bisect
+    snapped, moved = [], 0
+    prev = 0.0   # running snapped timeline
+    cum = 0.0    # original timeline
+    for i, (si, cp, chunk) in enumerate(plan):
+        cum += chunk
+        if i == len(plan) - 1:
+            snapped.append((si, cp, max(1.0, total_duration - prev)))
+            break
+        j = bisect.bisect_left(beats, cum)
+        best = None
+        for k in (j - 1, j):
+            if 0 <= k < len(beats):
+                b = beats[k]
+                if abs(b - cum) <= tol and min_dur - tol <= b - prev <= max_dur:
+                    if best is None or abs(b - cum) < abs(best - cum):
+                        best = b
+        if best is not None and abs(best - cum) > 0.01:
+            moved += 1
+        target = best if best is not None else cum
+        snapped.append((si, cp, target - prev))
+        prev = target
+    return snapped, moved
+
+
+_XFADE_DUR = 0.6
+
+
+def _xfade_merge_pair(a_path: str, b_path: str, dur_a: float,
+                      out_path: str, transition: str) -> bool:
+    """Merge two neighboring cuts with an ffmpeg xfade transition.
+
+    tpad clones clip A's last frame for the transition length, so the merged
+    file lasts exactly durA+durB — total timeline length (and therefore VO /
+    chapter / subtitle alignment) is untouched. Returns False on any failure
+    so the caller keeps the original hard-cut pair.
+    """
+    import subprocess
+    d = _XFADE_DUR
+    # fps=25 (the pipeline's output rate): xfade hard-fails on mismatched
+    # input frame rates, and cut files keep whatever fps their Pexels source
+    # had. settb aligns timebases for the same reason.
+    fc = (f"[0:v]fps=25,tpad=stop_mode=clone:stop_duration={d},settb=AVTB[v0];"
+          f"[1:v]fps=25,settb=AVTB[v1];"
+          f"[v0][v1]xfade=transition={transition}:duration={d}:offset={dur_a:.3f}[v]")
+    maps = ["-map", "[v]"]
+    if _audio_stream_ok(a_path):
+        # Keep the concat demuxer's stream layout consistent: extend A's
+        # audio with silence across B's span instead of dropping it.
+        fc += ";[0:a]apad[a]"
+        maps += ["-map", "[a]", "-c:a", "aac", "-shortest"]
+    cmd = (["ffmpeg", "-y", "-i", a_path, "-i", b_path,
+            "-filter_complex", fc] + maps +
+           ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+            "-pix_fmt", "yuv420p", out_path])
+    try:
+        r = subprocess.run(cmd, capture_output=True, timeout=180)
+        if r.returncode == 0 and os.path.exists(out_path):
+            return True
+        print(f"  [xfade] merge failed ({transition}): "
+              f"{r.stderr.decode(errors='ignore')[-200:]}")
+        return False
+    except subprocess.TimeoutExpired:
+        return False
 
 
 def _insert_section_titles(cut_paths: list[str], output_dir: str,
@@ -1106,7 +1223,8 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         temp_cuts_dir = os.path.join(output_dir, "_cuts")
         print(f"  Building scene cuts from {len(clip_files)} clips ({fmt} mode)...")
         cut_paths = _build_video_clips(clip_files, duration, temp_cuts_dir,
-                                       scene_pacing=scene_pacing, fmt=fmt)
+                                       scene_pacing=scene_pacing, fmt=fmt,
+                                       music_path=music_path)
 
     if not cut_paths:
         print("  [ERROR] No clips assembled")
@@ -1162,6 +1280,15 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
         if added:
             print(f"  Inserted {added} section title cards")
 
+    # xfade section-boundary transitions — gated behind XFADE_SECTIONS=1
+    # until the sample render is approved. Boundary index = a title card's
+    # position in cut_paths; the crossfade plays (last clip of section →
+    # title card), replacing the dip-to-black double fade at that seam.
+    xfade_boundaries: set[int] = set()
+    if fmt == "long" and os.getenv("XFADE_SECTIONS") == "1":
+        xfade_boundaries = {p for p in section_positions.values()
+                            if 0 < p < len(cut_paths)}
+
     # Add fade-in/out to each clip for smooth transitions (long-form only).
     # We also collect per-clip durations as we probe — same data is needed
     # below to compute YouTube chapter timestamps from section_positions.
@@ -1185,9 +1312,19 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
             if clip_dur < FADE_DUR * 3:
                 continue  # too short for fades
 
-            fade_out_start = max(0, clip_dur - FADE_DUR)
+            # At an xfade boundary the crossfade replaces the dip-to-black:
+            # skip the fade-out on the clip entering the boundary and the
+            # fade-in on the title card right after it.
+            fades = []
+            if i not in xfade_boundaries:
+                fades.append(f"fade=t=in:st=0:d={FADE_DUR}")
+            if (i + 1) not in xfade_boundaries:
+                fade_out_start = max(0, clip_dur - FADE_DUR)
+                fades.append(f"fade=t=out:st={fade_out_start:.3f}:d={FADE_DUR}")
+            if not fades:
+                continue
             faded = cp + "_faded.mp4"
-            vf = f"fade=t=in:st=0:d={FADE_DUR},fade=t=out:st={fade_out_start:.3f}:d={FADE_DUR}"
+            vf = ",".join(fades)
             try:
                 r = subprocess.run([
                     "ffmpeg", "-y", "-i", cp, "-vf", vf,
@@ -1244,6 +1381,27 @@ def assemble_video(output_dir: str, lang: str = "zh", wiki_clips: list | None = 
                 print(f"  [WARN] No metadata.json — skipping chapter write")
         else:
             print(f"  Chapters: only {len(chapters)} markers (need ≥3 for YouTube UI), skipping")
+
+    # Apply xfade transitions at section boundaries. Runs AFTER the chapter
+    # math (which needs the un-merged clip list) and before concat. Merging
+    # back-to-front keeps earlier indices valid. Styles rotate deterministically
+    # so a given video always renders the same way.
+    if xfade_boundaries and clip_durations:
+        _XFADE_STYLES = ["circleopen", "smoothleft", "radial", "smoothup", "wipetl"]
+        merged = 0
+        for k, pos in enumerate(sorted(xfade_boundaries, reverse=True)):
+            if not (0 < pos < len(cut_paths)) or pos - 1 >= len(clip_durations):
+                continue
+            dur_a = clip_durations[pos - 1]
+            if dur_a < _XFADE_DUR * 2:
+                continue  # clip too short to host the crossfade
+            merged_path = os.path.join(output_dir, f"_xfade_{pos}.mp4")
+            if _xfade_merge_pair(cut_paths[pos - 1], cut_paths[pos], dur_a,
+                                 merged_path, _XFADE_STYLES[k % len(_XFADE_STYLES)]):
+                cut_paths[pos - 1:pos + 1] = [merged_path]
+                merged += 1
+        if merged:
+            print(f"  xfade transitions applied at {merged} section boundaries")
 
     # Concatenate cut files via ffmpeg concat demuxer (memory-efficient)
     concat_path = os.path.join(output_dir, "_concat.mp4")

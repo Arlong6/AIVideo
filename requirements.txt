@@ -14,3 +14,4 @@ google-genai
 pytrends>=4.9.0
 beautifulsoup4>=4.12.0
 yt-dlp>=2025.1.0  # competitor channel scrape (scripts/competitor_analysis.py)
+librosa>=0.9.2  # BEAT_SYNC=1 cut-to-beat snapping (video_assembler._beat_grid); optional at runtime
