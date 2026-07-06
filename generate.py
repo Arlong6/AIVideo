@@ -84,7 +84,11 @@ def main():
 
     # Feature flag: switch crime shorts visual pipeline to Remotion.
     # Affects only short + truecrime. Long-form and books always use MoviePy.
-    VIDEO_ENGINE = os.getenv("VIDEO_ENGINE", "moviepy").lower()
+    # Default flipped moviepy→remotion 2026-07-06: the moviepy short path
+    # sources Pexels stock by keyword, which pasted an unrelated living
+    # person into a 陳文成 test reel — unacceptable for sensitive cases.
+    # Remotion (Case schema + Imagen noir) is the verified production path.
+    VIDEO_ENGINE = os.getenv("VIDEO_ENGINE", "remotion").lower()
     use_remotion = (VIDEO_ENGINE == "remotion"
                     and args.format == "short"
                     and args.channel == "truecrime")

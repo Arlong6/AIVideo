@@ -30,8 +30,14 @@ TIKTOK_TAGS = ["#真實案件", "#懸案", "#台灣", "#犯罪紀實"]
 FB_TAGS = ["#真實案件", "#懸案", "#犯罪紀實"]
 
 
+# YouTube-era tags that mean nothing (or look off-platform) on TikTok/FB.
+_YT_ONLY = {"#shorts", "#short", "#youtube", "#ytshorts"}
+
+
 def _clean_tags(tags: list[str]) -> list[str]:
-    return [t for t in tags if t.startswith("#") and len(t) > 2 and t.isprintable()]
+    return [t for t in tags
+            if t.startswith("#") and len(t) > 2 and t.isprintable()
+            and t.lower() not in _YT_ONLY]
 
 
 def package(output_dir: str) -> str | None:
