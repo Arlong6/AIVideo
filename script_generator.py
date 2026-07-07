@@ -353,6 +353,61 @@ def _verify_sources(sources: list) -> list:
     return verified
 
 
+# ── Sensitive-case guard (2026-07-07) ─────────────────────────────────────────
+# Political victims / state violence / wrongful convictions. For these, the
+# engagement-bait template is actively harmful: the poll CTA once generated
+# 「1 政治謀殺 2 畏罪自殺 你選」 for 陳文成 — victim-blaming a political
+# victim. Sensitive cases get a respectful prompt override, a deterministic
+# CTA backstop, and Imagen-only visuals (crime_reel_adapter reads the flag).
+SENSITIVE_CASE_KEYS = (
+    "陳文成", "林宅", "江南案", "劉宜良", "黃國章", "江國慶", "洪仲丘",
+    "彭婉如", "尹清楓", "澎湖七一三", "三一九槍擊", "319槍擊",
+    "蘇建和", "徐自強", "王迎先", "白色恐怖", "美麗島", "鄭南榕",
+)
+
+# Words that must never appear pointed at a victim in a sensitive case.
+SENSITIVE_BANNED_WORDS = ("畏罪", "活該", "罪有應得", "自作自受", "咎由自取")
+
+SENSITIVE_PROMPT_OVERRIDE = """
+=== ⚠️ 敏感案件覆蓋規則（本案涉及政治受難者/國家暴力/冤案，以下規則優先於上面所有衝突的指示）===
+1. hook：改用「事實懸念」開場（時間+地點+未解之謎），禁止道德兩難、禁止立場對立、
+   禁止把受害者的死做成選擇題。範例：「1981年，一位教授陳屍台大校園。官方說法，至今無人相信。」
+2. cta：**取消二元選擇格式**。改用尊重式收尾（12-18字），例：「這段歷史，你聽過嗎？」
+   「願真相有大白的一天。」「留言告訴我你的看法。」
+3. ending_question 與 pinned_comment：可以問開放式問題，但禁止對受害者死因/清白做投票。
+4. 全文禁止以下詞彙指向受害者：畏罪、活該、罪有應得、自作自受、咎由自取。
+5. 敘事立場：以官方調查（如促轉會報告）與可查證事實為準；對國家機關的指控用
+   「疑點」「未解」「檔案顯示」等可辯護措辭，不下無依據的斷言。
+"""
+
+
+def is_sensitive_case(topic: str) -> bool:
+    """True when the topic touches political victims / state violence / 冤案."""
+    return any(k in topic for k in SENSITIVE_CASE_KEYS)
+
+
+def enforce_sensitive_case(case: dict) -> dict:
+    """Deterministic backstop AFTER generation — never trust the LLM alone.
+
+    Fixes the CTA if it still came back as a poll, and fail-closes on
+    victim-blaming vocabulary anywhere in the case (a wrong word burned into
+    TTS/render is unshippable, so raising beats publishing).
+    """
+    import json as _json
+    cta = case.get("cta") or ""
+    if any(m in cta for m in ("你選", "留言1", "留言 1", "1：", "1:", "打 1", "打1")):
+        print(f"  [sensitive] poll CTA came back ({cta!r}) — replaced with respectful close")
+        case["cta"] = "這段歷史，你聽過嗎？"
+    blob = _json.dumps(case, ensure_ascii=False)
+    hits = [w for w in SENSITIVE_BANNED_WORDS if w in blob]
+    if hits:
+        raise ValueError(
+            f"Sensitive case contains banned victim-blaming words: {hits}. "
+            f"Refusing to render — regenerate the script."
+        )
+    return case
+
+
 def find_longform_video_id(topic: str) -> str | None:
     """Return the video_id of an existing long-form covering this topic, or None.
     Newest match wins so pinned-comment links point at the latest re-cut."""
@@ -443,6 +498,10 @@ def generate_scripts(topic: str, fmt: str = "short", engine: str = "moviepy") ->
             titles_list = "、".join(f"「{t}」" for t in recent_titles[:15])
             title_avoid = f"\n⚠️ 以下標題已經用過，絕對不能重複或相似：{titles_list}\n"
         prompt = PROMPT_ZH_REMOTION.format(topic=topic, title_dna=title_dna + title_avoid)
+        sensitive = is_sensitive_case(topic)
+        if sensitive:
+            print("  [sensitive] political-victim/冤案 case — respectful override active")
+            prompt += SENSITIVE_PROMPT_OVERRIDE
 
         for attempt in range(2):
             label = "(retry) " if attempt else ""
@@ -465,6 +524,18 @@ def generate_scripts(topic: str, fmt: str = "short", engine: str = "moviepy") ->
             zh_result = _trim_case_sections(zh_result)
             total, counts = _count_case_chars(zh_result)
             print(f"  After trim: {total} chars ({', '.join(f'{k}={v}' for k, v in counts.items())})")
+
+        if sensitive:
+            try:
+                zh_result = enforce_sensitive_case(zh_result)
+            except ValueError as e:
+                # One regeneration, then fail closed — a victim-blaming word
+                # burned into TTS is unshippable.
+                print(f"  [sensitive] {e} — regenerating once")
+                zh_result = _call_claude(prompt)
+                _validate_case_shape(zh_result)
+                zh_result = enforce_sensitive_case(zh_result)
+            zh_result["sensitive"] = True
 
         print(f"  Generating English metadata...")
         en_result = _call_claude(PROMPT_EN.format(topic=topic))

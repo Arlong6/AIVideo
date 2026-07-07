@@ -233,10 +233,6 @@ def build_crime_reel(case: dict, output_dir: str) -> str:
         _synth_section(ev["text"], path, f"event-{i}")
 
     # ── Step 2: Per-section images (9 files total) ────────────────────────
-    print("  [2/4] Acquiring images (Pexels → Wikimedia fallback)...")
-    from footage_downloader import _load_seen_ids, _save_seen_ids
-    seen_ids = _load_seen_ids()
-
     wiki_term = case["wiki_search_term"]
 
     image_requests = [
@@ -248,10 +244,48 @@ def build_crime_reel(case: dict, output_dir: str) -> str:
     for i, ev in enumerate(case["events"], start=1):
         image_requests.append((f"event-{i}", ev["image_query"], f"event-{i}.jpg"))
 
-    for label, query, filename in image_requests:
-        dest = os.path.join(images_dir, filename)
-        _acquire_image(label, query, wiki_term, dest, seen_ids)
-        print(f"    ✓ {filename}")
+    if case.get("sensitive"):
+        # Sensitive cases (political victims / 冤案) NEVER touch stock photos:
+        # Pexels keyword search pasted an unrelated real protest crowd into a
+        # 陳文成 reel (2026-07-06 REJECT). Imagen noir illustration only — the
+        # prefix bans faces/people entirely. Imagen failure fails the render
+        # (no silent downgrade back to stock).
+        print("  [2/4] Sensitive case — Imagen noir illustrations only (no stock)...")
+        from illustration_generator import generate_illustration
+        from agents.visual_agent import CRIME_STYLE_PREFIX
+        reel_prefix = CRIME_STYLE_PREFIX.replace(
+            "cinematic 16:9", "vertical cinematic composition")
+        # The heavy noir prefix converges every image onto "dark room + one
+        # spotlight" (2026-07-07 render: 8 near-identical frames). Rotate a
+        # composition hint per section so the reel breathes visually.
+        comp_variants = [
+            "wide establishing shot of a location",
+            "extreme close-up of a significant object on a desk",
+            "view through a doorway or window frame",
+            "low angle looking up a stairwell or facade",
+            "overhead view of scattered documents and files",
+            "long empty corridor with depth",
+            "rain-streaked window at night from inside",
+            "silhouetted architecture against the night sky",
+        ]
+        for k, (label, query, filename) in enumerate(image_requests):
+            dest = os.path.join(images_dir, filename)
+            scene = f"{query}, 1980s Taiwan era, {comp_variants[k % len(comp_variants)]}"
+            if not generate_illustration(scene, dest, style_prefix=reel_prefix,
+                                         aspect="9:16"):
+                raise RuntimeError(
+                    f"Imagen illustration failed for sensitive section {label!r} "
+                    f"— refusing stock fallback")
+            print(f"    ✓ {filename} (imagen)")
+    else:
+        print("  [2/4] Acquiring images (Pexels → Wikimedia fallback)...")
+        from footage_downloader import _load_seen_ids, _save_seen_ids
+        seen_ids = _load_seen_ids()
+        for label, query, filename in image_requests:
+            dest = os.path.join(images_dir, filename)
+            _acquire_image(label, query, wiki_term, dest, seen_ids)
+            print(f"    ✓ {filename}")
+        _save_seen_ids(seen_ids)
 
     # CTA reuses hook image (per plan — short + same closing vibe)
     cta_src = os.path.join(images_dir, "hook.jpg")
@@ -262,8 +296,6 @@ def build_crime_reel(case: dict, output_dir: str) -> str:
         print(f"    ✓ cta.jpg (reused hook image)")
     else:
         raise RuntimeError("hook.jpg unexpectedly missing — cannot derive cta image")
-
-    _save_seen_ids(seen_ids)
 
     # ── Step 3: ffprobe durations + build renderer Case JSON ──────────────
     print("  [3/4] Probing audio durations...")

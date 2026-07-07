@@ -209,7 +209,8 @@ def _clean_scene_prompt(scene: str) -> str:
     return s.strip(" ,.;")
 
 
-def _generate_with_imagen(prompt: str, output_path: str, client) -> str | None:
+def _generate_with_imagen(prompt: str, output_path: str, client,
+                          aspect: str = "16:9") -> str | None:
     """Call Imagen 4 Fast directly. Returns 'ok', 'quota', or 'error'."""
     try:
         response = client.models.generate_images(
@@ -217,7 +218,7 @@ def _generate_with_imagen(prompt: str, output_path: str, client) -> str | None:
             prompt=prompt,
             config={
                 "number_of_images": 1,
-                "aspect_ratio": "16:9",
+                "aspect_ratio": aspect,
             },
         )
         imgs = getattr(response, "generated_images", None) or []
@@ -243,7 +244,8 @@ class ImagenQuotaExhausted(Exception):
 def generate_illustration(scene: str, output_path: str,
                           client=None,
                           style_prefix: str | None = None,
-                          allow_fallback: bool = False) -> bool:
+                          allow_fallback: bool = False,
+                          aspect: str = "16:9") -> bool:
     """Generate one illustration via Imagen 4 Fast.
 
     Strict quality mode (default): Imagen only. If quota is exhausted or
@@ -262,12 +264,15 @@ def generate_illustration(scene: str, output_path: str,
         client = genai.Client(api_key=GEMINI_API_KEY)
 
     cleaned_scene = _clean_scene_prompt(scene)
-    prompt = (style_prefix or BOOKS_STYLE_PREFIX) + cleaned_scene + ", cinematic 16:9"
+    # Never put the literal ratio string in the prompt — Imagen has rendered
+    # "9:16" as on-image text. The real ratio goes via config aspect_ratio.
+    suffix = ", cinematic 16:9" if aspect == "16:9" else ", vertical cinematic composition"
+    prompt = (style_prefix or BOOKS_STYLE_PREFIX) + cleaned_scene + suffix
 
     # Primary: Imagen 4 Fast
     if _imagen_has_quota():
         for attempt in range(2):
-            result = _generate_with_imagen(prompt, output_path, client)
+            result = _generate_with_imagen(prompt, output_path, client, aspect=aspect)
             if result == "ok":
                 _consume_imagen_quota()
                 time.sleep(IMAGEN_CALL_DELAY)
