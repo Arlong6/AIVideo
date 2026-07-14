@@ -29,3 +29,16 @@ def test_unknown_number_caught():
 def test_assert_raises():
     with pytest.raises(NumberMismatch):
         assert_numbers_ok("獲利 777%", PACK)
+
+def test_round_number_does_not_leak_short_token():
+    pack = dict(PACK, total_trades=1200)
+    v = verify_numbers("本週大賺 12%，帳戶正常", pack)
+    assert "12" in v
+
+def test_round_equity_does_not_leak():
+    pack = dict(PACK); pack["equity_end"] = 1500.0
+    assert "15" in verify_numbers("帳戶漲了15%", pack)
+
+def test_descriptive_string_field_not_scanned_for_digits():
+    pack = dict(PACK, note="temp 999 test")
+    assert "999" in verify_numbers("今天測試 999 次", pack)

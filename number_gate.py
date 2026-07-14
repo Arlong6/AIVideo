@@ -15,14 +15,19 @@ class NumberMismatch(Exception):
 
 
 def _formats_of(v: float) -> set[str]:
-    """一個數值的所有可接受書寫形（含四捨五入到 0/1/2 位、絕對值）。"""
+    """一個數值的所有可接受書寫形（含四捨五入到 0-3 位、絕對值）。"""
     out = set()
     for x in {v, abs(v)}:
         for nd in (0, 1, 2, 3):
             r = round(x, nd)
-            s = f"{r:.{nd}f}".rstrip("0").rstrip(".") or "0"
+            s = f"{r:.{nd}f}"
+            if nd > 0:
+                s = s.rstrip("0").rstrip(".") or "0"
             out.add(s)
-            out.add(f"{float(s):,.{nd}f}".rstrip("0").rstrip("."))
+            comma = f"{float(s):,.{nd}f}"
+            if nd > 0:
+                comma = comma.rstrip("0").rstrip(".")
+            out.add(comma)
     return out
 
 
@@ -41,10 +46,12 @@ def _allowed_tokens(pack) -> set[str]:
         elif isinstance(v, (int, float)):
             allowed.update(_formats_of(float(v)))
         elif isinstance(v, str):
-            # 日期等字串：拆出所有數字片段（2026-06-10 → 2026/06/6/10）
-            for m in _TOKEN_RE.findall(v):
-                allowed.add(m)
-                allowed.add(m.lstrip("0") or "0")
+            # 只對日期形字串拆出數字片段（2026-06-10 → 2026/06/6/10）；
+            # 其他敘述性字串一律忽略，避免其中數字被靜默放行。
+            if re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+                for m in _TOKEN_RE.findall(v):
+                    allowed.add(m)
+                    allowed.add(m.lstrip("0") or "0")
     walk(pack)
     return allowed
 
