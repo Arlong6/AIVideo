@@ -79,7 +79,7 @@ def build_week_pack(reports_dir: str = PIKMIN_REPORTS_DIR,
     return {
         "is_paper": True,
         "period": {"start": first["date"], "end": last["date"]},
-        "week_number": math.ceil(last["days_running"] / 7),
+        "week_number": max(1, math.ceil(last["days_running"] / 7)),
         "days_running": last["days_running"],
         "equity_start": first["equity"],
         "equity_end": last["equity"],

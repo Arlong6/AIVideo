@@ -41,3 +41,15 @@ def test_week_pack_never_crosses_experiment_restart():
     assert pack["daily_equity"] == [1000.0, 1008.0]
     assert pack["days_running"] == 1
     assert pack["week_number"] == 1   # ceil(1/7)，用新實驗的 days_running 算
+
+
+def test_week_number_floors_at_one_on_experiment_day_zero():
+    # 實驗第一天（days_running=0），week_number 應該最低是 1 而非 0
+    # end_date="2026-07-14" 的視窗只含一天（2026-07-14），
+    # days_running=0，math.ceil(0/7)=0 但應該被改為 max(1, ...) = 1
+    pack = build_week_pack(FIX_BOUNDARY, end_date="2026-07-14")
+    assert pack["period"]["start"] == "2026-07-14"
+    assert pack["period"]["end"] == "2026-07-14"
+    assert pack["daily_dates"] == ["2026-07-14"]
+    assert pack["days_running"] == 0
+    assert pack["week_number"] == 1  # max(1, ceil(0/7)) = 1，不是 0
