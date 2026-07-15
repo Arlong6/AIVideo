@@ -15,19 +15,29 @@ class NumberMismatch(Exception):
 
 
 def _formats_of(v: float) -> set[str]:
-    """一個數值的所有可接受書寫形（含四捨五入到 0-3 位、絕對值）。"""
+    """一個數值的所有可接受書寫形（含四捨五入到 0-3 位、絕對值）。
+
+    For nd > 0, adds BOTH the unstripped fixed-decimal format (e.g. "-0.10")
+    and the stripped version (e.g. "-0.1"), since charts use {:+.2f} formatting.
+    """
     out = set()
     for x in {v, abs(v)}:
         for nd in (0, 1, 2, 3):
             r = round(x, nd)
             s = f"{r:.{nd}f}"
-            if nd > 0:
-                s = s.rstrip("0").rstrip(".") or "0"
+            # Always add the unstripped fixed-decimal format
             out.add(s)
-            comma = f"{float(s):,.{nd}f}"
+            # For nd > 0, also add the stripped version
             if nd > 0:
-                comma = comma.rstrip("0").rstrip(".")
+                s_stripped = s.rstrip("0").rstrip(".") or "0"
+                out.add(s_stripped)
+
+            # Same for thousand-separator versions
+            comma = f"{float(s):,.{nd}f}"
             out.add(comma)
+            if nd > 0:
+                comma_stripped = comma.rstrip("0").rstrip(".")
+                out.add(comma_stripped)
     return out
 
 

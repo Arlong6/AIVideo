@@ -23,6 +23,10 @@ BG, FG, ACCENT, UP, DOWN = "#0d0f14", "#d8d8d8", "#e0b34a", "#4ac26b", "#e05555"
 
 
 def render_equity_chart(pack: dict, out_path: str) -> str:
+    if _CJK is None:
+        raise RuntimeError(
+            "CJK font unavailable — compliance text would render as tofu; refusing")
+
     eq, dates = pack["daily_equity"], pack["daily_dates"]
     up = eq[-1] >= eq[0]
     line = UP if up else DOWN

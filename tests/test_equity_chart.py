@@ -1,6 +1,8 @@
 import os
+import pytest
 from PIL import Image
 from equity_chart import render_equity_chart
+import equity_chart
 
 PACK = {
     "is_paper": True, "week_number": 7,
@@ -19,3 +21,11 @@ def test_chart_renders_9_16_png(tmp_path):
     assert img.size == (1080, 1920)
     # 不是全黑（有畫東西）
     assert img.convert("L").getextrema()[1] > 60
+
+def test_chart_fails_closed_without_cjk_font(tmp_path, monkeypatch):
+    """Compliance text ('模擬盤實驗', '非投資建議') must render with CJK font.
+    If font unavailable, refuse to render (fail-closed) instead of silently producing tofu."""
+    monkeypatch.setattr(equity_chart, "_CJK", None)
+    out = str(tmp_path / "chart.png")
+    with pytest.raises(RuntimeError, match="CJK font unavailable"):
+        render_equity_chart(PACK, out)

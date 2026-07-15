@@ -42,3 +42,10 @@ def test_round_equity_does_not_leak():
 def test_descriptive_string_field_not_scanned_for_digits():
     pack = dict(PACK, note="temp 999 test")
     assert "999" in verify_numbers("今天測試 999 次", pack)
+
+def test_fixed_decimal_trailing_zero_matches():
+    """Equity chart formats worst_day as {:+.2f}%, e.g. "-0.10%" for -0.096.
+    The whitelist must accept both unstripped "-0.10" and stripped "-0.1" forms."""
+    pack = {"worst_pct": -0.096}
+    assert verify_numbers("最差 -0.10%", pack) == []
+    assert verify_numbers("最差 0.10%", pack) == []
