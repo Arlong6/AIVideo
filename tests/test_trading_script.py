@@ -100,3 +100,67 @@ def test_disclaimer_not_duplicated_if_already_present():
         from trading_script import generate_weekly_script
         s = generate_weekly_script(PACK)
         assert s["description"].count(DISCLAIMER) == 1
+
+
+# ===== Fix 1: Idiom exceptions for 萬一/千萬要/千萬記得 =====
+def test_has_cjk_numerals_idiom_exception_wanyiyao():
+    """「萬一」as idiom (if) should not trigger CJK numeral detection."""
+    from trading_script import _has_cjk_numerals
+    assert _has_cjk_numerals("萬一虧損怎麼辦") is False
+
+
+def test_has_cjk_numerals_idiom_exception_qianyao_mid_sentence():
+    """「千萬要」in middle of sentence should not trigger."""
+    from trading_script import _has_cjk_numerals
+    assert _has_cjk_numerals("千萬要記得追蹤") is False
+
+
+def test_has_cjk_numerals_idiom_exception_wanyao_mid_clause():
+    """「萬一」in middle of clause like「但萬一下週繼續虧」should not trigger."""
+    from trading_script import _has_cjk_numerals
+    assert _has_cjk_numerals("但萬一下週繼續虧損") is False
+
+
+def test_has_cjk_numerals_idiom_exception_qianwan_jiede():
+    """「千萬記得」as idiom (absolutely remember) should not trigger."""
+    from trading_script import _has_cjk_numerals
+    assert _has_cjk_numerals("千萬記得查看結果") is False
+
+
+# ===== Fix 2: Unit suffixes for 倍/成 =====
+def test_has_cjk_numerals_suffix_bei_multiple():
+    """「百倍」(hundredfold) should trigger with 倍 suffix."""
+    from trading_script import _has_cjk_numerals
+    assert _has_cjk_numerals("翻了百倍") is True
+
+
+def test_has_cjk_numerals_suffix_cheng_percentage():
+    """「八成八」(88%) should trigger with 成 suffix."""
+    from trading_script import _has_cjk_numerals
+    assert _has_cjk_numerals("賺了八成八") is True
+
+
+def test_has_cjk_numerals_suffix_cheng_no_false_positive():
+    """「完成」(completed) with 成 should NOT trigger as 完 is not CJK numeral."""
+    from trading_script import _has_cjk_numerals
+    assert _has_cjk_numerals("完成任務") is False
+
+
+def test_has_cjk_numerals_suffix_cheng_achieve():
+    """「達成」(achieved) should NOT trigger as 達 is not CJK numeral."""
+    from trading_script import _has_cjk_numerals
+    assert _has_cjk_numerals("達成目標") is False
+
+
+def test_has_cjk_numerals_suffix_cheng_form():
+    """「形成」(formed) should NOT trigger as 形 is not CJK numeral."""
+    from trading_script import _has_cjk_numerals
+    assert _has_cjk_numerals("形成趨勢") is False
+
+
+# ===== Fix 3: Mask escape guard =====
+def test_has_cjk_numerals_mask_escape_continuous_numeral():
+    """「賺到五千萬不要懷疑」: 五千萬 should be caught by continuous rule,
+    even though idiom 「不要」is adjacent."""
+    from trading_script import _has_cjk_numerals
+    assert _has_cjk_numerals("賺到五千萬不要懷疑") is True

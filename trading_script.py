@@ -58,28 +58,49 @@ _CJK_NUMERAL_CHARS = "零一二三四五六七八九十百千萬億兆兩"
 # 注意：「天」故意不放進單字元後綴 —— 「最好的一天」是常見的敘述性慣用語
 # （=「the day」），不是數量宣告；多位數的天數（如「四十九天」）仍會被
 # 上面的「連續 ≥2 個中文數字字元」規則攔下，不受影響。
-_CJK_NUMERAL_UNIT_SUFFIXES = ("%", "週", "筆", "元", "美元")
+_CJK_NUMERAL_UNIT_SUFFIXES = ("%", "週", "筆", "元", "美元", "倍", "成")
 # 「千萬不要/千萬別」是常用慣用語（=絕對不要），不是數值 —— 即使「千」「萬」
 # 兩個中文數字字元相鄰，也必須排除在偵測之外。
-_CJK_NUMERAL_IDIOM_EXCEPTIONS = ("千萬不要", "千萬別")
+# 「萬一」(if/in case of) 、「千萬要」(absolutely must)、「千萬記得」(absolutely remember)
+# 都是常用的非數值慣用語。
+_CJK_NUMERAL_IDIOM_EXCEPTIONS = ("千萬不要", "千萬別", "萬一", "千萬要", "千萬記得")
 
 
 def _has_cjk_numerals(text: str) -> bool:
     """偵測文字中以中文數字書寫、落在數值語境的片段（繞過 \\d regex 的幻覺數字）。
 
-    觸發條件：連續 ≥2 個中文數字字元，或中文數字字元後緊接單位（%／週／筆／元／美元）。
-    """
-    for idiom in _CJK_NUMERAL_IDIOM_EXCEPTIONS:
-        text = text.replace(idiom, "")
+    觸發條件：連續 ≥2 個中文數字字元，或中文數字字元後緊接單位（%／週／筆／元／美元／倍／成）。
 
-    n = len(text)
-    for i, ch in enumerate(text):
+    Mask escape guard: Idiom exceptions are only masked if NOT preceded by a CJK numeral character.
+    This prevents false negatives when numerals precede idioms (e.g., 五千萬不要).
+    """
+    # Build masked text: remove idioms only if not preceded by CJK numeral
+    result = []
+    i = 0
+    while i < len(text):
+        matched = False
+        for idiom in _CJK_NUMERAL_IDIOM_EXCEPTIONS:
+            if text[i:i+len(idiom)] == idiom:
+                # Check if preceded by CJK numeral (mask escape guard)
+                if i == 0 or text[i-1] not in _CJK_NUMERAL_CHARS:
+                    # Safe to mask this idiom
+                    i += len(idiom)
+                    matched = True
+                    break
+        if not matched:
+            result.append(text[i])
+            i += 1
+
+    masked_text = "".join(result)
+
+    n = len(masked_text)
+    for i, ch in enumerate(masked_text):
         if ch not in _CJK_NUMERAL_CHARS:
             continue
-        if i + 1 < n and text[i + 1] in _CJK_NUMERAL_CHARS:
+        if i + 1 < n and masked_text[i + 1] in _CJK_NUMERAL_CHARS:
             return True
         for suf in _CJK_NUMERAL_UNIT_SUFFIXES:
-            if text[i + 1:i + 1 + len(suf)] == suf:
+            if masked_text[i + 1:i + 1 + len(suf)] == suf:
                 return True
     return False
 
