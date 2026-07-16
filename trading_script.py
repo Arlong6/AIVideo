@@ -52,6 +52,28 @@ def _call_llm(prompt: str) -> dict:
     return _call_claude(prompt)
 
 
+def _display_pack(pack: dict):
+    """遞迴複製 pack，把所有 float 四捨五入到 2 位小數 —— 只用於 prompt 注入。
+
+    根因：原始 pack 裡的長浮點（如 0.26601456）會被 LLM 複誦或亂捨入成
+    閘門不認得的形式，導致合法輸出被 number gate 誤攔。閘門本身仍驗證
+    against 原始 pack（`_formats_of` 白名單本來就涵蓋 0-3 位捨入形，
+    含 2 位），所以這裡的捨入不會放寬閘門、只是讓 LLM 看到的數字跟它
+    被鼓勵書寫的形式一致。int 與字串（日期等）原樣保留。
+    """
+    if isinstance(pack, dict):
+        return {k: _display_pack(v) for k, v in pack.items()}
+    if isinstance(pack, list):
+        return [_display_pack(v) for v in pack]
+    if isinstance(pack, tuple):
+        return tuple(_display_pack(v) for v in pack)
+    if isinstance(pack, bool):
+        return pack
+    if isinstance(pack, float):
+        return round(pack, 2)
+    return pack
+
+
 # 觀眾可見文字裡的中文數字字元。「一起/一樣/十分」這類慣用語僅含單一
 # 中文數字字元，不落在「數值語境」規則內，不會誤觸發。
 _CJK_NUMERAL_CHARS = "零一二三四五六七八九十百千萬億兆兩"
@@ -119,7 +141,7 @@ def _all_text(script: dict) -> str:
 def generate_weekly_script(pack: dict) -> dict:
     sign = "+" if pack["week_pnl_pct"] >= 0 else "-"
     prompt = PROMPT_WEEKLY.format(
-        pack_json=json.dumps(pack, ensure_ascii=False, indent=1),
+        pack_json=json.dumps(_display_pack(pack), ensure_ascii=False, indent=1),
         week_number=pack["week_number"], sign=sign,
         banned_words="、".join(BANNED_WORDS))
     script = _call_llm(prompt)

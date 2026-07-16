@@ -29,6 +29,12 @@ AI_DISCLOSURE = "本影片包含 AI 生成的圖像與配音（內容基於公�
 TIKTOK_TAGS = ["#真實案件", "#懸案", "#台灣", "#犯罪紀實"]
 FB_TAGS = ["#真實案件", "#懸案", "#犯罪紀實"]
 
+# 交易實驗室頻道（content_type="trading" in metadata zh）不是 crime 頻道，
+# 套用 crime 的「#真實案件/#懸案」標籤會誤導觀眾（這是模擬盤實驗，不是真實
+# 案件報導）。metadata 明確標示 content_type 時才切換，未標示則完全沿用
+# 既有 crime 預設（向後相容，crime 頻道 metadata 從不寫這個欄位）。
+TRADING_TAGS = ["#AI交易", "#量化交易", "#模擬盤實驗"]
+
 
 # YouTube-era tags that mean nothing (or look off-platform) on TikTok/FB.
 _YT_ONLY = {"#shorts", "#short", "#youtube", "#ytshorts"}
@@ -47,6 +53,11 @@ def package(output_dir: str) -> str | None:
         return None
     meta = json.load(open(meta_path, encoding="utf-8"))
     zh = meta.get("zh", meta)
+
+    if zh.get("content_type") == "trading":
+        tiktok_tags, fb_tags = TRADING_TAGS, TRADING_TAGS
+    else:
+        tiktok_tags, fb_tags = TIKTOK_TAGS, FB_TAGS
 
     video = None
     for name in ("final_zh.mp4", "final.mp4"):
@@ -73,7 +84,7 @@ def package(output_dir: str) -> str | None:
     tiktok = "\n".join(filter(None, [
         title,
         hook if hook != title else "",
-        " ".join(dict.fromkeys(script_tags + TIKTOK_TAGS)),
+        " ".join(dict.fromkeys(script_tags + tiktok_tags)),
         AI_DISCLOSURE,
     ]))
     open(os.path.join(pkg, "caption_tiktok.txt"), "w", encoding="utf-8").write(tiktok)
@@ -81,7 +92,7 @@ def package(output_dir: str) -> str | None:
     # FB Reels: fuller first paragraph (FB surfaces more text), fewer tags.
     fb = "\n\n".join(filter(None, [
         f"{title}\n{desc}" if desc else title,
-        " ".join(dict.fromkeys(script_tags[:3] + FB_TAGS)),
+        " ".join(dict.fromkeys(script_tags[:3] + fb_tags)),
         AI_DISCLOSURE,
     ]))
     open(os.path.join(pkg, "caption_fb.txt"), "w", encoding="utf-8").write(fb)

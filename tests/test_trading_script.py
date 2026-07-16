@@ -1,3 +1,4 @@
+import re
 import pytest
 from unittest.mock import patch
 
@@ -164,3 +165,78 @@ def test_has_cjk_numerals_mask_escape_continuous_numeral():
     even though idiom 「不要」is adjacent."""
     from trading_script import _has_cjk_numerals
     assert _has_cjk_numerals("賺到五千萬不要懷疑") is True
+
+
+# ===== Fix: display-rounded pack injection (gate-calibration) =====
+# 根因重現：真實數據包裡的浮點常帶長尾精度（如 0.26601456180048），
+# 舊版把這種原始值直接塞進 prompt，LLM 會複誦或亂捨入成閘門認不得的形式，
+# 導致 16/16 次真實呼叫全被 number gate 攔下。修法是 prompt 注入前先把
+# 所有 float 四捨五入到 2 位小數（_display_pack），閘門驗證仍對照原始 pack。
+LONG_FLOAT_PACK = {
+    "is_paper": True, "week_number": 7, "days_running": 49,
+    "equity_start": 1560.0, "equity_end": 1564.1499999999999,
+    "week_pnl": 4.149999999999977, "week_pnl_pct": 0.26601456180048,
+    "total_trades": 500, "week_trades": 26,
+    "best_day": {"date": "2026-06-10", "change_pct": 0.15999999999999998},
+    "worst_day": {"date": "2026-06-09", "change_pct": -0.09600000000000002},
+    "daily_equity": [1560.0, 1564.1499999999999],
+    "daily_dates": ["2026-06-09", "2026-06-11"],
+}
+
+_LONG_DECIMAL_RE = re.compile(r"\d+\.\d{3,}")
+
+
+def test_display_pack_rounds_floats_only():
+    from trading_script import _display_pack
+    disp = _display_pack(LONG_FLOAT_PACK)
+    assert disp["equity_end"] == 1564.15
+    assert disp["week_pnl_pct"] == 0.27
+    assert disp["best_day"]["change_pct"] == 0.16
+    # int / str fields must stay untouched
+    assert disp["week_number"] == 7
+    assert disp["total_trades"] == 500
+    assert disp["best_day"]["date"] == "2026-06-10"
+
+
+def test_prompt_never_contains_long_decimal_raw_pack_values():
+    """Prompt injection must use the display-rounded pack — no float with
+    3+ decimal digits should ever reach the LLM, even when the real data
+    pack carries long floating-point tails."""
+    captured = {}
+
+    def fake_call(prompt):
+        captured["prompt"] = prompt
+        return dict(GOOD)
+
+    with patch("trading_script._call_llm", side_effect=fake_call):
+        from trading_script import generate_weekly_script
+        generate_weekly_script(LONG_FLOAT_PACK)
+
+    long_decimals = _LONG_DECIMAL_RE.findall(captured["prompt"])
+    assert long_decimals == [], (
+        f"prompt leaked raw long-decimal numbers: {long_decimals}")
+
+
+def test_display_rounded_recital_passes_all_gates():
+    """A script that recites the *display* (2-decimal-rounded) values of a
+    long-float pack — exactly what the calibrated prompt now encourages —
+    must clear the number gate, banned-word gate and CJK-numeral gate."""
+    recited = {
+        "title": "AI 操盤第 7 週：+0.27%",
+        "hook": "我讓 AI 管一個模擬帳戶，第 7 週了。",
+        "sections": [
+            {"text": "本週權益從 1560 來到 1564.15，+0.27%。",
+             "visual": "equity chart"},
+            {"text": "這週 26 筆交易，最好的一天 6月10日 +0.16%。",
+             "visual": "trades"},
+            {"text": "累積 49 天，總共 500 筆。", "visual": "summary"},
+        ],
+        "cta": "下週它會怎麼樣？追蹤看下集。",
+        "description": "AI 自動交易模擬盤實驗第 7 週紀錄。",
+        "hashtags": ["#AI交易", "#量化"],
+    }
+    with patch("trading_script._call_llm", return_value=dict(recited)):
+        from trading_script import generate_weekly_script, DISCLAIMER
+        s = generate_weekly_script(LONG_FLOAT_PACK)
+        assert s["title"] == recited["title"]
+        assert DISCLAIMER in s["description"]

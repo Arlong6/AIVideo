@@ -58,7 +58,7 @@ def render(pack: dict, script: dict, output_dir: str, clips_dir: str) -> str:
     """Steps 3-6: 視覺/TTS/組裝/打包 — 拆出來讓下游可獨立驗證（不依賴 LLM 閘門）。"""
     # metadata.json — export_reel 打包與 QA 都吃這份
     meta = {"zh": {**script, "opening_card": script["title"][:8],
-                   "pinned_comment": ""}}
+                   "pinned_comment": "", "content_type": "trading"}}
     with open(os.path.join(output_dir, "metadata.json"), "w",
               encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
