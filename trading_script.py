@@ -1,5 +1,6 @@
 """週報腳本生成 — LLM 只敘述數據包，數字閘門 + 禁詞雙 fail-closed。"""
 import json
+import re
 
 from number_gate import assert_numbers_ok
 
@@ -74,6 +75,64 @@ def _display_pack(pack: dict):
     return pack
 
 
+# ===== 「第X週」確定性正規化 =====
+# 根因：LLM 天然會寫「第一週」「第十二週」而非阿拉伯數字 —— 這是合法內容，
+# 但會被下面的 _has_cjk_numerals 中文數字閘門攔下（fail-closed 攔錯）。
+# 在跑任何閘門之前，先把「第[中文數字]週」這一種固定模式確定性轉成
+# 「第 N 週」寫回 script（TTS 唸的就是轉換後的版本），閘門看到的是已經
+# 阿拉伯數字化的文字，不會誤攔合法的週數表達。只處理這一種模式 ——
+# 「[中文數字]週年」等其他語境不受影響。
+_CJK_DIGIT = {"零": 0, "一": 1, "二": 2, "三": 3, "四": 4,
+              "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+_WEEK_CJK_RE = re.compile(r"第([零一二三四五六七八九十]+)週")
+
+
+def _cjk_num_to_int(s: str) -> int:
+    """把中文數字字串（支援 0-99：零一二三四五六七八九十 組合）轉成 int。"""
+    if s == "十":
+        return 10
+    if "十" in s:
+        tens_part, _, ones_part = s.partition("十")
+        tens = _CJK_DIGIT[tens_part] if tens_part else 1
+        ones = _CJK_DIGIT[ones_part] if ones_part else 0
+        return tens * 10 + ones
+    value = 0
+    for ch in s:
+        value = value * 10 + _CJK_DIGIT[ch]
+    return value
+
+
+def _normalize_cjk_week_numbers(text: str) -> str:
+    """把「第[中文數字]週」確定性轉成「第 N 週」（N 為阿拉伯數字）。
+
+    已是阿拉伯數字的「第 3 週」不受影響（regex 只匹配中文數字字元）。
+    """
+    def repl(m: "re.Match[str]") -> str:
+        try:
+            n = _cjk_num_to_int(m.group(1))
+        except KeyError:
+            return m.group(0)
+        return f"第 {n} 週"
+    return _WEEK_CJK_RE.sub(repl, text)
+
+
+def _normalize_script_cjk_weeks(script: dict) -> None:
+    """對 script 的所有觀眾可見欄位套用 _normalize_cjk_week_numbers，就地寫回。"""
+    for key in ("title", "hook", "cta", "description"):
+        val = script.get(key)
+        if isinstance(val, str):
+            script[key] = _normalize_cjk_week_numbers(val)
+    for section in script.get("sections", []) or []:
+        if isinstance(section, dict) and isinstance(section.get("text"), str):
+            section["text"] = _normalize_cjk_week_numbers(section["text"])
+    hashtags = script.get("hashtags")
+    if isinstance(hashtags, list):
+        script["hashtags"] = [
+            _normalize_cjk_week_numbers(h) if isinstance(h, str) else h
+            for h in hashtags
+        ]
+
+
 # 觀眾可見文字裡的中文數字字元。「一起/一樣/十分」這類慣用語僅含單一
 # 中文數字字元，不落在「數值語境」規則內，不會誤觸發。
 _CJK_NUMERAL_CHARS = "零一二三四五六七八九十百千萬億兆兩"
@@ -88,16 +147,27 @@ _CJK_NUMERAL_UNIT_SUFFIXES = ("%", "週", "筆", "元", "美元", "倍", "成")
 _CJK_NUMERAL_IDIOM_EXCEPTIONS = ("千萬不要", "千萬別", "萬一", "千萬要", "千萬記得")
 
 
-def _has_cjk_numerals(text: str) -> bool:
+def _context_snippet(text: str, start: int, end: int, radius: int = 10) -> str:
+    """回傳 [start, end] 命中片段（含）前後各 radius 字的上下文，供錯誤訊息使用。"""
+    lo = max(0, start - radius)
+    hi = min(len(text), end + 1 + radius)
+    return text[lo:hi]
+
+
+def _has_cjk_numerals(text: str):
     """偵測文字中以中文數字書寫、落在數值語境的片段（繞過 \\d regex 的幻覺數字）。
 
     觸發條件：連續 ≥2 個中文數字字元，或中文數字字元後緊接單位（%／週／筆／元／美元／倍／成）。
+    回傳命中片段的原文上下文（前後各 10 字）；沒有命中回傳 None。
 
     Mask escape guard: Idiom exceptions are only masked if NOT preceded by a CJK numeral character.
     This prevents false negatives when numerals precede idioms (e.g., 五千萬不要).
     """
-    # Build masked text: remove idioms only if not preceded by CJK numeral
+    # Build masked text: remove idioms only if not preceded by CJK numeral.
+    # idx_map[j] tracks which original-text index masked_text[j] came from,
+    # so a hit found in masked_text can be reported with original-text context.
     result = []
+    idx_map = []
     i = 0
     while i < len(text):
         matched = False
@@ -111,6 +181,7 @@ def _has_cjk_numerals(text: str) -> bool:
                     break
         if not matched:
             result.append(text[i])
+            idx_map.append(i)
             i += 1
 
     masked_text = "".join(result)
@@ -120,11 +191,12 @@ def _has_cjk_numerals(text: str) -> bool:
         if ch not in _CJK_NUMERAL_CHARS:
             continue
         if i + 1 < n and masked_text[i + 1] in _CJK_NUMERAL_CHARS:
-            return True
+            return _context_snippet(text, idx_map[i], idx_map[i + 1])
         for suf in _CJK_NUMERAL_UNIT_SUFFIXES:
             if masked_text[i + 1:i + 1 + len(suf)] == suf:
-                return True
-    return False
+                end = i + len(suf)
+                return _context_snippet(text, idx_map[i], idx_map[end])
+    return None
 
 
 def _all_text(script: dict) -> str:
@@ -145,16 +217,22 @@ def generate_weekly_script(pack: dict) -> dict:
         week_number=pack["week_number"], sign=sign,
         banned_words="、".join(BANNED_WORDS))
     script = _call_llm(prompt)
+    # 確定性正規化「第X週」（中文數字）→「第 N 週」（阿拉伯數字），寫回 script
+    # （TTS 唸的就是正規化後的版本），再跑任何 fail-closed 閘門 —— 這樣
+    # LLM 天然寫的「第一週」不會被中文數字閘門誤攔。
+    _normalize_script_cjk_weeks(script)
 
     text = _all_text(script)
     hits = [w for w in BANNED_WORDS if w in text]
     if hits:
         raise BannedWordError(
             f"banned words in script: {hits} — refusing to render")
-    if _has_cjk_numerals(text):
+    cjk_hit = _has_cjk_numerals(text)
+    if cjk_hit:
         raise CJKNumeralError(
             "script contains a Chinese-numeral value with no arabic-digit "
-            "source in the data pack — refusing to render (fail-closed)")
+            "source in the data pack — refusing to render (fail-closed). "
+            f"offending snippet: ...{cjk_hit}...")
     assert_numbers_ok(text, pack)
 
     if DISCLAIMER not in (script.get("description") or ""):
