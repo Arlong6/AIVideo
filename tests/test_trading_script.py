@@ -339,3 +339,24 @@ def test_generate_weekly_script_normalizes_llm_written_cjk_week_number():
         s = generate_weekly_script(WEEK1_PACK)
         assert "第 1 週" in s["title"]
         assert "第一週" not in s["title"]
+
+
+def test_bare_yuan_currency_fails_closed():
+    """本金是美元 — 裸「元」會被讀成台幣（差 32 倍），必須攔下。"""
+    bad = dict(GOOD)
+    bad["sections"] = [{"text": "初始資金 1000 元。", "visual": "equity chart"}]
+    with patch("trading_script._call_llm", return_value=bad):
+        from trading_script import generate_weekly_script, BannedWordError
+        with pytest.raises(BannedWordError, match="元"):
+            generate_weekly_script(PACK)
+
+
+def test_usd_currency_passes():
+    ok = dict(GOOD)
+    ok["sections"] = [{"text": "本週權益 1564.15 美元，+0.27%。", "visual": "equity chart"},
+                      {"text": "這週 26 筆。", "visual": "trades"},
+                      {"text": "累積 49 天，500 筆。", "visual": "summary"}]
+    with patch("trading_script._call_llm", return_value=ok):
+        from trading_script import generate_weekly_script
+        s = generate_weekly_script(PACK)
+        assert "美元" in s["sections"][0]["text"]

@@ -27,6 +27,7 @@ PROMPT_WEEKLY = """你是一個 faceless 短影音頻道的編劇。頻道記錄
 【鐵則】
 1. 只能使用上面數據裡出現的數字，用阿拉伯數字書寫。禁止自創或推算任何新數字
    （0-10 的結構性計數除外，如「3 個重點」）。
+   金額單位一律是「美元」：寫「1000 美元」，絕對禁止寫「1000 元」（會被誤解為台幣）。
 2. 這是「模擬盤」（虛擬資金實驗）。不可暗示真金白銀或實際獲利。
 3. 禁止投資建議、禁止推薦任何標的、禁止使用以下詞彙：{banned_words}。
 4. 禁止敘述任何外部市場事件（不談 Fed、不談新聞、不談大盤）。只講這個帳戶的數據。
@@ -227,6 +228,13 @@ def generate_weekly_script(pack: dict) -> dict:
     if hits:
         raise BannedWordError(
             f"banned words in script: {hits} — refusing to render")
+    # 幣別防線：本金是美元，「1000 元」會被台灣觀眾讀成台幣（差 32 倍），
+    # 跟捏造數字同級的真實性錯誤。裸「元」（前面不是「美」）接在數字後 → 拒絕。
+    bare_yuan = re.search(r"\d\s?(?<!美)元", text)
+    if bare_yuan:
+        raise BannedWordError(
+            f"bare 「元」 as currency (is USD, reads as TWD): "
+            f"{bare_yuan.group()!r} — refusing to render")
     cjk_hit = _has_cjk_numerals(text)
     if cjk_hit:
         raise CJKNumeralError(
