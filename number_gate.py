@@ -9,6 +9,23 @@ import re
 _SMALL_INT_WHITELIST = set(range(0, 11))
 _TOKEN_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
 
+# 0-10 白名單只給「3 個重點」這種結構性計數用。數值後面（容許一個空白）
+# 緊跟這些單位時，代表它在描述一筆真實數據（漲跌%、倍數、成數、金額、
+# 週數、筆數、天數），白名單不適用 —— 必須在 pack 裡有出處，否則 fail-closed。
+_UNIT_CHARS = ("%", "％", "倍", "成", "萬", "億", "元", "週", "筆", "天")
+_UNIT_WORDS = ("美元",)
+
+
+def _has_unit_context(text: str, end: int) -> bool:
+    i = end
+    if i < len(text) and text[i] == " ":
+        i += 1
+    if i >= len(text):
+        return False
+    if text[i] in _UNIT_CHARS:
+        return True
+    return text[i:i + 2] in _UNIT_WORDS
+
 
 class NumberMismatch(Exception):
     pass
@@ -69,15 +86,17 @@ def _allowed_tokens(pack) -> set[str]:
 def verify_numbers(text: str, pack: dict) -> list[str]:
     allowed = _allowed_tokens(pack)
     violations = []
-    for tok in _TOKEN_RE.findall(text):
+    for m in _TOKEN_RE.finditer(text):
+        tok = m.group(0)
         plain = tok.replace(",", "")
         if plain in allowed or tok in allowed:
             continue
-        try:
-            if float(plain) in _SMALL_INT_WHITELIST and "." not in plain:
-                continue
-        except ValueError:
-            pass
+        if not _has_unit_context(text, m.end()):
+            try:
+                if float(plain) in _SMALL_INT_WHITELIST and "." not in plain:
+                    continue
+            except ValueError:
+                pass
         violations.append(plain)
     return violations
 

@@ -76,6 +76,7 @@ def build_week_pack(reports_dir: str = PIKMIN_REPORTS_DIR,
     best = max(window, key=lambda r: r["daily_change_pct"])
     worst = min(window, key=lambda r: r["daily_change_pct"])
 
+    # 可引用數值必須是 numeric 型別（字串會被 number_gate 忽略而 fail-closed）— 別把數值改成字串
     return {
         "is_paper": True,
         "period": {"start": first["date"], "end": last["date"]},

@@ -49,3 +49,17 @@ def test_fixed_decimal_trailing_zero_matches():
     pack = {"worst_pct": -0.096}
     assert verify_numbers("最差 -0.10%", pack) == []
     assert verify_numbers("最差 0.10%", pack) == []
+
+
+def test_small_int_with_unit_not_whitelisted():
+    v = verify_numbers("本週大賺 8%，翻了 5 倍，賺 3 成", PACK)
+    assert "8" in v and "5" in v and "3" in v
+
+
+def test_small_int_bare_count_still_whitelisted():
+    assert verify_numbers("3 個重點，我們一一來看", PACK) == []
+
+
+def test_sourced_small_int_with_unit_passes():
+    pack = dict(PACK); pack["week_pnl_pct"] = 3.0
+    assert verify_numbers("本週 +3%", pack) == []
