@@ -53,3 +53,25 @@ def test_week_number_floors_at_one_on_experiment_day_zero():
     assert pack["daily_dates"] == ["2026-07-14"]
     assert pack["days_running"] == 0
     assert pack["week_number"] == 1  # max(1, ceil(0/7)) = 1，不是 0
+
+
+def test_health_fields_passthrough(tmp_path):
+    """2026-07-20 健康欄位透傳；舊日報缺欄位時給安全預設。"""
+    import json as _json
+    new = {"date": "2026-07-20", "equity": 1000.0, "total_pnl": 0.0,
+           "total_pnl_pct": 0.0, "daily_change": 0.0, "daily_change_pct": 0.0,
+           "realized_pnl": 0, "total_fees": 0, "total_trades": 0,
+           "daily_trades": 0, "grid_cycles": 0, "grid_pnl": 0.0,
+           "days_running": 6, "btc_bearish": True, "open_orders": 0,
+           "grids": {"LINK": {"low": 7.47, "high": 8.69, "price": 8.46}}}
+    (tmp_path / "2026-07-20.json").write_text(_json.dumps(new))
+    pack = build_week_pack(str(tmp_path), end_date="2026-07-20")
+    assert pack["btc_bearish"] is True
+    assert pack["open_orders"] == 0
+    assert pack["grids"]["LINK"]["low"] == 7.47
+
+    # 舊日報（無健康欄位）→ 安全預設
+    old_pack = build_week_pack(FIX, end_date="2026-06-11")
+    assert old_pack["btc_bearish"] is None
+    assert old_pack["open_orders"] == 0
+    assert old_pack["grids"] == {}

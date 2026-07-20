@@ -360,3 +360,16 @@ def test_usd_currency_passes():
         from trading_script import generate_weekly_script
         s = generate_weekly_script(PACK)
         assert "美元" in s["sections"][0]["text"]
+
+
+def test_prompt_contains_risk_off_narrative_rule():
+    """避險敘事規則必須在 prompt 裡（btc_bearish 週的誠實敘事）。"""
+    captured = {}
+    def fake_llm(prompt):
+        captured["prompt"] = prompt
+        return dict(GOOD)
+    with patch("trading_script._call_llm", side_effect=fake_llm):
+        from trading_script import generate_weekly_script
+        generate_weekly_script(PACK)
+    assert "風控自動暫停買入" in captured["prompt"]
+    assert "btc_bearish" in captured["prompt"]

@@ -97,4 +97,9 @@ def build_week_pack(reports_dir: str = PIKMIN_REPORTS_DIR,
                       "change_pct": worst["daily_change_pct"]},
         "daily_equity": [r["equity"] for r in window],
         "daily_dates": [r["date"] for r in window],
+        # 健康欄位（2026-07-20 起的日報才有；舊報告缺 → None/0/{}，向後相容）。
+        # 讓週報能誠實回答「AI 這週為什麼沒動」：避險中 vs 壞掉。
+        "btc_bearish": last.get("btc_bearish"),
+        "open_orders": last.get("open_orders", 0),
+        "grids": last.get("grids", {}),
     }
