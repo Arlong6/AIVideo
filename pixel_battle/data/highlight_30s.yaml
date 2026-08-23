@@ -1,0 +1,33 @@
+duration_s: 30
+shots:
+  # Act 1: VS intro (0-4.5s)
+  - { t: 0.0,  duration: 1.5, type: vs_title, text: "BRICK vs GLASS" }
+  - { t: 1.5,  duration: 1.5, type: intro, char: brick_phone, name: "BRICK PHONE", pose: ultimate_pose, color: "#5fcf5f" }
+  - { t: 3.0,  duration: 1.5, type: intro, char: glass_slab,  name: "GLASS SLAB",  pose: ultimate_pose, color: "#88ccff" }
+
+  # Act 2: Fight (4.5-22.5s, 4 exchanges + climax)
+  # Exchange 1: brick opens
+  - { t: 4.5,  duration: 1.5, type: shot, char: brick_phone, pose: attack_strike, banner: "SCREW DART!",  sfx: cast_cooldown }
+  - { t: 6.0,  duration: 1.0, type: shot, char: glass_slab,  pose: hit_recoil,    sfx: hit, dmg: 12 }
+
+  # Exchange 2: glass counters
+  - { t: 7.0,  duration: 1.5, type: shot, char: glass_slab,  pose: attack_strike, banner: "AD POPUP!",   sfx: cast_special }
+  - { t: 8.5,  duration: 1.0, type: shot, char: brick_phone, pose: hit_recoil,    sfx: hit, dmg: 14 }
+
+  # Exchange 3: brick crits
+  - { t: 9.5,  duration: 1.5, type: shot, char: brick_phone, pose: attack_strike, banner: "SNAKE STRIKE!", sfx: cast_special }
+  - { t: 11.0, duration: 1.0, type: shot, char: glass_slab,  pose: hit_recoil,    sfx: crit, dmg: 22, crit: true }
+
+  # Exchange 4: glass ultimate
+  - { t: 12.0, duration: 2.0, type: shot, char: glass_slab,  pose: special_charge, banner: "FORCE UPDATE!", sfx: charge }
+  - { t: 14.0, duration: 2.0, type: shot, char: glass_slab,  pose: ultimate_pose,  banner: "FORCE UPDATE!", sfx: ultimate, dmg: 38, crit: true, screen_flash: true }
+  - { t: 16.0, duration: 1.0, type: shot, char: brick_phone, pose: hit_recoil,     sfx: crit, dmg: 38 }
+
+  # Climax: brick ultimate
+  - { t: 17.0, duration: 2.0, type: shot, char: brick_phone, pose: special_charge, banner: "INDESTRUCTIBLE!", sfx: charge }
+  - { t: 19.0, duration: 2.5, type: shot, char: brick_phone, pose: ultimate_pose,  banner: "INDESTRUCTIBLE!", sfx: ultimate, dmg: 55, crit: true, screen_flash: true }
+  - { t: 21.5, duration: 1.5, type: shot, char: glass_slab,  pose: ko_falling,     sfx: ko }
+
+  # Act 3: KO + result (23-30s)
+  - { t: 23.0, duration: 2.0, type: shot, char: glass_slab,  pose: ko_landed }
+  - { t: 25.0, duration: 5.0, type: result, text: "K.O.\nBRICK PHONE WINS!" }
