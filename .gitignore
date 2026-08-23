@@ -38,3 +38,9 @@ pixel_battle/output/
 
 *.bak
 data/rl_checkpoints/
+
+# Map tile cache (OSM tiles — re-fetchable, was 339 tracked PNGs)
+map_cache/
+
+# Stray render artifacts left at repo root
+/final_*.mp4
