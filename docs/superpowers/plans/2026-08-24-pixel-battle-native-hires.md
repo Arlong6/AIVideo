@@ -664,20 +664,27 @@ class ScaledSurface(_pg.Surface):
         return super().subsurface(_rect(rect))
 
 
-def Surface(size, flags=0, *args, **kwargs):
-    """Create a scaled surface.
+def _size(w, h):
+    """Scale a (width, height) pair.
 
     The fight canvas (480x854) maps to exactly 1080x1920 rather than the
     1921.5 that 2.25x would give; the 1.5px overflow falls off the bottom,
     where nothing is drawn (GROUND_Y scales to 1575).
+
+    Every size conversion goes through here — the Surface factory AND
+    transform — so a surface built at canvas size and one scaled to canvas
+    size always agree. `_apply_bloom` in play.py depends on exactly that:
+    it smoothscales its glow layer to (WIDTH, HEIGHT) and blits it onto the
+    world surface.
     """
-    w, h = size
     if (round(w), round(h)) == CANVAS:
-        sw, sh = CANVAS_SCALED
-    else:
-        sw = max(1, round(w * S))
-        sh = max(1, round(h * S))
-    return ScaledSurface((sw, sh), flags, *args, **kwargs)
+        return CANVAS_SCALED
+    return (max(1, round(w * S)), max(1, round(h * S)))
+
+
+def Surface(size, flags=0, *args, **kwargs):
+    """Create a scaled surface."""
+    return ScaledSurface(_size(*size), flags, *args, **kwargs)
 ```
 
 `CANVAS_SCALED` 在 `S != 2.25` 時需要跟著走,否則 `S=1.0` 的還原測試會拿到 1080x1920。把 `set_scale` 改成同時更新它:
@@ -750,6 +757,17 @@ def test_smoothscale_target_is_scaled():
     assert out.get_size() == (10, 10)
 
 
+def test_smoothscale_to_canvas_matches_canvas_surface():
+    """_apply_bloom scales its glow to (WIDTH, HEIGHT) then blits onto the
+    world surface — the two must come out the same size."""
+    import pygame
+    sp = _fresh(2.25)
+    world = sp.Surface(sp.CANVAS)
+    src = pygame.Surface((60, 106))
+    glow = sp.transform.smoothscale(src, sp.CANVAS)
+    assert glow.get_size() == world.get_size() == (1080, 1920)
+
+
 def test_rotate_is_not_scaled():
     import pygame
     sp = _fresh(2.0)
@@ -810,14 +828,14 @@ class _Transform:
 
     @staticmethod
     def smoothscale(surface, size, dest_surface=None):
-        sz = (max(1, round(size[0] * S)), max(1, round(size[1] * S)))
+        sz = _size(*size)          # shares the canvas special case
         if dest_surface is not None:
             return _pg.transform.smoothscale(surface, sz, dest_surface)
         return _pg.transform.smoothscale(surface, sz)
 
     @staticmethod
     def scale(surface, size, dest_surface=None):
-        sz = (max(1, round(size[0] * S)), max(1, round(size[1] * S)))
+        sz = _size(*size)
         if dest_surface is not None:
             return _pg.transform.scale(surface, sz, dest_surface)
         return _pg.transform.scale(surface, sz)
