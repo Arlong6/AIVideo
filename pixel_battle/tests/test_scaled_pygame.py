@@ -11,8 +11,9 @@ def _fresh(scale):
 
 
 def test_scale_defaults_to_2_25():
+    import importlib
     from pixel_battle.rl import scaled_pygame as sp
-    sp.set_scale(2.25)
+    importlib.reload(sp)
     assert sp.S == 2.25
 
 
