@@ -83,3 +83,26 @@ def test_ssim_flags_missed_scale_below_faithful(tmp_path):
     s_bad = frame_ssim(bp, cp)
     assert s_bad < s_ok - 0.03
     assert s_bad < 0.95
+
+
+def test_report_detects_missing_baseline_frames(tmp_path, capsys):
+    """report() must not silently pass when baseline has no frame_*.png files."""
+    from tools.hires_verify import report
+
+    baseline_dir = tmp_path / "baseline"
+    current_dir = tmp_path / "current"
+    baseline_dir.mkdir()
+    current_dir.mkdir()
+
+    # Create minimal events.json in both dirs
+    events_data = {"winner": "left", "n_frames": 0, "events": [], "event_video_ms": {}}
+    _write(baseline_dir, "events.json", events_data)
+    _write(current_dir, "events.json", events_data)
+
+    # Report with no frames should return >= 1 (problems found)
+    result = report(baseline_dir, current_dir)
+    assert result >= 1, f"Expected problems >= 1, got {result}"
+
+    # Verify output mentions missing frames
+    captured = capsys.readouterr()
+    assert "NO BASELINE FRAMES FOUND" in captured.out

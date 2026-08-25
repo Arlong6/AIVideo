@@ -73,17 +73,22 @@ def report(baseline_dir, current_dir, ssim_floor: float = 0.90) -> int:
         print("fight behaviour: identical")
 
     print("\nframe structure (SSIM after downscale):")
-    for bp in sorted(baseline_dir.glob("frame_*.png")):
-        cp = current_dir / bp.name
-        if not cp.exists():
-            print(f"  {bp.name}: MISSING in current")
-            problems += 1
-            continue
-        s = frame_ssim(bp, cp)
-        flag = "ok" if s >= ssim_floor else "LOW"
-        if s < ssim_floor:
-            problems += 1
-        print(f"  {bp.name}: {s:.4f} {flag}")
+    frames = sorted(baseline_dir.glob("frame_*.png"))
+    if not frames:
+        print(f"  NO BASELINE FRAMES FOUND in {baseline_dir}")
+        problems += 1
+    else:
+        for bp in frames:
+            cp = current_dir / bp.name
+            if not cp.exists():
+                print(f"  {bp.name}: MISSING in current")
+                problems += 1
+                continue
+            s = frame_ssim(bp, cp)
+            flag = "ok" if s >= ssim_floor else "LOW"
+            if s < ssim_floor:
+                problems += 1
+            print(f"  {bp.name}: {s:.4f} {flag}")
 
     print(f"\nproblems: {problems}")
     return problems
