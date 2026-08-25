@@ -199,3 +199,34 @@ def test_blit_area_is_scaled():
     # so blue pixels should be at (10,10) to (13,17)
     assert dst.get_at((11, 11))[:3] == (0, 0, 255), "area was scaled correctly"
     assert dst.get_at((9, 9))[:3] == (0, 0, 0), "outside blit region is black"
+
+
+def test_rect_is_scaled():
+    sp = _fresh(2.0)
+    r = sp.Rect(3, 4, 10, 20)
+    assert (r.x, r.y, r.w, r.h) == (6, 8, 20, 40)
+
+
+def test_font_size_is_scaled():
+    import pygame
+    pygame.font.init()
+    sp = _fresh(2.0)
+    scaled = sp.font.SysFont(None, 10)      # shim turns this into a real 20pt
+    plain = pygame.font.SysFont(None, 20)   # genuinely 20pt, no shim
+    assert scaled.size("Ag") == plain.size("Ag")
+
+
+def test_smoothscale_target_is_scaled():
+    import pygame
+    sp = _fresh(2.0)
+    src = pygame.Surface((10, 10))
+    out = sp.transform.smoothscale(src, (5, 5))
+    assert out.get_size() == (10, 10)
+
+
+def test_rotate_is_not_scaled():
+    import pygame
+    sp = _fresh(2.0)
+    src = pygame.Surface((10, 20))
+    out = sp.transform.rotate(src, 90)
+    assert out.get_size() == pygame.transform.rotate(src, 90).get_size()

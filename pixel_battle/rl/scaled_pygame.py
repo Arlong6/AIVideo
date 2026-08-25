@@ -119,6 +119,76 @@ def Surface(size, flags=0, *args, **kwargs):
     return ScaledSurface((sw, sh), flags, *args, **kwargs)
 
 
+def Rect(*args):
+    """Create a scaled Rect from fight coordinates."""
+    if len(args) == 1:
+        return _rect(args[0])
+    if len(args) == 2:      # (pos, size)
+        (x, y), (w, h) = args
+        return _rect((x, y, w, h))
+    return _rect(args)
+
+
+class _Font:
+    """Font factory with scaled point sizes."""
+
+    @staticmethod
+    def SysFont(name, size, bold=False, italic=False):
+        return _pg.font.SysFont(name, max(1, round(size * S)), bold, italic)
+
+    @staticmethod
+    def Font(name, size):
+        return _pg.font.Font(name, max(1, round(size * S)))
+
+    @staticmethod
+    def init():
+        return _pg.font.init()
+
+    @staticmethod
+    def get_init():
+        return _pg.font.get_init()
+
+    @staticmethod
+    def get_default_font():
+        return _pg.font.get_default_font()
+
+
+font = _Font()
+
+
+class _Transform:
+    """Transforms. Target SIZES are in fight coords; angles are not."""
+
+    @staticmethod
+    def smoothscale(surface, size, dest_surface=None):
+        sz = (max(1, round(size[0] * S)), max(1, round(size[1] * S)))
+        if dest_surface is not None:
+            return _pg.transform.smoothscale(surface, sz, dest_surface)
+        return _pg.transform.smoothscale(surface, sz)
+
+    @staticmethod
+    def scale(surface, size, dest_surface=None):
+        sz = (max(1, round(size[0] * S)), max(1, round(size[1] * S)))
+        if dest_surface is not None:
+            return _pg.transform.scale(surface, sz, dest_surface)
+        return _pg.transform.scale(surface, sz)
+
+    @staticmethod
+    def rotate(surface, angle):
+        return _pg.transform.rotate(surface, angle)
+
+    @staticmethod
+    def flip(surface, flip_x, flip_y):
+        return _pg.transform.flip(surface, flip_x, flip_y)
+
+    @staticmethod
+    def rotozoom(surface, angle, scale):
+        return _pg.transform.rotozoom(surface, angle, scale)
+
+
+transform = _Transform()
+
+
 class _Draw:
     """Scaled counterparts of the pygame.draw functions we use."""
 
