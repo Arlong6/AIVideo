@@ -176,3 +176,26 @@ def test_surface_identity_at_scale_one():
     a.fill((4, 5, 6), (2, 2, 5, 5)); b.fill((4, 5, 6), (2, 2, 5, 5))
     assert a.get_size() == b.get_size() == (40, 40)
     assert pygame.image.tostring(a, "RGBA") == pygame.image.tostring(b, "RGBA")
+
+
+def test_blit_area_is_scaled():
+    """Verify that the area parameter in blit is scaled correctly.
+
+    area is in fight coords and must be scaled to real coords before blitting.
+    If unscaled, would copy wrong pixels.
+    """
+    import pygame
+    sp = _fresh(2.0)
+    dst = sp.Surface((50, 50))
+    src = pygame.Surface((8, 8))
+    src.fill((255, 0, 0))  # all red
+    src.fill((0, 0, 255), pygame.Rect(4, 0, 4, 8))  # right half blue (scaled coords)
+
+    # Blit src to dst at dest=(5,5) in fight coords, copying only area=(2,0,2,4) in fight coords.
+    # area (2,0,2,4) scales to (4,0,4,8), which is the blue half.
+    dst.blit(src, (5, 5), area=pygame.Rect(2, 0, 2, 4))
+
+    # dest (5,5) scales to (10,10); area (2,0,2,4) scales to (4,0,4,8)
+    # so blue pixels should be at (10,10) to (13,17)
+    assert dst.get_at((11, 11))[:3] == (0, 0, 255), "area was scaled correctly"
+    assert dst.get_at((9, 9))[:3] == (0, 0, 0), "outside blit region is black"
