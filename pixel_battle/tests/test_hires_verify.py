@@ -56,17 +56,30 @@ def test_ssim_of_a_scaled_copy_is_high(tmp_path):
     assert frame_ssim(bp, cp) > 0.90
 
 
-def test_ssim_drops_when_an_element_moves(tmp_path):
+def test_ssim_flags_missed_scale_below_faithful(tmp_path):
+    """A frame where one element missed the *S multiply must score clearly
+    below a faithful 2x render — this is the discrimination the whole
+    second verification layer depends on."""
     from PIL import Image, ImageDraw
     from tools.hires_verify import frame_ssim
 
     base = Image.new("RGB", (120, 200), (20, 20, 30))
-    ImageDraw.Draw(base).ellipse((40, 60, 80, 100), fill=(200, 40, 40))
+    d = ImageDraw.Draw(base)
+    d.line((10, 10, 100, 180), fill=(240, 240, 240), width=3)
+    d.ellipse((40, 60, 80, 100), fill=(200, 40, 40))
     bp = tmp_path / "base.png"; base.save(bp)
 
-    moved = Image.new("RGB", (240, 400), (20, 20, 30))
-    # same circle but shifted — this is what a missed *S looks like
-    ImageDraw.Draw(moved).ellipse((80, 260, 160, 340), fill=(200, 40, 40))
-    cp = tmp_path / "cur.png"; moved.save(cp)
+    faithful = base.resize((240, 400), Image.LANCZOS)
+    fp = tmp_path / "faithful.png"; faithful.save(fp)
 
-    assert frame_ssim(bp, cp) < 0.90
+    # missed *S: line scaled correctly, ellipse left at unscaled coords
+    bad = Image.new("RGB", (240, 400), (20, 20, 30))
+    db = ImageDraw.Draw(bad)
+    db.line((20, 20, 200, 360), fill=(240, 240, 240), width=6)
+    db.ellipse((40, 60, 80, 100), fill=(200, 40, 40))  # forgot * S
+    cp = tmp_path / "bad.png"; bad.save(cp)
+
+    s_ok = frame_ssim(bp, fp)
+    s_bad = frame_ssim(bp, cp)
+    assert s_bad < s_ok - 0.03
+    assert s_bad < 0.95
