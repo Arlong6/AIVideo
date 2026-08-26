@@ -20,6 +20,7 @@ from pixel_battle.rl import scaled_pygame as _scaled_pygame
 
 @pytest.fixture(autouse=True)
 def _reset_render_scale():
+    prev = _scaled_pygame.S
     _scaled_pygame.set_scale(1.0)
     yield
-    _scaled_pygame.set_scale(2.25)
+    _scaled_pygame.set_scale(prev)

@@ -79,6 +79,23 @@ def _size(w, h):
     return (max(1, round(w * S)), max(1, round(h * S)))
 
 
+_CLAMP_TOLERANCE = 3  # real px; absorbs the <=2px full-canvas rounding artifact
+
+
+def _clamp_overflow(pos, size, bound):
+    """Absorb only a small (<= _CLAMP_TOLERANCE) rounding overflow past
+    `bound` — the artifact from x/y/w/h each being rounded independently
+    (see `_rect`/`ScaledSurface.subsurface`). Anything larger is a genuinely
+    out-of-bounds rect and is left untouched so pygame still raises for it,
+    exactly as it would with no shim involved (this also restores identical
+    behavior at S=1.0, where there is no rounding artifact to begin with).
+    """
+    overflow = pos + size - bound
+    if 0 < overflow <= _CLAMP_TOLERANCE:
+        return size - overflow
+    return size
+
+
 def _rect(r):
     """Scale a rect-like (pygame.Rect or a 4-tuple) into a scaled Rect.
 
@@ -120,10 +137,12 @@ class ScaledSurface(_pg.Surface):
         # x/y/w/h are each rounded independently, so a rect whose fight-coord
         # edge sits exactly on the canvas boundary (e.g. y + h == CANVAS[1])
         # can scale to 1-2px past this surface's real edge even though the
-        # source rect was in-bounds. Clamp rather than let pygame raise.
+        # source rect was in-bounds. Absorb only that small rounding
+        # artifact; anything bigger is a real out-of-bounds rect and must
+        # still raise, same as plain pygame (including at S=1.0).
         sw, sh = self.get_size()
-        r.width = max(1, min(r.width, sw - r.x))
-        r.height = max(1, min(r.height, sh - r.y))
+        r.width = _clamp_overflow(r.x, r.width, sw)
+        r.height = _clamp_overflow(r.y, r.height, sh)
         return super().subsurface(r)
 
 

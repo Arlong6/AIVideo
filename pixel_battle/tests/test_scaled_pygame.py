@@ -2,6 +2,8 @@
 import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
+import pytest
+
 
 def _fresh(scale):
     """Import the shim and set its scale."""
@@ -164,6 +166,40 @@ def test_derived_surfaces_keep_scaling_behaviour():
     s = sp.Surface((40, 40))
     assert isinstance(s.copy(), sp.ScaledSurface)
     assert isinstance(s.subsurface((0, 0, 10, 10)), sp.ScaledSurface)
+
+
+def test_subsurface_absorbs_small_rounding_overflow_at_native_scale():
+    """A rect whose fight-coord edge sits exactly on the canvas boundary
+    (y + h == CANVAS[1]) rounds to a couple of px past the real surface
+    edge; the clamp must still absorb that and return the expected size."""
+    sp = _fresh(2.25)
+    world = sp.Surface(sp.CANVAS)          # real size: (1080, 1920)
+    sub = world.subsurface((0, 54, 480, 800))
+    assert sub.get_size() == (1080, 1798)
+
+
+def test_subsurface_still_raises_for_a_genuinely_out_of_bounds_rect():
+    """A rect that overflows by far more than the rounding artifact (here,
+    200 fight-px of height beyond the canvas) must still raise — the clamp
+    is only a tolerance for the <=2px rounding case, not a silent fit."""
+    sp = _fresh(2.25)
+    world = sp.Surface(sp.CANVAS)          # real size: (1080, 1920)
+    with pytest.raises(ValueError):
+        world.subsurface((0, 0, 480, 854 + 200))
+
+
+def test_subsurface_out_of_bounds_raises_like_real_pygame_at_scale_one():
+    """At S=1.0 there is no rounding artifact to absorb, so an out-of-bounds
+    rect must raise exactly as it would with no shim involved."""
+    import pygame
+    sp = _fresh(1.0)
+    shimmed = sp.Surface(sp.CANVAS)        # real size: (480, 854), identity
+    real = pygame.Surface(sp.CANVAS)
+    rect = (0, 0, 480, 854 + 200)
+    with pytest.raises(ValueError):
+        real.subsurface(rect)
+    with pytest.raises(ValueError):
+        shimmed.subsurface(rect)
 
 
 def test_surface_identity_at_scale_one():
