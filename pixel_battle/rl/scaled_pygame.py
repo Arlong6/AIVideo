@@ -68,11 +68,27 @@ def _len(v):
     return max(1, round(v * S))
 
 
+def _size(w, h):
+    """Scale a (w, h) target size, honoring the CANVAS -> CANVAS_SCALED exact
+    mapping (see Surface's docstring) so anything sized/scaled to the full
+    fight canvas lands on the same pixel dimensions as a CANVAS Surface —
+    not the 1921.5-rounds-to-1922 a per-component scale would give.
+    """
+    if (round(w), round(h)) == CANVAS:
+        return CANVAS_SCALED
+    return (max(1, round(w * S)), max(1, round(h * S)))
+
+
 def _rect(r):
-    """Scale a rect-like (pygame.Rect or a 4-tuple) into a scaled Rect."""
+    """Scale a rect-like (pygame.Rect or a 4-tuple) into a scaled Rect.
+
+    w/h go through `_size` (not a bare per-axis round) so a rect spanning the
+    full fight canvas — e.g. a full-frame camera crop — lands on exactly
+    CANVAS_SCALED, matching any Surface built from the same (w, h).
+    """
     x, y, w, h = r
-    return _pg.Rect(round(x * S), round(y * S),
-                    max(1, round(w * S)), max(1, round(h * S)))
+    sw, sh = _size(w, h)
+    return _pg.Rect(round(x * S), round(y * S), sw, sh)
 
 
 class ScaledSurface(_pg.Surface):
@@ -100,7 +116,15 @@ class ScaledSurface(_pg.Surface):
 
     def subsurface(self, *args):
         rect = args[0] if len(args) == 1 else args
-        return super().subsurface(_rect(rect))
+        r = _rect(rect)
+        # x/y/w/h are each rounded independently, so a rect whose fight-coord
+        # edge sits exactly on the canvas boundary (e.g. y + h == CANVAS[1])
+        # can scale to 1-2px past this surface's real edge even though the
+        # source rect was in-bounds. Clamp rather than let pygame raise.
+        sw, sh = self.get_size()
+        r.width = max(1, min(r.width, sw - r.x))
+        r.height = max(1, min(r.height, sh - r.y))
+        return super().subsurface(r)
 
 
 def Surface(size, flags=0, *args, **kwargs):
@@ -111,11 +135,7 @@ def Surface(size, flags=0, *args, **kwargs):
     where nothing is drawn (GROUND_Y scales to 1575).
     """
     w, h = size
-    if (round(w), round(h)) == CANVAS:
-        sw, sh = CANVAS_SCALED
-    else:
-        sw = max(1, round(w * S))
-        sh = max(1, round(h * S))
+    sw, sh = _size(w, h)
     return ScaledSurface((sw, sh), flags, *args, **kwargs)
 
 
@@ -161,14 +181,14 @@ class _Transform:
 
     @staticmethod
     def smoothscale(surface, size, dest_surface=None):
-        sz = (max(1, round(size[0] * S)), max(1, round(size[1] * S)))
+        sz = _size(size[0], size[1])
         if dest_surface is not None:
             return _pg.transform.smoothscale(surface, sz, dest_surface)
         return _pg.transform.smoothscale(surface, sz)
 
     @staticmethod
     def scale(surface, size, dest_surface=None):
-        sz = (max(1, round(size[0] * S)), max(1, round(size[1] * S)))
+        sz = _size(size[0], size[1])
         if dest_surface is not None:
             return _pg.transform.scale(surface, sz, dest_surface)
         return _pg.transform.scale(surface, sz)

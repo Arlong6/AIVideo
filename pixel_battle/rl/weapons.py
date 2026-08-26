@@ -9,7 +9,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from typing import Optional, Tuple
-import pygame
+# Renders at CANVAS_SCALED; see scaled_pygame's docstring. NOT real pygame.
+from pixel_battle.rl import scaled_pygame as pygame
 
 Vec = Tuple[float, float]
 

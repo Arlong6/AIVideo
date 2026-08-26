@@ -4,7 +4,8 @@ Stateless except for the smoothed-bar lerp state, which is per-HUD-instance.
 A new HUD is constructed per render in `_render_fight`."""
 from __future__ import annotations
 import json
-import pygame
+# Renders at CANVAS_SCALED; see scaled_pygame's docstring. NOT real pygame.
+from pixel_battle.rl import scaled_pygame as pygame
 
 from pixel_battle.engine.character import DATA_PATH
 

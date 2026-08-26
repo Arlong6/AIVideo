@@ -8,12 +8,13 @@ from __future__ import annotations
 import math
 from typing import Optional, Tuple
 
-import pygame
+# Renders at CANVAS_SCALED; see scaled_pygame's docstring. NOT real pygame.
+from pixel_battle.rl import scaled_pygame as pygame
 
 try:
-    from pygame import gfxdraw as _gfxdraw
+    _gfxdraw = pygame.gfxdraw
     _HAS_GFXDRAW = True
-except ImportError:
+except AttributeError:
     _HAS_GFXDRAW = False
 
 from pixel_battle.engine.character import Character
