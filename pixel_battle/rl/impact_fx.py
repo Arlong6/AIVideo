@@ -473,7 +473,13 @@ class ImpactFX:
             if mult != (255, 255, 255):
                 scaled = scaled.copy()
                 scaled.fill(mult, special_flags=pygame.BLEND_RGB_MULT)
-            rect = scaled.get_rect(center=(int(cx), int(cy)))
+            # ABS — `scaled` is a REAL Surface (transform.smoothscale product,
+            # already at real-px size); `.get_rect(center=...)` would mix that
+            # real size with the fight-coord (cx, cy) center, then the shim's
+            # blit would scale the whole rect a second time. `fight_rect`
+            # converts the real size back to fight coords first so the
+            # center lands correctly and the shim's single scale-up is right.
+            rect = pygame.fight_rect(scaled, center=(cx, cy))
             surf.blit(scaled, rect, special_flags=pygame.BLEND_RGB_ADD)
             return True
         except Exception:
@@ -901,7 +907,7 @@ class ImpactFX:
                         (abs(ex - int(sb.x)) + 4, abs(ey - int(sb.y)) + 4),
                         pygame.SRCALPHA)
                     # Draw on main surf with color+alpha line via SRCALPHA surface
-                    line_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                    line_surf = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
                     pygame.draw.line(line_surf, (*sb.color, fade),
                                      (int(sb.x), int(sb.y)), (ex, ey), 3)
                     surf.blit(line_surf, (0, 0))
@@ -924,7 +930,7 @@ class ImpactFX:
                 frac = bm.age_ms / bm.life_ms
                 width = max(2, int(22 * (1.0 - frac) + 4))
                 fade = max(0, int(230 * (1.0 - frac)))
-                bm_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                bm_surf = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
                 pygame.draw.line(bm_surf, (*bm.color, fade),
                                  (int(bm.x1), int(bm.y)),
                                  (int(bm.x2), int(bm.y)), width)
@@ -949,7 +955,7 @@ class ImpactFX:
                     gx = da.sx + (da.ex - da.sx) * pos_frac
                     gy = da.sy + (da.ey - da.sy) * pos_frac
                     alpha = max(0, int(base_alpha * (1.0 - frac)))
-                    ghost = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                    ghost = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
                     # Torso line (simplified ghost)
                     torso_top = (int(gx), int(gy) - 110)
                     torso_bot = (int(gx), int(gy) - 20)
@@ -1033,7 +1039,7 @@ class ImpactFX:
             # Horizontal streak line from from_x to to_x at hip height (8 px wide)
             streak_alpha = int(200 * fade_mult)
             if streak_alpha > 0:
-                sl_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                sl_surf = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
                 pygame.draw.line(
                     sl_surf,
                     (*fs.color, streak_alpha),
@@ -1047,7 +1053,7 @@ class ImpactFX:
                 alpha = int(base_alpha * fade_mult)
                 if alpha <= 5:
                     continue
-                ghost = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                ghost = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
                 gc = (*fs.color, alpha)
                 torso_top = (int(gx), int(gy) - 100)
                 torso_bot = (int(gx), int(gy) - 15)
@@ -1080,7 +1086,7 @@ class ImpactFX:
             ang_r = math.radians(sl.angle_deg)
             ex = int(sl.x + math.cos(ang_r) * length)
             ey = int(sl.y + math.sin(ang_r) * length)
-            sl_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            sl_surf = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
             pygame.draw.line(sl_surf, (*sl.color, alpha),
                              (int(sl.x), int(sl.y)), (ex, ey), 3)
             # White-hot core line
@@ -1118,8 +1124,11 @@ class ImpactFX:
                 outline_col = tuple(max(0, c - 160) for c in bn.color)
                 rendered = font.render(bn.text, True, bn.color)
                 rendered.set_alpha(alpha)
-                rx = bn.screen_cx - rendered.get_width() // 2
-                ry = bn.screen_cy - drift_y - rendered.get_height() // 2
+                # ABS — `rendered` is a font.render() product (REAL px glyph
+                # surface); screen_cx/cy/drift_y are fight coords, so the
+                # glyph size must come back to fight coords before mixing.
+                rx = bn.screen_cx - pygame.fight_width(rendered) // 2
+                ry = bn.screen_cy - drift_y - pygame.fight_height(rendered) // 2
                 # 4-direction outline for contrast
                 outline_surf = font.render(bn.text, True, outline_col)
                 outline_surf.set_alpha(min(255, alpha + 60))
@@ -1138,7 +1147,7 @@ class ImpactFX:
             tint_a = max(0, int(self._beam_tint_alpha * (1.0 - tint_frac)))
             if tint_a > 0:
                 try:
-                    tint_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                    tint_surf = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
                     tint_surf.fill((*self._beam_tint_color, tint_a))
                     surf.blit(tint_surf, (0, 0))
                 except Exception:
@@ -1214,7 +1223,7 @@ class ImpactFX:
             # --- Layer 3: white-hot core — 32 px, alpha 255→0 over 800ms
             core_alpha = max(0, int(255 * (1.0 - ub.age_ms / ULTIMATE_BEAM_CORE_MS)))
             if core_alpha > 1 and ub.age_ms < ULTIMATE_BEAM_CORE_MS:
-                core_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                core_surf = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
                 pygame.draw.line(core_surf, (255, 255, 255, core_alpha),
                                  (bx1, iy), (bx2, iy), 32)
                 surf.blit(core_surf, (0, 0))
@@ -1227,7 +1236,7 @@ class ImpactFX:
                 base_rotation = math.radians(45.0 * flare_frac)
                 ray_len_outer = int(70 + 10 * (1.0 - flare_frac))
                 # 4 rays at 0, 90, 180, 270 + 4 diagonal at 45, 135, 225, 315
-                flare_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                flare_surf = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
                 for k in range(8):
                     ang = base_rotation + (math.tau * k) / 8
                     rl = ray_len_outer if k % 2 == 0 else ray_len_outer // 2
@@ -1261,7 +1270,7 @@ class ImpactFX:
             sp_size = 5  # half arm length
             cx_sp, cy_sp = int(sp.x), int(sp.y)
             sp_col = (*sp.color, sp_alpha)
-            sp_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            sp_surf = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
             # + cross
             pygame.draw.line(sp_surf, sp_col,
                              (cx_sp - sp_size, cy_sp), (cx_sp + sp_size, cy_sp), 2)
@@ -1293,7 +1302,7 @@ class ImpactFX:
             # 5-pointed star: 5 radial rays at 72° increments + slight rotation
             rotation_offset = math.radians(90.0 * ep_frac)  # rotates ~90° over lifetime
             ep_ray = int(ep.ray_len * (1.0 + 0.3 * (1.0 - ep_frac)))  # starts bigger
-            ep_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            ep_surf = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
             cx_ep, cy_ep = int(ep.x), int(ep.y)
             for k in range(5):
                 ang = rotation_offset + (math.tau * k) / 5 - math.pi / 2
@@ -1406,8 +1415,10 @@ class ImpactFX:
                     font = pygame.font.SysFont(None, t.font_size)
                     rendered = font.render(t.text, True, t.color)
                     rendered.set_alpha(fade)
-                    surf.blit(rendered, (t.x - rendered.get_width() // 2,
-                                         t.y - y_offset - rendered.get_height()))
+                    # ABS — `rendered` is a font.render() real-px glyph
+                    # surface; t.x/y are fight coords.
+                    surf.blit(rendered, (t.x - pygame.fight_width(rendered) // 2,
+                                         t.y - y_offset - pygame.fight_height(rendered)))
                 except Exception:
                     pass  # graceful no-op if font unavailable
         self._texts = alive_texts
@@ -1518,7 +1529,7 @@ class ImpactFX:
             alpha = max(0, int(180 * (1.0 - frac)))
             if alpha < 4:
                 continue
-            p_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            p_surf = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
             pygame.draw.circle(p_surf, (*hp.color, alpha),
                                (int(hp.x), int(hp.y)), 3)
             surf.blit(p_surf, (0, 0))
@@ -1536,13 +1547,17 @@ class ImpactFX:
             if alpha < 4:
                 continue
             try:
-                fl_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+                fl_surf = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
                 fl_surf.fill((255, 255, 255, alpha))
                 surf.blit(fl_surf, (0, 0))
             except Exception:
                 pass
             # AI glow texture: expanding radial light burst at the impact point
-            sw, sh = surf.get_size()
+            # ABS (was `surf.get_size()`) — sw/burst_w feed `_blit_vfx`'s
+            # w=/h=, which are fight-coord target sizes; the real-px value
+            # was getting scaled a second time (e.g. 1080 -> ~2376 fight ->
+            # 5346 real px at S=2.25).
+            sw, sh = pygame.fight_size(surf)
             bx = rf.cx if rf.cx >= 0 else sw / 2
             by = rf.cy if rf.cy >= 0 else sh / 2
             warm = ((255 + rf.color[0]) // 2,
@@ -1590,7 +1605,7 @@ class ImpactFX:
                 continue
             cx_ds = int(ds.x)
             fy_ds = int(ds.y)
-            sil = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            sil = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
             col = (255, 255, 255, alpha)
             pygame.draw.circle(sil, col, (cx_ds, fy_ds - 120), 10, 2)
             pygame.draw.line(sil, col, (cx_ds, fy_ds - 110), (cx_ds, fy_ds - 50), 3)
@@ -1604,7 +1619,7 @@ class ImpactFX:
         # Draw screen flash overlay (on top of everything)
         if self._flash_alpha > 0:
             try:
-                overlay = pygame.Surface(surf.get_size(), flags=pygame.SRCALPHA)
+                overlay = pygame.Surface(pygame.fight_size(surf), flags=pygame.SRCALPHA)
                 overlay.fill((*self._flash_color, self._flash_alpha))
                 surf.blit(overlay, (0, 0))
             except Exception:

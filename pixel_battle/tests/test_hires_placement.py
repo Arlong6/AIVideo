@@ -102,3 +102,77 @@ def test_hud_bars_and_names_stay_on_canvas_at_native_scale(native):
     assert timer_cols.size, "match timer vanished at native scale"
     assert abs(int(timer_cols.mean()) - centre) < round(60 * sp.S), (
         "match timer is not centred")
+
+
+# ---------------------------------------------------------------- impact_fx.py
+
+
+def test_blit_vfx_glow_centers_correctly_at_native_scale(native):
+    """impact_fx.py:476 (was `scaled.get_rect(center=(cx, cy))`).
+
+    `scaled` is a REAL Surface (transform.smoothscale product, already at
+    real-px size); its raw `.get_rect(center=...)` mixed that real size with
+    the fight-coord (cx, cy) center, and the shim then scaled the resulting
+    rect a second time on blit — pushing the glow off-center exactly like
+    the spin-pose bug in play.py.
+    """
+    from pixel_battle.rl.impact_fx import ImpactFX
+
+    surf = _canvas()
+    fx = ImpactFX()
+    cx, cy = 240.0, 400.0
+    assert fx._blit_vfx(surf, "light_burst", cx=cx, cy=cy, w=80, h=80)
+
+    arr = pygame.surfarray.array3d(surf)
+    mask = np.any(arr > 40, axis=2)
+    xs_idx, ys_idx = np.nonzero(mask)
+    assert xs_idx.size, "no glow pixels drawn"
+    centroid_x = xs_idx.mean()
+    centroid_y = ys_idx.mean()
+    expect_x, expect_y = cx * sp.S, cy * sp.S
+    assert abs(centroid_x - expect_x) < 15 * sp.S, (
+        f"glow x centroid {centroid_x:.1f}, expected ~{expect_x:.1f}")
+    assert abs(centroid_y - expect_y) < 15 * sp.S, (
+        f"glow y centroid {centroid_y:.1f}, expected ~{expect_y:.1f}")
+
+
+def test_skill_banner_stays_centered_at_native_scale(native):
+    """impact_fx.py:~1127-1128 — banner rx/ry mixed a font.render() REAL-px
+    glyph width/height with fight-coord screen_cx/screen_cy, shifting the
+    banner left and oversizing it (gap list #3)."""
+    from pixel_battle.rl.impact_fx import ImpactFX
+
+    surf = _canvas()
+    fx = ImpactFX()
+    fx.spawn_skill_banner("BANNER", (255, 255, 255), surf_size=sp.CANVAS)
+    fx.update_and_draw(surf, dt_ms=50)
+
+    real_w, real_h = surf.get_size()
+    assert (real_w, real_h) == sp.CANVAS_SCALED
+    mask = pygame.surfarray.array3d(surf) > 40
+    cols = np.nonzero(np.any(mask, axis=(1, 2)))[0]
+    assert cols.size, "no banner pixels drawn"
+    centre = real_w // 2
+    mid = (int(cols.min()) + int(cols.max())) / 2
+    assert abs(mid - centre) < 0.15 * real_w, (
+        f"banner not centered: mid={mid}, centre={centre}")
+
+
+def test_floating_text_lands_at_native_scale(native):
+    """impact_fx.py:~1415-1416 — floating text blit mixed a font.render()
+    REAL-px glyph size with fight-coord (t.x, t.y)."""
+    from pixel_battle.rl.impact_fx import ImpactFX
+
+    surf = _canvas()
+    fx = ImpactFX()
+    fx.spawn_floating_text(x=240, y=400, text="12345", color=(255, 255, 0),
+                            font_size=60)
+    fx.update_and_draw(surf, dt_ms=10)
+
+    mask = pygame.surfarray.array3d(surf) > 40
+    xs_idx, ys_idx = np.nonzero(np.any(mask, axis=2))
+    assert xs_idx.size, "no floating text pixels drawn"
+    centroid_x = xs_idx.mean()
+    expect_x = 240 * sp.S
+    assert abs(centroid_x - expect_x) < 20 * sp.S, (
+        f"floating text x centroid {centroid_x:.1f}, expected ~{expect_x:.1f}")
