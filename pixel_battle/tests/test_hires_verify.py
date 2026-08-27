@@ -38,6 +38,30 @@ def test_changed_event_count_is_reported(tmp_path):
     assert any("event" in d.lower() for d in diffs)
 
 
+def test_event_video_ms_differing_keys_same_values_is_not_reported(tmp_path):
+    """event_video_ms keys are CPython id()s — never portable across
+    process invocations. Two runs with identical timing VALUES but
+    different (id-based) keys must not be reported as a diff."""
+    from tools.hires_verify import compare_events
+    base = {"winner": "left", "n_frames": 10, "events": [],
+            "event_video_ms": {"140001": 16, "140002": 32}}
+    cur = dict(base, event_video_ms={"999001": 16, "999002": 32})
+    diffs = compare_events(_write(tmp_path, "a.json", base),
+                           _write(tmp_path, "b.json", cur))
+    assert not any("event_video_ms" in d for d in diffs)
+
+
+def test_event_video_ms_differing_values_is_reported(tmp_path):
+    """Genuinely different timing values must still be caught."""
+    from tools.hires_verify import compare_events
+    base = {"winner": "left", "n_frames": 10, "events": [],
+            "event_video_ms": {"1": 16}}
+    cur = dict(base, event_video_ms={"2": 99})
+    diffs = compare_events(_write(tmp_path, "a.json", base),
+                           _write(tmp_path, "b.json", cur))
+    assert any("event_video_ms" in d for d in diffs)
+
+
 def test_ssim_of_a_scaled_copy_is_high(tmp_path):
     """A faithful 2x render, downscaled back, must match the original."""
     import numpy as np

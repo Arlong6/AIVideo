@@ -39,8 +39,13 @@ def compare_events(baseline_json, current_json) -> list[str]:
             if x != y:
                 diffs.append(f"event[{i}]: baseline={x!r} current={y!r}")
 
+    # Keys are CPython id()s (memory addresses) — never portable across
+    # process invocations, so comparing the dicts directly is a guaranteed
+    # false positive between any two separate runs. Values in insertion
+    # order (dict insertion order == events list order) carry the actual
+    # timing data, so compare those instead.
     ma, mb = a.get("event_video_ms", {}), b.get("event_video_ms", {})
-    if ma != mb:
+    if list(ma.values()) != list(mb.values()):
         diffs.append("event_video_ms differs")
 
     return diffs
@@ -57,8 +62,13 @@ def frame_ssim(baseline_png, current_png) -> float:
     return float(structural_similarity(a, b, channel_axis=2, data_range=255.0))
 
 
-def report(baseline_dir, current_dir, ssim_floor: float = 0.90) -> int:
-    """Print a full comparison. Returns the number of problems found."""
+def report(baseline_dir, current_dir, ssim_floor: float = 0.93) -> int:
+    """Print a full comparison. Returns the number of problems found.
+
+    ssim_floor default 0.93 was calibrated on real b01/b12 baseline vs
+    current frames — 0.90 passed frames that were visibly defective
+    (HUD/banner mis-scaling clearly present to the eye).
+    """
     baseline_dir, current_dir = Path(baseline_dir), Path(current_dir)
     problems = 0
 
