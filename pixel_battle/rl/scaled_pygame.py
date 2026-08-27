@@ -108,6 +108,69 @@ def _rect(r):
     return _pg.Rect(round(x * S), round(y * S), sw, sh)
 
 
+def _inv(v):
+    """Invert `_len`-style scaling for a coordinate/size component.
+
+    Returns an int when the division is exact (always the case at S=1.0), so
+    identity at S=1.0 stays bit-for-bit and int-for-int.
+    """
+    q = v / S
+    r = round(q)
+    return r if abs(q - r) < 1e-9 else q
+
+
+def fight_size(surface):
+    """A Surface's size expressed in FIGHT coordinates.
+
+    WHY THIS EXISTS
+        `surface.get_size()` (and get_width/get_height/get_rect) is real
+        pygame and always reports REAL pixels. That is correct for anything
+        that touches the pixel buffer (surfarray, image.tostring, the frame
+        recorder) — but wrong when the value is fed back into a shim call,
+        because the shim will scale it a second time.
+
+        Use `fight_size` whenever the answer is consumed as a fight-coord
+        quantity: a size handed to `pygame.Surface(...)`, a blit dest, a
+        draw coordinate. Use plain `get_size()` when you need real pixels.
+
+        This is a free function rather than a ScaledSurface method on
+        purpose: `pygame.font.Font.render` and every `pygame.transform.*`
+        return PLAIN `pygame.Surface` objects (verified — a C type cannot be
+        re-classed in place), so a method would silently not exist on
+        exactly the surfaces that caused the worst placement bugs.
+
+    The full canvas is special-cased so it inverts `_size` exactly
+    (1080/2.25 == 480 but 1920/2.25 == 853.33, not 854).
+    """
+    w, h = surface.get_size()
+    if (w, h) == CANVAS_SCALED:
+        return CANVAS
+    return (_inv(w), _inv(h))
+
+
+def fight_width(surface):
+    """`surface.get_width()` in fight coordinates. See `fight_size`."""
+    return fight_size(surface)[0]
+
+
+def fight_height(surface):
+    """`surface.get_height()` in fight coordinates. See `fight_size`."""
+    return fight_size(surface)[1]
+
+
+def fight_rect(surface, **kwargs):
+    """`surface.get_rect(**kwargs)` in fight coordinates. See `fight_size`.
+
+    The keyword arguments (center=, topleft=, ...) are fight coords too, so
+    the returned Rect can be passed straight to a shim blit/draw call.
+    """
+    w, h = fight_size(surface)
+    rect = _pg.Rect(0, 0, round(w), round(h))
+    for key, value in kwargs.items():
+        setattr(rect, key, value)
+    return rect
+
+
 class ScaledSurface(_pg.Surface):
     """A Surface whose blit/fill/subsurface arguments live in fight coords.
 

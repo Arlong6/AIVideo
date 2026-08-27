@@ -68,7 +68,9 @@ class HUD:
         return self._color_cache[char_id]
 
     def draw(self, surf: pygame.Surface, battle, elapsed_ms: int) -> None:
-        W = surf.get_width()
+        # fight coords: W drives bar/plate placement below, which is scaled
+        # again by the shim on the way out (absolute-offset class).
+        W = pygame.fight_width(surf)
         left_frac = max(0.0, battle.left.hp / max(1, getattr(battle.left, "hp_max", 100)))
         right_frac = max(0.0, battle.right.hp / max(1, getattr(battle.right, "hp_max", 100)))
         self._left_lerp += (left_frac - self._left_lerp) * BAR_DRAIN_LERP_RATE
@@ -144,8 +146,11 @@ class HUD:
         if align == "left":
             x_pos = x
         else:
-            x_pos = x - label.get_width()
-        name_y = BAR_Y - label.get_height() - 2
+            # font.render returns a REAL surface (glyphs already at S-scaled
+            # point size), so its width must come back to fight coords before
+            # being mixed with the fight-coord x / BAR_Y.
+            x_pos = x - pygame.fight_width(label)
+        name_y = BAR_Y - pygame.fight_height(label) - 2
         if name_y < 2:
             name_y = 2
         surf.blit(shadow, (x_pos + 1, name_y + 1))
@@ -155,4 +160,5 @@ class HUD:
         seconds = max(0, elapsed_ms // 1000)
         text = f"{seconds // 60:02d}:{seconds % 60:02d}"
         label = self._timer_font.render(text, True, TIMER_COLOR)
-        surf.blit(label, (x - label.get_width() // 2, y))
+        # ditto: real-px glyph width -> fight coords before centering.
+        surf.blit(label, (x - pygame.fight_width(label) // 2, y))
