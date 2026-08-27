@@ -301,7 +301,7 @@ class RenderState:
             base_color = color
 
         n = len(self._trail)
-        trail_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        trail_surf = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
         for i in range(1, n):
             # Newer segments are brighter; older are transparent
             alpha = int(220 * i / (n - 1)) if n > 1 else 220
@@ -390,7 +390,7 @@ class RenderState:
             alpha = max(0, int(MOTION_GHOST_ALPHA_START * (1.0 - frac)))
             if alpha < 4:
                 continue
-            ghost = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            ghost = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
             gc = (color[0], color[1], color[2], alpha)
             # Minimal silhouette: torso + front arm + front leg
             pygame.draw.line(ghost, gc, _ixy(geo.hip), _ixy(geo.shoulder), lw)
@@ -780,7 +780,7 @@ def _draw_crest(surf, color, accent, geo, style):
 
 def _draw_ghost(surf, char, color, offset_x, alpha, style):
     """Faded torso + front-arm ghost for fast-movement smear."""
-    w, h = surf.get_size()
+    w, h = pygame.fight_size(surf)
     ghost = pygame.Surface((w, h), pygame.SRCALPHA)
     orig_x = char.pos_x
     char.pos_x = orig_x + offset_x
@@ -904,7 +904,7 @@ def draw_stick_figure(surf, char, color, dt_ms: float = _RENDER_TICK_MS,
     # (the body lines draw on top, leaving a coloured rim).
     _glow_col = getattr(char, "brand_color", color)
     _gw = lw + 5
-    _gl = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    _gl = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
     _ga = (_glow_col[0], _glow_col[1], _glow_col[2], 55)
     for _a, _b in ((geo.hip, geo.shoulder), (geo.shoulder, geo.back_elbow),
                    (geo.back_elbow, geo.back_hand), (geo.shoulder, geo.front_elbow),
@@ -1234,7 +1234,7 @@ class ProjectileLayer:
 
     def _draw_bullet(self, surf, cx, cy, ang, color):                   # gun tracer
         bt = (cx - math.cos(ang) * 24, cy - math.sin(ang) * 24)
-        s = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        s = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
         pygame.draw.line(s, (*color, 150), (int(bt[0]), int(bt[1])), (int(cx), int(cy)), 2)
         surf.blit(s, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
         pygame.draw.circle(surf, (255, 255, 225), (int(cx), int(cy)), 3)

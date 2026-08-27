@@ -360,3 +360,55 @@ def test_player_hud_name_stays_on_canvas_at_native_scale(native):
     assert name_cols.max() < real_w, (
         f"right-aligned HUD name ran past canvas: max col {name_cols.max()}, "
         f"canvas width {real_w}")
+
+
+# ---------------------------------------------------------------- stick_renderer.py
+
+
+def test_stick_renderer_overlay_sized_correctly_at_native_scale(native, monkeypatch):
+    """stick_renderer.py:304 (`draw_trail`) and its 4 siblings (393 motion
+    ghosts, 783 `_draw_ghost`, 907 rim glow, 1237 bullet tracer) all built a
+    per-frame overlay via `pygame.Surface(surf.get_size(), SRCALPHA)`.
+    `surf.get_size()` is REAL px; feeding it back into the shim's `Surface`
+    factory scales it a SECOND time (gap list #6 — `fight_size(surf)` fixes
+    this). The overlay is always blitted at (0, 0), so the bug was
+    invisible on screen — assert on the allocated size instead of pixels.
+    """
+    import types
+    from pixel_battle.rl import scaled_pygame as sp_mod
+    import pixel_battle.rl.stick_renderer as sr_mod
+
+    surf = _canvas()
+    real_w, real_h = surf.get_size()
+    assert (real_w, real_h) == sp.CANVAS_SCALED
+
+    sizes_seen = []
+    orig_surface = sp_mod.Surface
+
+    def _spy(size, *a, **k):
+        sizes_seen.append(tuple(size))
+        return orig_surface(size, *a, **k)
+
+    monkeypatch.setattr(sp_mod, "Surface", _spy)
+
+    rs = sr_mod.RenderState()
+    rs._trail = [(100.0, 400.0), (120.0, 410.0), (140.0, 420.0)]
+    char = types.SimpleNamespace(attack_used_kind=None, attack_anim_hint="jab")
+    rs.draw_trail(surf, char, (200, 60, 60), weapon=None)
+
+    assert sizes_seen, "draw_trail did not allocate an overlay surface"
+    for sz in sizes_seen:
+        assert sz == sp.CANVAS, (
+            f"overlay allocated with size {sz}; expected fight-coord "
+            f"{sp.CANVAS} (a real-px size here gets scaled a second time "
+            f"by the shim's Surface factory)")
+
+    # Sanity: the trail itself still lands at the right real-scaled spot —
+    # the overlay's own size never affected visual placement (blit at 0,0),
+    # only its memory footprint.
+    arr = pygame.surfarray.array3d(surf)
+    mask = np.any(arr > 40, axis=2)
+    xs_idx, ys_idx = np.nonzero(mask)
+    assert xs_idx.size, "no trail pixels drawn"
+    assert abs(xs_idx.mean() - 120 * sp.S) < 40 * sp.S
+    assert abs(ys_idx.mean() - 410 * sp.S) < 40 * sp.S
