@@ -488,7 +488,7 @@ def _draw_spin(surf: pygame.Surface, cx: int, cy: int, color: tuple,
             body.append((cx + math.cos(a) * radius, cy + math.sin(a) * radius))
             edge.append((cx + math.cos(a) * radius * 0.9,
                          cy + math.sin(a) * radius * 0.9))
-        layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        layer = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
         pygame.draw.lines(layer, (*color, int(165 * fade)), False,
                           [(int(x), int(y)) for x, y in body], 5)
         pygame.draw.lines(layer, (255, 255, 255, int(235 * fade)), False,
@@ -555,7 +555,7 @@ def _draw_ult_rays(surf, cx, cy, color, age, life=_ULT_RAY_LIFE):
         return
     fade = (1.0 - t) ** 1.3
     ln = 60 + 340 * (t ** 0.55)                  # fast out, easing
-    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    layer = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
     for k in range(14):
         ang = math.radians(k * (360 / 14) + age * 1.7)
         ex = cx + math.cos(ang) * ln
@@ -725,7 +725,7 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
             ln = int(55 + 430 * min(1.0, t / 0.4)) * fade if t > 0.4 else int(55 + 430 * (t / 0.4))
             ex = cx + int(math.cos(math.radians(ang)) * ln)
             ey = iy + int(math.sin(math.radians(ang)) * ln)
-            lay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            lay = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
             pygame.draw.line(lay, (*col, int(180 * fade)), (cx, iy), (ex, ey), 6)
             pygame.draw.line(lay, (*W, int(200 * fade)), (cx, iy), (ex, ey), 2)
             surf.blit(lay, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
@@ -766,7 +766,7 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
                 continue
             spread = (k - n / 2) * 16
             bx = ax + int((cx - ax + 30) * p)
-            lay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            lay = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
             pygame.draw.line(lay, (*color, 150), (bx - 26, iy + spread), (bx, iy + spread), 2)
             surf.blit(lay, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
             add_circle(bx, iy + spread, 3, (255, 255, 220), 220)
@@ -797,7 +797,7 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
             for j in range(8):
                 a = base + (j / 7.0) * 1.5
                 pts.append((cx + math.cos(a) * rad, iy + math.sin(a) * rad))
-            lay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+            lay = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
             pygame.draw.lines(lay, (*arccol, int(170 * fade)), False,
                               [(int(x), int(y)) for x, y in pts], 5)
             pygame.draw.lines(lay, (*W, int(220 * fade)), False,
@@ -816,7 +816,7 @@ def _draw_ult_sig(surf, aid, cx, ty, age, life, color, ground_y):
     elif aid == "yasuo":              # RONIN — a single horizontal iaido flash-slash
         p = min(1.0, t / 0.3)
         x2 = cx - 200 + int(440 * p)
-        lay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        lay = pygame.Surface(pygame.fight_size(surf), pygame.SRCALPHA)
         pygame.draw.line(lay, (*W, int(230 * fade)), (cx - 200, iy), (x2, iy), 4)
         pygame.draw.line(lay, (160, 200, 255, int(150 * fade)), (cx - 200, iy + 4), (x2, iy + 4), 8)
         surf.blit(lay, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
@@ -1077,7 +1077,9 @@ def _draw_player_hud(surf: pygame.Surface, char, color, x: int, name: str,
     font = _get_hud_font(14)
     name_surf = font.render(name, True, (240, 240, 255))
     if right_align:
-        surf.blit(name_surf, (x + bar_w - name_surf.get_width(), y - 16))
+        # ABS — name_surf is a font.render() real-px glyph surface; x/bar_w
+        # are fight coords.
+        surf.blit(name_surf, (x + bar_w - pygame.fight_width(name_surf), y - 16))
     else:
         surf.blit(name_surf, (x, y - 16))
     pygame.draw.rect(surf, (40, 40, 50), (x, y, bar_w, bar_h))
@@ -1104,7 +1106,11 @@ def _draw_banner(surf: pygame.Surface, text: str) -> None:
     """Centered banner near top — skill names and ULTIMATE!."""
     font = _get_hud_font(22)
     text_surf = font.render(text, True, (255, 240, 120))
-    rect = text_surf.get_rect(center=(WIDTH // 2, 70))
+    # ABS — text_surf.get_rect() is native (unshimmed) pygame, so it mixes
+    # the real-px glyph size with the fight-coord center; fight_rect
+    # converts the size back to fight coords first (same class as the
+    # impact_fx._blit_vfx get_rect bug).
+    rect = pygame.fight_rect(text_surf, center=(WIDTH // 2, 70))
     plate = pygame.Surface((rect.width + 24, rect.height + 12), pygame.SRCALPHA)
     plate.fill((0, 0, 0, 180))
     surf.blit(plate, (rect.x - 12, rect.y - 6))
@@ -1210,8 +1216,10 @@ def _draw_vs_intro(surf: pygame.Surface, left_char, right_char,
                               _char_color(left_char))
         rn = font_name.render(right_char.display_name.upper(), True,
                               _char_color(right_char))
-        surf.blit(ln, (lx_final - ln.get_width() // 2, 300))
-        surf.blit(rn, (rx_final - rn.get_width() // 2, 300))
+        # ABS — ln/rn are font.render() real-px glyph surfaces; lx_final/
+        # rx_final are fight coords.
+        surf.blit(ln, (lx_final - pygame.fight_width(ln) // 2, 300))
+        surf.blit(rn, (rx_final - pygame.fight_width(rn) // 2, 300))
 
     # "VS" pops in after 40%
     vs_t = _ease_out(min(1.0, max(0.0, (t - 0.4) / 0.3)))
@@ -1219,13 +1227,20 @@ def _draw_vs_intro(surf: pygame.Surface, left_char, right_char,
         vs_size = int(50 + 46 * vs_t)
         font_vs = _get_hud_font(vs_size)
         vs = font_vs.render("VS", True, (255, 230, 120))
-        plate = pygame.Surface((vs.get_width() + 28, vs.get_height() + 14),
-                               pygame.SRCALPHA)
+        # ABS — vs is a font.render() real-px surface; the +28/+14 padding
+        # is a fight-coord constant, so vs's size must come back to fight
+        # coords before the shim's Surface() factory scales the sum by S.
+        vs_fw, vs_fh = pygame.fight_size(vs)
+        plate = pygame.Surface((vs_fw + 28, vs_fh + 14), pygame.SRCALPHA)
         plate.fill((0, 0, 0, 170))
         cx, cy = WIDTH // 2, 250
-        surf.blit(plate, (cx - plate.get_width() // 2,
-                          cy - plate.get_height() // 2))
-        surf.blit(vs, (cx - vs.get_width() // 2, cy - vs.get_height() // 2))
+        # ABS — plate is a ScaledSurface but get_width/get_height are NOT
+        # overridden by the shim (only blit/fill/subsurface are), so they
+        # still report real px; convert back to fight coords to mix with
+        # the fight-coord cx/cy.
+        plate_fw, plate_fh = pygame.fight_size(plate)
+        surf.blit(plate, (cx - plate_fw // 2, cy - plate_fh // 2))
+        surf.blit(vs, (cx - vs_fw // 2, cy - vs_fh // 2))
 
 
 def _draw_ko_result(surf: pygame.Surface, winner_char,
@@ -1255,8 +1270,10 @@ def _draw_ko_result(surf: pygame.Surface, winner_char,
         ko_size = int(70 + 78 * ko_t)
         font_ko = _get_hud_font(ko_size)
         ko = font_ko.render("K.O.", True, (255, 80, 70))
-        surf.blit(ko, (WIDTH // 2 - ko.get_width() // 2,
-                       200 - ko.get_height() // 2))
+        # ABS — ko is a font.render() real-px surface; WIDTH//2/200 are
+        # fight coords.
+        surf.blit(ko, (WIDTH // 2 - pygame.fight_width(ko) // 2,
+                       200 - pygame.fight_height(ko) // 2))
         if t < 0.09:
             fl = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
             fl.fill((255, 255, 255, int(190 * (1 - t / 0.09))))
@@ -1265,15 +1282,17 @@ def _draw_ko_result(surf: pygame.Surface, winner_char,
         # Phase 2 — winner card
         font_w = _get_hud_font(22)
         wl = font_w.render("WINNER", True, (255, 230, 120))
-        surf.blit(wl, (WIDTH // 2 - wl.get_width() // 2, 150))
+        # ABS — same font.render() real-px vs fight-coord mixing as above.
+        surf.blit(wl, (WIDTH // 2 - pygame.fight_width(wl) // 2, 150))
         font_n = _get_hud_font(46)
         nm = font_n.render(winner_char.display_name.upper(), True,
                            _char_color(winner_char))
-        plate = pygame.Surface((nm.get_width() + 32, nm.get_height() + 16),
-                               pygame.SRCALPHA)
+        nm_fw, nm_fh = pygame.fight_size(nm)
+        plate = pygame.Surface((nm_fw + 32, nm_fh + 16), pygame.SRCALPHA)
         plate.fill((0, 0, 0, 170))
-        surf.blit(plate, (WIDTH // 2 - plate.get_width() // 2, 188))
-        surf.blit(nm, (WIDTH // 2 - nm.get_width() // 2, 196))
+        plate_fw, plate_fh = pygame.fight_size(plate)
+        surf.blit(plate, (WIDTH // 2 - plate_fw // 2, 188))
+        surf.blit(nm, (WIDTH // 2 - nm_fw // 2, 196))
 
 
 # ── Fight renderer ────────────────────────────────────────────────────────────
@@ -2132,7 +2151,14 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         char.pos_x, char.pos_y = ox, oy
                     ang = (_cur_time_ms * 1.15) % 360.0   # ~1 turn / 0.3s
                     rot = pygame.transform.rotate(tmp, ang)
-                    rect = rot.get_rect(center=(int(ox), int(oy) - 30))
+                    # ABS (gap list #2, spin pose) — `rot` is a real Surface
+                    # (transform.rotate product, already at real-px size);
+                    # its native `.get_rect(center=...)` mixed that real
+                    # size with the fight-coord (ox, oy) center, then the
+                    # shim's blit scaled the resulting rect a SECOND time.
+                    # fight_rect converts the size back to fight coords so
+                    # the single scale-up on blit lands correctly.
+                    rect = pygame.fight_rect(rot, center=(ox, oy - 30))
                     surf.blit(rot, rect)
                 else:
                     _draw_with_recoil(surf, char, color, opp_x)
