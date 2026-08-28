@@ -456,3 +456,50 @@ def test_draw_swing_smear_overlay_sized_correctly_at_native_scale(native, monkey
     xs_idx, ys_idx = np.nonzero(mask)
     assert xs_idx.size, "no swing-smear pixels drawn"
     assert xs_idx.max() < real_w and ys_idx.max() < real_h
+
+
+def test_square_head_lands_on_canvas_at_native_scale(native):
+    """stick_renderer.py `_draw_head`'s "square" branch (e.g. mordekaiser,
+    garen, bulwark, wrecker, cleaver, forge) built its rect via the shim's
+    `pygame.Rect(...)` factory, which ALREADY returns a REAL-px Rect — then
+    handed that Rect to `pygame.draw.rect`, which scales any rect argument
+    by S again. Every other draw.rect/ellipse call site in this codebase
+    passes a plain fight-coord tuple instead, so this was the only place
+    doing it twice.
+
+    At S=1.0 the double scale is invisible (multiplying by 1 twice is a
+    no-op). At S=2.25 it threw the square's real-px position/size far
+    outside the canvas — this is exactly the bug behind b01 frame_02900's
+    SSIM regression: JUGGERNAUT's (mordekaiser, head_shape="square") head
+    rendered as a bare circle with no square on top of it, because the
+    square landed entirely off-screen.
+    """
+    import types
+    import pixel_battle.rl.stick_renderer as sr_mod
+
+    surf = _canvas()
+    real_w, real_h = surf.get_size()
+    hs = 34.0                       # mordekaiser's head_size
+    head_center = (200.0, 400.0)    # fight coords, comfortably on-canvas
+    geo = types.SimpleNamespace(head_center=head_center)
+    style = {"head_shape": "square", "head_size": hs}
+    color = (200, 60, 60)
+
+    sr_mod._draw_head(surf, color, geo, style)
+
+    arr = pygame.surfarray.array3d(surf)
+    mask = (np.abs(arr[:, :, 0].astype(int) - color[0]) < 20) & \
+           (np.abs(arr[:, :, 1].astype(int) - color[1]) < 20) & \
+           (np.abs(arr[:, :, 2].astype(int) - color[2]) < 20)
+    xs_idx, ys_idx = np.nonzero(mask)
+    assert xs_idx.size, (
+        "no square-head pixels drawn at all — the double-scaled rect "
+        "landed entirely outside the real canvas")
+    assert xs_idx.max() < real_w and ys_idx.max() < real_h
+    cx_real, cy_real = xs_idx.mean(), ys_idx.mean()
+    expected_x, expected_y = head_center[0] * sp.S, head_center[1] * sp.S
+    tol = hs * sp.S
+    assert abs(cx_real - expected_x) < tol, (
+        f"square head x centroid {cx_real:.1f}, expected ~{expected_x:.1f}")
+    assert abs(cy_real - expected_y) < tol, (
+        f"square head y centroid {cy_real:.1f}, expected ~{expected_y:.1f}")

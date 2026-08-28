@@ -1349,7 +1349,13 @@ class ImpactFX:
                 sword_surf = pygame.Surface((26, 230), pygame.SRCALPHA)
                 sword_surf.fill((*us.color, 230))
                 # Bright white core strip
-                core_rect = pygame.Rect(9, 0, 8, 230)
+                # ABS (double-scale) — `pygame.Rect(...)` is the shim's factory
+                # and already returns a REAL-px Rect; feeding that into
+                # `pygame.draw.rect` (which itself scales any rect argument by
+                # S) multiplied the size/position by S a second time. Every
+                # other draw.rect/ellipse call site in this codebase passes a
+                # plain fight-coord tuple instead — do the same here.
+                core_rect = (9, 0, 8, 230)
                 pygame.draw.rect(sword_surf, (255, 255, 255, 245), core_rect)
                 sx = int(us.impact_x) - 13
                 surf.blit(sword_surf, (sx, sword_y))

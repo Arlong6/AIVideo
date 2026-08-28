@@ -666,7 +666,15 @@ def _draw_head(surf, color, geo, style):
     hs = style["head_size"]
     shape = style["head_shape"]
     if shape == "square":
-        rect = pygame.Rect(cx - hs, cy - hs, hs * 2, hs * 2)
+        # ABS (double-scale) — `pygame.Rect(...)` is the shim's factory and
+        # already returns a REAL-px Rect; `pygame.draw.rect` scales any rect
+        # argument by S again, so passing a shim Rect through it multiplies
+        # by S twice (invisible at S=1.0, but at S=2.25 the square lands far
+        # off its correct place/size — this is why the square head vanished
+        # at native hi-res while every other head shape, built from plain
+        # tuples, stayed correct). Use a plain fight-coord tuple instead,
+        # matching every other draw.rect/ellipse call site in this codebase.
+        rect = (cx - hs, cy - hs, hs * 2, hs * 2)
         pygame.draw.rect(surf, color, rect)
         pygame.draw.rect(surf, (0, 0, 0), rect, 2)
     elif shape == "triangle":
@@ -1105,7 +1113,9 @@ def spawn_landing_dust(surf: pygame.Surface, x: int, ground_y: int,
         offset_y = -int(i * 3 * intensity)
         w = max(2, base_w - i * 2)
         h = max(1, base_h - i)
-        rect = pygame.Rect(x + offset_x - w, ground_y + offset_y - h, w * 2, h * 2)
+        # ABS (double-scale) — same `pygame.Rect(...)` + shim `draw.*` bug as
+        # `_draw_head`'s square case above; use a plain fight-coord tuple.
+        rect = (x + offset_x - w, ground_y + offset_y - h, w * 2, h * 2)
         pygame.draw.ellipse(surf, color, rect, 1)
 
 
