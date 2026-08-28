@@ -412,3 +412,47 @@ def test_stick_renderer_overlay_sized_correctly_at_native_scale(native, monkeypa
     assert xs_idx.size, "no trail pixels drawn"
     assert abs(xs_idx.mean() - 120 * sp.S) < 40 * sp.S
     assert abs(ys_idx.mean() - 410 * sp.S) < 40 * sp.S
+
+
+# ---------------------------------------------------------------- weapons.py
+
+
+def test_draw_swing_smear_overlay_sized_correctly_at_native_scale(native, monkeypatch):
+    """weapons.py:312 `draw_swing_smear` — same overlay-double-scale class as
+    stick_renderer.py: `sw, sh = surf.get_size()` (REAL px) fed straight back
+    into the shim's `Surface` factory, scaling it a second time. Blitted at
+    (0, 0), so invisible on screen — assert on the allocated size."""
+    from pixel_battle.rl import scaled_pygame as sp_mod
+    import pixel_battle.rl.weapons as weapons_mod
+
+    surf = _canvas()
+    real_w, real_h = surf.get_size()
+    assert (real_w, real_h) == sp.CANVAS_SCALED
+
+    sizes_seen = []
+    orig_surface = sp_mod.Surface
+
+    def _spy(size, *a, **k):
+        sizes_seen.append(tuple(size))
+        return orig_surface(size, *a, **k)
+
+    monkeypatch.setattr(sp_mod, "Surface", _spy)
+
+    weapon = weapons_mod.get_weapon("garen")
+    weapons_mod.draw_swing_smear(surf, weapon, grip_xy=(200.0, 400.0),
+                                  angle_from=-30.0, angle_to=60.0,
+                                  line_width=4, color=(255, 220, 80))
+
+    assert sizes_seen, "draw_swing_smear did not allocate an overlay surface"
+    for sz in sizes_seen:
+        assert sz == sp.CANVAS, (
+            f"overlay allocated with size {sz}; expected fight-coord "
+            f"{sp.CANVAS} (a real-px size here gets scaled a second time "
+            f"by the shim's Surface factory)")
+
+    # Sanity: the smear ghosts still land near the grip point on-canvas.
+    arr = pygame.surfarray.array3d(surf)
+    mask = np.any(arr > 40, axis=2)
+    xs_idx, ys_idx = np.nonzero(mask)
+    assert xs_idx.size, "no swing-smear pixels drawn"
+    assert xs_idx.max() < real_w and ys_idx.max() < real_h

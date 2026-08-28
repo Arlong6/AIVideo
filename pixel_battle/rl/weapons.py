@@ -309,7 +309,10 @@ def draw_swing_smear(surf: pygame.Surface, weapon: Weapon, grip_xy: Vec,
     if abs(delta) < 1.0:
         return
     w = max(2, int(line_width * weapon.width))
-    sw, sh = surf.get_size()
+    # ABS — surf.get_size() is REAL px; feeding it back into the shim's
+    # Surface factory scales it a second time (same overlay class as
+    # stick_renderer.py/impact_fx.py/play.py, gap list #6).
+    sw, sh = pygame.fight_size(surf)
     for i, alpha in ((0.25, 60), (0.5, 95), (0.75, 140)):
         deg = angle_from + delta * i
         c, s = _vec(deg)
