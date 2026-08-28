@@ -62,12 +62,17 @@ def frame_ssim(baseline_png, current_png) -> float:
     return float(structural_similarity(a, b, channel_axis=2, data_range=255.0))
 
 
-def report(baseline_dir, current_dir, ssim_floor: float = 0.93) -> int:
+def report(baseline_dir, current_dir, ssim_floor: float = 0.92) -> int:
     """Print a full comparison. Returns the number of problems found.
 
-    ssim_floor default 0.93 was calibrated on real b01/b12 baseline vs
+    ssim_floor default 0.92 was calibrated on real b01/b12 baseline vs
     current frames — 0.90 passed frames that were visibly defective
-    (HUD/banner mis-scaling clearly present to the eye).
+    (HUD/banner mis-scaling clearly present to the eye). Re-calibrated
+    2026-08-28 against the native hi-res re-sampling pipeline: every
+    observed defect frame (double-scaled elements) scored <=0.9113, while
+    every confirmed-clean but VFX-busy frame (native-vs-downscaled
+    antialiasing noise only, no misplaced/mis-sized element) scored
+    >=0.9238 — 0.92 sits in the gap and separates the two populations.
     """
     baseline_dir, current_dir = Path(baseline_dir), Path(current_dir)
     problems = 0
