@@ -109,7 +109,10 @@ def _rect(r):
 
 
 def _inv(v):
-    """Invert `_len`-style scaling for a coordinate/size component.
+    """Invert `_pt`/`_size`-style scaling for a coordinate/size component.
+
+    (Not `_len`: that one has a max(1, .) floor and a <=0 passthrough,
+    so it is not generally invertible.)
 
     Returns an int when the division is exact (always the case at S=1.0), so
     identity at S=1.0 stays bit-for-bit and int-for-int.
@@ -132,6 +135,11 @@ def fight_size(surface):
         Use `fight_size` whenever the answer is consumed as a fight-coord
         quantity: a size handed to `pygame.Surface(...)`, a blit dest, a
         draw coordinate. Use plain `get_size()` when you need real pixels.
+
+        The result may be NON-INTEGRAL for any surface that is not the
+        full canvas (e.g. real 178 / 2.25 = 79.111...). Never index a
+        buffer with it or compare it for equality — feed it back through
+        the shim (`_size`/`_pt`/draw calls), which is where it belongs.
 
         This is a free function rather than a ScaledSurface method on
         purpose: `pygame.font.Font.render` and every `pygame.transform.*`
