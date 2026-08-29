@@ -67,12 +67,17 @@ def report(baseline_dir, current_dir, ssim_floor: float = 0.92) -> int:
 
     ssim_floor default 0.92 was calibrated on real b01/b12 baseline vs
     current frames — 0.90 passed frames that were visibly defective
-    (HUD/banner mis-scaling clearly present to the eye). Re-calibrated
-    2026-08-28 against the native hi-res re-sampling pipeline: every
-    observed defect frame (double-scaled elements) scored <=0.9113, while
-    every confirmed-clean but VFX-busy frame (native-vs-downscaled
-    antialiasing noise only, no misplaced/mis-sized element) scored
-    >=0.9238 — 0.92 sits in the gap and separates the two populations.
+    (HUD/banner mis-scaling clearly present to the eye). Note the
+    populations do NOT separate cleanly: one confirmed-defective frame
+    (b01 f02400 while the HUD bug was live) scored 0.9207, above this
+    floor. The floor is a coarse screen, not a proof. The decisive
+    evidence that the two sub-0.93 frames passing today are clean was a
+    differential instrumented render (2026-08-28): 1,743,049 logged draw
+    calls compared between S=1.0 and S=2.25 (fixed seed) — 98.6%
+    byte-identical, the only differences <=3px font-metric rounding,
+    zero draw.line differences. For any future borderline frame, repeat
+    that differential method and eyeball the frames (Task 11-style
+    visual acceptance) rather than trusting the floor alone.
     """
     baseline_dir, current_dir = Path(baseline_dir), Path(current_dir)
     problems = 0
