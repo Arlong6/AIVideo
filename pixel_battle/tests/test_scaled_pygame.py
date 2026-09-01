@@ -104,3 +104,74 @@ def test_draw_api_identity_at_scale_one():
         mod.polygon(s, (70, 80, 90), [(1, 1), (30, 2), (20, 25)])
         mod.ellipse(s, (99, 10, 10), pygame.Rect(30, 40, 20, 12))
     assert pygame.image.tostring(a, "RGB") == pygame.image.tostring(b, "RGB")
+
+
+def test_surface_size_is_scaled():
+    sp = _fresh(2.0)
+    s = sp.Surface((30, 40))
+    assert s.get_size() == (60, 80)
+
+
+def test_canvas_size_maps_to_exact_output():
+    """480x854 must land on exactly 1080x1920, not round(854*2.25)=1922."""
+    sp = _fresh(2.25)
+    s = sp.Surface(sp.CANVAS)
+    assert s.get_size() == (1080, 1920)
+
+
+def test_blit_dest_is_scaled():
+    import pygame
+    sp = _fresh(2.0)
+    dst = sp.Surface((50, 50))
+    src = pygame.Surface((4, 4))
+    src.fill((255, 0, 0))
+    dst.blit(src, (5, 5))
+    assert dst.get_at((10, 10))[:3] == (255, 0, 0)
+    assert dst.get_at((5, 5))[:3] != (255, 0, 0)
+
+
+def test_blit_accepts_rect_dest():
+    import pygame
+    sp = _fresh(2.0)
+    dst = sp.Surface((50, 50))
+    src = pygame.Surface((4, 4))
+    src.fill((0, 255, 0))
+    dst.blit(src, pygame.Rect(5, 5, 4, 4))
+    assert dst.get_at((10, 10))[:3] == (0, 255, 0)
+
+
+def test_fill_with_rect_is_scaled():
+    sp = _fresh(2.0)
+    s = sp.Surface((50, 50))
+    s.fill((0, 0, 0))
+    s.fill((255, 255, 255), (5, 5, 10, 2))
+    assert s.get_at((12, 12))[:3] == (255, 255, 255)
+    assert s.get_at((6, 6))[:3] != (255, 255, 255)
+
+
+def test_fill_without_rect_still_fills_everything():
+    sp = _fresh(2.0)
+    s = sp.Surface((20, 20))
+    s.fill((7, 8, 9))
+    assert s.get_at((0, 0))[:3] == (7, 8, 9)
+    assert s.get_at((39, 39))[:3] == (7, 8, 9)
+
+
+def test_derived_surfaces_keep_scaling_behaviour():
+    import pygame
+    sp = _fresh(2.0)
+    s = sp.Surface((40, 40))
+    assert isinstance(s.copy(), sp.ScaledSurface)
+    assert isinstance(s.subsurface((0, 0, 10, 10)), sp.ScaledSurface)
+
+
+def test_surface_identity_at_scale_one():
+    import pygame
+    sp = _fresh(1.0)
+    a = sp.Surface((40, 40), pygame.SRCALPHA)
+    b = pygame.Surface((40, 40), pygame.SRCALPHA)
+    src = pygame.Surface((6, 6)); src.fill((1, 2, 3))
+    a.blit(src, (7, 9)); b.blit(src, (7, 9))
+    a.fill((4, 5, 6), (2, 2, 5, 5)); b.fill((4, 5, 6), (2, 2, 5, 5))
+    assert a.get_size() == b.get_size() == (40, 40)
+    assert pygame.image.tostring(a, "RGBA") == pygame.image.tostring(b, "RGBA")

@@ -36,8 +36,13 @@ S: float = 2.25
 
 def set_scale(s: float) -> None:
     """Set the global draw scale. 1.0 reproduces pre-hi-res output exactly."""
-    global S
+    global S, CANVAS_SCALED
     S = float(s)
+    if S == 2.25:
+        CANVAS_SCALED = (1080, 1920)
+    else:
+        CANVAS_SCALED = (max(1, round(CANVAS[0] * S)),
+                         max(1, round(CANVAS[1] * S)))
 
 
 def _pt(p):
@@ -68,6 +73,50 @@ def _rect(r):
     x, y, w, h = r
     return _pg.Rect(round(x * S), round(y * S),
                     max(1, round(w * S)), max(1, round(h * S)))
+
+
+class ScaledSurface(_pg.Surface):
+    """A Surface whose blit/fill/subsurface arguments live in fight coords.
+
+    Sizes are already scaled at construction (see the Surface factory), so
+    these overrides only translate the *arguments* callers pass in.
+    """
+
+    def blit(self, source, dest, area=None, special_flags=0):
+        if dest is not None:
+            if isinstance(dest, _pg.Rect):
+                dest = _rect(dest)
+            else:
+                dest = _pt(dest)
+        if area is not None:
+            area = _rect(area)
+        return super().blit(source, dest, area, special_flags)
+
+    def fill(self, color, rect=None, special_flags=0):
+        # No rect means "the whole surface" — already scaled, leave it alone.
+        if rect is not None:
+            rect = _rect(rect)
+        return super().fill(color, rect, special_flags)
+
+    def subsurface(self, *args):
+        rect = args[0] if len(args) == 1 else args
+        return super().subsurface(_rect(rect))
+
+
+def Surface(size, flags=0, *args, **kwargs):
+    """Create a scaled surface.
+
+    The fight canvas (480x854) maps to exactly 1080x1920 rather than the
+    1921.5 that 2.25x would give; the 1.5px overflow falls off the bottom,
+    where nothing is drawn (GROUND_Y scales to 1575).
+    """
+    w, h = size
+    if (round(w), round(h)) == CANVAS:
+        sw, sh = CANVAS_SCALED
+    else:
+        sw = max(1, round(w * S))
+        sh = max(1, round(h * S))
+    return ScaledSurface((sw, sh), flags, *args, **kwargs)
 
 
 class _Draw:
