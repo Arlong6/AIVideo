@@ -50,3 +50,4 @@ graphify-out/
 
 # Native hi-res render baseline (regenerable via tools/hires_baseline.py)
 pixel_battle/output/hires_baseline/
+pixel_battle/output/hires_current/
