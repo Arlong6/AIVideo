@@ -206,3 +206,39 @@ def test_rotate_is_not_scaled():
     src = pygame.Surface((10, 20))
     out = sp.transform.rotate(src, 90)
     assert out.get_size() == pygame.transform.rotate(src, 90).get_size()
+
+
+def test_rect_font_transform_identity_at_scale_one():
+    import pygame
+    pygame.font.init()
+    sp = _fresh(1.0)
+    # Rect identity
+    r = sp.Rect(3, 4, 10, 20)
+    expected = pygame.Rect(3, 4, 10, 20)
+    assert (r.x, r.y, r.w, r.h) == (expected.x, expected.y, expected.w, expected.h)
+    # Font size identity
+    scaled_font = sp.font.SysFont(None, 20)
+    plain_font = pygame.font.SysFont(None, 20)
+    assert scaled_font.size("Ag") == plain_font.size("Ag")
+    # Transform smoothscale and scale identity
+    src = pygame.Surface((7, 9))
+    out_smoothscale = sp.transform.smoothscale(src, (7, 9))
+    out_scale = sp.transform.scale(src, (7, 9))
+    assert out_smoothscale.get_size() == (7, 9)
+    assert out_scale.get_size() == (7, 9)
+
+
+def test_flip_and_rotozoom_are_passthrough():
+    import pygame
+    sp = _fresh(2.0)
+    src = pygame.Surface((10, 15))
+    src.fill((42, 84, 126))
+    # flip passthrough: same size and bytes
+    flipped_sp = sp.transform.flip(src, True, False)
+    flipped_pg = pygame.transform.flip(src, True, False)
+    assert flipped_sp.get_size() == flipped_pg.get_size()
+    assert pygame.image.tostring(flipped_sp, "RGB") == pygame.image.tostring(flipped_pg, "RGB")
+    # rotozoom passthrough: zoom factor NOT scaled, size identity
+    rotozoom_sp = sp.transform.rotozoom(src, 30, 1.0)
+    rotozoom_pg = pygame.transform.rotozoom(src, 30, 1.0)
+    assert rotozoom_sp.get_size() == rotozoom_pg.get_size()
