@@ -17,6 +17,10 @@ import numpy as np
 from PIL import Image
 from skimage.metrics import structural_similarity
 
+# SSIM percentile used by frame_ssim: a missed *S produces a localized crater
+# in the SSIM map; global mean dilutes it, but a low percentile lands inside.
+SSIM_PERCENTILE = 5
+
 
 def _load(p) -> dict:
     return json.loads(Path(p).read_text(encoding="utf-8"))
@@ -47,14 +51,20 @@ def compare_events(baseline_json, current_json) -> list[str]:
 
 
 def frame_ssim(baseline_png, current_png) -> float:
-    """SSIM after downscaling `current` to the baseline's dimensions."""
+    """SSIM low percentile after downscaling `current` to the baseline's dimensions.
+
+    Uses the low percentile of the SSIM map (not global mean) to catch localized
+    displacements. A missed *S in rendering produces a crater in the SSIM map;
+    the global mean dilutes it, but a low percentile lands inside the crater.
+    """
     base = Image.open(baseline_png).convert("RGB")
     cur = Image.open(current_png).convert("RGB")
     if cur.size != base.size:
         cur = cur.resize(base.size, Image.LANCZOS)
     a = np.asarray(base, dtype=np.float64)
     b = np.asarray(cur, dtype=np.float64)
-    return float(structural_similarity(a, b, channel_axis=2, data_range=255.0))
+    _, ssim_map = structural_similarity(a, b, channel_axis=2, data_range=255.0, full=True)
+    return float(np.percentile(ssim_map, SSIM_PERCENTILE))
 
 
 def report(baseline_dir, current_dir, ssim_floor: float = 0.90) -> int:

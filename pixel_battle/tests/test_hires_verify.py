@@ -70,3 +70,17 @@ def test_ssim_drops_when_an_element_moves(tmp_path):
     cp = tmp_path / "cur.png"; moved.save(cp)
 
     assert frame_ssim(bp, cp) < 0.90
+
+
+def test_ssim_identical_file_is_perfect(tmp_path):
+    """An identical file compared to itself must have perfect SSIM."""
+    from PIL import Image, ImageDraw
+    from tools.hires_verify import frame_ssim
+
+    base = Image.new("RGB", (120, 200), (20, 20, 30))
+    d = ImageDraw.Draw(base)
+    d.line((10, 10, 100, 180), fill=(240, 240, 240), width=3)
+    d.ellipse((40, 60, 80, 100), fill=(200, 40, 40))
+    bp = tmp_path / "base.png"; base.save(bp)
+
+    assert frame_ssim(bp, bp) >= 0.999
