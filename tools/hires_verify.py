@@ -4,9 +4,11 @@ Two independent checks:
   compare_events  — the fight itself must be untouched (same events, same
                     timings, same winner). Physics is not scaled, so any
                     difference here means the shim leaked into game logic.
-  frame_ssim      — the new frame, downscaled back to baseline size, must
-                    match the baseline. This is what catches an element
-                    whose coordinates were never multiplied by S.
+  frame_ssim      — low percentile of local SSIM map after downscaling `current`
+                    to the baseline's dimensions. Catches elements whose coordinates
+                    were never multiplied by S: a missed *S produces a localized
+                    crater that would hide in a global-mean SSIM, but a low percentile
+                    lands in the crater.
 """
 from __future__ import annotations
 
@@ -56,6 +58,9 @@ def frame_ssim(baseline_png, current_png) -> float:
     Uses the low percentile of the SSIM map (not global mean) to catch localized
     displacements. A missed *S in rendering produces a crater in the SSIM map;
     the global mean dilutes it, but a low percentile lands inside the crater.
+
+    Crops a 3-pixel border from the SSIM map to exclude skimage's edge-effect
+    artifacts (win_size=7 → filter-radius strip) before percentile calculation.
     """
     base = Image.open(baseline_png).convert("RGB")
     cur = Image.open(current_png).convert("RGB")
@@ -64,7 +69,10 @@ def frame_ssim(baseline_png, current_png) -> float:
     a = np.asarray(base, dtype=np.float64)
     b = np.asarray(cur, dtype=np.float64)
     _, ssim_map = structural_similarity(a, b, channel_axis=2, data_range=255.0, full=True)
-    return float(np.percentile(ssim_map, SSIM_PERCENTILE))
+    # Crop border to exclude skimage's edge-effect artifacts (win_size=7 → pad=3)
+    pad = 3
+    cropped = ssim_map[pad:-pad, pad:-pad]
+    return float(np.percentile(cropped, SSIM_PERCENTILE))
 
 
 def report(baseline_dir, current_dir, ssim_floor: float = 0.90) -> int:
