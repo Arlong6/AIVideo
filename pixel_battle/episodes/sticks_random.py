@@ -9,6 +9,7 @@ import pygame  # noqa: E402
 
 from pixel_battle.rl.env import PixelBattleEnv
 from pixel_battle.rl.stick_renderer import draw_stick_figure
+from pixel_battle.rl import scaled_pygame as _scaled
 from pixel_battle.video.recorder import FrameRecorder
 from pixel_battle.video.audio_mixer import AudioMixer
 from pixel_battle.video.compose import (
@@ -31,6 +32,10 @@ OUT_DIR = Path(__file__).resolve().parents[1] / "output" / "sticks_random"
 def main(max_seconds: int = 30, seed: int = 7):
     pygame.init()
     pygame.display.set_mode((1, 1))
+    # This script draws onto a real, unscaled 480x854 pygame.Surface (not the
+    # shim's ScaledSurface) — pin S=1.0 so draw_stick_figure's shimmed
+    # coordinates match this surface's actual pixel size.
+    _scaled.set_scale(1.0)
     random.seed(seed)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)

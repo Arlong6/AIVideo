@@ -10,18 +10,6 @@ import pygame
 import pytest
 
 from pixel_battle.engine.character import Character
-from pixel_battle.rl import scaled_pygame as _scaled_pygame
-
-
-@pytest.fixture(autouse=True)
-def _unscaled_shim():
-    """These assertions were written against unscaled (S=1.0) pixel
-    positions/sizes; play.py's HUD/render helpers are now shimmed to
-    default S=2.25 (native hi-res). Force S=1.0 for each test and restore
-    the production default afterward."""
-    _scaled_pygame.set_scale(1.0)
-    yield
-    _scaled_pygame.set_scale(2.25)
 
 
 @pytest.fixture(scope="module", autouse=True)

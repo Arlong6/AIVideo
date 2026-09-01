@@ -17,6 +17,14 @@ HOW TO USE IT
 WHAT IS NOT SCALED
     Physics and game logic never import this module. See the plan/spec at
     docs/superpowers/specs/2026-08-24-pixel-battle-native-hires-design.md
+
+THE CONTRACT
+    Every surface handed to a shimmed draw function must itself come from
+    this shim (built at the same S) — a draw call and its target surface
+    must agree on scale. A caller that draws onto a surface built with real,
+    unscaled pygame (e.g. a one-off script's `pygame.Surface((480, 854))`)
+    must pin `set_scale(1.0)` before drawing, or its coordinates land at the
+    wrong pixels (or off-surface entirely).
 """
 from __future__ import annotations
 
@@ -24,8 +32,9 @@ import pygame as _pg
 
 try:
     import pygame.gfxdraw  # noqa: F401  (registers _pg.gfxdraw)
+    _HAS_REAL_GFXDRAW = True
 except ImportError:
-    pass
+    _HAS_REAL_GFXDRAW = False
 
 # The simulation's coordinate system, and the canvas it maps onto.
 CANVAS = (480, 854)
@@ -264,7 +273,13 @@ class _GfxDraw:
                                          max(1, round(r * S)), color)
 
 
-gfxdraw = _GfxDraw()
+if _HAS_REAL_GFXDRAW:
+    gfxdraw = _GfxDraw()
+# else: leave `gfxdraw` undefined so `pygame.gfxdraw` falls through to
+# __getattr__ below, which forwards to real pygame and raises the same
+# AttributeError a gfxdraw-less pygame build would — callers (see
+# stick_renderer's try/except AttributeError) degrade to draw.circle
+# instead of crashing inside _GfxDraw.
 
 
 def __getattr__(name):
