@@ -100,22 +100,38 @@ class ScaledSurface(_pg.Surface):
 
     def subsurface(self, *args):
         rect = args[0] if len(args) == 1 else args
-        return super().subsurface(_rect(rect))
+        # `_rect` scales x/y/w/h independently, so a fight-coord rect that
+        # spans the full CANVAS height (e.g. (0, 0, 480, 854)) scales to
+        # height 1922 (round(854*2.25)), 2px taller than this surface's
+        # actual height (1920 — see `_scaled_wh`'s CANVAS special case: the
+        # 1.5px overflow deliberately falls off the bottom). blit/fill/draw
+        # clip out-of-bounds rects silently, but Surface.subsurface() raises;
+        # clip() makes the documented "falls off the bottom" behaviour real
+        # for this one strict call site instead of crashing.
+        return super().subsurface(_rect(rect).clip(self.get_rect()))
 
 
-def Surface(size, flags=0, *args, **kwargs):
-    """Create a scaled surface.
+def _scaled_wh(size):
+    """Scale a (w, h) target size the same way everywhere.
 
-    The fight canvas (480x854) maps to exactly 1080x1920 rather than the
-    1921.5 that 2.25x would give; the 1.5px overflow falls off the bottom,
-    where nothing is drawn (GROUND_Y scales to 1575).
+    The fight canvas (480x854) maps to exactly CANVAS_SCALED (1080x1920)
+    rather than the 1921.5 (-> banker's-rounds to 1922) that the generic
+    w*S/h*S formula gives; the 1.5px overflow falls off the bottom, where
+    nothing is drawn (GROUND_Y scales to 1575). Every call site that scales
+    a WIDTH x HEIGHT target — Surface() and the transform.*scale helpers —
+    must share this so a full-canvas surface and a full-canvas rescale
+    always agree on size (mismatched sizes make pygame raise on
+    dest_surface writes).
     """
     w, h = size
     if (round(w), round(h)) == CANVAS:
-        sw, sh = CANVAS_SCALED
-    else:
-        sw = max(1, round(w * S))
-        sh = max(1, round(h * S))
+        return CANVAS_SCALED
+    return (max(1, round(w * S)), max(1, round(h * S)))
+
+
+def Surface(size, flags=0, *args, **kwargs):
+    """Create a scaled surface. See `_scaled_wh` for the CANVAS special case."""
+    sw, sh = _scaled_wh(size)
     return ScaledSurface((sw, sh), flags, *args, **kwargs)
 
 
@@ -161,14 +177,14 @@ class _Transform:
 
     @staticmethod
     def smoothscale(surface, size, dest_surface=None):
-        sz = (max(1, round(size[0] * S)), max(1, round(size[1] * S)))
+        sz = _scaled_wh(size)
         if dest_surface is not None:
             return _pg.transform.smoothscale(surface, sz, dest_surface)
         return _pg.transform.smoothscale(surface, sz)
 
     @staticmethod
     def scale(surface, size, dest_surface=None):
-        sz = (max(1, round(size[0] * S)), max(1, round(size[1] * S)))
+        sz = _scaled_wh(size)
         if dest_surface is not None:
             return _pg.transform.scale(surface, sz, dest_surface)
         return _pg.transform.scale(surface, sz)

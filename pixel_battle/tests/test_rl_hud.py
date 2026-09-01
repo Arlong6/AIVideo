@@ -2,6 +2,7 @@
 import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 import pygame
+import pytest
 pygame.init()
 pygame.font.init()
 pygame.display.set_mode((1, 1))
@@ -10,6 +11,18 @@ from pixel_battle.rl.hud import HUD
 from pixel_battle.engine.character import Character
 from pixel_battle.engine.battle import Battle
 from pixel_battle.engine.rng import BattleRNG
+from pixel_battle.rl import scaled_pygame as _scaled_pygame
+
+
+@pytest.fixture(autouse=True)
+def _unscaled_shim():
+    """These assertions were written against unscaled (S=1.0) pixel
+    positions/sizes; hud.py is now shimmed to default S=2.25 (native
+    hi-res). Force S=1.0 for each test and restore the production default
+    afterward."""
+    _scaled_pygame.set_scale(1.0)
+    yield
+    _scaled_pygame.set_scale(2.25)
 
 
 def _battle():

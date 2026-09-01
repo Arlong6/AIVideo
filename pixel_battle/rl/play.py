@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Optional
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
-import pygame  # noqa: E402
+# Renders at CANVAS_SCALED; see scaled_pygame's docstring. NOT real pygame.
+from pixel_battle.rl import scaled_pygame as pygame  # noqa: E402
 from stable_baselines3 import PPO  # noqa: E402
 
 from pixel_battle.rl.env import PixelBattleEnv  # noqa: E402
@@ -397,10 +398,16 @@ def _get_vignette() -> pygame.Surface:
         import numpy as _np
         import pygame.surfarray as _sa
         vig = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        yy, xx = _np.mgrid[0:HEIGHT, 0:WIDTH]
-        cx, cy = WIDTH / 2.0, HEIGHT * 0.45
-        r = _np.sqrt(((xx - cx) / (WIDTH * 0.78)) ** 2
-                     + ((yy - cy) / (HEIGHT * 0.62)) ** 2)
+        # Build the mask at the surface's ACTUAL pixel size, not the raw
+        # WIDTH/HEIGHT fight-coord constants: `pixels_alpha` reads real pygame
+        # pixels, which the shim renders at CANVAS_SCALED — bypassing the
+        # shim's draw-call scaling entirely. At S=1.0 vw/vh == WIDTH/HEIGHT,
+        # reproducing the pre-shim output exactly.
+        vw, vh = vig.get_width(), vig.get_height()
+        yy, xx = _np.mgrid[0:vh, 0:vw]
+        cx, cy = vw / 2.0, vh * 0.45
+        r = _np.sqrt(((xx - cx) / (vw * 0.78)) ** 2
+                     + ((yy - cy) / (vh * 0.62)) ** 2)
         a = (_np.clip((r - 0.72) / 0.55, 0, 1) ** 1.5) * 88
         alpha = _sa.pixels_alpha(vig)
         alpha[:, :] = a.T.astype(_np.uint8)
@@ -2468,7 +2475,9 @@ def run_one_match(model, seed: int, out_dir: Path,
     final_mp4 = out_dir / f"{match_name}.mp4"
 
     env = PixelBattleEnv(seed=seed)
-    recorder = FrameRecorder(str(raw_video), fps=RENDER_FPS, width=WIDTH, height=HEIGHT)
+    recorder = FrameRecorder(str(raw_video), fps=RENDER_FPS,
+                             width=pygame.CANVAS_SCALED[0],
+                             height=pygame.CANVAS_SCALED[1])
     recorder.start()
     mixer = AudioMixer(sample_rate=48000)
 
@@ -2516,7 +2525,9 @@ def run_full_episode(model, out_dir: Path, left_id: str, right_id: str,
 
     env = PixelBattleEnv(seed=seed, left_id=left_id, right_id=right_id)
 
-    recorder = FrameRecorder(str(raw_video), fps=RENDER_FPS, width=WIDTH, height=HEIGHT)
+    recorder = FrameRecorder(str(raw_video), fps=RENDER_FPS,
+                             width=pygame.CANVAS_SCALED[0],
+                             height=pygame.CANVAS_SCALED[1])
     recorder.start()
     mixer = AudioMixer(sample_rate=48000)
     surf = pygame.Surface((WIDTH, HEIGHT))

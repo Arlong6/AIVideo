@@ -12,6 +12,8 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 import pygame
 
+from pixel_battle.rl import scaled_pygame as _scaled_pygame
+
 
 def setup_function(_fn=None):
     """Re-initialise pygame before every test.
@@ -25,6 +27,14 @@ def setup_function(_fn=None):
         pygame.font.init()
     if pygame.display.get_surface() is None:
         pygame.display.set_mode((1, 1))
+    # These assertions were written against unscaled (S=1.0) pixel
+    # positions/sizes; impact_fx is now shimmed to default S=2.25 (native
+    # hi-res). Force S=1.0 for each test; teardown_function restores 2.25.
+    _scaled_pygame.set_scale(1.0)
+
+
+def teardown_function(_fn=None):
+    _scaled_pygame.set_scale(2.25)
 
 
 # Ensure at least initial init for module-level imports

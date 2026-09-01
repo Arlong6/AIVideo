@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import pygame
+# Renders at CANVAS_SCALED; see scaled_pygame's docstring. NOT real pygame.
+from pixel_battle.rl import scaled_pygame as pygame
 
 # Directory holding the AI-generated VFX glow textures (monochrome-white on black,
 # composited with BLEND_RGB_ADD and tinted to each caster's brand color).

@@ -7,6 +7,18 @@ import pygame
 import pytest
 
 from pixel_battle.rl.weapons import Weapon, get_weapon, draw_weapon, draw_swing_smear, _smear_delta
+from pixel_battle.rl import scaled_pygame as _scaled_pygame
+
+
+@pytest.fixture(autouse=True)
+def _unscaled_shim():
+    """These assertions were written against unscaled (S=1.0) pixel
+    positions/sizes; weapons.py is now shimmed to default S=2.25 (native
+    hi-res). Force S=1.0 for each test and restore the production default
+    afterward."""
+    _scaled_pygame.set_scale(1.0)
+    yield
+    _scaled_pygame.set_scale(2.25)
 
 
 @pytest.fixture(scope="module", autouse=True)
