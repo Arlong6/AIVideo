@@ -88,7 +88,14 @@ def frame_ssim(baseline_png, current_png) -> float:
     return float(np.percentile(cropped, SSIM_PERCENTILE))
 
 
-def report(baseline_dir, current_dir, ssim_floor: float = 0.90) -> int:
+# ssim_floor calibrated against three measured populations (Task 9, R4/R8):
+#   faithful hi-res renders bottom out at 0.5967 (b01 f01800)
+#   genuinely-defective frames (Task 8, pre-fix)    score  <=0.4581
+#   synthetic moved-element calibration frame       scores  0.198
+# floor=0.50 sits strictly between the faithful floor and the worst defect:
+#   margin above worst defect:   0.50 - 0.4581 = +0.0419
+#   margin below faithful floor: 0.5967 - 0.50 = +0.0967
+def report(baseline_dir, current_dir, ssim_floor: float = 0.50) -> int:
     """Print a full comparison. Returns the number of problems found."""
     baseline_dir, current_dir = Path(baseline_dir), Path(current_dir)
     problems = 0
