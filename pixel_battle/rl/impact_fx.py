@@ -473,8 +473,12 @@ class ImpactFX:
             if mult != (255, 255, 255):
                 scaled = scaled.copy()
                 scaled.fill(mult, special_flags=pygame.BLEND_RGB_MULT)
-            rect = scaled.get_rect(center=(int(cx), int(cy)))
-            surf.blit(scaled, rect, special_flags=pygame.BLEND_RGB_ADD)
+            # `scaled` is REAL pixels (shim smoothscale); its half-size must be
+            # converted to fight units before mixing with fight-coord cx/cy —
+            # the blit scales the dest once more.
+            dest = (int(cx) - scaled.get_width() // 2 / pygame.S,
+                    int(cy) - scaled.get_height() // 2 / pygame.S)
+            surf.blit(scaled, dest, special_flags=pygame.BLEND_RGB_ADD)
             return True
         except Exception:
             return False
@@ -1118,8 +1122,10 @@ class ImpactFX:
                 outline_col = tuple(max(0, c - 160) for c in bn.color)
                 rendered = font.render(bn.text, True, bn.color)
                 rendered.set_alpha(alpha)
-                rx = bn.screen_cx - rendered.get_width() // 2
-                ry = bn.screen_cy - drift_y - rendered.get_height() // 2
+                # rendered text is REAL pixels (shim-scaled font); half-sizes
+                # must be fight units before mixing with fight-coord centers.
+                rx = bn.screen_cx - rendered.get_width() // 2 / pygame.S
+                ry = bn.screen_cy - drift_y - rendered.get_height() // 2 / pygame.S
                 # 4-direction outline for contrast
                 outline_surf = font.render(bn.text, True, outline_col)
                 outline_surf.set_alpha(min(255, alpha + 60))
@@ -1340,7 +1346,9 @@ class ImpactFX:
                 sword_surf = pygame.Surface((26, 230), pygame.SRCALPHA)
                 sword_surf.fill((*us.color, 230))
                 # Bright white core strip
-                core_rect = pygame.Rect(9, 0, 8, 230)
+                # Plain tuple, NOT pygame.Rect — shim Rect + shim draw.rect
+                # would scale the rect twice.
+                core_rect = (9, 0, 8, 230)
                 pygame.draw.rect(sword_surf, (255, 255, 255, 245), core_rect)
                 sx = int(us.impact_x) - 13
                 surf.blit(sword_surf, (sx, sword_y))
@@ -1406,8 +1414,12 @@ class ImpactFX:
                     font = pygame.font.SysFont(None, t.font_size)
                     rendered = font.render(t.text, True, t.color)
                     rendered.set_alpha(fade)
-                    surf.blit(rendered, (t.x - rendered.get_width() // 2,
-                                         t.y - y_offset - rendered.get_height()))
+                    # rendered text is REAL pixels; its size must be fight
+                    # units before mixing with fight-coord t.x / t.y.
+                    surf.blit(rendered,
+                              (t.x - rendered.get_width() // 2 / pygame.S,
+                               t.y - y_offset
+                               - rendered.get_height() / pygame.S))
                 except Exception:
                     pass  # graceful no-op if font unavailable
         self._texts = alive_texts
@@ -1542,7 +1554,10 @@ class ImpactFX:
             except Exception:
                 pass
             # AI glow texture: expanding radial light burst at the impact point
+            # get_size() returns REAL pixels; the burst center/width below are
+            # fight coords (they go through _blit_vfx, which scales again).
             sw, sh = surf.get_size()
+            sw, sh = sw / pygame.S, sh / pygame.S
             bx = rf.cx if rf.cx >= 0 else sw / 2
             by = rf.cy if rf.cy >= 0 else sh / 2
             warm = ((255 + rf.color[0]) // 2,

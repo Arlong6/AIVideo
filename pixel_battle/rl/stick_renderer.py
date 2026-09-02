@@ -666,7 +666,9 @@ def _draw_head(surf, color, geo, style):
     hs = style["head_size"]
     shape = style["head_shape"]
     if shape == "square":
-        rect = pygame.Rect(cx - hs, cy - hs, hs * 2, hs * 2)
+        # Plain tuple, NOT pygame.Rect: the shim's Rect scales at construction
+        # and draw.rect scales its rect argument again — double scale.
+        rect = (cx - hs, cy - hs, hs * 2, hs * 2)
         pygame.draw.rect(surf, color, rect)
         pygame.draw.rect(surf, (0, 0, 0), rect, 2)
     elif shape == "triangle":
@@ -1105,7 +1107,9 @@ def spawn_landing_dust(surf: pygame.Surface, x: int, ground_y: int,
         offset_y = -int(i * 3 * intensity)
         w = max(2, base_w - i * 2)
         h = max(1, base_h - i)
-        rect = pygame.Rect(x + offset_x - w, ground_y + offset_y - h, w * 2, h * 2)
+        # Plain tuple, NOT pygame.Rect — shim Rect + shim draw.ellipse would
+        # scale the rect twice.
+        rect = (x + offset_x - w, ground_y + offset_y - h, w * 2, h * 2)
         pygame.draw.ellipse(surf, color, rect, 1)
 
 

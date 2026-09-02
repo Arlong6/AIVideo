@@ -1079,7 +1079,10 @@ def _draw_player_hud(surf: pygame.Surface, char, color, x: int, name: str,
     font = _get_hud_font(14)
     name_surf = font.render(name, True, (240, 240, 255))
     if right_align:
-        surf.blit(name_surf, (x + bar_w - name_surf.get_width(), y - 16))
+        # name_surf is REAL pixels (shim-scaled font); width must be fight
+        # units before mixing with fight-coord x/bar_w.
+        surf.blit(name_surf,
+                  (x + bar_w - name_surf.get_width() / pygame.S, y - 16))
     else:
         surf.blit(name_surf, (x, y - 16))
     pygame.draw.rect(surf, (40, 40, 50), (x, y, bar_w, bar_h))
@@ -1106,11 +1109,16 @@ def _draw_banner(surf: pygame.Surface, text: str) -> None:
     """Centered banner near top — skill names and ULTIMATE!."""
     font = _get_hud_font(22)
     text_surf = font.render(text, True, (255, 240, 120))
-    rect = text_surf.get_rect(center=(WIDTH // 2, 70))
-    plate = pygame.Surface((rect.width + 24, rect.height + 12), pygame.SRCALPHA)
+    # text_surf is REAL pixels (shim-scaled font); lay out in fight units so
+    # the blit's own scaling lands it once, not twice.
+    tw = text_surf.get_width() / pygame.S
+    th = text_surf.get_height() / pygame.S
+    tx = WIDTH // 2 - text_surf.get_width() // 2 / pygame.S
+    ty = 70 - text_surf.get_height() // 2 / pygame.S
+    plate = pygame.Surface((tw + 24, th + 12), pygame.SRCALPHA)
     plate.fill((0, 0, 0, 180))
-    surf.blit(plate, (rect.x - 12, rect.y - 6))
-    surf.blit(text_surf, rect)
+    surf.blit(plate, (tx - 12, ty - 6))
+    surf.blit(text_surf, (tx, ty))
 
 
 # ── Audio routing ─────────────────────────────────────────────────────────────
@@ -1212,8 +1220,9 @@ def _draw_vs_intro(surf: pygame.Surface, left_char, right_char,
                               _char_color(left_char))
         rn = font_name.render(right_char.display_name.upper(), True,
                               _char_color(right_char))
-        surf.blit(ln, (lx_final - ln.get_width() // 2, 300))
-        surf.blit(rn, (rx_final - rn.get_width() // 2, 300))
+        # ln/rn are REAL pixels (shim-scaled font); half-widths in fight units.
+        surf.blit(ln, (lx_final - ln.get_width() // 2 / pygame.S, 300))
+        surf.blit(rn, (rx_final - rn.get_width() // 2 / pygame.S, 300))
 
     # "VS" pops in after 40%
     vs_t = _ease_out(min(1.0, max(0.0, (t - 0.4) / 0.3)))
@@ -1221,13 +1230,17 @@ def _draw_vs_intro(surf: pygame.Surface, left_char, right_char,
         vs_size = int(50 + 46 * vs_t)
         font_vs = _get_hud_font(vs_size)
         vs = font_vs.render("VS", True, (255, 230, 120))
-        plate = pygame.Surface((vs.get_width() + 28, vs.get_height() + 14),
+        # vs/plate are REAL pixels (shim-scaled font / shim Surface); convert
+        # their sizes back to fight units for layout — blits scale once more.
+        plate = pygame.Surface((vs.get_width() / pygame.S + 28,
+                                vs.get_height() / pygame.S + 14),
                                pygame.SRCALPHA)
         plate.fill((0, 0, 0, 170))
         cx, cy = WIDTH // 2, 250
-        surf.blit(plate, (cx - plate.get_width() // 2,
-                          cy - plate.get_height() // 2))
-        surf.blit(vs, (cx - vs.get_width() // 2, cy - vs.get_height() // 2))
+        surf.blit(plate, (cx - plate.get_width() // 2 / pygame.S,
+                          cy - plate.get_height() // 2 / pygame.S))
+        surf.blit(vs, (cx - vs.get_width() // 2 / pygame.S,
+                       cy - vs.get_height() // 2 / pygame.S))
 
 
 def _draw_ko_result(surf: pygame.Surface, winner_char,
@@ -1257,8 +1270,9 @@ def _draw_ko_result(surf: pygame.Surface, winner_char,
         ko_size = int(70 + 78 * ko_t)
         font_ko = _get_hud_font(ko_size)
         ko = font_ko.render("K.O.", True, (255, 80, 70))
-        surf.blit(ko, (WIDTH // 2 - ko.get_width() // 2,
-                       200 - ko.get_height() // 2))
+        # ko text is REAL pixels; half-sizes in fight units for the blit.
+        surf.blit(ko, (WIDTH // 2 - ko.get_width() // 2 / pygame.S,
+                       200 - ko.get_height() // 2 / pygame.S))
         if t < 0.09:
             fl = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
             fl.fill((255, 255, 255, int(190 * (1 - t / 0.09))))
@@ -1267,15 +1281,17 @@ def _draw_ko_result(surf: pygame.Surface, winner_char,
         # Phase 2 — winner card
         font_w = _get_hud_font(22)
         wl = font_w.render("WINNER", True, (255, 230, 120))
-        surf.blit(wl, (WIDTH // 2 - wl.get_width() // 2, 150))
+        surf.blit(wl, (WIDTH // 2 - wl.get_width() // 2 / pygame.S, 150))
         font_n = _get_hud_font(46)
         nm = font_n.render(winner_char.display_name.upper(), True,
                            _char_color(winner_char))
-        plate = pygame.Surface((nm.get_width() + 32, nm.get_height() + 16),
+        # nm/plate are REAL pixels; sizes converted to fight units for layout.
+        plate = pygame.Surface((nm.get_width() / pygame.S + 32,
+                                nm.get_height() / pygame.S + 16),
                                pygame.SRCALPHA)
         plate.fill((0, 0, 0, 170))
-        surf.blit(plate, (WIDTH // 2 - plate.get_width() // 2, 188))
-        surf.blit(nm, (WIDTH // 2 - nm.get_width() // 2, 196))
+        surf.blit(plate, (WIDTH // 2 - plate.get_width() // 2 / pygame.S, 188))
+        surf.blit(nm, (WIDTH // 2 - nm.get_width() // 2 / pygame.S, 196))
 
 
 # ── Fight renderer ────────────────────────────────────────────────────────────
@@ -2134,8 +2150,11 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                         char.pos_x, char.pos_y = ox, oy
                     ang = (_cur_time_ms * 1.15) % 360.0   # ~1 turn / 0.3s
                     rot = pygame.transform.rotate(tmp, ang)
-                    rect = rot.get_rect(center=(int(ox), int(oy) - 30))
-                    surf.blit(rot, rect)
+                    # rot is REAL pixels (rotated shim surface); center it at
+                    # fight coords with half-sizes converted to fight units.
+                    surf.blit(rot,
+                              (int(ox) - rot.get_width() // 2 / pygame.S,
+                               int(oy) - 30 - rot.get_height() // 2 / pygame.S))
                 else:
                     _draw_with_recoil(surf, char, color, opp_x)
 
