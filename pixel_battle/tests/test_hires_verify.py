@@ -98,6 +98,27 @@ def test_ssim_drops_when_an_element_moves(tmp_path):
     assert frame_ssim(bp, cp) < 0.90
 
 
+def test_ssim_drop_for_moved_element_is_below_operative_floor(tmp_path):
+    """Pin report()'s operative ssim_floor (0.50): the moved-element case
+    (measured 0.1981) must trip it by a wide margin, since floor=0.50 is a
+    coarse gross-misplacement tripwire, not a discriminator against the
+    overlapping Task-8 defective-frame population (see hires_verify.py
+    report() comment)."""
+    from PIL import Image, ImageDraw
+    from tools.hires_verify import frame_ssim
+
+    base = Image.new("RGB", (120, 200), (20, 20, 30))
+    ImageDraw.Draw(base).ellipse((40, 60, 80, 100), fill=(200, 40, 40))
+    bp = tmp_path / "base.png"; base.save(bp)
+
+    moved = Image.new("RGB", (240, 400), (20, 20, 30))
+    # same circle but shifted — this is what a missed *S looks like
+    ImageDraw.Draw(moved).ellipse((80, 260, 160, 340), fill=(200, 40, 40))
+    cp = tmp_path / "cur.png"; moved.save(cp)
+
+    assert frame_ssim(bp, cp) < 0.50
+
+
 def test_ssim_identical_file_is_perfect(tmp_path):
     """An identical file compared to itself must have perfect SSIM."""
     from PIL import Image, ImageDraw

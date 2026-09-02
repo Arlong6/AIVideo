@@ -88,13 +88,21 @@ def frame_ssim(baseline_png, current_png) -> float:
     return float(np.percentile(cropped, SSIM_PERCENTILE))
 
 
-# ssim_floor calibrated against three measured populations (Task 9, R4/R8):
-#   faithful hi-res renders bottom out at 0.5967 (b01 f01800)
-#   genuinely-defective frames (Task 8, pre-fix)    score  <=0.4581
-#   synthetic moved-element calibration frame       scores  0.198
-# floor=0.50 sits strictly between the faithful floor and the worst defect:
-#   margin above worst defect:   0.50 - 0.4581 = +0.0419
-#   margin below faithful floor: 0.5967 - 0.50 = +0.0967
+# ssim_floor calibrated against measured populations (Task 9, R4/R8):
+#   faithful hi-res renders (13 frames, b01+b12): 0.5967-0.8142
+#   Task 8 pre-fix defective frames (13 frames):  0.0256-0.6748
+#     -- these two ranges OVERLAP (worst defect 0.6748 > worst faithful
+#        0.5967; 6 of 13 defective frames score above 0.50). No scalar
+#        floor separates the populations cleanly.
+#   synthetic moved-element calibration frame: 0.1981, well below 0.50
+# floor=0.50 is therefore a coarse gross-misplacement tripwire, not a
+# discriminator against the Task-8 defect set: it still catches the
+# synthetic displaced-element case by a wide margin, but a real defect
+# scoring in the high-0.5x/0.6x range (as several Task-8 frames did) would
+# slip past it. The actual verification burden for this migration was
+# carried by per-frame eyeballing + tile-wise phase correlation
+# (<=2px displacement observed) and per-frame regression comparison
+# (each frame vs. its own prior score), not by this single global floor.
 def report(baseline_dir, current_dir, ssim_floor: float = 0.50) -> int:
     """Print a full comparison. Returns the number of problems found."""
     baseline_dir, current_dir = Path(baseline_dir), Path(current_dir)
