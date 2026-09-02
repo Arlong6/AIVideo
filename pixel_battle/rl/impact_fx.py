@@ -62,6 +62,35 @@ ULTIMATE_SLAM_MS = 450        # sword descent + shockwave lifetime
 ULTIMATE_SLAM_DESCEND_MS = 150  # sword falls in first 150ms
 
 
+def _fill_vgrad_alpha(surface, rgb, alpha_at, n_rows) -> None:
+    """Fill `surface` with `rgb` plus a vertical alpha gradient.
+
+    `alpha_at(row)` returns the int alpha for a FIGHT-coordinate row in
+    [0, n_rows); it is evaluated at every REAL pixel row of the surface
+    (the shim scales surfaces at creation), so the gradient stays smooth
+    at any S. Replaces per-fight-row `fill((0, row, w, 1))` loops: under
+    the shim each such 1-px rect scales to a 2-real-px fill placed
+    round(row*S) apart, leaving ~1 unfilled real row per 4 fight rows —
+    visible dark striping through the glow. pixels_alpha bypasses the
+    shim's draw-call scaling (precedent: play.py's vignette, Task 7).
+    At S=1.0 the surface height equals n_rows and this reproduces the
+    old loop's per-row int() alphas exactly.
+    """
+    import numpy as np
+    import pygame.surfarray as _sa    # real pygame's surfarray (shim-free)
+    w_real, h_real = surface.get_size()
+    surface.fill((rgb[0], rgb[1], rgb[2], 0))
+    if h_real <= 0 or n_rows <= 0:
+        return
+    scale_back = n_rows / h_real
+    a = np.empty(h_real, dtype=np.uint8)
+    for y in range(h_real):
+        a[y] = max(0, min(255, alpha_at(y * scale_back)))
+    alpha = _sa.pixels_alpha(surface)
+    alpha[:, :] = a[np.newaxis, :]
+    del alpha
+
+
 @dataclass
 class _Spark:
     x: float
@@ -871,10 +900,12 @@ class ImpactFX:
                 # Central vertical pillar of brand color
                 pillar_h = int(120 * (1.0 - frac * 0.4))
                 pillar_surf = pygame.Surface((16, pillar_h), pygame.SRCALPHA)
-                for row in range(pillar_h):
-                    row_frac = row / max(1, pillar_h)
-                    a = int(fade * (1.0 - row_frac))
-                    pillar_surf.fill((*p.color, a), (0, row, 16, 1))
+                # Per-REAL-row alpha gradient (see _fill_vgrad_alpha: the old
+                # per-fight-row fill loop striped at S>1).
+                _fill_vgrad_alpha(
+                    pillar_surf, p.color,
+                    lambda row: int(fade * (1.0 - row / max(1, pillar_h))),
+                    pillar_h)
                 surf.blit(pillar_surf, (int(p.x) - 8, int(p.y) - pillar_h))
                 # Expanding base ring at feet
                 ring_r = int(12 + 28 * frac)
@@ -1197,12 +1228,13 @@ class ImpactFX:
                 if actual_h > 0:
                     halo_surf = pygame.Surface((ub.surf_w, actual_h), pygame.SRCALPHA)
                     dim_col = tuple(max(0, int(c * 0.6)) for c in ub.color)
-                    for row in range(actual_h):
-                        world_row = halo_top + row
-                        dist = abs(world_row - iy)
-                        row_a = int(halo_alpha * max(0.0, 1.0 - dist / (halo_h / 2)))
-                        if row_a > 0:
-                            halo_surf.fill((*dim_col, row_a), (0, row, ub.surf_w, 1))
+                    # Per-REAL-row gradient (old per-fight-row loop striped
+                    # at S>1); same alpha formula, row in fight units.
+                    _fill_vgrad_alpha(
+                        halo_surf, dim_col,
+                        lambda row: int(halo_alpha * max(
+                            0.0, 1.0 - abs(halo_top + row - iy) / (halo_h / 2))),
+                        actual_h)
                     surf.blit(halo_surf, (0, halo_top))
 
             # --- Layer 2: mid beam band — 220 px, full brand color, alpha 230→0 over 1000ms
@@ -1210,11 +1242,13 @@ class ImpactFX:
             if mid_alpha > 1 and ub.age_ms < ULTIMATE_BEAM_MID_MS:
                 mid_h = 220
                 mid_surf = pygame.Surface((beam_span, mid_h), pygame.SRCALPHA)
-                for row in range(mid_h):
-                    dist = abs(row - mid_h // 2)
-                    row_a = int(mid_alpha * max(0.0, 1.0 - dist / (mid_h / 2)))
-                    if row_a > 0:
-                        mid_surf.fill((*ub.color, row_a), (0, row, beam_span, 1))
+                # Per-REAL-row gradient (old per-fight-row loop striped at
+                # S>1); same alpha formula, row in fight units.
+                _fill_vgrad_alpha(
+                    mid_surf, ub.color,
+                    lambda row: int(mid_alpha * max(
+                        0.0, 1.0 - abs(row - mid_h // 2) / (mid_h / 2))),
+                    mid_h)
                 surf.blit(mid_surf, (bx1, iy - mid_h // 2))
 
             # --- Layer 3: white-hot core — 32 px, alpha 255→0 over 800ms
