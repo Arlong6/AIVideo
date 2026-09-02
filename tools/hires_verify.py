@@ -45,9 +45,22 @@ def compare_events(baseline_json, current_json) -> list[str]:
             if x != y:
                 diffs.append(f"event[{i}]: baseline={x!r} current={y!r}")
 
+    # event_video_ms keys are Python id() addresses (play.py:1498
+    # `event_video_ms[id(ev)] = ...`) — run-dependent by nature, so raw
+    # dict equality can never pass across two separate renders. The keys
+    # carry no cross-run meaning; what must match is the SEQUENCE of
+    # timestamp values. JSON objects preserve insertion order, and events
+    # are recorded in fight order, so compare length + values in insertion
+    # order instead.
     ma, mb = a.get("event_video_ms", {}), b.get("event_video_ms", {})
-    if ma != mb:
-        diffs.append("event_video_ms differs")
+    va, vb = list(ma.values()), list(mb.values())
+    if len(va) != len(vb):
+        diffs.append(f"event_video_ms count: baseline={len(va)} current={len(vb)}")
+    elif va != vb:
+        for i, (x, y) in enumerate(zip(va, vb)):
+            if x != y:
+                diffs.append(
+                    f"event_video_ms[{i}]: baseline={x!r} current={y!r}")
 
     return diffs
 

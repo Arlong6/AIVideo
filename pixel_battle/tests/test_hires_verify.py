@@ -38,6 +38,32 @@ def test_changed_event_count_is_reported(tmp_path):
     assert any("event" in d.lower() for d in diffs)
 
 
+def test_event_video_ms_id_keys_equal_values_no_diff(tmp_path):
+    """id()-style keys differ across runs; equal ordered values must pass."""
+    from tools.hires_verify import compare_events
+    base = {"winner": "left", "n_frames": 10, "events": [],
+            "event_video_ms": {"4478509120": 100, "4478509456": 250,
+                               "4478510128": 900}}
+    cur = {"winner": "left", "n_frames": 10, "events": [],
+           "event_video_ms": {"4581230080": 100, "4581230416": 250,
+                              "4581231088": 900}}
+    diffs = compare_events(_write(tmp_path, "a.json", base),
+                           _write(tmp_path, "b.json", cur))
+    assert diffs == []
+
+
+def test_event_video_ms_changed_value_is_reported(tmp_path):
+    """Same id()-style key churn, but one timestamp changed — must diff."""
+    from tools.hires_verify import compare_events
+    base = {"winner": "left", "n_frames": 10, "events": [],
+            "event_video_ms": {"4478509120": 100, "4478509456": 250}}
+    cur = {"winner": "left", "n_frames": 10, "events": [],
+           "event_video_ms": {"4581230080": 100, "4581230416": 317}}
+    diffs = compare_events(_write(tmp_path, "a.json", base),
+                           _write(tmp_path, "b.json", cur))
+    assert any("event_video_ms" in d for d in diffs)
+
+
 def test_ssim_of_a_scaled_copy_is_high(tmp_path):
     """A faithful 2x render, downscaled back, must match the original."""
     import numpy as np
