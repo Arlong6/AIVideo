@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import pygame
+# Renders at CANVAS_SCALED; see scaled_pygame's docstring. NOT real pygame.
+from pixel_battle.rl import scaled_pygame as pygame
 
 # Directory holding the AI-generated VFX glow textures (monochrome-white on black,
 # composited with BLEND_RGB_ADD and tinted to each caster's brand color).
@@ -59,6 +60,35 @@ ULTIMATE_BEAM_SHAKE_DUR = 500.0  # Layer 8: camera shake duration ms
 
 ULTIMATE_SLAM_MS = 450        # sword descent + shockwave lifetime
 ULTIMATE_SLAM_DESCEND_MS = 150  # sword falls in first 150ms
+
+
+def _fill_vgrad_alpha(surface, rgb, alpha_at, n_rows) -> None:
+    """Fill `surface` with `rgb` plus a vertical alpha gradient.
+
+    `alpha_at(row)` returns the int alpha for a FIGHT-coordinate row in
+    [0, n_rows); it is evaluated at every REAL pixel row of the surface
+    (the shim scales surfaces at creation), so the gradient stays smooth
+    at any S. Replaces per-fight-row `fill((0, row, w, 1))` loops: under
+    the shim each such 1-px rect scales to a 2-real-px fill placed
+    round(row*S) apart, leaving ~1 unfilled real row per 4 fight rows —
+    visible dark striping through the glow. pixels_alpha bypasses the
+    shim's draw-call scaling (precedent: play.py's vignette, Task 7).
+    At S=1.0 the surface height equals n_rows and this reproduces the
+    old loop's per-row int() alphas exactly.
+    """
+    import numpy as np
+    import pygame.surfarray as _sa    # real pygame's surfarray (shim-free)
+    w_real, h_real = surface.get_size()
+    surface.fill((rgb[0], rgb[1], rgb[2], 0))
+    if h_real <= 0 or n_rows <= 0:
+        return
+    scale_back = n_rows / h_real
+    a = np.empty(h_real, dtype=np.uint8)
+    for y in range(h_real):
+        a[y] = max(0, min(255, alpha_at(y * scale_back)))
+    alpha = _sa.pixels_alpha(surface)
+    alpha[:, :] = a[np.newaxis, :]
+    del alpha
 
 
 @dataclass
@@ -472,8 +502,12 @@ class ImpactFX:
             if mult != (255, 255, 255):
                 scaled = scaled.copy()
                 scaled.fill(mult, special_flags=pygame.BLEND_RGB_MULT)
-            rect = scaled.get_rect(center=(int(cx), int(cy)))
-            surf.blit(scaled, rect, special_flags=pygame.BLEND_RGB_ADD)
+            # `scaled` is REAL pixels (shim smoothscale); its half-size must be
+            # converted to fight units before mixing with fight-coord cx/cy —
+            # the blit scales the dest once more.
+            dest = (int(cx) - scaled.get_width() // 2 / pygame.S,
+                    int(cy) - scaled.get_height() // 2 / pygame.S)
+            surf.blit(scaled, dest, special_flags=pygame.BLEND_RGB_ADD)
             return True
         except Exception:
             return False
@@ -866,10 +900,12 @@ class ImpactFX:
                 # Central vertical pillar of brand color
                 pillar_h = int(120 * (1.0 - frac * 0.4))
                 pillar_surf = pygame.Surface((16, pillar_h), pygame.SRCALPHA)
-                for row in range(pillar_h):
-                    row_frac = row / max(1, pillar_h)
-                    a = int(fade * (1.0 - row_frac))
-                    pillar_surf.fill((*p.color, a), (0, row, 16, 1))
+                # Per-REAL-row alpha gradient (see _fill_vgrad_alpha: the old
+                # per-fight-row fill loop striped at S>1).
+                _fill_vgrad_alpha(
+                    pillar_surf, p.color,
+                    lambda row: int(fade * (1.0 - row / max(1, pillar_h))),
+                    pillar_h)
                 surf.blit(pillar_surf, (int(p.x) - 8, int(p.y) - pillar_h))
                 # Expanding base ring at feet
                 ring_r = int(12 + 28 * frac)
@@ -1117,8 +1153,10 @@ class ImpactFX:
                 outline_col = tuple(max(0, c - 160) for c in bn.color)
                 rendered = font.render(bn.text, True, bn.color)
                 rendered.set_alpha(alpha)
-                rx = bn.screen_cx - rendered.get_width() // 2
-                ry = bn.screen_cy - drift_y - rendered.get_height() // 2
+                # rendered text is REAL pixels (shim-scaled font); half-sizes
+                # must be fight units before mixing with fight-coord centers.
+                rx = bn.screen_cx - rendered.get_width() // 2 / pygame.S
+                ry = bn.screen_cy - drift_y - rendered.get_height() // 2 / pygame.S
                 # 4-direction outline for contrast
                 outline_surf = font.render(bn.text, True, outline_col)
                 outline_surf.set_alpha(min(255, alpha + 60))
@@ -1190,12 +1228,13 @@ class ImpactFX:
                 if actual_h > 0:
                     halo_surf = pygame.Surface((ub.surf_w, actual_h), pygame.SRCALPHA)
                     dim_col = tuple(max(0, int(c * 0.6)) for c in ub.color)
-                    for row in range(actual_h):
-                        world_row = halo_top + row
-                        dist = abs(world_row - iy)
-                        row_a = int(halo_alpha * max(0.0, 1.0 - dist / (halo_h / 2)))
-                        if row_a > 0:
-                            halo_surf.fill((*dim_col, row_a), (0, row, ub.surf_w, 1))
+                    # Per-REAL-row gradient (old per-fight-row loop striped
+                    # at S>1); same alpha formula, row in fight units.
+                    _fill_vgrad_alpha(
+                        halo_surf, dim_col,
+                        lambda row: int(halo_alpha * max(
+                            0.0, 1.0 - abs(halo_top + row - iy) / (halo_h / 2))),
+                        actual_h)
                     surf.blit(halo_surf, (0, halo_top))
 
             # --- Layer 2: mid beam band — 220 px, full brand color, alpha 230→0 over 1000ms
@@ -1203,11 +1242,13 @@ class ImpactFX:
             if mid_alpha > 1 and ub.age_ms < ULTIMATE_BEAM_MID_MS:
                 mid_h = 220
                 mid_surf = pygame.Surface((beam_span, mid_h), pygame.SRCALPHA)
-                for row in range(mid_h):
-                    dist = abs(row - mid_h // 2)
-                    row_a = int(mid_alpha * max(0.0, 1.0 - dist / (mid_h / 2)))
-                    if row_a > 0:
-                        mid_surf.fill((*ub.color, row_a), (0, row, beam_span, 1))
+                # Per-REAL-row gradient (old per-fight-row loop striped at
+                # S>1); same alpha formula, row in fight units.
+                _fill_vgrad_alpha(
+                    mid_surf, ub.color,
+                    lambda row: int(mid_alpha * max(
+                        0.0, 1.0 - abs(row - mid_h // 2) / (mid_h / 2))),
+                    mid_h)
                 surf.blit(mid_surf, (bx1, iy - mid_h // 2))
 
             # --- Layer 3: white-hot core — 32 px, alpha 255→0 over 800ms
@@ -1339,7 +1380,9 @@ class ImpactFX:
                 sword_surf = pygame.Surface((26, 230), pygame.SRCALPHA)
                 sword_surf.fill((*us.color, 230))
                 # Bright white core strip
-                core_rect = pygame.Rect(9, 0, 8, 230)
+                # Plain tuple, NOT pygame.Rect — shim Rect + shim draw.rect
+                # would scale the rect twice.
+                core_rect = (9, 0, 8, 230)
                 pygame.draw.rect(sword_surf, (255, 255, 255, 245), core_rect)
                 sx = int(us.impact_x) - 13
                 surf.blit(sword_surf, (sx, sword_y))
@@ -1405,8 +1448,12 @@ class ImpactFX:
                     font = pygame.font.SysFont(None, t.font_size)
                     rendered = font.render(t.text, True, t.color)
                     rendered.set_alpha(fade)
-                    surf.blit(rendered, (t.x - rendered.get_width() // 2,
-                                         t.y - y_offset - rendered.get_height()))
+                    # rendered text is REAL pixels; its size must be fight
+                    # units before mixing with fight-coord t.x / t.y.
+                    surf.blit(rendered,
+                              (t.x - rendered.get_width() // 2 / pygame.S,
+                               t.y - y_offset
+                               - rendered.get_height() / pygame.S))
                 except Exception:
                     pass  # graceful no-op if font unavailable
         self._texts = alive_texts
@@ -1541,7 +1588,10 @@ class ImpactFX:
             except Exception:
                 pass
             # AI glow texture: expanding radial light burst at the impact point
+            # get_size() returns REAL pixels; the burst center/width below are
+            # fight coords (they go through _blit_vfx, which scales again).
             sw, sh = surf.get_size()
+            sw, sh = sw / pygame.S, sh / pygame.S
             bx = rf.cx if rf.cx >= 0 else sw / 2
             by = rf.cy if rf.cy >= 0 else sh / 2
             warm = ((255 + rf.color[0]) // 2,

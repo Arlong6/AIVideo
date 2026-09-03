@@ -4,8 +4,8 @@ Pipeline per video:
   1. PIL renders two transparent 1080x1920 overlay PNGs (no emoji — the CJK font
      has no emoji glyphs, they'd tofu): a front-loaded HOOK (誰會贏? + matchup)
      and a WINNER banner revealed over the KO aftermath.
-  2. ffmpeg cuts off the spawn intro, upscales 480x854 -> 1080x1920 (aspect
-     matches cleanly), and composites both overlays with time-gated enable exprs.
+  2. ffmpeg cuts off the spawn intro from the native 1080x1920 raw,
+     and composites both overlays with time-gated enable exprs.
 
 Usage:
   python -m pixel_battle.scripts.build_short RAW OUT "L1" "L2" "WINTEXT" CUT_START
@@ -77,15 +77,12 @@ def main():
          "stream=index", "-of", "csv=p=0", raw],
         capture_output=True, text=True).stdout.strip())
 
-    # scale fight -> vertical with a polish chain (deband the gradient skies,
-    # light sharpen to recover crispness after the upscale, a whisper of film
-    # grain so flat fills feel produced) — all BEFORE the text overlays so the
-    # hook/winner typography stays pristine. Then hook + winner band.
+    # polish native 1080x1920 with a filter chain (deband the gradient skies,
+    # a whisper of film grain so flat fills feel produced) — all BEFORE the text
+    # overlays so the hook/winner typography stays pristine. Then hook + winner band.
     fc = (
         f"[0:v]trim={cut_start},setpts=PTS-STARTPTS,"
-        f"scale={W}:{H}:flags=lanczos,"
         f"gradfun=1.2:16,"
-        f"unsharp=5:5:0.35:5:5:0.0,"
         f"noise=alls=2:allf=t[v];"
         f"[v][1:v]overlay=0:0:enable='lt(t,{HOOK_SECS})'[v1];"
         f"[v1][2:v]overlay=0:0:enable='gte(t,{win_start})'[vo]"

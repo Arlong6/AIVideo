@@ -47,3 +47,7 @@ map_cache/
 
 # graphify knowledge-graph output (regenerable, ~12MB)
 graphify-out/
+
+# Native hi-res render baseline (regenerable via tools/hires_baseline.py)
+pixel_battle/output/hires_baseline/
+pixel_battle/output/hires_current/

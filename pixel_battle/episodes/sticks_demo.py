@@ -13,6 +13,7 @@ from pixel_battle.engine.battle import Battle, BattleState
 from pixel_battle.engine.character import Character
 from pixel_battle.engine.rng import BattleRNG
 from pixel_battle.rl.stick_renderer import draw_stick_figure
+from pixel_battle.rl import scaled_pygame as _scaled
 from pixel_battle.video.recorder import FrameRecorder
 from pixel_battle.video.audio_mixer import AudioMixer
 from pixel_battle.video.compose import (
@@ -43,6 +44,10 @@ def draw_arena(surf, ground_y):
 def main(max_seconds: int = 30):
     pygame.init()
     pygame.display.set_mode((1, 1))
+    # This script draws onto a real, unscaled 480x854 pygame.Surface (not the
+    # shim's ScaledSurface) — pin S=1.0 so draw_stick_figure's shimmed
+    # coordinates match this surface's actual pixel size.
+    _scaled.set_scale(1.0)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     raw_video = OUT_DIR / "raw.mp4"

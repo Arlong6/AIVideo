@@ -4,7 +4,8 @@ Stateless except for the smoothed-bar lerp state, which is per-HUD-instance.
 A new HUD is constructed per render in `_render_fight`."""
 from __future__ import annotations
 import json
-import pygame
+# Renders at CANVAS_SCALED; see scaled_pygame's docstring. NOT real pygame.
+from pixel_battle.rl import scaled_pygame as pygame
 
 from pixel_battle.engine.character import DATA_PATH
 
@@ -67,7 +68,9 @@ class HUD:
         return self._color_cache[char_id]
 
     def draw(self, surf: pygame.Surface, battle, elapsed_ms: int) -> None:
-        W = surf.get_width()
+        # get_width() returns REAL pixels (the shim scales surfaces at
+        # creation); all layout below is in fight coords, so convert back.
+        W = round(surf.get_width() / pygame.S)
         left_frac = max(0.0, battle.left.hp / max(1, getattr(battle.left, "hp_max", 100)))
         right_frac = max(0.0, battle.right.hp / max(1, getattr(battle.right, "hp_max", 100)))
         self._left_lerp += (left_frac - self._left_lerp) * BAR_DRAIN_LERP_RATE
@@ -140,11 +143,13 @@ class HUD:
         text = name.replace("_", " ").upper()
         shadow = self._name_font.render(text, True, NAME_SHADOW)
         label = self._name_font.render(text, True, NAME_COLOR)
+        # label is REAL pixels (shim-scaled font); convert its size back to
+        # fight units before mixing with fight-coord x / BAR_Y.
         if align == "left":
             x_pos = x
         else:
-            x_pos = x - label.get_width()
-        name_y = BAR_Y - label.get_height() - 2
+            x_pos = x - label.get_width() / pygame.S
+        name_y = BAR_Y - label.get_height() / pygame.S - 2
         if name_y < 2:
             name_y = 2
         surf.blit(shadow, (x_pos + 1, name_y + 1))
@@ -154,4 +159,5 @@ class HUD:
         seconds = max(0, elapsed_ms // 1000)
         text = f"{seconds // 60:02d}:{seconds % 60:02d}"
         label = self._timer_font.render(text, True, TIMER_COLOR)
-        surf.blit(label, (x - label.get_width() // 2, y))
+        # label is REAL pixels; half-width must be fight units for the blit.
+        surf.blit(label, (x - label.get_width() // 2 / pygame.S, y))
