@@ -23,6 +23,12 @@ OUT_DIR = ROOT / "pixel_battle/output/shorts"
 CUT_START = "1.5"
 
 
+def _rel(p) -> str:
+    """Repo-relative path — absolute paths break the manifest when the
+    checkout it was built in (e.g. a worktree) goes away."""
+    return str(Path(p).resolve().relative_to(ROOT))
+
+
 def _display_names() -> dict:
     data = json.loads((ROOT / "pixel_battle/data/characters.json")
                       .read_text(encoding="utf-8"))
@@ -51,7 +57,7 @@ def render_one(script_path: Path) -> dict:
     meta = yaml.safe_load(script_path.read_text(encoding="utf-8"))
     return {
         "script": script_path.name,
-        "raw": str(raw),
+        "raw": _rel(raw),
         "left": meta.get("left"),
         "right": meta.get("right"),
         "winner": captured.get("winner"),
@@ -71,7 +77,7 @@ def build_one(entry: dict, names: dict) -> Path:
         entry["raw"], str(out),
         "誰會贏?", f"{left} VS {right}", f"{win} WINS", CUT_START,
     ], check=True, cwd=str(ROOT))
-    entry["short"] = str(out)
+    entry["short"] = _rel(out)
     entry["title"] = f"{left} VS {right}"
     return out
 
