@@ -6,12 +6,13 @@ Each champion plays to its class so mage / assassin / warrior never blur togethe
   - assassin: flash IN, blade combo, dash OUT — hit-and-run at the edge of melee.
   - melee   (warrior, tank, duelist): march forward and trade strikes / slams.
 
-The ult caster (left) uses only FREE actions (basic / cooldown / flash / move) so
+The ult caster (LEFT by default, RIGHT with --caster-right) uses only FREE actions (basic / cooldown / flash / move) so
 MP stays 100 for the ult; the defender (right) may spend MP on its specials. HP is
 auto-tuned by measuring (999-HP pure-sim) how much each side takes by the ult, so
 both bars drain all fight and the defender lands ~DEF_REMAIN for the ult to KO.
 
 Usage: python -m pixel_battle.scripts.gen_fight <left> <right> <ult_id> <vfx> <_> <out.yaml> [ult_ms]
+       [--caster-right]  — mirror the roles so the RIGHT fighter casts the finisher and wins
 (the 5th arg is kept for call-compat; melee-approach is derived from <vfx>.)
 """
 import os
@@ -20,9 +21,16 @@ from pathlib import Path
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
+# --caster-right mirrors the roles: the RIGHT fighter becomes the ult caster and
+# therefore the winner. Without it the LEFT fighter casts the finisher and wins —
+# which, applied to a whole batch, makes every fight end the same way and kills the
+# "who wins?" hook. Stripped from argv here so the positional contract is unchanged.
+_argv = [a for a in sys.argv if a != "--caster-right"]
+CASTER = "right" if len(_argv) != len(sys.argv) else "left"
+
 LEFT, RIGHT, ULT_ID, VFX, _MEL, OUT = (
-    sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6])
-ULT_T = int(sys.argv[7]) if len(sys.argv) > 7 else 45000
+    _argv[1], _argv[2], _argv[3], _argv[4], _argv[5], _argv[6])
+ULT_T = int(_argv[7]) if len(_argv) > 7 else 45000
 SEED = 7
 # Comfortable buffers: both fighters are still alive (visibly drained, ~40 HP)
 # when the ultimate lands. The ult is a 70-dmg FINISHER, so it KOs the defender
@@ -46,6 +54,34 @@ ARCH = {
     "wrecker": "melee", "cleaver": "melee", "outlaw": "melee",
 }
 L_ARCH, R_ARCH = ARCH.get(LEFT, "melee"), ARCH.get(RIGHT, "melee")
+
+
+def _assert_ult_belongs_to_caster():
+    """The ultimate must be a skill of whichever fighter casts it. Getting this
+    wrong used to surface only deep in the timeline loader as an opaque
+    "'x' is not a skill of 'y'" — easy to misread as a data-file problem when the
+    real cause is passing the left fighter's ult alongside --caster-right."""
+    import json
+    caster_id = LEFT if CASTER == "left" else RIGHT
+    data = json.loads((Path(__file__).resolve().parents[1]
+                       / "data/characters.json").read_text(encoding="utf-8"))
+    chars = data.get("characters", data)
+    entry = chars.get(caster_id) if isinstance(chars, dict) else \
+        next((c for c in chars if c.get("id") == caster_id), None)
+    if entry is None:
+        raise SystemExit(f"gen_fight: unknown character '{caster_id}'")
+    skills = entry.get("skills") or {}
+    names = list(skills.keys()) if isinstance(skills, dict) else \
+        [s.get("id") for s in skills]
+    if ULT_ID not in names:
+        raise SystemExit(
+            f"gen_fight: ult '{ULT_ID}' is not a skill of the caster "
+            f"'{caster_id}' (caster side = {CASTER}).\n"
+            f"  {caster_id} skills: {', '.join(n for n in names if n)}\n"
+            f"  With --caster-right you must pass the RIGHT fighter's ult.")
+
+
+_assert_ult_belongs_to_caster()
 ULT_ADJACENT = VFX in ("slam", "spin", "dash", "melee")   # ult needs to be in close
 
 
@@ -135,15 +171,19 @@ def side_actions(arch, is_caster, cid):
 
 
 def build():
-    left = side_actions(L_ARCH, True, LEFT)
+    """Choreograph both sides. The CASTER side lands the ultimate and wins; the
+    other side defends and is KO'd by it."""
+    cast_is_left = CASTER == "left"
+    left = side_actions(L_ARCH, cast_is_left, LEFT)
+    right = side_actions(R_ARCH, not cast_is_left, RIGHT)
+    caster = left if cast_is_left else right
     # Caster ult approach: melee/spin/dash ults need adjacency → flash in first;
     # ranged ults fire from current spacing.
     if ULT_ADJACENT:
-        left.append((ULT_T - 640, "flash:in")); left.append((ULT_T - 160, "advance"))
+        caster.append((ULT_T - 640, "flash:in")); caster.append((ULT_T - 160, "advance"))
     else:
-        left.append((ULT_T - 600, "attack:basic"))   # keep poking at range
-    left.append((ULT_T, f"cast:{ULT_ID}"))
-    right = side_actions(R_ARCH, False, RIGHT)
+        caster.append((ULT_T - 600, "attack:basic"))   # keep poking at range
+    caster.append((ULT_T, f"cast:{ULT_ID}"))
     return left, right
 
 
@@ -158,13 +198,13 @@ def write_yaml(left, right, lhp, rhp):
     if lhp is not None: hp += f"left_start_hp: {lhp}\n"
     if rhp is not None: hp += f"right_start_hp: {rhp}\n"
     Path(OUT).write_text(
-        f'''# {LEFT}({L_ARCH}) vs {RIGHT}({R_ARCH}) — LONG ~{ULT_T//1000+6}s · {ULT_ID} climax · auto-tuned
+        f'''# {LEFT}({L_ARCH}) vs {RIGHT}({R_ARCH}) — LONG ~{ULT_T//1000+6}s · {ULT_ID} climax · auto-tuned · caster={CASTER}
 name: "{LEFT} vs {RIGHT} — long ({ULT_ID})"
 left: {LEFT}
 right: {RIGHT}
 duration_ms: {ULT_T + 8000}
 seed: {SEED}
-left_start_mp: 100
+{CASTER}_start_mp: 100
 {hp}left_timeline:
 {emit(left)}
 right_timeline:
@@ -178,7 +218,7 @@ def measure():
     d = load_fight_file(OUT)
     env = PixelBattleEnv(left_id=LEFT, right_id=RIGHT, seed=SEED); env.reset()
     b = env.battle
-    b.left.mp = 100
+    (b.left if CASTER == "left" else b.right).mp = 100
     for f in (b.left, b.right):
         f.hp = 999
         if hasattr(f, "hp_max"): f.hp_max = 999
@@ -198,11 +238,14 @@ def main():
     left, right = build()
     write_yaml(left, right, None, None)
     dmg_l, dmg_r = measure()
-    lhp, rhp = round(dmg_l + ATK_REMAIN), round(dmg_r + DEF_REMAIN)
+    if CASTER == "left":
+        lhp, rhp = round(dmg_l + ATK_REMAIN), round(dmg_r + DEF_REMAIN)
+    else:
+        lhp, rhp = round(dmg_l + DEF_REMAIN), round(dmg_r + ATK_REMAIN)
     write_yaml(left, right, lhp, rhp)
     print(f"  {OUT.split('/')[-1]}: {LEFT}({L_ARCH}) vs {RIGHT}({R_ARCH}) "
           f"ult {ULT_ID}/{VFX}@{ULT_T/1000:.0f}s  dmg L={dmg_l:.0f} R={dmg_r:.0f}"
-          f"  -> Lhp={lhp} Rhp={rhp}")
+          f"  -> Lhp={lhp} Rhp={rhp}  caster={CASTER} (winner)")
 
 
 if __name__ == "__main__":

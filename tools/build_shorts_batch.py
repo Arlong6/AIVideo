@@ -82,10 +82,38 @@ def build_one(entry: dict, names: dict) -> Path:
     return out
 
 
+def _load_manifest() -> list:
+    f = OUT_DIR / "manifest.json"
+    if not f.exists():
+        return []
+    try:
+        return json.loads(f.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+
+
 if __name__ == "__main__":
+    import sys
+
     names = _display_names()
+    # Optional stem filters (e.g. `b03 b14`). Re-rendering only what changed
+    # keeps the untouched renders — and any upload package already cut from
+    # them — byte-identical, instead of churning all 21 for a 10-fight edit.
+    wanted = [a for a in sys.argv[1:] if not a.startswith("-")]
+    all_scripts = sorted(SCRIPTS.glob("b*.yaml"))
+    scripts = ([s for s in all_scripts
+                if any(s.name.startswith(w) for w in wanted)]
+               if wanted else all_scripts)
+    if wanted and not scripts:
+        raise SystemExit(f"no fight script matched {wanted}")
+    if wanted:
+        print(f"rendering {len(scripts)} of {len(all_scripts)} fights: "
+              f"{', '.join(s.stem for s in scripts)}\n")
+
+    # Merge into the existing manifest so untouched fights keep their entries.
+    prior = {e.get("script"): e for e in _load_manifest()}
     manifest = []
-    for script in sorted(SCRIPTS.glob("b*.yaml")):
+    for script in scripts:
         print(f"=== {script.name} ===", flush=True)
         try:
             entry = render_one(script)
@@ -95,7 +123,10 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"    FAILED: {type(e).__name__}: {e}")
             manifest.append({"script": script.name, "error": str(e)})
+    for e in manifest:
+        prior[e["script"]] = e
+    merged = [prior[s.name] for s in all_scripts if s.name in prior]
     (OUT_DIR / "manifest.json").write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+        json.dumps(merged, indent=2, ensure_ascii=False), encoding="utf-8")
     ok = sum(1 for m in manifest if "error" not in m)
-    print(f"\nbuilt {ok}/{len(manifest)}")
+    print(f"\nbuilt {ok}/{len(manifest)} (manifest holds {len(merged)} fights)")

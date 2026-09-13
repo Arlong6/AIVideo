@@ -1,13 +1,144 @@
-# outlaw(melee) vs pantheon(melee) — LONG ~51s · high_noon climax · auto-tuned
-name: "outlaw vs pantheon — long (high_noon)"
+# outlaw(melee) vs pantheon(melee) — LONG ~51s · skyfall climax · auto-tuned · caster=right
+name: "outlaw vs pantheon — long (skyfall)"
 left: outlaw
 right: pantheon
 duration_ms: 53000
 seed: 7
-left_start_mp: 100
-left_start_hp: 154
-right_start_hp: 154
+right_start_mp: 100
+left_start_hp: 163
+right_start_hp: 128
 left_timeline:
+  - {t: 700, do: advance}
+  - {t: 940, do: "attack:basic"}
+  - {t: 1280, do: "attack:cd"}
+  - {t: 1700, do: "attack:basic"}
+  - {t: 2060, do: "attack:cd"}
+  - {t: 2460, do: retreat}
+  - {t: 2760, do: retreat}
+  - {t: 3120, do: jump}
+  - {t: 3480, do: advance}
+  - {t: 3720, do: "attack:cd"}
+  - {t: 4120, do: "cast:fan_hammer"}
+  - {t: 4480, do: crouch}
+  - {t: 4760, do: advance}
+  - {t: 5000, do: "attack:basic"}
+  - {t: 5340, do: "attack:cd"}
+  - {t: 5760, do: "attack:basic"}
+  - {t: 6120, do: "attack:cd"}
+  - {t: 6520, do: retreat}
+  - {t: 6820, do: retreat}
+  - {t: 7180, do: jump}
+  - {t: 7540, do: advance}
+  - {t: 7780, do: "attack:cd"}
+  - {t: 8180, do: "cast:point_blank"}
+  - {t: 8540, do: crouch}
+  - {t: 8820, do: advance}
+  - {t: 9060, do: "attack:basic"}
+  - {t: 9400, do: "attack:cd"}
+  - {t: 9820, do: "attack:basic"}
+  - {t: 10180, do: "attack:cd"}
+  - {t: 10580, do: retreat}
+  - {t: 10880, do: retreat}
+  - {t: 11240, do: jump}
+  - {t: 11600, do: advance}
+  - {t: 11840, do: "attack:cd"}
+  - {t: 12240, do: "cast:fan_hammer"}
+  - {t: 12600, do: crouch}
+  - {t: 12880, do: advance}
+  - {t: 13120, do: "attack:basic"}
+  - {t: 13460, do: "attack:cd"}
+  - {t: 13880, do: "attack:basic"}
+  - {t: 14240, do: "attack:cd"}
+  - {t: 14640, do: retreat}
+  - {t: 14940, do: retreat}
+  - {t: 15300, do: jump}
+  - {t: 15660, do: advance}
+  - {t: 15900, do: "attack:cd"}
+  - {t: 16300, do: "cast:point_blank"}
+  - {t: 16660, do: crouch}
+  - {t: 16940, do: advance}
+  - {t: 17180, do: "attack:basic"}
+  - {t: 17520, do: "attack:cd"}
+  - {t: 17940, do: "attack:basic"}
+  - {t: 18300, do: "attack:cd"}
+  - {t: 18700, do: retreat}
+  - {t: 19000, do: retreat}
+  - {t: 19360, do: jump}
+  - {t: 19720, do: advance}
+  - {t: 19960, do: "attack:cd"}
+  - {t: 20360, do: "cast:fan_hammer"}
+  - {t: 20720, do: crouch}
+  - {t: 21000, do: advance}
+  - {t: 21240, do: "attack:basic"}
+  - {t: 21580, do: "attack:cd"}
+  - {t: 22000, do: "attack:basic"}
+  - {t: 22360, do: "attack:cd"}
+  - {t: 22760, do: retreat}
+  - {t: 23060, do: retreat}
+  - {t: 23420, do: jump}
+  - {t: 23780, do: advance}
+  - {t: 24020, do: "attack:cd"}
+  - {t: 24420, do: "cast:point_blank"}
+  - {t: 24780, do: crouch}
+  - {t: 25060, do: advance}
+  - {t: 25300, do: "attack:basic"}
+  - {t: 25640, do: "attack:cd"}
+  - {t: 26060, do: "attack:basic"}
+  - {t: 26420, do: "attack:cd"}
+  - {t: 26820, do: retreat}
+  - {t: 27120, do: retreat}
+  - {t: 27480, do: jump}
+  - {t: 27840, do: advance}
+  - {t: 28080, do: "attack:cd"}
+  - {t: 28480, do: "cast:fan_hammer"}
+  - {t: 28840, do: crouch}
+  - {t: 29120, do: advance}
+  - {t: 29360, do: "attack:basic"}
+  - {t: 29700, do: "attack:cd"}
+  - {t: 30120, do: "attack:basic"}
+  - {t: 30480, do: "attack:cd"}
+  - {t: 30880, do: retreat}
+  - {t: 31180, do: retreat}
+  - {t: 31540, do: jump}
+  - {t: 31900, do: advance}
+  - {t: 32140, do: "attack:cd"}
+  - {t: 32540, do: "cast:point_blank"}
+  - {t: 32900, do: crouch}
+  - {t: 33180, do: advance}
+  - {t: 33420, do: "attack:basic"}
+  - {t: 33760, do: "attack:cd"}
+  - {t: 34180, do: "attack:basic"}
+  - {t: 34540, do: "attack:cd"}
+  - {t: 34940, do: retreat}
+  - {t: 35240, do: retreat}
+  - {t: 35600, do: jump}
+  - {t: 35960, do: advance}
+  - {t: 36200, do: "attack:cd"}
+  - {t: 36600, do: "cast:fan_hammer"}
+  - {t: 36960, do: crouch}
+  - {t: 37240, do: advance}
+  - {t: 37480, do: "attack:basic"}
+  - {t: 37820, do: "attack:cd"}
+  - {t: 38240, do: "attack:basic"}
+  - {t: 38600, do: "attack:cd"}
+  - {t: 39000, do: retreat}
+  - {t: 39300, do: retreat}
+  - {t: 39660, do: jump}
+  - {t: 40020, do: advance}
+  - {t: 40260, do: "attack:cd"}
+  - {t: 40660, do: "cast:point_blank"}
+  - {t: 41020, do: crouch}
+  - {t: 41300, do: advance}
+  - {t: 41540, do: "attack:basic"}
+  - {t: 41880, do: "attack:cd"}
+  - {t: 42300, do: "attack:basic"}
+  - {t: 42660, do: "attack:cd"}
+  - {t: 43060, do: retreat}
+  - {t: 43360, do: retreat}
+  - {t: 43720, do: jump}
+  - {t: 44080, do: advance}
+  - {t: 44320, do: "attack:cd"}
+right_timeline:
   - {t: 400, do: advance}
   - {t: 640, do: "attack:basic"}
   - {t: 980, do: "attack:cd"}
@@ -23,7 +154,7 @@ left_timeline:
   - {t: 4460, do: advance}
   - {t: 4700, do: "attack:basic"}
   - {t: 5040, do: "attack:cd"}
-  - {t: 5460, do: "cast:fan_hammer"}
+  - {t: 5460, do: "cast:pike_sweep"}
   - {t: 5820, do: "attack:cd"}
   - {t: 6220, do: retreat}
   - {t: 6520, do: retreat}
@@ -45,7 +176,7 @@ left_timeline:
   - {t: 11940, do: "attack:basic"}
   - {t: 12300, do: crouch}
   - {t: 12580, do: advance}
-  - {t: 12820, do: "cast:point_blank"}
+  - {t: 12820, do: "cast:phalanx"}
   - {t: 13160, do: "attack:cd"}
   - {t: 13580, do: "attack:basic"}
   - {t: 13940, do: "attack:cd"}
@@ -66,7 +197,7 @@ left_timeline:
   - {t: 19060, do: jump}
   - {t: 19420, do: advance}
   - {t: 19660, do: "attack:cd"}
-  - {t: 20060, do: "cast:fan_hammer"}
+  - {t: 20060, do: "cast:pike_sweep"}
   - {t: 20420, do: crouch}
   - {t: 20700, do: advance}
   - {t: 20940, do: "attack:basic"}
@@ -83,7 +214,7 @@ left_timeline:
   - {t: 24760, do: advance}
   - {t: 25000, do: "attack:basic"}
   - {t: 25340, do: "attack:cd"}
-  - {t: 25760, do: "cast:point_blank"}
+  - {t: 25760, do: "cast:phalanx"}
   - {t: 26120, do: "attack:cd"}
   - {t: 26520, do: retreat}
   - {t: 26820, do: retreat}
@@ -105,7 +236,7 @@ left_timeline:
   - {t: 32240, do: "attack:basic"}
   - {t: 32600, do: crouch}
   - {t: 32880, do: advance}
-  - {t: 33120, do: "cast:fan_hammer"}
+  - {t: 33120, do: "cast:pike_sweep"}
   - {t: 33460, do: "attack:cd"}
   - {t: 33880, do: "attack:basic"}
   - {t: 34240, do: "attack:cd"}
@@ -138,137 +269,7 @@ left_timeline:
   - {t: 43420, do: jump}
   - {t: 43780, do: advance}
   - {t: 44020, do: "attack:cd"}
-  - {t: 44400, do: "attack:basic"}
-  - {t: 45000, do: "cast:high_noon"}
-right_timeline:
-  - {t: 700, do: advance}
-  - {t: 940, do: "attack:basic"}
-  - {t: 1280, do: "attack:cd"}
-  - {t: 1700, do: "attack:basic"}
-  - {t: 2060, do: "attack:cd"}
-  - {t: 2460, do: retreat}
-  - {t: 2760, do: retreat}
-  - {t: 3120, do: jump}
-  - {t: 3480, do: advance}
-  - {t: 3720, do: "attack:cd"}
-  - {t: 4120, do: "cast:pike_sweep"}
-  - {t: 4480, do: crouch}
-  - {t: 4760, do: advance}
-  - {t: 5000, do: "attack:basic"}
-  - {t: 5340, do: "attack:cd"}
-  - {t: 5760, do: "attack:basic"}
-  - {t: 6120, do: "attack:cd"}
-  - {t: 6520, do: retreat}
-  - {t: 6820, do: retreat}
-  - {t: 7180, do: jump}
-  - {t: 7540, do: advance}
-  - {t: 7780, do: "attack:cd"}
-  - {t: 8180, do: "cast:phalanx"}
-  - {t: 8540, do: crouch}
-  - {t: 8820, do: advance}
-  - {t: 9060, do: "attack:basic"}
-  - {t: 9400, do: "attack:cd"}
-  - {t: 9820, do: "attack:basic"}
-  - {t: 10180, do: "attack:cd"}
-  - {t: 10580, do: retreat}
-  - {t: 10880, do: retreat}
-  - {t: 11240, do: jump}
-  - {t: 11600, do: advance}
-  - {t: 11840, do: "attack:cd"}
-  - {t: 12240, do: "cast:pike_sweep"}
-  - {t: 12600, do: crouch}
-  - {t: 12880, do: advance}
-  - {t: 13120, do: "attack:basic"}
-  - {t: 13460, do: "attack:cd"}
-  - {t: 13880, do: "attack:basic"}
-  - {t: 14240, do: "attack:cd"}
-  - {t: 14640, do: retreat}
-  - {t: 14940, do: retreat}
-  - {t: 15300, do: jump}
-  - {t: 15660, do: advance}
-  - {t: 15900, do: "attack:cd"}
-  - {t: 16300, do: "cast:phalanx"}
-  - {t: 16660, do: crouch}
-  - {t: 16940, do: advance}
-  - {t: 17180, do: "attack:basic"}
-  - {t: 17520, do: "attack:cd"}
-  - {t: 17940, do: "attack:basic"}
-  - {t: 18300, do: "attack:cd"}
-  - {t: 18700, do: retreat}
-  - {t: 19000, do: retreat}
-  - {t: 19360, do: jump}
-  - {t: 19720, do: advance}
-  - {t: 19960, do: "attack:cd"}
-  - {t: 20360, do: "cast:pike_sweep"}
-  - {t: 20720, do: crouch}
-  - {t: 21000, do: advance}
-  - {t: 21240, do: "attack:basic"}
-  - {t: 21580, do: "attack:cd"}
-  - {t: 22000, do: "attack:basic"}
-  - {t: 22360, do: "attack:cd"}
-  - {t: 22760, do: retreat}
-  - {t: 23060, do: retreat}
-  - {t: 23420, do: jump}
-  - {t: 23780, do: advance}
-  - {t: 24020, do: "attack:cd"}
-  - {t: 24420, do: "cast:phalanx"}
-  - {t: 24780, do: crouch}
-  - {t: 25060, do: advance}
-  - {t: 25300, do: "attack:basic"}
-  - {t: 25640, do: "attack:cd"}
-  - {t: 26060, do: "attack:basic"}
-  - {t: 26420, do: "attack:cd"}
-  - {t: 26820, do: retreat}
-  - {t: 27120, do: retreat}
-  - {t: 27480, do: jump}
-  - {t: 27840, do: advance}
-  - {t: 28080, do: "attack:cd"}
-  - {t: 28480, do: "cast:pike_sweep"}
-  - {t: 28840, do: crouch}
-  - {t: 29120, do: advance}
-  - {t: 29360, do: "attack:basic"}
-  - {t: 29700, do: "attack:cd"}
-  - {t: 30120, do: "attack:basic"}
-  - {t: 30480, do: "attack:cd"}
-  - {t: 30880, do: retreat}
-  - {t: 31180, do: retreat}
-  - {t: 31540, do: jump}
-  - {t: 31900, do: advance}
-  - {t: 32140, do: "attack:cd"}
-  - {t: 32540, do: "cast:phalanx"}
-  - {t: 32900, do: crouch}
-  - {t: 33180, do: advance}
-  - {t: 33420, do: "attack:basic"}
-  - {t: 33760, do: "attack:cd"}
-  - {t: 34180, do: "attack:basic"}
-  - {t: 34540, do: "attack:cd"}
-  - {t: 34940, do: retreat}
-  - {t: 35240, do: retreat}
-  - {t: 35600, do: jump}
-  - {t: 35960, do: advance}
-  - {t: 36200, do: "attack:cd"}
-  - {t: 36600, do: "cast:pike_sweep"}
-  - {t: 36960, do: crouch}
-  - {t: 37240, do: advance}
-  - {t: 37480, do: "attack:basic"}
-  - {t: 37820, do: "attack:cd"}
-  - {t: 38240, do: "attack:basic"}
-  - {t: 38600, do: "attack:cd"}
-  - {t: 39000, do: retreat}
-  - {t: 39300, do: retreat}
-  - {t: 39660, do: jump}
-  - {t: 40020, do: advance}
-  - {t: 40260, do: "attack:cd"}
-  - {t: 40660, do: "cast:phalanx"}
-  - {t: 41020, do: crouch}
-  - {t: 41300, do: advance}
-  - {t: 41540, do: "attack:basic"}
-  - {t: 41880, do: "attack:cd"}
-  - {t: 42300, do: "attack:basic"}
-  - {t: 42660, do: "attack:cd"}
-  - {t: 43060, do: retreat}
-  - {t: 43360, do: retreat}
-  - {t: 43720, do: jump}
-  - {t: 44080, do: advance}
-  - {t: 44320, do: "attack:cd"}
+  - {t: 44360, do: "flash:in"}
+  - {t: 44840, do: advance}
+  - {t: 45000, do: "cast:skyfall"}
 arena: dojo
