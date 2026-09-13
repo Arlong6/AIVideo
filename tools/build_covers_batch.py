@@ -51,8 +51,12 @@ def main() -> int:
             skipped += 1
             continue
 
+        # Name the finishing ult after whoever actually wins — half the batch is
+        # won by the right-hand fighter, whose ult is the one on screen.
+        finisher = e["left"] if e.get("winner") == "left" else e["right"]
         cmd = [sys.executable, "-m", "pixel_battle.scripts.gen_thumbnail",
-               str(video), e["left"], e["right"], str(cover)]
+               str(video), e["left"], e["right"], str(cover),
+               "--finisher", finisher]
         if a.wide:
             cmd += ["--wide", str(OUT_DIR / f"{stem}_wide.png")]
 

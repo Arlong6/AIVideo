@@ -111,7 +111,7 @@ def _fit_font(s, max_w, start=96, lo=40):
     return _font(lo)
 
 
-def build_cover(video, left, right, out_cover, wide=None):
+def build_cover(video, left, right, out_cover, wide=None, finisher=None):
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
         hero = _pick_hero_frame(video, tmp)
@@ -127,7 +127,11 @@ def build_cover(video, left, right, out_cover, wide=None):
 
     ld, rd = _disp(left), _disp(right)
     lc, rc = _brand(left), _brand(right)
-    ult = _ult_name(left)
+    # The billboard names the ultimate that actually ENDS the fight. That is the
+    # winner's ult, which is not always the left fighter's: fights generated with
+    # gen_fight --caster-right are finished by the right-hand character, and
+    # defaulting to `left` there advertised a move the video never shows.
+    ult = _ult_name(finisher or left)
     GOLD = (255, 224, 70)
 
     # Top hook
@@ -162,8 +166,11 @@ def main():
     ap.add_argument("right")
     ap.add_argument("out_cover")
     ap.add_argument("--wide", default=None)
+    ap.add_argument("--finisher", default=None,
+                    help="character id whose ultimate ends the fight (the "
+                         "winner). Defaults to the left fighter.")
     a = ap.parse_args()
-    build_cover(a.video, a.left, a.right, a.out_cover, a.wide)
+    build_cover(a.video, a.left, a.right, a.out_cover, a.wide, a.finisher)
 
 
 if __name__ == "__main__":
