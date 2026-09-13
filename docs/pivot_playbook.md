@@ -1,7 +1,10 @@
-# TikTok + FB Reels 發布手冊（2026-07-06 查證版）
+# TikTok + FB Reels 發布手冊（2026-07-06 查證版，TikTok 章節 2026-09-11 部分更正）
 
 來源：官方頁面逐條查證（Meta Business Help / TikTok Support / Transparency Center），
 第三方說法均已標注。完整查證紀錄見 memory `project_pivot_tiktok_fb`。
+
+**TikTok 自動化與帳號數量的說法已於 2026-09-11 重新查證並部分更正** ——
+以 `docs/tiktok_automation_policy_2026-09.md` 為準（71 agent 對抗式驗證，URL 全部實測）。
 
 ## 角色分工（先想清楚再發）
 
@@ -33,10 +36,19 @@ Meta 官方 spam 政策原文重點：**有重複性內容訊號時，低頻率�
 「模板感 + 規律排程」的組合就是偵測特徵。
 
 1. 前 2-3 週：**每日 ≤1 支**，發布時間不要規律（不同時段手動發）
-2. **絕不用自動化上傳**（TikTok 官方明文禁 bulk-posting 工具）
+2. **自建 API 上傳絕對不做；TikTok 自家原生排程器可以用**（2026-09-11 查證更正，
+   見 `tiktok_automation_policy_2026-09.md`）。三條路風險不同，別混為一談：
+   自建 client 接 Content Posting API = 過不了 app review（明文禁私人/個人用途）；
+   TikTok Studio 原生排程器 = 風險與手動上傳等價，且不需 Business 帳號；
+   第三方腳本/多帳號工具/antidetect = 明文禁止，台灣適用的 RoW 版 ToS 是最嚴的一版。
+   新帳號前 2-3 週仍建議純手動 —— 理由是不製造模糊訊號，不是規則禁止。
 3. 素材**去掉一切浮水印**（TikTok 用音訊指紋+視覺偵測抓搬運，直接壓觸及）
 4. 每支影片的封面、文案開頭、結構要有可辨識差異 —— 減「工廠感」
-5. 帳號用**真實資料**註冊（生日、姓名）；不開多帳號互推
+5. 帳號用**真實資料**註冊（生日、姓名）；**只開一個帳號**。
+   TikTok 政策面對帳號數量無上限（「一人最多 3 個」是錯的，查無一手來源），
+   真限制是識別碼：1 email / 1 手機 / 1 社群登入各只能綁 1 個帳號。
+   2026-09-24 生效版把連坐條款改成 `including associated accounts` 且未定義 associated，
+   多開等於擴大風險面，不是分散風險。
 6. TikTok 前 3-5 支發「絕對安全」的內容養帳號；不要用 #fyp 濫用 tag
 7. TikTok 計酬（若未來開放）要求影片 >1 分鐘 —— crime reel 規格維持 60-90 秒正好
 
