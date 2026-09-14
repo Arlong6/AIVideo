@@ -51,3 +51,6 @@ graphify-out/
 # Native hi-res render baseline (regenerable via tools/hires_baseline.py)
 pixel_battle/output/hires_baseline/
 pixel_battle/output/hires_current/
+
+# 發布佇列含上傳時間戳與 Publer job id,屬於執行狀態不是原始碼
+pixel_battle/output/upload_queue.json
