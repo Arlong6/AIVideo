@@ -67,6 +67,24 @@ https://www.tiktok.com/safety/en/policies-and-engagement/accounts-features?cgver
 
 ---
 
+## 二之二、username 規則（2026-09-15 以 firecrawl 補查，官方原文）
+
+前一版把改名限制標為「查無一手來源」，那是**工具用錯**不是真的查不到：
+WebFetch 對 TikTok 說明中心（SPA）只拿到空殼，改用 `firecrawl scrape` 一次就取得正文。
+
+https://www.tiktok.com/support/faq_detail?id=7581821550156962315
+
+- `Your username can be changed once every 30 days.` — **30 天限制是官方明文的。**
+- `If you give up your username, you will not be able to add that username to an
+  account for a short period of time.` 放掉的名字短期內不能綁回。
+- `Changing your username will also change your profile link.`
+- 長度 2 到 24 字元，只能用字母、數字、底線、句點，句點不能結尾。
+- 已被他人使用、或被停權/停用帳號佔用的名字不能選，且不會立即釋出。
+
+**操作後果：** 連續改兩次會被擋。規劃 handle 要一次到位。
+
+---
+
 ## 三、三條路的風險完全不同
 
 | 路徑 | 合規狀態 | 風險 |
@@ -184,6 +202,9 @@ https://www.tiktok.com/legal/page/row/terms-of-service/en
 ## 七、明確標記為未證實 / 無法查證
 
 - 帳號切換器「3 個」上限：查無 TikTok 一手來源，三個流傳數字互相矛盾。
+  （注意：**username 30 天改名限制原本也列在此處，已於 2026-09-15 用 firecrawl
+  取得官方原文證實**，見第二之二節。凡是 WebFetch 回空殼的頁面，先改用 firecrawl
+  再下「無法證實」的結論。）
 - Upload/收件匣模式是否豁免 unaudited 限制：從文件缺席推論，非明文豁免，且 TikTok 文件內部不一致。
 - Buffer 的影片傳輸方式與 AI 標示開關：使用者回報，非官方文件。
 - 五家排程商的台灣可付款性：未驗證。
