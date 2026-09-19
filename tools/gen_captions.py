@@ -14,7 +14,8 @@ Captions deliberately contain NO brand name — the handle and bio carry identit
 and inventing a name here would bake a placeholder into files later steps read.
 
 Usage:
-  python3 tools/gen_captions.py                 # print all
+  python3 tools/gen_captions.py                 # print all (English)
+  python3 tools/gen_captions.py --lang zh       # the original Chinese set
   python3 tools/gen_captions.py --write DIR     # one <stem>.txt per fight
 """
 from __future__ import annotations
@@ -28,8 +29,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 MUSIC_CREDIT = ("音樂：Crusade – Kevin MacLeod (incompetech.com)\n"
                 "Licensed under Creative Commons: By Attribution 4.0")
+MUSIC_CREDIT_EN = ("Music: Crusade – Kevin MacLeod (incompetech.com)\n"
+                   "Licensed under Creative Commons: By Attribution 4.0")
 
 TAG_REGION = "#fyp #台灣"
+# English-first from 2026-09-19. No #台灣 here: the zh stack was aimed at a
+# Taiwan feed, and keeping it would split the signal TikTok reads from the post.
+TAG_REGION_EN = "#fyp #foryou"
 
 
 def _ult_display(cid: str) -> str:
@@ -58,6 +64,26 @@ def _char_id(display: str) -> str:
 # One builder per hook type. Each returns the first line only; the tag block is
 # appended by build(). Keeping them separate is what stops the run reading as one
 # template with the nouns swapped.
+def _hook_en(kind: str, f: dict) -> str:
+    """English first lines. Same two rules as _hook: every line carries the
+    matchup so none collide, and none of them name the loser."""
+    vs = f"{f['left']} vs {f['right']}"
+    ult = _ult_display(_char_id(f["winner"]))
+    if kind == "question":
+        return f"{f['left']} or {f['right']} — who takes it?\nAnswer in the last 5 seconds"
+    if kind == "underdog":
+        return f"{vs}\nLooks one-sided. It is not."
+    if kind == "character":
+        return f"One {ult} ended the whole thing\n{vs}"
+    if kind == "arena":
+        return f"A 1v1 in {f['arena_en']}\n{vs}, settled in 53 seconds"
+    if kind == "pacing":
+        return f"{vs} went down to the last sliver of health"
+    if kind == "callout":
+        return f"{vs} — the comments are going to argue about this one"
+    raise ValueError(f"unknown hook {kind}")
+
+
 def _hook(kind: str, f: dict) -> str:
     """First line per hook type.
 
@@ -89,7 +115,11 @@ def _hook(kind: str, f: dict) -> str:
     raise ValueError(f"unknown hook {kind}")
 
 
-def build(f: dict) -> str:
+def build(f: dict, lang: str = "en") -> str:
+    if lang == "en":
+        tags = " ".join(f["tags_en"])
+        return (f"{_hook_en(f['hook'], f)}\n\n{tags} {TAG_REGION_EN}"
+                f"\n\n{MUSIC_CREDIT_EN}")
     tags = " ".join(f["tags"])
     return f"{_hook(f['hook'], f)}\n\n{tags} {TAG_REGION}\n\n{MUSIC_CREDIT}"
 
@@ -101,6 +131,12 @@ def main() -> int:
         raise SystemExit(f"plan_posting failed:\n{out.stderr}")
     plan = json.loads(out.stdout)
 
+    lang = "en"
+    if "--lang" in sys.argv:
+        lang = sys.argv[sys.argv.index("--lang") + 1]
+        if lang not in ("en", "zh"):
+            raise SystemExit("--lang takes en or zh")
+
     write_dir = None
     if "--write" in sys.argv:
         i = sys.argv.index("--write")
@@ -111,7 +147,7 @@ def main() -> int:
 
     firsts = set()
     for f in plan:
-        cap = build(f)
+        cap = build(f, lang)
         first = cap.split("\n")[0]
         if first in firsts:
             raise SystemExit(f"duplicate first line across the run: {first!r} "

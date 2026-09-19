@@ -29,6 +29,12 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 ARENA_ZH = {"frost": "霜原", "dusk": "暮色", "magma": "熔岩",
             "dojo": "道場", "ruins": "遺跡"}
+
+# English arena wording, phrased to drop straight into a sentence. The channel
+# went English-first on 2026-09-19; the zh names stay so nothing that already
+# reads them breaks.
+ARENA_EN = {"frost": "the frostfield", "dusk": "the dusk arena",
+            "magma": "the magma pit", "dojo": "the dojo", "ruins": "the ruins"}
 ARCH = {
     "lux": "ranged", "ashe": "ranged", "jinx": "ranged", "deadeye": "ranged",
     "quarrel": "ranged", "pyre": "ranged", "venom": "ranged", "warlock": "ranged",
@@ -57,6 +63,14 @@ TAG_POOLS = [
     ["#火柴人", "#一對一", "#動畫", "#animation"],
 ]
 
+# English pools, rotated the same way. No #fyp/#foryou here — gen_captions
+# appends those, and a repeated tag in one stack is wasted space.
+TAG_POOLS_EN = [
+    ["#stickman", "#stickfight", "#whowins", "#animation"],
+    ["#stickmanfight", "#fightscene", "#pixelart", "#1v1"],
+    ["#stickman", "#stickbattle", "#animation", "#fightanimation"],
+]
+
 
 def _display_names() -> dict:
     data = json.loads((ROOT / "pixel_battle/data/characters.json")
@@ -75,6 +89,7 @@ def _fights() -> list[dict]:
         win, lose = (left, right) if caster == "left" else (right, left)
         out.append({
             "stem": stem, "arena": arena, "arena_zh": ARENA_ZH[arena],
+            "arena_en": ARENA_EN[arena],
             "win_side": caster,
             "left": names.get(left, left), "right": names.get(right, right),
             "winner": names.get(win, win), "loser": names.get(lose, lose),
@@ -158,7 +173,8 @@ def main() -> int:
         plan.append({**f, "post_no": n + 1,
                      "hook": HOOKS[n % len(HOOKS)][0],
                      "hook_zh": HOOKS[n % len(HOOKS)][1],
-                     "tags": TAG_POOLS[n % len(TAG_POOLS)]})
+                     "tags": TAG_POOLS[n % len(TAG_POOLS)],
+                  "tags_en": TAG_POOLS_EN[n % len(TAG_POOLS_EN)]})
 
     if "--json" in sys.argv:
         print(json.dumps(plan, ensure_ascii=False, indent=2))
