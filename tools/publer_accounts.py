@@ -67,9 +67,22 @@ def main() -> int:
     tiktoks = [a for a in accounts
                if (a.get("provider") or a.get("type") or "").lower() == "tiktok"]
     print(f"\ntiktok accounts connected: {len(tiktoks)}")
-    if len(tiktoks) < 2:
-        print("  Only one TikTok account is connected. Connect the pixel_battle\n"
-              "  channel in Publer first (Accounts -> Add -> TikTok), then re-run.")
+
+    # The pixel_battle channel lives in its own Publer workspace ("Sticker
+    # Fight"), not alongside the Japanese one, so a lone TikTok account here is
+    # the expected shape rather than a sign the setup is unfinished. What still
+    # matters is that the id we post to is the one the env points at.
+    want = os.environ.get("PIXEL_BATTLE_PUBLER_ACCOUNT_ID")
+    if not tiktoks:
+        print("  No TikTok account in this workspace. Connect it in Publer\n"
+              "  (Accounts -> Add -> TikTok), then re-run.")
+    elif not want:
+        print("  Set PIXEL_BATTLE_PUBLER_ACCOUNT_ID to the id above to post.")
+    elif not any(str(a.get("id")) == want for a in tiktoks):
+        print(f"  WARNING: PIXEL_BATTLE_PUBLER_ACCOUNT_ID={want} is not in this\n"
+              "  workspace. Posting would fail or reach the wrong channel.")
+    else:
+        print("  PIXEL_BATTLE_PUBLER_ACCOUNT_ID matches. Ready to post.")
     return 0
 
 
