@@ -19,6 +19,7 @@ Usage:
   python3 tools/publish_tiktok.py                  # dry run: show what WOULD post
   python3 tools/publish_tiktok.py --post           # actually schedule the next one
   python3 tools/publish_tiktok.py --status         # queue progress
+  python3 tools/publish_tiktok.py --mark STEM     # record one posted by hand
   python3 tools/publish_tiktok.py --post --at 2026-09-20T19:00:00+08:00
 """
 from __future__ import annotations
@@ -137,6 +138,29 @@ def main() -> int:
             print(f"{e['post_no']:>3} {e['stem']:24} {e.get('status'):9} "
                   f"{e.get('uploaded_at') or ''}")
         print(f"\n{done}/{len(q)} uploaded")
+        return 0
+
+    if "--mark" in sys.argv:
+        # The first few go out by hand from the TikTok UI. Without a way to
+        # record that, the queue keeps offering them and the automation would
+        # post a duplicate the moment it is switched on.
+        i = sys.argv.index("--mark")
+        stem = sys.argv[i + 1] if i + 1 < len(sys.argv) else None
+        if not stem:
+            raise SystemExit("--mark needs a stem, e.g. --mark b01_lumen_jugg")
+        hit = next((e for e in q if e["stem"] == stem), None)
+        if hit is None:
+            raise SystemExit(f"no such fight in the queue: {stem}")
+        if hit.get("status") == "uploaded":
+            print(f"{stem} was already marked uploaded at {hit.get('uploaded_at')}")
+            return 0
+        hit["status"] = "uploaded"
+        hit["uploaded_at"] = datetime.now().astimezone().isoformat()
+        hit["via"] = "manual"
+        QUEUE.write_text(json.dumps(q, indent=2, ensure_ascii=False),
+                         encoding="utf-8")
+        print(f"marked #{hit['post_no']} {stem} as uploaded (manual)")
+        print(f"progress {done+1}/{len(q)}")
         return 0
 
     nxt = _next_pending(q)
