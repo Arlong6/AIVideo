@@ -42,6 +42,23 @@ COVERS = ROOT / "pixel_battle/output/covers"
 ACCOUNT_ENV = "PIXEL_BATTLE_PUBLER_ACCOUNT_ID"
 
 
+def _load_env(path: Path = ROOT / ".env") -> None:
+    """Read the project .env into the environment, stdlib only.
+
+    nihongo-reels does the same thing in publer_setup.py, for the same reason:
+    a scheduled run has no shell profile, so credentials have to come off disk.
+    setdefault, not assignment — a value already exported wins.
+    """
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+
+
 def _notify(msg: str, ok: bool = True) -> None:
     """Telegram on success AND failure — the phone is the primary channel."""
     try:
@@ -89,6 +106,7 @@ def _next_pending(q: list[dict]) -> dict | None:
 
 
 def _resolve_account() -> tuple[str, str, str]:
+    _load_env()
     api_key = os.environ.get("PUBLER_API_KEY")
     workspace = os.environ.get("PUBLER_WORKSPACE_ID")
     account = os.environ.get(ACCOUNT_ENV)

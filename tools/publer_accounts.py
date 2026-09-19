@@ -8,7 +8,7 @@ pixel_battle channel. Put it in the environment as PIXEL_BATTLE_PUBLER_ACCOUNT_I
 (NOT PUBLER_TIKTOK_ACCOUNT_ID, which points at a different channel).
 
 Usage:
-  python3 tools/publer_accounts.py                     # uses env already set
+  python3 tools/publer_accounts.py                     # reads AIvideo/.env
   python3 tools/publer_accounts.py --env PATH/.env     # load credentials from a .env
 """
 from __future__ import annotations
@@ -35,10 +35,12 @@ def _load_env(path: Path) -> None:
 def main() -> int:
     if "--env" in sys.argv:
         _load_env(Path(sys.argv[sys.argv.index("--env") + 1]).expanduser())
+    elif (ROOT / ".env").exists():
+        _load_env(ROOT / ".env")
 
     api_key = os.environ.get("PUBLER_API_KEY")
     if not api_key:
-        raise SystemExit("PUBLER_API_KEY not set (pass --env <path to .env>)")
+        raise SystemExit("PUBLER_API_KEY not set. Put it in AIvideo/.env, or pass --env <path>")
 
     from publer_client import list_accounts, list_workspaces
 
