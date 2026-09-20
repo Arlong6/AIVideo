@@ -31,22 +31,46 @@ class FrameRecorder:
             "-crf", "16",
             self.output_path,
         ]
+        # stderr was DEVNULL, which threw away the only explanation whenever an
+        # encode failed — "ffmpeg encoding failed (exit code 255)" with nothing
+        # to act on. Keep the tail instead; ffmpeg is chatty but bounded, and a
+        # failed render is exactly when those lines are worth having.
         self._proc = subprocess.Popen(
             cmd, stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
         )
 
     def write_frame(self, surface: pygame.Surface) -> None:
         if self._proc is None:
             raise RuntimeError("Recorder not started")
         raw = pygame.image.tostring(surface, "RGB")
-        self._proc.stdin.write(raw)
+        try:
+            self._proc.stdin.write(raw)
+        except BrokenPipeError:
+            # ffmpeg died mid-render. Surface its complaint now rather than
+            # letting the next 3000 frames fail one at a time.
+            err = self._drain_stderr()
+            raise RuntimeError(
+                f"ffmpeg closed the pipe mid-render:\n{err}") from None
+
+    def _drain_stderr(self, keep: int = 2000) -> str:
+        if self._proc is None or self._proc.stderr is None:
+            return "(no stderr captured)"
+        try:
+            return self._proc.stderr.read().decode("utf-8", "replace")[-keep:]
+        except Exception:
+            return "(stderr unreadable)"
 
     def stop(self) -> None:
         if self._proc is None:
             return
-        self._proc.stdin.close()
+        try:
+            self._proc.stdin.close()
+        except BrokenPipeError:
+            pass
+        err = self._drain_stderr()
         rc = self._proc.wait(timeout=30)
         self._proc = None
         if rc != 0:
-            raise RuntimeError(f"ffmpeg encoding failed (exit code {rc})")
+            raise RuntimeError(
+                f"ffmpeg encoding failed (exit code {rc}):\n{err}")

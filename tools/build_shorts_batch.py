@@ -64,6 +64,11 @@ def render_one(script_path: Path) -> dict:
     }
 
 
+# On-screen hook. Kept next to the call that burns it in, so it cannot drift
+# out of step with the caption language again.
+HOOK_LINE = "WHO WINS?"
+
+
 def build_one(entry: dict, names: dict) -> Path:
     left = names.get(entry["left"], entry["left"]).upper()
     right = names.get(entry["right"], entry["right"]).upper()
@@ -75,7 +80,10 @@ def build_one(entry: dict, names: dict) -> Path:
     subprocess.run([
         sys.executable, "-m", "pixel_battle.scripts.build_short",
         entry["raw"], str(out),
-        "誰會贏?", f"{left} VS {right}", f"{win} WINS", CUT_START,
+        # The channel went English-first on 2026-09-19 (captions, bio, display
+        # name). The burnt-in hook was still Chinese, so a viewer read an English
+        # caption and then saw 「誰會贏?」 on the video itself.
+        HOOK_LINE, f"{left} VS {right}", f"{win} WINS", CUT_START,
     ], check=True, cwd=str(ROOT))
     entry["short"] = _rel(out)
     entry["title"] = f"{left} VS {right}"
