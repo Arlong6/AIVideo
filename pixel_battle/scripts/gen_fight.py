@@ -37,7 +37,84 @@ SEED = 7
 # from anywhere in this band — which frees the combat to vary its rhythm without
 # the old "must hit exactly 26 HP at 45.0s" balance breaking.
 DEF_REMAIN = 40
-ATK_REMAIN = 40
+# The winner is meant to look like they are LOSING until the finisher lands.
+# ATK_REMAIN used to be 40, the same as the defender, and the measured result was
+# two HP bars descending in lockstep for the whole 45 seconds — across b18 the
+# two sides never diverged by more than 8%. A viewer checking the bars at any
+# moment saw a dead heat, so there was nothing to find out by keeping watching.
+# Ending the caster near death turns the ultimate into a comeback instead of a
+# formality, and drops them into the low-HP danger band for the final stretch.
+ATK_REMAIN = 16
+
+
+# ── Dramatic arc ─────────────────────────────────────────────────────────────
+# The phrase loop used to run unchanged from 0s to 45s: the tempo at second 40
+# was identical to the tempo at second 5. These phases reshape that single loop
+# into a story without touching the choreography itself.
+#
+# Each entry is (until_fraction_of_ULT_T, gap_scale, suppress_caster, suppress_defender).
+# `gap_scale` stretches or compresses the beat spacing. `suppress_N` converts
+# every Nth attack on that side into a defensive beat (0 = no suppression),
+# which is what makes one side visibly lose ground: they stop landing hits, the
+# opponent's bar stops draining, and the two curves separate on screen.
+#
+# Suppression is counted, not random — the generator has to stay reproducible.
+# Tuned against the measured HP curves, not guessed. The first attempt used
+# suppression 2 (half of one side's attacks dropped) for a long middle phase and
+# froze the defender's bar at 93% for fifteen straight seconds — a bar that does
+# not move reads as broken, which is worse than a bar that moves predictably.
+# Suppression 3 keeps a side losing ground while still landing something.
+#
+# The lead changes hands twice. One swing is a story; zero swings is a metronome,
+# and the version before this had zero.
+# Two failed tunings are baked into these numbers; both were measured, not felt.
+#
+# Suppression 2 at an even tempo turned b09 and b11 into 7- and 12-second stalls,
+# because dropping half of one side's attacks simply means less is happening.
+# The obvious compensation — run the suppressed phases FASTER to buy the density
+# back — made it worse, not better: every one of the twelve fights stalled and
+# b18's impact count fell from 34 to 27. Tempo is not density. The choreography's
+# advance/retreat beats need time to actually arrive, and compressing them leaves
+# both fighters oscillating around the edge of range, whiffing.
+#
+# What works is closing the distance the suppression opens: see the chase rule in
+# side_actions(). Tempo stays near neutral and only drifts tighter toward the end.
+ARC = [
+    # Feel-out — even, wide spacing, lets the opening read.
+    (0.12, 1.20, 3, 3),
+    # Defender presses. The eventual winner falls behind: the "oh no" setup.
+    (0.30, 0.98, 2, 0),
+    # The caster hits back and closes the gap.
+    (0.46, 0.94, 0, 2),
+    # Defender pushes again, harder.
+    (0.64, 0.90, 2, 0),
+    # Second rally — the caster nearly levels it, so the last reversal stings.
+    (0.82, 0.86, 0, 2),
+    # Driven to the danger band, then the finisher.
+    (1.00, 0.70, 3, 0),
+]
+
+
+def _arc_at(progress: float):
+    """(gap_scale, suppress_caster, suppress_defender) at this point in the fight."""
+    for until, scale, sc, sd in ARC:
+        if progress <= until:
+            return scale, sc, sd
+    return ARC[-1][1:]
+
+
+# Beats a suppressed attack turns into — they already exist in every archetype's
+# vocabulary, so nothing new has to be animated.
+#
+# Archetype matters here. Making a ranged fighter retreat opens the gap further,
+# and then the OPPONENT's attacks whiff too: measured across the batch, a single
+# shared list of defensive beats turned one stall into three and cut b18's impact
+# count from 42 to 34. Ranged fighters give ground in place instead.
+_DEFENSIVE = {
+    "ranged": ("crouch", "jump", "crouch"),
+    "assassin": ("crouch", "jump", "retreat"),
+    "melee": ("retreat", "crouch", "jump"),
+}
 
 # Champion → movement archetype (mage+marksman collapse to "ranged";
 # warrior/tank/duelist to "melee"; assassin is its own hit-and-run profile).
@@ -160,13 +237,29 @@ def side_actions(arch, is_caster, cid):
     # ult. Counting basics guarantees every archetype rotates through its kit.
     period = 5 if is_caster else 3
     basic_n = 0
+    atk_n = 0          # attacks seen on this side, for counted suppression
     while t < end:
         act, gap = phrase[pi % len(phrase)]
+        scale, sup_c, sup_d = _arc_at(t / ULT_T)
         if sp and act == "attack:basic" and t < cast_until:
             basic_n += 1
             if basic_n % period == 0:
                 act = f"cast:{sp[si % len(sp)]}"; si += 1   # cycle through the whole kit
-        rows.append((t, act)); t += gap; pi += 1
+        sup = sup_c if is_caster else sup_d
+        other_sup = sup_d if is_caster else sup_c
+        if act.startswith("attack:") or act.startswith("cast:"):
+            atk_n += 1
+            if sup and atk_n % sup == 0:
+                # Give ground instead of striking. The opponent's bar stops
+                # draining here, which is what a viewer reads as "losing".
+                pool = _DEFENSIVE.get(arch, _DEFENSIVE["melee"])
+                act = pool[atk_n % len(pool)]
+        elif other_sup and act == "retreat":
+            # CHASE. While the opponent is giving ground, backing off as well
+            # just parks both fighters out of range and nothing lands — which is
+            # how the first cut of this arc manufactured stalls. Press instead.
+            act = "advance"
+        rows.append((t, act)); t += max(120, int(gap * scale)); pi += 1
     return rows
 
 
