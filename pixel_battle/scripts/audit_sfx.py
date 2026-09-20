@@ -70,18 +70,48 @@ MAX_CENTROID = 2000.0     # Hz
 MIN_CREST_DB = 6.0        # below this it has been flattened into a wall
 
 
+SF_NATIVE = (".wav", ".ogg", ".flac", ".aiff", ".aif")
+
+
 def _load(path: Path) -> tuple[np.ndarray, int]:
-    """Mono float64. soundfile covers wav/ogg/flac; mp3 goes out to ffmpeg."""
-    if path.suffix.lower() == ".mp3":
+    """Mono float64. soundfile reads the formats it knows; everything else —
+    mp3, mp4, m4a — goes out to ffmpeg, so a finished short can be measured
+    alongside the raw effects that went into it."""
+    if path.suffix.lower() not in SF_NATIVE:
         r = subprocess.run(
             ["ffmpeg", "-v", "error", "-i", str(path), "-f", "f32le",
              "-ac", "1", "-ar", "48000", "-"], capture_output=True)
-        if r.returncode != 0:
-            raise RuntimeError(r.stderr.decode()[:200])
+        if r.returncode != 0 or not r.stdout:
+            raise RuntimeError((r.stderr.decode()[:200]) or "no audio stream")
         return np.frombuffer(r.stdout, dtype=np.float32).astype(np.float64), 48000
     import soundfile as sf
     x, sr = sf.read(str(path), dtype="float32", always_2d=True)
     return x.mean(axis=1).astype(np.float64), sr
+
+
+def _avg_spectrum(x: np.ndarray, n: int = 1 << 14) -> np.ndarray:
+    """Power spectrum averaged over the WHOLE file, not just its head.
+
+    The first version analysed only x[:n] — about a third of a second. For a
+    120ms hit that is the entire sound, but for the 199-second BGM it measured
+    the intro and nothing else, which is exactly the kind of quiet wrong answer
+    this tool exists to prevent. Frames are averaged Welch-style, skipping near
+    silent ones so a long tail of nothing cannot drag the brightness down.
+    """
+    if len(x) < n:
+        seg = np.pad(x, (0, n - len(x)))
+        return np.abs(np.fft.rfft(seg * np.hanning(n))) ** 2
+    hop = n // 2
+    win = np.hanning(n)
+    frames = [x[i:i + n] * win for i in range(0, len(x) - n + 1, hop)]
+    # Cap the work on long files; 400 frames spans a 3-minute track densely.
+    if len(frames) > 400:
+        idx = np.linspace(0, len(frames) - 1, 400).astype(int)
+        frames = [frames[i] for i in idx]
+    spec = np.array([np.abs(np.fft.rfft(f)) ** 2 for f in frames])
+    energy = spec.sum(axis=1)
+    live = spec[energy > energy.max() * 0.02] if energy.max() > 0 else spec
+    return (live if len(live) else spec).mean(axis=0)
 
 
 def measure(path: Path) -> dict:
@@ -91,8 +121,7 @@ def measure(path: Path) -> dict:
     x = x / float(np.max(np.abs(x)))          # loudness must not sway the verdict
 
     n = 1 << 14
-    seg = x[:n] if len(x) >= n else np.pad(x, (0, n - len(x)))
-    e = np.abs(np.fft.rfft(seg * np.hanning(n))) ** 2
+    e = _avg_spectrum(x, n)
     f = np.fft.rfftfreq(n, 1 / sr)
     tot = float(e.sum()) + 1e-12
 
