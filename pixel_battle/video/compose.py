@@ -1,4 +1,5 @@
 """Build mixed audio track from event log; mux with rendered video."""
+import os
 import subprocess
 from pathlib import Path
 from typing import List
@@ -10,7 +11,30 @@ from pixel_battle.engine.battle import Event, EventType
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
 SFX_DIR = ASSETS / "sfx"
+SFX_REAL_DIR = ASSETS / "sfx_real"
 BGM_DIR = ASSETS / "bgm"
+
+
+def _sfx_path(name: str) -> Path:
+    """Where to load an effect from: the real recordings, or the synthesized set.
+
+    The two live side by side rather than one overwriting the other, for three
+    reasons. Migration can go one file at a time without the rest breaking; the
+    env var gives an instant A/B when judging whether a replacement is actually
+    better; and the nine already-published fights keep rendering byte-identical
+    from their existing raws.
+
+    PIXEL_BATTLE_SFX: "real" forces sfx_real and fails loudly if a file is
+    missing, "synth" pins the old set, "auto" (default) prefers real and falls
+    back per file.
+    """
+    mode = os.getenv("PIXEL_BATTLE_SFX", "auto")
+    if mode == "synth":
+        return SFX_DIR / f"{name}.wav"
+    real = SFX_REAL_DIR / f"{name}.wav"
+    if mode == "real" or real.exists():
+        return real
+    return SFX_DIR / f"{name}.wav"
 
 
 # ---------------------------------------------------------------------------
@@ -42,13 +66,12 @@ def _loop_to_length(samples: np.ndarray, total_ms: int, sample_rate: int) -> np.
 
 def _load_sfx_samples(name: str, sample_rate: int) -> np.ndarray:
     """Hard load — raises if missing (mirrors old _load_sfx)."""
-    path = SFX_DIR / f"{name}.wav"
-    return _load_wav(path, sample_rate)
+    return _load_wav(_sfx_path(name), sample_rate)
 
 
 def _load_sfx_samples_or_none(name: str, sample_rate: int):
     """Soft load — returns None if missing (mirrors old _load_sfx_or_none)."""
-    path = SFX_DIR / f"{name}.wav"
+    path = _sfx_path(name)
     if not path.exists():
         return None
     return _load_wav(path, sample_rate)

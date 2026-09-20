@@ -76,6 +76,13 @@ AUDIO_EXT = (".wav", ".ogg", ".mp3", ".flac", ".aiff", ".aif")
 # this investigation. Too bright and it generates the ordinary kind of listening
 # fatigue. An impact needs low end for weight, midrange for the ear to place it,
 # and only a little top for the snap.
+# Relaxed ceiling for effects that fire ONCE per fight. Listening fatigue is a
+# function of repetition, so a finisher is allowed the low-end weight that would
+# be punishing in a sound that plays every 1.5 seconds. It still has to carry
+# some body — pure sub-bass rumble is not a sound, it is pressure.
+ONESHOT_MAX_LF = 0.85
+ONESHOT_MIN_MID = 0.10
+
 MIN_MID = 0.15            # 300Hz-2kHz — the body. Below this it reads as a thud.
 MAX_HF_2_8 = 0.35         # 2-8kHz — the snap. Above this it starts to sting.
 MAX_VHF = 0.10            # above 8kHz — sizzle, grating over 30 repeats
@@ -128,6 +135,17 @@ def _avg_spectrum(x: np.ndarray, n: int = 1 << 14) -> np.ndarray:
     return (live if len(live) else spec).mean(axis=0)
 
 
+def _policy_for(stem: str) -> str:
+    """Which budget applies. Read from install_sfx_real so the two files cannot
+    drift apart; anything not in that plan is judged by the strict budget."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from install_sfx_real import PLAN
+        return PLAN.get(stem, (None, "repeat"))[1]
+    except Exception:
+        return "repeat"
+
+
 def measure(path: Path) -> dict:
     x, sr = _load(path)
     if not len(x) or float(np.max(np.abs(x))) <= 0:
@@ -148,11 +166,15 @@ def measure(path: Path) -> dict:
 
     mid = float(e[(f >= 300) & (f < 2000)].sum() / tot)
 
+    policy = _policy_for(path.stem)
+    min_mid = ONESHOT_MIN_MID if policy == "oneshot" else MIN_MID
+    max_lf = ONESHOT_MAX_LF if policy == "oneshot" else MAX_LF
+
     reasons = []
-    if mid < MIN_MID:
-        reasons.append(f"midrange {mid:.0%} < {MIN_MID:.0%} (no body)")
-    if lf > MAX_LF:
-        reasons.append(f"<300Hz {lf:.0%} > {MAX_LF:.0%} (all weight, no detail)")
+    if mid < min_mid:
+        reasons.append(f"midrange {mid:.0%} < {min_mid:.0%} (no body)")
+    if lf > max_lf:
+        reasons.append(f"<300Hz {lf:.0%} > {max_lf:.0%} (all weight, no detail)")
     if hf > MAX_HF_2_8:
         reasons.append(f"2-8kHz {hf:.0%} > {MAX_HF_2_8:.0%}")
     if vhf > MAX_VHF:
@@ -165,6 +187,7 @@ def measure(path: Path) -> dict:
     return {"file": path.name, "hf2_8": round(hf, 3), "vhf": round(vhf, 3),
             "lf": round(lf, 3), "mid": round(mid, 3),
             "centroid": round(centroid), "crest": round(crest, 1),
+            "policy": policy,
             "sr": sr, "dur": round(len(x) / sr, 3),
             "ok": not reasons, "why": "; ".join(reasons)}
 
@@ -177,7 +200,7 @@ def _files(target: Path) -> list[Path]:
 
 def _report(rows: list[dict], header: str) -> int:
     print(header)
-    print(f"  {'':5} {'file':30} {'<300':>6} {'mid':>6} {'2-8k':>6} {'>8k':>6} "
+    print(f"  {'':5} {'file':26} {'policy':7} {'<300':>6} {'mid':>6} {'2-8k':>6} {'>8k':>6} "
           f"{'centr':>6} {'crest':>6}  why")
     bad = 0
     for r in rows:
@@ -186,7 +209,8 @@ def _report(rows: list[dict], header: str) -> int:
             bad += 1
             continue
         bad += not r["ok"]
-        print(f"  {'ok' if r['ok'] else 'FAIL':5} {r['file']:30} "
+        print(f"  {'ok' if r['ok'] else 'FAIL':5} {r['file']:26} "
+              f"{r.get('policy','')[:7]:7} "
               f"{r['lf']:6.3f} {r['mid']:6.3f} {r['hf2_8']:6.3f} {r['vhf']:6.3f} "
               f"{r['centroid']:6.0f} {r['crest']:6.1f}  {r['why']}")
     if rows:

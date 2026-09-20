@@ -54,3 +54,7 @@ pixel_battle/output/hires_current/
 
 # 發布佇列含上傳時間戳與 Publer job id,屬於執行狀態不是原始碼
 pixel_battle/output/upload_queue.json
+
+# Source audio downloaded by install_sfx_real.py — re-fetchable from
+# OpenGameArt, 74MB of packs we only need a dozen files out of.
+.cache/
