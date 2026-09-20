@@ -219,7 +219,32 @@ def side_actions(arch, is_caster, cid):
     rows = []
     sp = _specials(cid)
     phrase = _PHRASES.get(arch, _PHRASES["melee"])
-    t, pi, si = (400 if is_caster else 700), 0, 0
+    # MIRROR-MATCH ONLY: start the two sides at different points in the phrase.
+    #
+    # Both sides used to begin at index 0. When they share an archetype they
+    # therefore share a script, and the melee phrase's `retreat, retreat, jump`
+    # stretch fires on both at once — both fighters back off together, the gap
+    # doubles, and nothing lands. b09 and b11 are both melee-vs-melee and both
+    # stalled; half a phrase of offset fixed b11 outright (11.4s gap -> 4.6s,
+    # 14 impacts -> 22).
+    #
+    # Applying it unconditionally made things far worse (1 of 12 fights passed):
+    # in a mixed pairing the two phrases are already different, and the default
+    # alignment happens to put one side's advance inside the other's attack
+    # window. Desynchronising that throws the interlock away. So: only when the
+    # two archetypes match.
+    t, si = (400 if is_caster else 700), 0
+    mirror = L_ARCH == R_ARCH
+    pi = len(phrase) // 2 if (mirror and not is_caster) else 0
+
+    # NOBODY WANTS TO CLOSE. When neither fighter is a melee archetype, both
+    # phrases are built around holding or breaking distance: the ranged script
+    # retreats to kite, the assassin script uses `flash:back` to vanish. Put
+    # those two together and they simply walk away from each other — b12
+    # (assassin vs ranged) opened a 35.5-second hole where nothing landed at all.
+    # With no melee fighter present to force the engagement, the disengage beats
+    # have to be inverted or the fight never happens.
+    no_melee = "melee" not in (L_ARCH, R_ARCH)
     end = ULT_T - 700 if is_caster else ULT_T - 500
     # The caster must hold MP=100 for the ult. Melee/assassin casters regain MP
     # fast (many connecting hits) so they can spend on specials then rebuild;
@@ -259,6 +284,11 @@ def side_actions(arch, is_caster, cid):
             # just parks both fighters out of range and nothing lands — which is
             # how the first cut of this arc manufactured stalls. Press instead.
             act = "advance"
+        if no_melee:
+            if act == "retreat":
+                act = "advance"
+            elif act == "flash:back":
+                act = "flash:in"
         rows.append((t, act)); t += max(120, int(gap * scale)); pi += 1
     return rows
 
