@@ -5,7 +5,7 @@ right: cleaver
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 123
+left_start_hp: 125
 right_start_hp: 73
 left_timeline:
   - {t: 400, do: advance}

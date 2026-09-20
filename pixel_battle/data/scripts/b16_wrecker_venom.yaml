@@ -5,8 +5,8 @@ right: venom
 duration_ms: 53000
 seed: 7
 right_start_mp: 100
-left_start_hp: 113
-right_start_hp: 132
+left_start_hp: 114
+right_start_hp: 150
 left_timeline:
   - {t: 700, do: advance}
   - {t: 988, do: "attack:basic"}

@@ -33,6 +33,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tools"))
 
 SAMPLE_MS = 2000
 LEAD_EPS = 5.0        # percentage points before a lead counts as visible
@@ -41,41 +42,15 @@ IMPACT_TYPES = {"hit", "crit", "ko"}
 
 
 def curve(path: Path) -> dict:
-    from pixel_battle.rl.env import PixelBattleEnv
-    from pixel_battle.script.loader import load_fight_file
-    import yaml as _yaml
+    """HP samples + impacts, advanced the way the renderer advances them.
 
-    meta = _yaml.safe_load(path.read_text(encoding="utf-8"))
-    d = load_fight_file(str(path))
-    env = PixelBattleEnv(left_id=meta["left"], right_id=meta["right"],
-                         seed=meta.get("seed", 7))
-    env.reset()
-    b = env.battle
-    for side in ("left", "right"):
-        f = getattr(b, side)
-        hp, mp = meta.get(f"{side}_start_hp"), meta.get(f"{side}_start_mp")
-        if hp is not None:
-            f.hp = hp
-            if hasattr(f, "hp_max"):
-                f.hp_max = max(getattr(f, "hp_max", hp), hp)
-        if mp is not None:
-            f.mp = min(getattr(f, "mp_max", mp), mp)
-
-    l0, r0 = b.left.hp, b.right.hp
-    pts, nxt = [], 0
-    for _ in range(int(meta.get("duration_ms", 53000) / 16) + 200):
-        if b.left.is_ko() or b.right.is_ko():
-            break
-        if b.elapsed_ms >= nxt:
-            pts.append((b.elapsed_ms / 1000.0,
-                        b.left.hp / l0 * 100, b.right.hp / r0 * 100))
-            nxt += SAMPLE_MS
-        la, ra = d.decide(b)
-        env.step((la, ra))
-    pts.append((b.elapsed_ms / 1000.0, b.left.hp / l0 * 100, b.right.hp / r0 * 100))
-    impacts = [ev.t_ms / 1000.0 for ev in b.events if ev.type.value in IMPACT_TYPES]
-    return {"pts": pts, "impacts": impacts,
-            "caster": "right" if meta.get("right_start_mp") else "left"}
+    The pure env.step() loop this used to run diverges from the real render
+    whenever slow-mo is active, and on a thin HP margin it predicts the wrong
+    winner. See tools/sim_render.py for the rules being modelled.
+    """
+    from sim_render import simulate as _sim
+    r = _sim(path)
+    return {"pts": r["curve"], "impacts": r["impacts"], "caster": r["caster"]}
 
 
 def analyse(c: dict) -> dict:

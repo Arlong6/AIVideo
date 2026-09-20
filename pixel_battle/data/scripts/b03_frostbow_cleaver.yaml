@@ -5,8 +5,8 @@ right: cleaver
 duration_ms: 53000
 seed: 7
 right_start_mp: 100
-left_start_hp: 168
-right_start_hp: 120
+left_start_hp: 165
+right_start_hp: 129
 left_timeline:
   - {t: 700, do: "attack:basic"}
   - {t: 1108, do: "attack:cd"}

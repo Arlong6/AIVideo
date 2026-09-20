@@ -5,8 +5,8 @@ right: reaver
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 121
-right_start_hp: 113
+left_start_hp: 115
+right_start_hp: 117
 left_timeline:
   - {t: 400, do: "attack:basic"}
   - {t: 808, do: "attack:cd"}

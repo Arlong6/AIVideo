@@ -19,51 +19,24 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tools"))
 
 
 def simulate(path: Path) -> dict:
-    from pixel_battle.rl.env import PixelBattleEnv
-    from pixel_battle.script.loader import load_fight_file
-    import yaml as _yaml
+    """Winner by simulation — advanced the way the RENDERER advances the fight.
 
-    meta = _yaml.safe_load(path.read_text(encoding="utf-8"))
-    d = load_fight_file(str(path))
-    env = PixelBattleEnv(left_id=meta["left"], right_id=meta["right"],
-                         seed=meta.get("seed", 7))
-    env.reset()
-    b = env.battle
-    for side in ("left", "right"):
-        f = getattr(b, side)
-        hp = meta.get(f"{side}_start_hp")
-        mp = meta.get(f"{side}_start_mp")
-        if hp is not None:
-            f.hp = hp
-            if hasattr(f, "hp_max"):
-                f.hp_max = max(getattr(f, "hp_max", hp), hp)
-        if mp is not None:
-            f.mp = min(getattr(f, "mp_max", mp), mp)
-
-    limit = int(meta.get("duration_ms", 53000) / 16) + 200
-    for _ in range(limit):
-        if b.left.is_ko() or b.right.is_ko():
-            break
-        la, ra = d.decide(b)
-        env.step((la, ra))
-
-    # Same rule as play._render_fight: KO first, then higher HP on timeout.
-    if b.right.is_ko() and not b.left.is_ko():
-        w = "left"
-    elif b.left.is_ko() and not b.right.is_ko():
-        w = "right"
-    elif b.left.hp > b.right.hp:
-        w = "left"
-    elif b.right.hp > b.left.hp:
-        w = "right"
-    else:
-        w = None
-    return {"winner": w, "left_hp": round(b.left.hp, 1),
-            "right_hp": round(b.right.hp, 1),
-            "ko": b.left.is_ko() or b.right.is_ko()}
+    This was a plain env.step() loop, and it was quietly wrong. The renderer
+    ticks the engine at `ENGINE_MS * dt_scale` during slow-mo while still
+    applying one scripted decision per frame, so the choreography lands more
+    damage than a constant-dt loop predicts. With the old 40-HP buffer on the
+    caster the gap never changed an outcome; once the buffer was cut for a
+    comeback arc, this file said "right wins" for a fight the renderer gave to
+    left, with the ultimate never firing at all. See tools/sim_render.py.
+    """
+    from sim_render import simulate as _sim
+    r = _sim(path)
+    return {"winner": r["winner"], "left_hp": r["left_hp"],
+            "right_hp": r["right_hp"], "ko": r["ko"]}
 
 
 def main() -> int:

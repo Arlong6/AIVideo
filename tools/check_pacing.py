@@ -1,4 +1,4 @@
-"""Report each fight's hit distribution by pure simulation — no video encoding.
+"""Report each fight's hit distribution by simulation — no video encoding.
 
 A fight can pick a correct winner and still be unwatchable. b12_shade_deadeye
 lands ten hits in its first 6.5 seconds and then nothing at all until the KO at
@@ -10,10 +10,14 @@ check_winners.py already proves the simulation alone answers questions that
 would otherwise cost a 3.5-minute render. This asks the pacing question the same
 way, so a whole batch can be audited in seconds before committing to a re-render.
 
+Stepping goes through tools/sim_render.py, which advances the battle the way the
+renderer does rather than at a constant dt — a constant-dt loop measures a
+different fight, badly enough to name the wrong winner on a thin HP margin.
+
 Times here are ENGINE ms, not video ms: slow-mo and hitstop stretch the recorded
 video (b01's KO is at engine 45404 but video 47850). That divergence is small
-next to the gaps this tool is looking for, and using engine time is what lets it
-skip rendering entirely. Do not reuse these numbers to cue overlays.
+next to the gaps this tool is looking for. Do not reuse these numbers to cue
+overlays — use the renderer's own event_video_ms for that.
 
 Usage:
   python3 tools/check_pacing.py                      # every b*.yaml
@@ -32,6 +36,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tools"))
 
 # A viewer forgives a couple of seconds between blows; six is a stall. Chosen
 # against the measured spread: b01 (healthy) peaks at 3.2s, b12 (broken) at 37.8s.
@@ -42,39 +47,18 @@ IMPACT_TYPES = {"hit", "crit", "ko"}
 
 
 def simulate(path: Path) -> dict:
-    """Run the fight headlessly and return its impact timeline in engine ms."""
-    from pixel_battle.rl.env import PixelBattleEnv
-    from pixel_battle.script.loader import load_fight_file
-    import yaml as _yaml
+    """Run the fight the way the RENDERER advances it and return its impacts.
 
-    meta = _yaml.safe_load(path.read_text(encoding="utf-8"))
-    d = load_fight_file(str(path))
-    env = PixelBattleEnv(left_id=meta["left"], right_id=meta["right"],
-                         seed=meta.get("seed", 7))
-    env.reset()
-    b = env.battle
-    for side in ("left", "right"):
-        f = getattr(b, side)
-        hp = meta.get(f"{side}_start_hp")
-        mp = meta.get(f"{side}_start_mp")
-        if hp is not None:
-            f.hp = hp
-            if hasattr(f, "hp_max"):
-                f.hp_max = max(getattr(f, "hp_max", hp), hp)
-        if mp is not None:
-            f.mp = min(getattr(f, "mp_max", mp), mp)
-
-    limit = int(meta.get("duration_ms", 53000) / 16) + 200
-    for _ in range(limit):
-        if b.left.is_ko() or b.right.is_ko():
-            break
-        la, ra = d.decide(b)
-        env.step((la, ra))
-
-    impacts = [ev.t_ms / 1000.0 for ev in b.events
-               if ev.type.value in IMPACT_TYPES]
-    end_s = (b.events[-1].t_ms / 1000.0) if b.events else 0.0
-    return {"impacts": impacts, "end_s": end_s}
+    This used to be a plain env.step() loop. That is not how the fight plays on
+    screen: the render loop ticks the engine at a fraction of ENGINE_MS whenever
+    slow-mo is active, which hands the choreography many more decisions per
+    engine-millisecond. The difference is not academic — on a thin HP margin the
+    pure loop predicted the wrong winner outright. See tools/sim_render.py.
+    """
+    from sim_render import simulate as _sim
+    r = _sim(path)
+    return {"impacts": r["impacts"],
+            "end_s": (r["events"][-1].t_ms / 1000.0) if r["events"] else 0.0}
 
 
 def analyse(sim: dict, max_gap: float) -> dict:

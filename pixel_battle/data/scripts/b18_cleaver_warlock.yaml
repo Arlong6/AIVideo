@@ -5,8 +5,8 @@ right: warlock
 duration_ms: 53000
 seed: 7
 right_start_mp: 100
-left_start_hp: 117
-right_start_hp: 151
+left_start_hp: 114
+right_start_hp: 176
 left_timeline:
   - {t: 700, do: advance}
   - {t: 988, do: "attack:basic"}

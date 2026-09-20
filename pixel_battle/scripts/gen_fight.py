@@ -44,7 +44,23 @@ DEF_REMAIN = 40
 # moment saw a dead heat, so there was nothing to find out by keeping watching.
 # Ending the caster near death turns the ultimate into a comeback instead of a
 # formality, and drops them into the low-HP danger band for the final stretch.
-ATK_REMAIN = 16
+#
+# 16 was too thin and broke the fights. The auto-tuner in measure() runs a PURE
+# simulation, but the renderer does not: whenever slow-mo is active it ticks the
+# engine at `ENGINE_MS * dt_scale` (≈2ms instead of 16.67ms), so the scripted
+# driver gets up to eight times as many decisions per engine-millisecond and
+# lands correspondingly more damage. The old value of 40 had enough slack to
+# absorb that divergence; 16 did not, and the caster died before reaching its own
+# ultimate — b18 rendered 47.1s with the wrong winner instead of 53.2s.
+#
+# 28 keeps the comeback (the winner still finishes around 20%, against 28% at the
+# old setting) while leaving margin for the sim-vs-render gap. The real fix is to
+# make measure() model the renderer's slow-mo; until then, changes to this number
+# MUST be verified by an actual render, not by check_winners.
+# With measure() now stepping through the same pacer as the renderer, the number
+# written here is the number the video actually delivers, so it can go back to a
+# genuinely dramatic value instead of one padded against a modelling error.
+ATK_REMAIN = 18
 
 
 # ── Dramatic arc ─────────────────────────────────────────────────────────────
@@ -336,7 +352,19 @@ right_timeline:
 
 
 def measure():
+    """Damage each side takes by the ultimate, measured the way it will RENDER.
+
+    This used to step at a constant dt, which is not what play.py does: during
+    slow-mo the renderer ticks the engine at a fraction of ENGINE_MS while still
+    applying one scripted decision per frame, so more damage lands than a
+    constant-dt loop predicts. With the old 40 HP cushion on the caster the error
+    never mattered. Cutting the cushion for the comeback arc exposed it at once —
+    the caster died before reaching its own ultimate and the fight went to the
+    wrong side. Measuring through the same pacer the checkers use means the
+    number written into the YAML is the number the video actually produces.
+    """
     from pixel_battle.rl.env import PixelBattleEnv
+    from pixel_battle.rl.render_sim import RenderPacer
     from pixel_battle.script.loader import load_fight_file
     d = load_fight_file(OUT)
     env = PixelBattleEnv(left_id=LEFT, right_id=RIGHT, seed=SEED); env.reset()
@@ -347,13 +375,16 @@ def measure():
         if hasattr(f, "hp_max"): f.hp_max = 999
     L, R = b.left, b.right
     pre_l, pre_r = L.hp, R.hp
-    for _ in range(int((ULT_T + 6000) / 16) + 50):
+    pacer = RenderPacer(env)
+    # Frame budget, not engine-time budget — slow-mo means more frames are needed
+    # to reach the same engine timestamp.
+    for _ in range(int(60 * 60)):
         la, ra = d.decide(b)
         if b.elapsed_ms < ULT_T:
             pre_l, pre_r = L.hp, R.hp
         else:
             break
-        env.step((la, ra))
+        pacer.step(la, ra)
     return 999 - pre_l, 999 - pre_r
 
 

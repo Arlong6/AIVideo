@@ -5,8 +5,8 @@ right: deadeye
 duration_ms: 53000
 seed: 7
 right_start_mp: 100
-left_start_hp: 102
-right_start_hp: 111
+left_start_hp: 108
+right_start_hp: 129
 left_timeline:
   - {t: 700, do: "flash:in"}
   - {t: 928, do: "attack:basic"}
