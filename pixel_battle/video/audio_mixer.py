@@ -14,7 +14,8 @@ from typing import List, Tuple
 
 import numpy as np
 import soundfile as sf
-from pedalboard import Gain, HighpassFilter, LowShelfFilter, Limiter, Pedalboard
+from pedalboard import (Gain, HighpassFilter, Limiter, LowShelfFilter,
+                        Pedalboard, PeakFilter)
 
 
 class SlotLimiter:
@@ -78,17 +79,47 @@ class AudioMixer:
     """Owns 4 buses (BGM/cast/hit/ult) + a final ffmpeg sidechain export.
 
     Default chains tuned for pixel-battle:
-      - BGM:  -12dB gain   (sits under everything; sidechain target)
+      - BGM:  hi-pass 40Hz + -12dB   (sits under everything; sidechain target)
       - cast: hi-pass 200Hz + -8dB + limiter + 2-slot SlotLimiter
-      - hit:  low-shelf +3dB @ 120Hz + 0dB + limiter (cuts through)
-      - ult:  0dB + limiter
+      - hit:  hi-pass 50Hz + presence +3dB @ 2kHz + limiter (cuts through)
+      - ult:  hi-pass 45Hz + 0dB + limiter
+
+    THE LOW-END REBALANCE (2026-09-20) — why the hit bus no longer boosts bass.
+
+    arlong reported the finished videos are uncomfortable to listen to. The first
+    theory was harshness; measurement killed it (the mix sits at 2% of energy in
+    2-8kHz, about as un-harsh as audio gets). The actual spectrum of a shipped
+    short was the opposite pathology:
+
+        <60Hz    35.3%        300Hz-2kHz  11.4%
+        60-120Hz 47.0%        2k-8kHz      2.0%
+
+    82% of all energy below 120Hz, and a hollow midrange. Sustained sub-bass at
+    volume is a known fatigue mechanism — it reads as ear pressure rather than
+    sharpness, which is exactly why it did not look like a problem at first.
+
+    Three things were stacking it up: the synthesized hits are almost pure
+    low thumps (hit.wav measures 99.8% under 300Hz), no bus had a high-pass so
+    sub-60Hz rumble passed through untouched, and this bus then added another
+    +3dB under 120Hz on top.
+
+    The replacement keeps hits cutting through, but does it in the midrange
+    where the ear actually locates an impact. That also fixes a second problem
+    nobody had connected: phone speakers roll off steeply in the low bass, so on
+    the device most of this audience watches on, 82% of the energy was simply
+    not being reproduced and the hits landed weak.
     """
 
     def __init__(self, sample_rate: int = 48000):
         self.sr = sample_rate
         self.bgm_bus = Bus(
             name="bgm", sample_rate=sample_rate,
-            chain=Pedalboard([Gain(gain_db=-12.0)]),
+            chain=Pedalboard([
+                # Nothing musical lives below 40Hz in a loop like this; what is
+                # down there is rumble that only shows up as pressure.
+                HighpassFilter(cutoff_frequency_hz=40.0),
+                Gain(gain_db=-12.0),
+            ]),
         )
         self.cast_bus = Bus(
             name="cast", sample_rate=sample_rate,
@@ -102,7 +133,11 @@ class AudioMixer:
         self.hit_bus = Bus(
             name="hit", sample_rate=sample_rate,
             chain=Pedalboard([
-                LowShelfFilter(cutoff_frequency_hz=120.0, gain_db=3.0),
+                HighpassFilter(cutoff_frequency_hz=50.0),
+                # Was LowShelfFilter(120Hz, +3dB) — see the class docstring. A
+                # presence bump does the same job (make the hit read) in the band
+                # the ear uses to place an impact, and that a phone can reproduce.
+                PeakFilter(cutoff_frequency_hz=2000.0, gain_db=3.0, q=0.8),
                 Gain(gain_db=0.0),
                 Limiter(threshold_db=-1.0, release_ms=50.0),
             ]),
@@ -110,6 +145,9 @@ class AudioMixer:
         self.ult_bus = Bus(
             name="ult", sample_rate=sample_rate,
             chain=Pedalboard([
+                # The ultimate is allowed more weight than a basic hit, so this
+                # sits lower than the other buses — but still not sub-audible.
+                HighpassFilter(cutoff_frequency_hz=45.0),
                 Gain(gain_db=0.0),
                 Limiter(threshold_db=-1.0, release_ms=100.0),
             ]),
@@ -120,7 +158,7 @@ class AudioMixer:
 
         ffmpeg graph:
           1. [hit][ult]amix=2          → [trig]    (sidechain trigger)
-          2. [bgm][trig]sidechaincompress → [bgm_ducked]
+          2. [bgm][trig]sidechaincompress → [bgm_ducked]   (ratio 2.5, rel 120ms)
           3. [bgm_ducked][cast][hit][ult]amix=4 → [mixed]
           4. [mixed]loudnorm=I=-14:TP=-1.5 → [out]
         """
@@ -140,8 +178,15 @@ class AudioMixer:
                 "-i", paths["ult"],
                 "-filter_complex",
                 "[2:a][3:a]amix=inputs=2:duration=longest:normalize=0[trig];"
+                # ratio 4 / release 200ms ducked the music hard on every single
+                # hit — 36 of them in a 53s fight, measured as 97 jumps over 6dB
+                # and 50 over 10dB per 100ms window. That constant pumping is
+                # fatiguing on its own, separately from the low-end problem.
+                # Gentler ratio and a faster recovery keep the duck audible as
+                # space for the impact without the mix breathing all the way in
+                # and out several dozen times.
                 "[0:a][trig]sidechaincompress="
-                "threshold=0.1:ratio=4:attack=5:release=200[bgm_ducked];"
+                "threshold=0.1:ratio=2.5:attack=5:release=120[bgm_ducked];"
                 "[bgm_ducked][1:a][2:a][3:a]amix=inputs=4:"
                 "duration=longest:normalize=0[mixed];"
                 "[mixed]loudnorm=I=-14:LRA=11:TP=-1.5[out]",

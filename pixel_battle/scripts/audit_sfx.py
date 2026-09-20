@@ -19,27 +19,29 @@ gate that proves nothing, so the approach was dropped rather than fudged.
 
 WHAT ACTUALLY MATTERS
 ---------------------
-The complaint is ear-ringing, and ringing does not care where a sound came from.
-A harsh recording hurts; a warm synth does not. So this measures harshness, and
-the numbers immediately showed that swapping naively would have made things
-worse — the existing synthesized effects are dark (4% of energy in 2-8kHz, 67%
-below 300Hz), while the first batch of real CC0 impacts sampled was far brighter
-(53% in 2-8kHz). Replacing one with the other unscreened would have moved the
-channel toward fatigue, not away from it.
+The complaint is listening discomfort, and the ear does not care where a sound
+came from. So this measures the spectrum, and measuring found the real fault —
+which was the opposite of harshness. A shipped short breaks down as:
 
-  hf2_8       Fraction of energy in 2-8kHz. This is where the ear is most
-              sensitive and where listening fatigue is generated. The single
-              most important number here.
-  vhf         Above 8kHz. Sizzle. Tolerable in small amounts, grating in a
-              sound that fires thirty times per video.
-  lf          Below 300Hz. Body and weight. A hit with none of this reads as
-              thin and the ear compensates by focusing on the harsh part.
-  centroid    Spectral centre of mass in Hz — a single-number brightness proxy.
-  crest       Peak-to-RMS in dB. Very low means it has been squashed flat, which
-              is exhausting over repetition.
+    <60Hz  35.3%   60-120Hz 47.0%   120-300 4.3%   300-2k 11.4%   2-8k 2.0%
 
-Budgets below are derived from the existing set, which arlong has watched many
-hours of. They keep a candidate no brighter than what the channel already ships.
+82% of all energy below 120Hz and a hollow midrange. Sustained sub-bass at
+volume fatigues as ear pressure rather than sharpness, which is why nothing
+about it looked wrong at first. Three things stacked it: the synthesized hits
+are near-pure low thumps (hit.wav is 99.8% under 300Hz), no bus had a high-pass,
+and the hit bus added a further +3dB under 120Hz.
+
+  lf          Below 300Hz. Weight. Also what broke this mix.
+  mid         300Hz-2kHz. Body — the band the ear uses to locate an impact, and
+              the one a phone speaker can actually reproduce.
+  hf2_8       2-8kHz. Snap, and where ordinary listening fatigue is generated.
+  vhf         Above 8kHz. Sizzle; grating in a sound that fires thirty times.
+  centroid    Spectral centre of mass in Hz — a brightness proxy.
+  crest       Peak-to-RMS in dB. Very low means squashed flat, exhausting over
+              repetition.
+
+Budgets are set for BALANCE, not to imitate what ships today — see the comment
+on the constants. The shipped set scores 5/20 against them, which is the point.
 
 Usage:
   python3 pixel_battle/scripts/audit_sfx.py DIR_OR_FILE...    # score candidates
@@ -61,12 +63,24 @@ REAL_DIR = ROOT / "pixel_battle/assets/sfx_real"
 
 AUDIO_EXT = (".wav", ".ogg", ".mp3", ".flac", ".aiff", ".aif")
 
-# Measured over the 20 shipped effects: mean hf2_8 0.042, worst 0.392
-# (sword_hit); mean centroid 684Hz, worst 1866Hz. A replacement is allowed to be
-# as bright as the brightest thing already in rotation, and no brighter.
-MAX_HF_2_8 = 0.40         # fraction of energy in 2-8kHz
-MAX_VHF = 0.12            # fraction above 8kHz
-MAX_CENTROID = 2000.0     # Hz
+# Budgets, second pass. The first pass took the 20 shipped effects as the
+# reference and allowed a candidate to be "no brighter than what already ships".
+# That was wrong, and rebuilding the mix proved it: high-passing the buses and
+# adding a +3dB presence bump at 2kHz moved 2-8kHz energy DOWN, from 2.0% to
+# 0.6%. EQ cannot add what the source does not contain — hit.wav is 99.8% below
+# 300Hz, so boosting 2kHz amplifies silence. The shipped set is not a healthy
+# reference to imitate; it is the thing being fixed.
+#
+# So a candidate is now judged on BALANCE, in both directions. Too dark and it
+# vanishes on a phone speaker and piles onto the low-end pressure that started
+# this investigation. Too bright and it generates the ordinary kind of listening
+# fatigue. An impact needs low end for weight, midrange for the ear to place it,
+# and only a little top for the snap.
+MIN_MID = 0.15            # 300Hz-2kHz — the body. Below this it reads as a thud.
+MAX_HF_2_8 = 0.35         # 2-8kHz — the snap. Above this it starts to sting.
+MAX_VHF = 0.10            # above 8kHz — sizzle, grating over 30 repeats
+MAX_LF = 0.60             # below 300Hz — weight, but this is what broke the mix
+MAX_CENTROID = 2600.0     # Hz
 MIN_CREST_DB = 6.0        # below this it has been flattened into a wall
 
 
@@ -132,7 +146,13 @@ def measure(path: Path) -> dict:
     rms = float(np.sqrt(np.mean(x ** 2)))
     crest = 20 * np.log10(1.0 / (rms + 1e-12))
 
+    mid = float(e[(f >= 300) & (f < 2000)].sum() / tot)
+
     reasons = []
+    if mid < MIN_MID:
+        reasons.append(f"midrange {mid:.0%} < {MIN_MID:.0%} (no body)")
+    if lf > MAX_LF:
+        reasons.append(f"<300Hz {lf:.0%} > {MAX_LF:.0%} (all weight, no detail)")
     if hf > MAX_HF_2_8:
         reasons.append(f"2-8kHz {hf:.0%} > {MAX_HF_2_8:.0%}")
     if vhf > MAX_VHF:
@@ -143,7 +163,8 @@ def measure(path: Path) -> dict:
         reasons.append(f"crest {crest:.1f}dB < {MIN_CREST_DB}dB")
 
     return {"file": path.name, "hf2_8": round(hf, 3), "vhf": round(vhf, 3),
-            "lf": round(lf, 3), "centroid": round(centroid), "crest": round(crest, 1),
+            "lf": round(lf, 3), "mid": round(mid, 3),
+            "centroid": round(centroid), "crest": round(crest, 1),
             "sr": sr, "dur": round(len(x) / sr, 3),
             "ok": not reasons, "why": "; ".join(reasons)}
 
@@ -156,7 +177,7 @@ def _files(target: Path) -> list[Path]:
 
 def _report(rows: list[dict], header: str) -> int:
     print(header)
-    print(f"  {'':5} {'file':30} {'2-8kHz':>7} {'>8kHz':>6} {'<300Hz':>7} "
+    print(f"  {'':5} {'file':30} {'<300':>6} {'mid':>6} {'2-8k':>6} {'>8k':>6} "
           f"{'centr':>6} {'crest':>6}  why")
     bad = 0
     for r in rows:
@@ -165,14 +186,16 @@ def _report(rows: list[dict], header: str) -> int:
             bad += 1
             continue
         bad += not r["ok"]
-        print(f"  {'ok' if r['ok'] else 'HARSH':5} {r['file']:30} "
-              f"{r['hf2_8']:7.3f} {r['vhf']:6.3f} {r['lf']:7.3f} "
+        print(f"  {'ok' if r['ok'] else 'FAIL':5} {r['file']:30} "
+              f"{r['lf']:6.3f} {r['mid']:6.3f} {r['hf2_8']:6.3f} {r['vhf']:6.3f} "
               f"{r['centroid']:6.0f} {r['crest']:6.1f}  {r['why']}")
     if rows:
         live = [r for r in rows if "error" not in r]
         if live:
-            print(f"\n  mean 2-8kHz {np.mean([r['hf2_8'] for r in live]):.3f}   "
-                  f"mean centroid {np.mean([r['centroid'] for r in live]):.0f}Hz   "
+            print(f"\n  mean <300Hz {np.mean([r['lf'] for r in live]):.3f}   "
+                  f"mid {np.mean([r['mid'] for r in live]):.3f}   "
+                  f"2-8kHz {np.mean([r['hf2_8'] for r in live]):.3f}   "
+                  f"centroid {np.mean([r['centroid'] for r in live]):.0f}Hz   "
                   f"{len(live) - bad}/{len(live)} within budget")
     return bad
 
