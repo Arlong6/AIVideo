@@ -45,13 +45,21 @@ def test_event_offset_shifts_sfx_position(tmp_path):
                       event_offset_ms=2000)
     s_no, sr = sf.read(str(out_no_offset), dtype="float32", always_2d=False)
     s_sh, _  = sf.read(str(out_shifted),   dtype="float32", always_2d=False)
-    # At 1000ms: no-offset file should have more (or equal) energy than shifted file
-    # At 3000ms: shifted file should have more (or equal) energy than no-offset file
+    # At 1000ms the no-offset file should peak higher than the shifted one;
+    # at 3000ms the other way round.
+    #
+    # PEAK, not mean. A mean over the window measures whatever is loudest for
+    # longest, and that is the BGM — which is three times louder at 3s than at
+    # 1s here, swamping the thing being detected. Averaging happened to work
+    # while the effects were synthesized sustained thumps (mean 0.2275) and
+    # stopped the moment they became real recorded transients (mean 0.0280 at a
+    # comparable peak). An impact IS a transient; peak is what identifies it,
+    # and what the ear localises it by.
     w = int(sr * 0.15)  # 150ms window
-    e_1s_no  = float(np.abs(s_no[int(sr * 1.0): int(sr * 1.0) + w]).mean())
-    e_1s_sh  = float(np.abs(s_sh[int(sr * 1.0): int(sr * 1.0) + w]).mean())
-    e_3s_no  = float(np.abs(s_no[int(sr * 3.0): int(sr * 3.0) + w]).mean())
-    e_3s_sh  = float(np.abs(s_sh[int(sr * 3.0): int(sr * 3.0) + w]).mean())
+    e_1s_no  = float(np.abs(s_no[int(sr * 1.0): int(sr * 1.0) + w]).max())
+    e_1s_sh  = float(np.abs(s_sh[int(sr * 1.0): int(sr * 1.0) + w]).max())
+    e_3s_no  = float(np.abs(s_no[int(sr * 3.0): int(sr * 3.0) + w]).max())
+    e_3s_sh  = float(np.abs(s_sh[int(sr * 3.0): int(sr * 3.0) + w]).max())
     # At least one of the two positional shifts should be detectable
     assert (e_1s_no >= e_1s_sh) or (e_3s_sh >= e_3s_no), (
         f"Offset shift not detectable: "
