@@ -69,6 +69,24 @@ def render_one(script_path: Path) -> dict:
 HOOK_LINE = "WHO WINS?"
 
 
+def _raw_is_intact(path: Path) -> bool:
+    """Decode the tail of a raw render to prove it is not truncated.
+
+    A render that gets killed part-way leaves a file that still opens, still
+    reports a plausible duration, and still has a valid header — and then throws
+    "Invalid NAL unit size" as soon as anything reads past the cut. build_short
+    does not check, so it happily produced a 5-second short from a corrupt
+    53-second raw and reported only a non-zero exit code.
+
+    Decoding the last second is enough: truncation always lands at the end, and
+    it costs a fraction of a full decode pass.
+    """
+    r = subprocess.run(
+        ["ffmpeg", "-v", "error", "-sseof", "-1", "-i", str(path), "-f", "null", "-"],
+        capture_output=True, text=True)
+    return r.returncode == 0 and "Invalid NAL" not in r.stderr
+
+
 def build_one(entry: dict, names: dict) -> Path:
     left = names.get(entry["left"], entry["left"]).upper()
     right = names.get(entry["right"], entry["right"]).upper()
@@ -76,6 +94,12 @@ def build_one(entry: dict, names: dict) -> Path:
     win = names.get(win_id, win_id).upper()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    raw_p = ROOT / entry["raw"]
+    if not _raw_is_intact(raw_p):
+        raise RuntimeError(
+            f"raw render is truncated or corrupt: {entry['raw']}\n"
+            "  A killed render leaves a file that looks valid until something\n"
+            "  decodes past the cut. Re-render this fight before building.")
     out = OUT_DIR / (Path(entry["script"]).stem + ".mp4")
     # The timeline sidecar render_script writes next to the raw. Its absence is
     # normal for anything rendered before it existed — the short just builds
