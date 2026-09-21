@@ -68,10 +68,20 @@ def _pick_hero_frame(video, tmp):
         im = Image.open(fp).convert("RGB")
         # score = luminance stddev (contrast/energy) + a bonus for bright VFX px
         gray = im.convert("L")
-        std = ImageStat.Stat(gray).stddev[0]
+        stat = ImageStat.Stat(gray)
+        std = stat.stddev[0]
         hist = gray.histogram()
         bright = sum(hist[210:]) / (gray.width * gray.height)   # fraction of hot px
-        score = std + bright * 120.0
+
+        # Reject whiteouts. The engine flashes the whole frame on a crit and
+        # again on the KO, and on those frames nearly every pixel clears 210 —
+        # so `bright` saturates at 1.0 and the +120 bonus, meant to reward a
+        # bright effect against a dark arena, swamps everything else. b03's
+        # cover came out an almost blank cream rectangle with no fighters in it,
+        # which is the first thing a viewer sees.
+        if bright > 0.35 or stat.mean[0] > 190:
+            continue
+        score = std + min(bright, 0.25) * 120.0
         if score > best_score:
             best, best_score = fp, score
     return best
@@ -135,7 +145,10 @@ def build_cover(video, left, right, out_cover, wide=None, finisher=None):
     GOLD = (255, 224, 70)
 
     # Top hook
-    _text(d, W // 2, 150, "誰會贏?", _font(150), GOLD, sw=10)
+    # English, matching the caption, the bio and the burnt-in hook in the video.
+    # The channel went English-first on 2026-09-19 and this line was missed —
+    # a viewer read an English caption, then saw a Chinese cover.
+    _text(d, W // 2, 150, "WHO WINS?", _font(150), GOLD, sw=10)
     # Bottom billboard: LEFT name | VS | RIGHT name — each name auto-fits its own
     # 425px column so the centered VS never collides with a long codename.
     lf = _fit_font(ld, 425)
