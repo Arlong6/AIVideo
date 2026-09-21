@@ -69,22 +69,44 @@ def render_one(script_path: Path) -> dict:
 HOOK_LINE = "WHO WINS?"
 
 
-def _raw_is_intact(path: Path) -> bool:
-    """Decode the tail of a raw render to prove it is not truncated.
-
-    A render that gets killed part-way leaves a file that still opens, still
-    reports a plausible duration, and still has a valid header — and then throws
-    "Invalid NAL unit size" as soon as anything reads past the cut. build_short
-    does not check, so it happily produced a 5-second short from a corrupt
-    53-second raw and reported only a non-zero exit code.
-
-    Decoding the last second is enough: truncation always lands at the end, and
-    it costs a fraction of a full decode pass.
-    """
+def _frame_count(path: Path) -> int:
+    """Frames actually present, counted rather than read off the header."""
     r = subprocess.run(
-        ["ffmpeg", "-v", "error", "-sseof", "-1", "-i", str(path), "-f", "null", "-"],
-        capture_output=True, text=True)
-    return r.returncode == 0 and "Invalid NAL" not in r.stderr
+        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_frames",
+         "-show_entries", "stream=nb_read_frames", "-of", "default=nw=1:nk=1",
+         str(path)], capture_output=True, text=True)
+    out = r.stdout.strip()
+    return int(out) if out.isdigit() else 0
+
+
+def _duration(path: Path) -> float:
+    r = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=nw=1:nk=1", str(path)], capture_output=True, text=True)
+    try:
+        return float(r.stdout.strip())
+    except ValueError:
+        return 0.0
+
+
+def _raw_is_intact(path: Path, fps: int = 60) -> bool:
+    """Prove the file holds as many frames as it claims to.
+
+    The first version decoded the last second with `-sseof -1` and was not
+    enough. `-sseof` seeks relative to the duration in the CONTAINER, and a
+    killed render leaves that number intact while the frames behind it are
+    missing — so the seek lands past the real content, decodes nothing, and
+    exits zero. b03 passed that check while holding 727 frames against a
+    declared 52.6 seconds, and would have shipped as a 24-second video.
+
+    Counting frames is slower and it is the only answer that cannot be faked by
+    a stale header.
+    """
+    dur = _duration(path)
+    if dur <= 0:
+        return False
+    frames = _frame_count(path)
+    return frames > 0 and abs(frames / fps - dur) <= 1.0
 
 
 def build_one(entry: dict, names: dict) -> Path:
@@ -114,6 +136,12 @@ def build_one(entry: dict, names: dict) -> Path:
         # caption and then saw 「誰會贏?」 on the video itself.
         HOOK_LINE, f"{left} VS {right}", f"{win} WINS", CUT_START,
     ] + (["--events", str(ev)] if ev.exists() else []), check=True, cwd=str(ROOT))
+    # The build can be killed too, and a half-written short has the same
+    # deceptive shape as a half-written raw: right duration, missing frames.
+    if not _raw_is_intact(out, fps=30):
+        raise RuntimeError(
+            f"short is truncated: {_rel(out)}\n"
+            "  Declared duration and actual frame count disagree. Re-run this fight.")
     entry["short"] = _rel(out)
     entry["title"] = f"{left} VS {right}"
     return out
