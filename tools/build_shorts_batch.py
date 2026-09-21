@@ -77,6 +77,11 @@ def build_one(entry: dict, names: dict) -> Path:
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out = OUT_DIR / (Path(entry["script"]).stem + ".mp4")
+    # The timeline sidecar render_script writes next to the raw. Its absence is
+    # normal for anything rendered before it existed — the short just builds
+    # without the event-cued stickers.
+    ev = (ROOT / entry["raw"]).with_name(Path(entry["raw"]).stem.replace("_raw", "")
+                                         + "_events.json")
     subprocess.run([
         sys.executable, "-m", "pixel_battle.scripts.build_short",
         entry["raw"], str(out),
@@ -84,7 +89,7 @@ def build_one(entry: dict, names: dict) -> Path:
         # name). The burnt-in hook was still Chinese, so a viewer read an English
         # caption and then saw 「誰會贏?」 on the video itself.
         HOOK_LINE, f"{left} VS {right}", f"{win} WINS", CUT_START,
-    ], check=True, cwd=str(ROOT))
+    ] + (["--events", str(ev)] if ev.exists() else []), check=True, cwd=str(ROOT))
     entry["short"] = _rel(out)
     entry["title"] = f"{left} VS {right}"
     return out

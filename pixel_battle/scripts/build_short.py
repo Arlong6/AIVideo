@@ -10,6 +10,7 @@ Pipeline per video:
 Usage:
   python -m pixel_battle.scripts.build_short RAW OUT "L1" "L2" "WINTEXT" CUT_START
 """
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -58,10 +59,34 @@ def probe_dur(p):
     return float(out)
 
 
+def _meme_cues(events_path, cut_start):
+    """Sticker overlays derived from the fight, or [] when there is no sidecar.
+
+    Post-production was blind to the fight until the timeline sidecar existed, so
+    the absence of one has to stay a normal case — an older raw still builds, it
+    just builds without stickers.
+    """
+    if not events_path:
+        return []
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+        from pixel_battle.video.cue_plan import plan
+        data = json.loads(Path(events_path).read_text(encoding="utf-8"))
+        return plan(data["timeline"], int(cut_start * 1000))
+    except Exception as e:
+        print(f"  [meme] skipped ({type(e).__name__}: {e})")
+        return []
+
+
 def main():
+    argv = list(sys.argv)
+    events_path = None
+    if "--events" in argv:
+        i = argv.index("--events")
+        events_path = argv[i + 1]
+        del argv[i:i + 2]
     raw, out, l1, l2, wintext, cut_start = (
-        sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5],
-        float(sys.argv[6]))
+        argv[1], argv[2], argv[3], argv[4], argv[5], float(argv[6]))
     tmp = Path("/tmp/short_ov")
     tmp.mkdir(exist_ok=True)
     hook_p, win_p = str(tmp / "hook.png"), str(tmp / "win.png")
@@ -80,14 +105,27 @@ def main():
     # polish native 1080x1920 with a filter chain (deband the gradient skies,
     # a whisper of film grain so flat fills feel produced) — all BEFORE the text
     # overlays so the hook/winner typography stays pristine. Then hook + winner band.
+    cues = _meme_cues(events_path, cut_start)
+    meme_dir = Path(__file__).resolve().parents[1] / "assets/meme"
+    cues = [c for c in cues if (meme_dir / f"{c['asset']}.png").exists()]
+
     fc = (
         f"[0:v]trim={cut_start},setpts=PTS-STARTPTS,"
         f"gradfun=1.2:16,"
         f"noise=alls=2:allf=t[v];"
         f"[v][1:v]overlay=0:0:enable='lt(t,{HOOK_SECS})'[v1];"
-        f"[v1][2:v]overlay=0:0:enable='gte(t,{win_start})'[vo]"
+        f"[v1][2:v]overlay=0:0:enable='gte(t,{win_start})'[vm0]"
     )
+    # Each sticker is another full-frame input, time-gated. Ten-odd overlays is
+    # unremarkable for ffmpeg and costs one pass, versus 3.5 minutes to re-render.
+    for n, c in enumerate(cues):
+        fc += (f";[vm{n}][{n + 3}:v]overlay=0:0:"
+               f"enable='between(t,{c['start']:.3f},{c['end']:.3f})'[vm{n + 1}]")
+    fc += f";[vm{len(cues)}]null[vo]"
+
     cmd = ["ffmpeg", "-y", "-i", raw, "-i", hook_p, "-i", win_p]
+    for c in cues:
+        cmd += ["-i", str(meme_dir / f"{c['asset']}.png")]
     if has_audio:
         # Trim the audio in lock-step with the video so SFX stay synced.
         fc += f";[0:a]atrim={cut_start},asetpts=PTS-STARTPTS[a]"

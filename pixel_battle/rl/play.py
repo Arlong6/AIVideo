@@ -97,6 +97,23 @@ CAM_FRAME_MARGIN = 60      # just enough headroom past each fighter so the fit-z
 CAM_ZOOM_LERP = 0.045      # ease the dynamic zoom so it glides, never snaps (zoom-IN, intimate)
 CAM_ZOOM_OUT_LERP = 0.27   # zoom OUT fast (reveal) so a fast-separating fighter never leaves frame
 CAM_HIT_ZOOM_DECAY = 0.82  # per-frame fade of the transient punch-in zoom on hits (snap in, ease out)
+# ── Low-HP danger state ──────────────────────────────────────────────────────
+# Nothing in the codebase reacted to a fighter being nearly dead except the HP
+# bar's colour ramp. With the comeback arc the winner now spends the last stretch
+# of every fight one hit from going down, and that is the most tense moment the
+# video has — it should be impossible to miss.
+#
+# Hysteresis matters: HP crosses a single threshold repeatedly as the bar drains
+# and the state would flicker on and off around the boundary.
+DANGER_FRAC = 0.28         # enter the danger state below this fraction of max HP
+DANGER_EXIT_FRAC = 0.34    # leave it above this one
+# 89 BPM is the ID3 tempo of assets/bgm/battle_loop.mp3, so the pulse lands with
+# the music for free, with no beat detection at render time.
+DANGER_PULSE_MS = 60000.0 / 89
+DANGER_VIGNETTE = (210, 40, 40)
+DANGER_ALPHA_BASE = 44
+DANGER_ALPHA_SWING = 26
+
 IMPACT_SQUASH_MS = 140.0   # how long the defender's squash-and-stretch lasts after a hit
 IMPACT_SQUASH_PEAK = 0.13  # max vertical compression fraction at the moment of impact
 
@@ -1384,6 +1401,8 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     # Attacker-recoil cache: maps id(char) -> remaining_ms for the near-hand recoil nudge
     _attacker_recoil: dict = {}
     _impact_squash: dict = {}
+    _danger_left = False
+    _danger_right = False
     # Old full-screen shake — now used only for "beam" windup and "ultimate_start".
     # Crits and hits use the newer camera_shake_offset system (world-space, HUD stable).
     screen_shake_frames_left = 0
@@ -1508,6 +1527,17 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         _draw_left_y = _prev_left_y + (env.left.pos_y - _prev_left_y) * _interp_frac
         _draw_right_x = _prev_right_x + (env.right.pos_x - _prev_right_x) * _interp_frac
         _draw_right_y = _prev_right_y + (env.right.pos_y - _prev_right_y) * _interp_frac
+
+        # ── Danger state ──────────────────────────────────────────────────────
+        # Raw HP, not the HUD's smoothed value: the state machine has to be
+        # deterministic and testable, while the bar animation stays smooth.
+        def _in_danger(fighter, was: bool) -> bool:
+            hp_max = max(1.0, float(getattr(fighter, "hp_max", 100) or 100))
+            return (float(fighter.hp) / hp_max) < (
+                DANGER_EXIT_FRAC if was else DANGER_FRAC)
+
+        _danger_left = _in_danger(env.left, _danger_left)
+        _danger_right = _in_danger(env.right, _danger_right)
 
         if _engine_this_frame:
             for ev in env.battle.events[prev_ev_n:]:
@@ -2378,7 +2408,17 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         # Single KOF-style HUD (HP green->red + thin blue MP + names + timer).
         # The old two-corner _draw_hud was removed — drawing both stacked their
         # near-overlapping bars and duplicated the names (the "ghost text").
-        hud_overlay.draw(surf, env.battle, elapsed_ms=int(frame * RENDER_MS))
+        # ── Danger pulse ──────────────────────────────────────────────────────
+        # Screen-space, after the camera crop, so it frames the whole shot rather
+        # than scrolling with the arena. Beat-locked to the BGM's 89 BPM.
+        if _danger_left or _danger_right:
+            _dphase = math.sin(2.0 * math.pi * (frame * RENDER_MS) / DANGER_PULSE_MS)
+            impact_fx.spawn_vignette_if_free(
+                alpha=int(DANGER_ALPHA_BASE + DANGER_ALPHA_SWING * _dphase),
+                surf_size=(WIDTH, HEIGHT), color=DANGER_VIGNETTE)
+
+        hud_overlay.draw(surf, env.battle, elapsed_ms=int(frame * RENDER_MS),
+                         danger_left=_danger_left, danger_right=_danger_right)
         impact_fx.update_and_draw(surf, dt_ms=RENDER_MS)
 
         # KO splash text held on screen during HOLD phase
@@ -2439,7 +2479,18 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                     surf.blit(ko_surf_base, (0, 0))
                 surf.blit(_get_vignette(), (0, 0))
 
-                hud_overlay.draw(surf, env.battle, elapsed_ms=int(frame * RENDER_MS))
+                # The KO drama loop re-composites independently of the main
+                # loop, so anything added there is invisible from the KO onward
+                # unless it is added here too — and the KO is precisely when a
+                # fighter is at their lowest.
+                if _danger_left or _danger_right:
+                    _kphase = math.sin(
+                        2.0 * math.pi * (frame * RENDER_MS) / DANGER_PULSE_MS)
+                    impact_fx.spawn_vignette_if_free(
+                        alpha=int(DANGER_ALPHA_BASE + DANGER_ALPHA_SWING * _kphase),
+                        surf_size=(WIDTH, HEIGHT), color=DANGER_VIGNETTE)
+                hud_overlay.draw(surf, env.battle, elapsed_ms=int(frame * RENDER_MS),
+                                 danger_left=_danger_left, danger_right=_danger_right)
                 impact_fx.update_and_draw(surf, dt_ms=RENDER_MS)
                 recorder.write_frame(surf)
                 n_written += 1

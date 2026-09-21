@@ -33,6 +33,21 @@ HP_LOW = (228, 72, 60)
 MP_COLOR = (80, 175, 255)
 
 
+# Beat-locked to the BGM's 89 BPM (ID3 tempo of assets/bgm/battle_loop.mp3), the
+# same period play.py pulses the danger vignette on, so bar and frame agree.
+DANGER_PULSE_MS = 60000.0 / 89
+HP_DANGER_HOT = (255, 150, 140)
+
+
+def _danger_color(frac: float, danger: bool, elapsed_ms: int) -> tuple:
+    """Normal ramp, or an alternating flash while this side is nearly dead."""
+    base = _hp_color(frac)
+    if not danger:
+        return base
+    phase = (elapsed_ms % DANGER_PULSE_MS) / DANGER_PULSE_MS
+    return HP_DANGER_HOT if phase < 0.5 else base
+
+
 def _hp_color(frac: float) -> tuple:
     if frac > 0.5:
         return HP_HIGH
@@ -67,7 +82,15 @@ class HUD:
             self._color_cache[char_id] = _load_char_color(char_id)
         return self._color_cache[char_id]
 
-    def draw(self, surf: pygame.Surface, battle, elapsed_ms: int) -> None:
+    def draw(self, surf: pygame.Surface, battle, elapsed_ms: int,
+             danger_left: bool = False, danger_right: bool = False) -> None:
+        """Draw the HUD. `danger_*` makes that side's bar pulse.
+
+        The caller owns the danger state because it is computed from raw HP with
+        hysteresis; the bar here is drawn from the SMOOTHED value so the fill
+        animates, and mixing the two would make the flash flicker around the
+        threshold. Defaults keep the old two-argument call sites working.
+        """
         # get_width() returns REAL pixels (the shim scales surfaces at
         # creation); all layout below is in fight coords, so convert back.
         W = round(surf.get_width() / pygame.S)
@@ -88,13 +111,15 @@ class HUD:
         left_bar_right = W // 2 - 30
         left_bar_left = left_bar_right - BAR_WIDTH
         self._draw_bar(surf, x=left_bar_left, width=BAR_WIDTH, frac=self._left_lerp,
-                       color=_hp_color(self._left_lerp), direction=-1)
+                       color=_danger_color(self._left_lerp, danger_left, elapsed_ms),
+                       direction=-1, danger=danger_left)
         self._draw_mp_bar(surf, x=left_bar_left, width=BAR_WIDTH, frac=left_mp, direction=-1)
 
         # right bar: x_left = W//2 + 30, drains left-to-right
         right_bar_left = W // 2 + 30
         self._draw_bar(surf, x=right_bar_left, width=BAR_WIDTH, frac=self._right_lerp,
-                       color=_hp_color(self._right_lerp), direction=+1)
+                       color=_danger_color(self._right_lerp, danger_right, elapsed_ms),
+                       direction=+1, danger=danger_right)
         self._draw_mp_bar(surf, x=right_bar_left, width=BAR_WIDTH, frac=right_mp, direction=+1)
 
         # Name plates — use the display name (weapon codename), NOT the internal
@@ -112,7 +137,7 @@ class HUD:
         self._draw_timer(surf, elapsed_ms, x=cx,
                          y=BAR_Y + BAR_HEIGHT + MP_BAR_GAP + MP_BAR_HEIGHT + 3)
 
-    def _draw_bar(self, surf, x, width, frac, color, direction):
+    def _draw_bar(self, surf, x, width, frac, color, direction, danger=False):
         """Draw a health bar at (x, BAR_Y) of given width.
         direction=-1: fill anchored on right side (left player, drains left)
         direction=+1: fill anchored on left side (right player, drains right)
@@ -127,7 +152,10 @@ class HUD:
             fill_x = x
         if fill_w > 0:
             pygame.draw.rect(surf, color, (fill_x, BAR_Y, fill_w, BAR_HEIGHT))
-        pygame.draw.rect(surf, BAR_BORDER, (x, BAR_Y, width, BAR_HEIGHT), width=1)
+        # A bright outline while in danger: the fill is short by definition at
+        # that point, so colour alone on a few pixels is easy to miss.
+        pygame.draw.rect(surf, (255, 255, 255) if danger else BAR_BORDER,
+                         (x, BAR_Y, width, BAR_HEIGHT), width=2 if danger else 1)
 
     def _draw_mp_bar(self, surf, x, width, frac, direction):
         """Thin blue mana bar tucked just under the HP bar, same drain direction."""

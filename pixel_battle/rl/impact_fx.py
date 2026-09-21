@@ -776,10 +776,32 @@ class ImpactFX:
 
     # ── Cinematic ultimate VFX ─────────────────────────────────────────────────
 
-    def spawn_vignette(self, alpha: int, surf_size: Tuple[int, int]) -> None:
-        """Store the desired vignette alpha; drawn in update_and_draw this frame."""
+    def spawn_vignette(self, alpha: int, surf_size: Tuple[int, int],
+                       color: Tuple[int, int, int] = (0, 0, 0)) -> None:
+        """Store the desired vignette alpha; drawn in update_and_draw this frame.
+
+        `color` was hardcoded black, which is right for the ultimate's cinematic
+        dim. The low-HP danger state needs the same shape in red, so the edge of
+        the frame can pulse while a fighter is one hit from going down.
+        """
         self._vignette_alpha = min(255, max(0, alpha))
         self._vignette_surf_size = surf_size
+        self._vignette_color = color
+
+    def spawn_vignette_if_free(self, alpha: int, surf_size: Tuple[int, int],
+                               color: Tuple[int, int, int] = (0, 0, 0)) -> bool:
+        """Claim the vignette only if nothing else already did this frame.
+
+        There is one vignette slot and two callers: the ultimate's cinematic dim
+        and the low-HP danger pulse. They can coincide — the winner is usually in
+        the danger band exactly when the ultimate fires. The ultimate wins that
+        tie, because its dim is the framing for the climax; the danger pulse is
+        a continuous state and losing a few frames of it costs nothing.
+        """
+        if self._vignette_alpha > 0:
+            return False
+        self.spawn_vignette(alpha, surf_size, color)
+        return True
 
     def spawn_caster_aura(
         self,
@@ -1463,18 +1485,20 @@ class ImpactFX:
             try:
                 vw, vh = self._vignette_surf_size
                 vig = pygame.Surface((vw, vh), pygame.SRCALPHA)
-                vig.fill((0, 0, 0, self._vignette_alpha))
+                vr, vg, vb = getattr(self, "_vignette_color", (0, 0, 0))
+                vig.fill((vr, vg, vb, self._vignette_alpha))
                 # Punch out a transparent ellipse in center (40% of screen width)
                 center_x, center_y = vw // 2, vh // 2
                 punch_rx = int(vw * 0.40)
                 punch_ry = int(vh * 0.30)
-                pygame.draw.ellipse(vig, (0, 0, 0, 0),
+                pygame.draw.ellipse(vig, (vr, vg, vb, 0),
                                     (center_x - punch_rx, center_y - punch_ry,
                                      punch_rx * 2, punch_ry * 2))
                 surf.blit(vig, (0, 0))
             except Exception:
                 pass
             self._vignette_alpha = 0   # reset each frame; caller sets it again next tick
+            self._vignette_color = (0, 0, 0)
 
         # ── Magic circles (caster feet ring) ─────────────────────────────────
         alive_mc: List[_MagicCircle] = []

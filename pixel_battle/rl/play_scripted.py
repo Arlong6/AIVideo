@@ -97,8 +97,15 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
             mixer = AudioMixer(sample_rate=48000)
             bgm_path = BGM_DIR / "battle_loop.mp3"
             if bgm_path.exists():
-                mixer.bgm_bus.add(
-                    _loop_to_length(_load_wav(bgm_path, mixer.sr), total_ms, mixer.sr), t_ms=0)
+                from pixel_battle.video.bgm_arc import (
+                    apply_pre_ult_dip, ult_video_ms_from)
+                bed = _loop_to_length(_load_wav(bgm_path, mixer.sr), total_ms, mixer.sr)
+                # Pull the music down into the finisher. The silence just before
+                # the ultimate is the loudest thing in the video.
+                bed = apply_pre_ult_dip(
+                    bed, mixer.sr,
+                    ult_video_ms_from(fight["events"], fight["event_video_ms"]))
+                mixer.bgm_bus.add(bed, t_ms=0)
             _route_audio_for_events(fight["events"], fight["event_video_ms"], mixer)
             audio_wav = out_dir / f"{script_path.stem}_audio.wav"
             mixer.export(total_ms, str(audio_wav))
@@ -107,6 +114,15 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
             snd.replace(raw)                       # raw now carries the audio track
         except Exception as e:
             print(f"  [audio] skipped ({e})")
+    # Sidecar timeline so post-production can cue on what actually happened.
+    if fight is not None:
+        try:
+            from pixel_battle.video import timeline as _tl
+            _tl.write(out_dir / f"{script_path.stem}_events.json",
+                      script_path.stem, fight)
+        except Exception as e:
+            print(f"  [timeline] skipped ({e})")
+
     print(f"Scripted render: {raw}")
     return raw
 

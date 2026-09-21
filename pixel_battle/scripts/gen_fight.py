@@ -32,6 +32,15 @@ LEFT, RIGHT, ULT_ID, VFX, _MEL, OUT = (
     _argv[1], _argv[2], _argv[3], _argv[4], _argv[5], _argv[6])
 ULT_T = int(_argv[7]) if len(_argv) > 7 else 45000
 SEED = 7
+
+# How far to offset the defender's phrase in a mirror match, as a fraction of the
+# phrase. There is no single right answer: half a phrase fixes b11 and leaves b09
+# stalling, a third fixes b09 and breaks b11. The two pairings simply interlock
+# at different points. So this is a starting value and main() searches the
+# candidates below, keeping whichever produces the smallest silent gap — the same
+# measure-then-choose approach the HP budget already uses.
+MIRROR_OFFSET = 0.5
+MIRROR_CANDIDATES = (0.5, 1 / 3, 0.25, 0.75, 1 / 6)
 # Comfortable buffers: both fighters are still alive (visibly drained, ~40 HP)
 # when the ultimate lands. The ult is a 70-dmg FINISHER, so it KOs the defender
 # from anywhere in this band — which frees the combat to vary its rhythm without
@@ -251,7 +260,7 @@ def side_actions(arch, is_caster, cid):
     # two archetypes match.
     t, si = (400 if is_caster else 700), 0
     mirror = L_ARCH == R_ARCH
-    pi = len(phrase) // 2 if (mirror and not is_caster) else 0
+    pi = int(len(phrase) * MIRROR_OFFSET) if (mirror and not is_caster) else 0
 
     # NOBODY WANTS TO CLOSE. When neither fighter is a melee archetype, both
     # phrases are built around holding or breaking distance: the ranged script
@@ -388,7 +397,27 @@ def measure():
     return 999 - pre_l, 999 - pre_r
 
 
-def main():
+def _worst_silent_gap() -> float:
+    """Longest stretch with nothing landing, for the YAML currently on disk.
+
+    Uses the same render-accurate pacer the checkers use, so the number here is
+    the number tools/check_pacing.py will report afterwards rather than an
+    optimistic constant-dt estimate.
+    """
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+    from sim_render import simulate
+    r = simulate(Path(OUT))
+    hits = r["impacts"]
+    end_s = (r["events"][-1].t_ms / 1000.0) if r["events"] else 0.0
+    if not hits:
+        return end_s
+    marks = [0.0] + hits + [end_s]
+    return max(marks[i + 1] - marks[i] for i in range(len(marks) - 1))
+
+
+def _emit_tuned():
+    """Full pipeline for the current MIRROR_OFFSET: choreograph, tune HP, write."""
     left, right = build()
     write_yaml(left, right, None, None)
     dmg_l, dmg_r = measure()
@@ -397,6 +426,42 @@ def main():
     else:
         lhp, rhp = round(dmg_l + DEF_REMAIN), round(dmg_r + ATK_REMAIN)
     write_yaml(left, right, lhp, rhp)
+    return dmg_l, dmg_r, lhp, rhp
+
+
+def _tune_mirror_offset():
+    """Pick the phrase offset that leaves the smallest silent gap.
+
+    Only mirror matches need this — when both sides share an archetype they share
+    a phrase, so their movement beats can land on top of each other and both
+    fighters back away at once. Which offset breaks that up depends on the pair:
+    half a phrase fixes b11 and leaves b09 stalling, a third does the reverse. So
+    it is measured, not assumed.
+
+    Each candidate is evaluated through the WHOLE pipeline, HP tuning included.
+    Measuring on default HP instead was the first attempt and it chose badly —
+    start HP is several times higher after tuning, and the AI's low-HP retreat
+    (engine/battle.py DEFENSIVE_RETREAT_HP) makes the fight play differently
+    enough that the offset which looked best beforehand produced an 11-second
+    silent gap afterwards.
+    """
+    global MIRROR_OFFSET
+    if L_ARCH != R_ARCH:
+        return
+    best, best_gap = MIRROR_OFFSET, None
+    for cand in MIRROR_CANDIDATES:
+        MIRROR_OFFSET = cand
+        _emit_tuned()
+        gap = _worst_silent_gap()
+        if best_gap is None or gap < best_gap:
+            best, best_gap = cand, gap
+    MIRROR_OFFSET = best
+    print(f"    mirror offset {best:.3f} (worst silent gap {best_gap:.1f}s)")
+
+
+def main():
+    _tune_mirror_offset()
+    dmg_l, dmg_r, lhp, rhp = _emit_tuned()
     print(f"  {OUT.split('/')[-1]}: {LEFT}({L_ARCH}) vs {RIGHT}({R_ARCH}) "
           f"ult {ULT_ID}/{VFX}@{ULT_T/1000:.0f}s  dmg L={dmg_l:.0f} R={dmg_r:.0f}"
           f"  -> Lhp={lhp} Rhp={rhp}  caster={CASTER} (winner)")
