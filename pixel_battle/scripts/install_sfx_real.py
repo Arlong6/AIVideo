@@ -65,6 +65,12 @@ LOOSE = {
     "crush.wav": ("https://opengameart.org/content/various-sound-effects-0", "CC0"),
     "22 Pistol.wav": ("https://opengameart.org/content/gunshots", "CC0"),
 }
+# Meme layer. Packs rather than loose files.
+MEME_PACKS = {
+    "27-Metal-Audio-Samples-blacklodgegames.com_.zip":
+        ("https://opengameart.org/content/27-metal-audio-samples-sfx", "CC0"),
+    "arena.zip": ("https://opengameart.org/content/27-metal-audio-samples-sfx", "CC0"),
+}
 
 # slot -> (source file in the pool, policy, max_ms, note)
 #   repeat  : fires many times per fight, must pass audit_sfx's balance gate
@@ -97,6 +103,32 @@ PLAN = {
     # simply the better sound for summoning a creature.
     "summon":      ("rpg_sound_pack__giant3.wav", "oneshot", 1200, "summoned creature roar"),
     "charge":      ("rpg_sound_pack__shade7.wav", "oneshot", 1500, "windup"),
+
+    # ── Meme layer ────────────────────────────────────────────────────────────
+    # These fire WITH the stickers, from the same selection — a sticker without
+    # its sound is half an effect, and the two drifting apart is worse than
+    # neither. arlong asked for "鐵棍聲" and a vocal; the metal pipe is exactly
+    # that, and an arena announcer turned out to fit a 1v1 stick fight better
+    # than a generic shout would have.
+    #
+    # An announcer pack was tried first and every one of its 36 lines failed the
+    # balance gate even after a high-pass — low-bitrate ogg, all sibilance and
+    # no body. This one is proper WAV and 28 of its 43 lines pass.
+    "meme_pipe":   ("27-Metal-Audio__dull_metal_collision_07_44k_32bit_stereo.wav",
+                    "oneshot", 2200, "the metal pipe: clang plus its ring-out"),
+    "meme_wobble": ("27-Metal-Audio__wobble_04_44k_32bit_stereo.wav",
+                    "oneshot", 1500, "the pipe settling — the tail that sells it"),
+    "meme_1on1":   ("arena__1 on 1 - ArenaCombatAnnouncerPack.wav",
+                    "oneshot", 1600, "opening call; literally this format"),
+    # "Impressive" and "Vengeance" both failed the gate on sibilance — the ess
+    # in each sits above 8kHz, which is the kind of brightness that grates when
+    # a channel ships one of these a day. Not worth forcing.
+    "meme_denied": ("arena__Denied - ArenaCombatAnnouncerPack.wav",
+                    "oneshot", 1400, "a whiff, paired with the bruh card"),
+    "meme_fragged": ("arena__Fragged - ArenaCombatAnnouncerPack.wav",
+                     "oneshot", 1600, "the KO"),
+    "meme_domination": ("arena__Domination - ArenaCombatAnnouncerPack.wav",
+                        "oneshot", 1800, "rides the FINAL BLOW card into the finisher"),
 }
 
 
@@ -117,10 +149,10 @@ def build_pool(verbose: bool = True) -> Path:
             _fetch(name, dest)
             if verbose:
                 print(f"  fetched {name}")
-    for zname in PACKS:
+    for zname in {**PACKS, **MEME_PACKS}:
         zp = CACHE / zname
         if not zp.exists():
-            _fetch(zname, zp)
+            _fetch(zname, zp)     # arena.zip is fetched under its own name above
             if verbose:
                 print(f"  fetched {zname}")
         with zipfile.ZipFile(zp) as f:
@@ -240,7 +272,7 @@ def main() -> int:
         page, lic = LOOSE.get(src, (None, None))
         if page is None:
             zname = src.split("__")[0] + ".zip"
-            page, lic = PACKS.get(zname, ("(unknown)", "(unknown)"))
+            page, lic = {**PACKS, **MEME_PACKS}.get(zname, ("(unknown)", "(unknown)"))
         installed.append({"slot": slot, "src": src, "policy": policy,
                           "page": page, "licence": lic, **info})
         print(f"  {slot:14} <- {src[:40]:40} {info['dur']:.2f}s")

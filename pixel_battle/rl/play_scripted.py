@@ -93,6 +93,8 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
             from pixel_battle.rl.play import (
                 AudioMixer, mux_audio_video, BGM_DIR, _route_audio_for_events,
                 _load_wav, _loop_to_length, RENDER_MS)
+            from pixel_battle.video.compose import (
+                _load_sfx_samples_or_none as _load_sfx_or_none_meme)
             total_ms = int(fight["n_frames"] * RENDER_MS)
             mixer = AudioMixer(sample_rate=48000)
             bgm_path = BGM_DIR / "battle_loop.mp3"
@@ -107,6 +109,21 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
                     ult_video_ms_from(fight["events"], fight["event_video_ms"]))
                 mixer.bgm_bus.add(bed, t_ms=0)
             _route_audio_for_events(fight["events"], fight["event_video_ms"], mixer)
+
+            # Meme stings, on the SAME beats the stickers use. Both come out of
+            # cue_plan.select(), so a comic POW cannot land a beat away from its
+            # clang. They ride the ult bus: it has a limiter but no slot cap, and
+            # these are deliberately sparse rather than per-hit.
+            try:
+                from pixel_battle.video import timeline as _tl
+                from pixel_battle.video.cue_plan import select, audio_cues
+                _tlines = _tl.build(fight["events"], fight["event_video_ms"])
+                for _c in audio_cues(select(_tlines)):
+                    _s = _load_sfx_or_none_meme(_c["asset"], mixer.sr)
+                    if _s is not None:
+                        mixer.ult_bus.add(_s, int(_c["video_ms"]))
+            except Exception as e:
+                print(f"  [meme-audio] skipped ({type(e).__name__}: {e})")
             audio_wav = out_dir / f"{script_path.stem}_audio.wav"
             mixer.export(total_ms, str(audio_wav))
             snd = out_dir / f"{script_path.stem}_snd.mp4"
