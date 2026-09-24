@@ -86,13 +86,26 @@ BG = (18, 22, 40)
 CAM_ZOOM = 1.0             # base zoom; the live camera zoom is now DYNAMIC (see below)
 CAM_VIEW_W = int(WIDTH / CAM_ZOOM)            # 480 — horizontal world span shown
 CAM_VIEW_H = int(HEIGHT / CAM_ZOOM)           # 854 — vertical world span shown
-CAM_VIEW_Y = GROUND_Y - int(CAM_VIEW_H * 0.82)  # frame the floor ~82% down
+CAM_VIEW_Y = GROUND_Y - int(CAM_VIEW_H * 0.86)  # frame the floor ~86% down (see CAM_FLOOR_FRAC)
 CAM_FOLLOW = 0.12                              # lerp factor for x tracking
 # Dynamic framing: zoom to FIT both fighters. Close quarters -> tighter crop
 # (melee reads big and punchy); far apart -> pull back to reveal the whole arena
 # (kiting/separation reads as real space). Fixes the "everything clumped in the
 # middle" look of a static wide shot.
 CAM_MIN_VIEW_W = 300       # tightest crop: 480/300 = 1.6× — close-quarters reads BIG on a phone
+# Widest crop. Without a ceiling the fit-zoom falls all the way to 1.0× whenever
+# the fighters separate, and at 1.0× on a portrait world two figures on a floor
+# line occupy the bottom third of the frame under a wall of empty arena — the
+# 40s frame of b18 was 47% dead backdrop. The ceiling is set from measurement,
+# not taste: across 34k simulated frames of the second batch the separation
+# never exceeded 392 (P99 379), against a theoretical AI_ENGAGE max of 436. At
+# 440 the worst real frame still leaves 24px past each fighter, so nothing clips.
+CAM_MAX_VIEW_W = 440       # floor on zoom: 480/440 = 1.09× minimum
+# Where the floor sits in the frame, as a fraction of view height from the top.
+# 0.82 left 82% of every frame above the fighters' feet. Raising it lowers the
+# camera and gives that band back to the action. Jump arcs and the KO launch
+# still fit: the tallest airborne pose measured stays under 45% of view height.
+CAM_FLOOR_FRAC = 0.86
 CAM_FRAME_MARGIN = 60      # just enough headroom past each fighter so the fit-zoom actually engages
 CAM_ZOOM_LERP = 0.045      # ease the dynamic zoom so it glides, never snaps (zoom-IN, intimate)
 CAM_ZOOM_OUT_LERP = 0.27   # zoom OUT fast (reveal) so a fast-separating fighter never leaves frame
@@ -2339,7 +2352,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         sy = sy0 + sy1
         # Dynamic framing: ease a base zoom that fits both fighters + margin.
         _span = abs(_draw_left_x - _draw_right_x)
-        _target_w = max(CAM_MIN_VIEW_W, min(WIDTH, _span + CAM_FRAME_MARGIN * 2))
+        _target_w = max(CAM_MIN_VIEW_W, min(CAM_MAX_VIEW_W, _span + CAM_FRAME_MARGIN * 2))
         _dyn_zoom = WIDTH / _target_w
         # Asymmetric ease: glide in slowly (intimate close-ups) but pull out
         # quickly when the fighters separate, so neither ever leaves the crop.
@@ -2363,7 +2376,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
         view_h = max(1, min(HEIGHT, view_h))
         view_x = int(cam_x - view_w / 2) + sx
         view_x = max(0, min(WIDTH - view_w, view_x))
-        cam_view_y_adjusted = GROUND_Y - int(view_h * 0.82)
+        cam_view_y_adjusted = GROUND_Y - int(view_h * CAM_FLOOR_FRAC)
         view_y = max(0, min(HEIGHT - view_h, cam_view_y_adjusted + sy))
         sub = world.subsurface((view_x, view_y, view_w, view_h))
         # smoothscale (not scale): zoomed shots upscale the crop — bilinear keeps
@@ -2470,7 +2483,7 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                 _vh = max(1, min(HEIGHT, int(HEIGHT / _fz)))
                 _vx = int(ko_result.zoom_focus_x - _vw / 2)
                 _vx = max(0, min(WIDTH - _vw, _vx))
-                _cam_view_y_ko = GROUND_Y - int(_vh * 0.82)
+                _cam_view_y_ko = GROUND_Y - int(_vh * CAM_FLOOR_FRAC)
                 _vy = max(0, min(HEIGHT - _vh, _cam_view_y_ko))
                 try:
                     _sub = world.subsurface((_vx, _vy, _vw, _vh))
