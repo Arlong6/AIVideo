@@ -27,14 +27,35 @@ def test_action_forward_moves_toward_opp_from_right_side():
 
 def test_action_back_moves_away_from_opp_from_left_side():
     env = PixelBattleEnv(seed=1)
+    # Within MAX_SEPARATION, as the kick test does for MELEE_RANGE: these two
+    # tests are about the DIRECTION of "back", and the spawn positions sit past
+    # the retreat cap, where the correct answer is to hold.
+    env.right.pos_x = env.left.pos_x + 80
     env._apply_action(env.left, env.right, 1)  # back
     assert env.left.vel_x < 0
 
 
 def test_action_back_moves_away_from_opp_from_right_side():
     env = PixelBattleEnv(seed=1)
+    env.left.pos_x = env.right.pos_x - 80
     env._apply_action(env.right, env.left, 1)  # back
     assert env.right.vel_x > 0
+
+
+def test_action_back_holds_at_max_separation():
+    """A scripted retreat must not walk a fighter into the wall.
+
+    Traced on b27/b39/b51: with retreat unbounded, bulwark, warlock and yasuo
+    each ended up parked at x=436 for 10-20 seconds while the other side
+    whiffed from range. Past MAX_SEPARATION the beat becomes a hold — still
+    facing the opponent, no longer moving away.
+    """
+    from pixel_battle.rl.env import MAX_SEPARATION
+    env = PixelBattleEnv(seed=1)
+    env.right.pos_x = env.left.pos_x + MAX_SEPARATION + 1
+    env._apply_action(env.left, env.right, 1)  # back
+    assert env.left.vel_x == 0
+    assert env.left.facing != 0                # still squared up to the opponent
 
 
 def test_kick_action_starts_attack_with_basic_skill():

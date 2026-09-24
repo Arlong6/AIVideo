@@ -135,10 +135,17 @@ def _arc_at(progress: float):
 # and then the OPPONENT's attacks whiff too: measured across the batch, a single
 # shared list of defensive beats turned one stall into three and cut b18's impact
 # count from 42 to 34. Ranged fighters give ground in place instead.
+# No archetype retreats while suppressed any more. Tracing b27 showed why:
+# cyclone, suppressed as the caster, retreated on every second attack until it
+# was pinned against the left wall at x=44, and stayed there for eighteen
+# seconds; its spin then knocked bulwark clear to the far wall, and from the
+# wall it could not follow. The same shape had already broken the ranged
+# pairings. Ducking and jumping in place still read as being on the back foot,
+# and the chase rule brings the dominant side in regardless.
 _DEFENSIVE = {
     "ranged": ("crouch", "jump", "crouch"),
-    "assassin": ("crouch", "jump", "retreat"),
-    "melee": ("retreat", "crouch", "jump"),
+    "assassin": ("crouch", "jump", "crouch"),
+    "melee": ("crouch", "jump", "crouch"),
 }
 
 # Champion → movement archetype (mage+marksman collapse to "ranged";
@@ -151,9 +158,9 @@ ARCH = {
     # assassin — flash in/out
     "katarina": "assassin",
     # melee bruisers/tanks/duelists — advance and trade
-    "yasuo": "melee", "garen": "melee", "pantheon": "melee", "mordekaiser": "melee",
+    "yasuo": "assassin",  # dash-in slash, wind_dash, iaido: the assassin profile, not a marcher "garen": "melee", "pantheon": "melee", "mordekaiser": "melee",
     "bulwark": "melee", "ironfist": "melee", "reaver": "melee", "cyclone": "melee",
-    "wrecker": "melee", "cleaver": "melee", "outlaw": "melee",
+    "wrecker": "melee", "cleaver": "melee", "outlaw": "ranged",   # revolver: gun_shot r230, fan_hammer r240, high_noon r320 — not melee
 }
 L_ARCH, R_ARCH = ARCH.get(LEFT, "melee"), ARCH.get(RIGHT, "melee")
 

@@ -24,6 +24,10 @@ from pixel_battle.engine.physics import (
 
 
 TICK_MS = 16
+# Furthest a fighter may deliberately back away to. Ranged basics reach ~290,
+# so 260 keeps a kiter inside its own range instead of at the wall; measured
+# separation across 34k frames of the second batch had a median of 138.
+MAX_SEPARATION = 260
 EPISODE_TIMEOUT_MS = 60_000
 INTRO_END_MS = 2500
 
@@ -188,7 +192,17 @@ class PixelBattleEnv(gym.Env):
         # (Ultimate is ungated — it always connects.)
         dist = abs(me.pos_x - opp.pos_x)
         if action == 1:                          # back (away from opp)
-            me.vel_x = -WALK_SPEED * fwd
+            # Retreat is capped by separation. Unbounded, a scripted "retreat"
+            # walks a fighter into the arena wall and parks it there, and the
+            # choreography has no way to know: the timeline is static and the
+            # phrase's advance beats never catch up. Traced on b27/b39/b51 —
+            # bulwark, warlock and yasuo each camped at x=436 for 10-20s while
+            # the other side whiffed from range. Beyond MAX_SEPARATION the beat
+            # becomes a hold: still facing, still on the back foot, not gone.
+            if dist >= MAX_SEPARATION:
+                me.vel_x = 0.0
+            else:
+                me.vel_x = -WALK_SPEED * fwd
             me.facing = fwd                       # still face opp while backpedaling
         elif action == 2:                        # forward (toward opp)
             me.vel_x = WALK_SPEED * fwd
@@ -209,6 +223,8 @@ class PixelBattleEnv(gym.Env):
             self.battle._start_attack_with_kind(me, opp, "kick")
         elif action == 9:                        # flash toward opponent
             self._do_flash(me, opp, toward=True)
+        elif action == 10 and dist >= MAX_SEPARATION:   # flash away, already far
+            pass                                  # same cap as retreat: no wall-camping by teleport
         elif action == 10:                       # flash away from opponent
             self._do_flash(me, opp, toward=False)
         elif action == 11:                       # block
