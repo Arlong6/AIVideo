@@ -25,12 +25,12 @@ because a licence you cannot trace is a licence you cannot defend.
 | `ultimate` | oneshot | `dull_explosion.wav` | [various-sound-effects-0](https://opengameart.org/content/various-sound-effects-0) | CC0 |
 | `summon` | oneshot | `rpg_sound_pack__giant3.wav` | [rpg-sound-pack](https://opengameart.org/content/rpg-sound-pack) | CC0 |
 | `charge` | oneshot | `rpg_sound_pack__shade7.wav` | [rpg-sound-pack](https://opengameart.org/content/rpg-sound-pack) | CC0 |
-| `meme_pipe` | oneshot | `27-Metal-Audio__dull_metal_collision_07_44k_32bit_stereo.wav` | [(unknown)]((unknown)) | (unknown) |
-| `meme_wobble` | oneshot | `27-Metal-Audio__wobble_04_44k_32bit_stereo.wav` | [(unknown)]((unknown)) | (unknown) |
-| `meme_1on1` | oneshot | `arena__1 on 1 - ArenaCombatAnnouncerPack.wav` | [27-metal-audio-samples-sfx](https://opengameart.org/content/27-metal-audio-samples-sfx) | CC0 |
-| `meme_denied` | oneshot | `arena__Denied - ArenaCombatAnnouncerPack.wav` | [27-metal-audio-samples-sfx](https://opengameart.org/content/27-metal-audio-samples-sfx) | CC0 |
-| `meme_fragged` | oneshot | `arena__Fragged - ArenaCombatAnnouncerPack.wav` | [27-metal-audio-samples-sfx](https://opengameart.org/content/27-metal-audio-samples-sfx) | CC0 |
-| `meme_domination` | oneshot | `arena__Domination - ArenaCombatAnnouncerPack.wav` | [27-metal-audio-samples-sfx](https://opengameart.org/content/27-metal-audio-samples-sfx) | CC0 |
+| `meme_pipe` | oneshot | `27-Metal-Audio__dull_metal_collision_07_44k_32bit_stereo.wav` | [27-metal-audio-samples-sfx](https://opengameart.org/content/27-metal-audio-samples-sfx) | CC0 |
+| `meme_wobble` | oneshot | `27-Metal-Audio__wobble_04_44k_32bit_stereo.wav` | [27-metal-audio-samples-sfx](https://opengameart.org/content/27-metal-audio-samples-sfx) | CC0 |
+| `meme_1on1` | oneshot | `ArenaCombatAnn__1 on 1 - ArenaCombatAnnouncerPack.wav` | [27-metal-audio-samples-sfx](https://opengameart.org/content/27-metal-audio-samples-sfx) | CC0 |
+| `meme_denied` | oneshot | `ArenaCombatAnn__Denied - ArenaCombatAnnouncerPack.wav` | [27-metal-audio-samples-sfx](https://opengameart.org/content/27-metal-audio-samples-sfx) | CC0 |
+| `meme_fragged` | oneshot | `ArenaCombatAnn__Fragged - ArenaCombatAnnouncerPack.wav` | [27-metal-audio-samples-sfx](https://opengameart.org/content/27-metal-audio-samples-sfx) | CC0 |
+| `meme_domination` | oneshot | `ArenaCombatAnn__Domination - ArenaCombatAnnouncerPack.wav` | [27-metal-audio-samples-sfx](https://opengameart.org/content/27-metal-audio-samples-sfx) | CC0 |
 
 ## Policy
 

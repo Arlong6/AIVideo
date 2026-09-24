@@ -66,11 +66,26 @@ LOOSE = {
     "22 Pistol.wav": ("https://opengameart.org/content/gunshots", "CC0"),
 }
 # Meme layer. Packs rather than loose files.
+# Both live on the same OpenGameArt page. Keyed by their REAL filenames on the
+# host — an earlier version invented a short alias for the announcer pack, which
+# made a fresh run unable to fetch it and left its entries in CREDITS.md marked
+# "(unknown)". A record that cannot be re-run is not a record.
 MEME_PACKS = {
     "27-Metal-Audio-Samples-blacklodgegames.com_.zip":
         ("https://opengameart.org/content/27-metal-audio-samples-sfx", "CC0"),
-    "arena.zip": ("https://opengameart.org/content/27-metal-audio-samples-sfx", "CC0"),
+    "ArenaCombatAnnouncerPack-blacklodgegames.com_.zip":
+        ("https://opengameart.org/content/27-metal-audio-samples-sfx", "CC0"),
 }
+
+# Pool filenames are "<pack-stem-prefix>__<original>". The prefix is truncated
+# for readability, so the pack has to be found by prefix rather than by an exact
+# stem match.
+def _pack_for(src: str):
+    prefix = src.split("__")[0]
+    for zname, meta in {**PACKS, **MEME_PACKS}.items():
+        if Path(zname).stem.startswith(prefix):
+            return meta
+    return ("(unknown)", "(unknown)")
 
 # slot -> (source file in the pool, policy, max_ms, note)
 #   repeat  : fires many times per fight, must pass audit_sfx's balance gate
@@ -118,16 +133,16 @@ PLAN = {
                     "oneshot", 2200, "the metal pipe: clang plus its ring-out"),
     "meme_wobble": ("27-Metal-Audio__wobble_04_44k_32bit_stereo.wav",
                     "oneshot", 1500, "the pipe settling — the tail that sells it"),
-    "meme_1on1":   ("arena__1 on 1 - ArenaCombatAnnouncerPack.wav",
+    "meme_1on1":   ("ArenaCombatAnn__1 on 1 - ArenaCombatAnnouncerPack.wav",
                     "oneshot", 1600, "opening call; literally this format"),
     # "Impressive" and "Vengeance" both failed the gate on sibilance — the ess
     # in each sits above 8kHz, which is the kind of brightness that grates when
     # a channel ships one of these a day. Not worth forcing.
-    "meme_denied": ("arena__Denied - ArenaCombatAnnouncerPack.wav",
+    "meme_denied": ("ArenaCombatAnn__Denied - ArenaCombatAnnouncerPack.wav",
                     "oneshot", 1400, "a whiff, paired with the bruh card"),
-    "meme_fragged": ("arena__Fragged - ArenaCombatAnnouncerPack.wav",
+    "meme_fragged": ("ArenaCombatAnn__Fragged - ArenaCombatAnnouncerPack.wav",
                      "oneshot", 1600, "the KO"),
-    "meme_domination": ("arena__Domination - ArenaCombatAnnouncerPack.wav",
+    "meme_domination": ("ArenaCombatAnn__Domination - ArenaCombatAnnouncerPack.wav",
                         "oneshot", 1800, "rides the FINAL BLOW card into the finisher"),
 }
 
@@ -158,7 +173,7 @@ def build_pool(verbose: bool = True) -> Path:
         with zipfile.ZipFile(zp) as f:
             for m in f.namelist():
                 if m.lower().endswith((".wav", ".ogg", ".flac")) and not m.startswith("__"):
-                    tgt = pool / (Path(zname).stem + "__" + Path(m).name)
+                    tgt = pool / (Path(zname).stem[:14] + "__" + Path(m).name)
                     if not tgt.exists():
                         tgt.write_bytes(f.read(m))
     return pool
@@ -271,8 +286,7 @@ def main() -> int:
         info = normalize(sp, OUT_DIR / f"{slot}.wav", cap)
         page, lic = LOOSE.get(src, (None, None))
         if page is None:
-            zname = src.split("__")[0] + ".zip"
-            page, lic = {**PACKS, **MEME_PACKS}.get(zname, ("(unknown)", "(unknown)"))
+            page, lic = _pack_for(src)
         installed.append({"slot": slot, "src": src, "policy": policy,
                           "page": page, "licence": lic, **info})
         print(f"  {slot:14} <- {src[:40]:40} {info['dur']:.2f}s")
