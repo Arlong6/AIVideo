@@ -139,6 +139,20 @@ def _violations(seq: list[dict]) -> int:
     return v
 
 
+def _uploaded_in_order() -> list[str]:
+    """Stems already uploaded, in post order, from the live queue (if any)."""
+    q = ROOT / "pixel_battle/output/upload_queue.json"
+    if not q.exists():
+        return []
+    try:
+        rows = json.loads(q.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    done = [r for r in rows if r.get("status") == "uploaded"]
+    done.sort(key=lambda r: r.get("post_no", 0))
+    return [r["stem"] for r in done]
+
+
 def _order(fights: list[dict], seed: int = 20260913) -> list[dict]:
     """Seeded shuffle, keeping the first draw that has no hard violations.
 
@@ -149,10 +163,17 @@ def _order(fights: list[dict], seed: int = 20260913) -> list[dict]:
     import random
 
     rng = random.Random(seed)
-    # b01 is pinned first: it is the fight already reviewed and packaged, so the
-    # debut post is a known-good one rather than whatever the shuffle picks.
-    pinned = [f for f in fights if f["stem"].startswith("b01")]
-    rest = [f for f in fights if not f["stem"].startswith("b01")]
+    # Anything already posted or scheduled is pinned in the order it actually
+    # went out. Before this, adding block 2 reshuffled all 51 and gave 20 of the
+    # 21 published fights new post numbers — the plan stopped describing what
+    # had happened. The queue is the record of that; b01 stays first even with
+    # no queue, since it was the reviewed debut.
+    pinned_stems = _uploaded_in_order()
+    if not pinned_stems:
+        pinned_stems = [f["stem"] for f in fights if f["stem"].startswith("b01")]
+    by_stem = {f["stem"]: f for f in fights}
+    pinned = [by_stem[st] for st in pinned_stems if st in by_stem]
+    rest = [f for f in fights if f["stem"] not in set(pinned_stems)]
     best, best_v = None, None
     for _ in range(4000):
         trial = rest[:]

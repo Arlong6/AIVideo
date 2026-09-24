@@ -38,7 +38,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
-EXCLUDE = {"brick_phone", "glass_slab"}
+# yasuo is out until his kit is reworked. Four block-2 fights with him failed
+# pacing through three rounds of engine fixes that cleared every other champion
+# (retreat cap, crouch-slide cap, flash-away clamp). His cooldown is a plain
+# slash where katarina's is a dash, so after the assassin phrase's flash:back he
+# has no beat that closes distance again. That is a kit problem, not a
+# choreography one, and it gets fixed in characters.json, not by bending the
+# engine further around one champion.
+EXCLUDE = {"brick_phone", "glass_slab", "yasuo"}
 ARENAS = ["frost", "dusk", "magma", "dojo", "ruins"]
 MIN_APPEARANCES = 2
 MAX_SIDE_RUN = 3

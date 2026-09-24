@@ -5,24 +5,24 @@ right: bulwark
 duration_ms: 53000
 seed: 7
 left_start_mp: 100
-left_start_hp: 85
-right_start_hp: 88
+left_start_hp: 97
+right_start_hp: 78
 left_timeline:
   - {t: 400, do: advance}
   - {t: 688, do: "attack:basic"}
   - {t: 1096, do: "attack:cd"}
-  - {t: 1600, do: crouch}
+  - {t: 1600, do: block}
   - {t: 2032, do: "attack:cd"}
   - {t: 2512, do: advance}
   - {t: 2872, do: advance}
   - {t: 3304, do: jump}
   - {t: 3736, do: advance}
   - {t: 4024, do: "attack:cd"}
-  - {t: 4504, do: crouch}
+  - {t: 4504, do: block}
   - {t: 4936, do: crouch}
   - {t: 5272, do: advance}
   - {t: 5560, do: "attack:basic"}
-  - {t: 5893, do: crouch}
+  - {t: 5893, do: block}
   - {t: 6304, do: "cast:whirl_staff"}
   - {t: 6656, do: jump}
   - {t: 7048, do: retreat}
@@ -30,11 +30,11 @@ left_timeline:
   - {t: 7694, do: jump}
   - {t: 8046, do: advance}
   - {t: 8281, do: "attack:cd"}
-  - {t: 8673, do: crouch}
+  - {t: 8673, do: block}
   - {t: 9025, do: crouch}
   - {t: 9299, do: advance}
   - {t: 9534, do: "attack:basic"}
-  - {t: 9867, do: crouch}
+  - {t: 9867, do: block}
   - {t: 10278, do: "attack:basic"}
   - {t: 10630, do: jump}
   - {t: 11022, do: retreat}
@@ -42,7 +42,7 @@ left_timeline:
   - {t: 11668, do: jump}
   - {t: 12020, do: advance}
   - {t: 12255, do: "attack:cd"}
-  - {t: 12647, do: crouch}
+  - {t: 12647, do: block}
   - {t: 12999, do: crouch}
   - {t: 13273, do: advance}
   - {t: 13508, do: "cast:deflect"}
@@ -70,7 +70,7 @@ left_timeline:
   - {t: 20644, do: crouch}
   - {t: 20907, do: advance}
   - {t: 21123, do: "attack:basic"}
-  - {t: 21429, do: crouch}
+  - {t: 21429, do: block}
   - {t: 21807, do: "attack:basic"}
   - {t: 22131, do: jump}
   - {t: 22491, do: retreat}
@@ -78,11 +78,11 @@ left_timeline:
   - {t: 23085, do: jump}
   - {t: 23409, do: advance}
   - {t: 23625, do: "attack:cd"}
-  - {t: 23985, do: crouch}
+  - {t: 23985, do: block}
   - {t: 24309, do: crouch}
   - {t: 24561, do: advance}
   - {t: 24777, do: "attack:basic"}
-  - {t: 25083, do: crouch}
+  - {t: 25083, do: block}
   - {t: 25461, do: "cast:deflect"}
   - {t: 25785, do: jump}
   - {t: 26145, do: retreat}
@@ -90,11 +90,11 @@ left_timeline:
   - {t: 26739, do: jump}
   - {t: 27063, do: advance}
   - {t: 27279, do: "attack:cd"}
-  - {t: 27639, do: crouch}
+  - {t: 27639, do: block}
   - {t: 27963, do: crouch}
   - {t: 28215, do: advance}
   - {t: 28431, do: "attack:basic"}
-  - {t: 28737, do: crouch}
+  - {t: 28737, do: block}
   - {t: 29115, do: "attack:basic"}
   - {t: 29424, do: "attack:cd"}
   - {t: 29768, do: advance}
@@ -126,31 +126,31 @@ left_timeline:
   - {t: 37251, do: jump}
   - {t: 37502, do: advance}
   - {t: 37670, do: "attack:cd"}
-  - {t: 37950, do: crouch}
+  - {t: 37950, do: block}
   - {t: 38201, do: crouch}
   - {t: 38397, do: advance}
   - {t: 38565, do: "attack:basic"}
   - {t: 38802, do: "attack:cd"}
-  - {t: 39096, do: crouch}
+  - {t: 39096, do: block}
   - {t: 39347, do: "attack:cd"}
   - {t: 39627, do: retreat}
   - {t: 39837, do: retreat}
   - {t: 40088, do: jump}
   - {t: 40339, do: advance}
   - {t: 40507, do: "attack:cd"}
-  - {t: 40787, do: crouch}
+  - {t: 40787, do: block}
   - {t: 41038, do: crouch}
   - {t: 41234, do: advance}
   - {t: 41402, do: "attack:basic"}
   - {t: 41639, do: "attack:cd"}
-  - {t: 41933, do: crouch}
+  - {t: 41933, do: block}
   - {t: 42184, do: "attack:cd"}
   - {t: 42464, do: retreat}
   - {t: 42674, do: retreat}
   - {t: 42925, do: jump}
   - {t: 43176, do: advance}
   - {t: 43344, do: "attack:cd"}
-  - {t: 43624, do: crouch}
+  - {t: 43624, do: block}
   - {t: 43875, do: crouch}
   - {t: 44071, do: advance}
   - {t: 44239, do: "attack:basic"}
@@ -165,10 +165,10 @@ right_timeline:
   - {t: 2332, do: "attack:basic"}
   - {t: 2764, do: crouch}
   - {t: 3100, do: advance}
-  - {t: 3388, do: crouch}
+  - {t: 3388, do: block}
   - {t: 3796, do: "attack:cd"}
   - {t: 4300, do: "cast:guard_break"}
-  - {t: 4732, do: crouch}
+  - {t: 4732, do: block}
   - {t: 5212, do: advance}
   - {t: 5572, do: advance}
   - {t: 5924, do: jump}
@@ -198,25 +198,25 @@ right_timeline:
   - {t: 13858, do: jump}
   - {t: 14196, do: advance}
   - {t: 14421, do: "attack:cd"}
-  - {t: 14797, do: crouch}
+  - {t: 14797, do: block}
   - {t: 15135, do: crouch}
   - {t: 15398, do: advance}
   - {t: 15623, do: "attack:basic"}
   - {t: 15942, do: jump}
   - {t: 16336, do: "cast:aegis"}
-  - {t: 16674, do: crouch}
+  - {t: 16674, do: block}
   - {t: 17050, do: retreat}
   - {t: 17332, do: retreat}
   - {t: 17670, do: jump}
   - {t: 18008, do: advance}
   - {t: 18233, do: "attack:cd"}
-  - {t: 18609, do: crouch}
+  - {t: 18609, do: block}
   - {t: 18947, do: crouch}
   - {t: 19210, do: advance}
   - {t: 19435, do: "attack:basic"}
   - {t: 19754, do: jump}
   - {t: 20148, do: "cast:guard_break"}
-  - {t: 20486, do: crouch}
+  - {t: 20486, do: block}
   - {t: 20862, do: advance}
   - {t: 21132, do: advance}
   - {t: 21456, do: jump}
@@ -246,31 +246,31 @@ right_timeline:
   - {t: 28764, do: jump}
   - {t: 29088, do: advance}
   - {t: 29294, do: "attack:cd"}
-  - {t: 29638, do: crouch}
+  - {t: 29638, do: block}
   - {t: 29947, do: crouch}
   - {t: 30187, do: advance}
   - {t: 30393, do: "attack:basic"}
   - {t: 30685, do: jump}
   - {t: 31046, do: "cast:aegis"}
-  - {t: 31355, do: crouch}
+  - {t: 31355, do: block}
   - {t: 31699, do: retreat}
   - {t: 31957, do: retreat}
   - {t: 32266, do: jump}
   - {t: 32575, do: advance}
   - {t: 32781, do: "attack:cd"}
-  - {t: 33125, do: crouch}
+  - {t: 33125, do: block}
   - {t: 33434, do: crouch}
   - {t: 33674, do: advance}
   - {t: 33880, do: "attack:basic"}
   - {t: 34172, do: jump}
   - {t: 34533, do: "cast:guard_break"}
-  - {t: 34842, do: crouch}
+  - {t: 34842, do: block}
   - {t: 35186, do: retreat}
   - {t: 35444, do: retreat}
   - {t: 35753, do: jump}
   - {t: 36062, do: advance}
   - {t: 36268, do: "attack:cd"}
-  - {t: 36612, do: crouch}
+  - {t: 36612, do: block}
   - {t: 36921, do: crouch}
   - {t: 37117, do: advance}
   - {t: 37285, do: "attack:basic"}

@@ -142,10 +142,18 @@ def _arc_at(progress: float):
 # wall it could not follow. The same shape had already broken the ranged
 # pairings. Ducking and jumping in place still read as being on the back foot,
 # and the chase rule brings the dominant side in regardless.
+#
+# Second correction: "crouch" is not in place either. In the engine it is a
+# crouch-SLIDE — 22px per frame backward, the fastest retreat in the kit — and
+# a slide into a jump carries that momentum into the air. Substituting it for
+# attacks was quietly manufacturing the very wall-camping it was meant to stop
+# (b27: bulwark 124 → 436 in two seconds on two slides and a jump). "block" is
+# the only beat that truly holds position (vel_x = 0), and it reads as being
+# on the back foot, which is the point.
 _DEFENSIVE = {
-    "ranged": ("crouch", "jump", "crouch"),
-    "assassin": ("crouch", "jump", "crouch"),
-    "melee": ("crouch", "jump", "crouch"),
+    "ranged": ("block", "jump", "block"),
+    "assassin": ("block", "jump", "block"),
+    "melee": ("block", "jump", "block"),
 }
 
 # Champion → movement archetype (mage+marksman collapse to "ranged";

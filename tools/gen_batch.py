@@ -57,7 +57,7 @@ BATCH = [
     # ── Block 2 (b22-b51), selected by tools/extend_batch.py --seed 22 ──
     ("b22_wrecker_cyclone",       "wrecker",     "cyclone",     "dusk",  "right"),
     ("b23_vanguard_forge",    "garen",       "forge",       "magma", "left"),
-    ("b24_jugg_ronin",            "mordekaiser", "yasuo",       "dojo",  "right"),
+    ("b24_ironfist_wildfire",     "ironfist",    "jinx",        "dojo",  "right"),
     ("b25_wrecker_lumen",     "wrecker",     "lux",         "ruins", "right"),
     ("b26_skylance_reaver",   "pantheon",    "reaver",      "frost", "left"),
     ("b27_cyclone_bulwark",   "cyclone",     "bulwark",     "dusk",  "left"),
@@ -65,17 +65,17 @@ BATCH = [
     ("b29_pyre_skylance",         "pyre",        "pantheon",    "dojo",  "right"),
     ("b30_vanguard_bulwark",      "garen",       "bulwark",     "ruins", "left"),
     ("b31_pyre_cleaver",          "pyre",        "cleaver",     "frost", "right"),
-    ("b32_ronin_shade",       "yasuo",       "katarina",    "dusk",  "left"),
+    ("b32_totem_skylance",        "totem",       "pantheon",    "dusk",  "left"),
     ("b33_jugg_cleaver",      "mordekaiser", "cleaver",     "magma", "left"),
     ("b34_totem_shade",       "totem",       "katarina",    "dojo",  "right"),
     ("b35_cleaver_quarrel",   "cleaver",     "quarrel",     "ruins", "right"),
     ("b36_skylance_shade",        "pantheon",    "katarina",    "frost", "left"),
     ("b37_reaver_wrecker",    "reaver",      "wrecker",     "dusk",  "right"),
     ("b38_venom_skylance",        "venom",       "pantheon",    "magma", "right"),
-    ("b39_ronin_warlock",     "yasuo",       "warlock",     "dojo",  "left"),
+    ("b39_cleaver_reaver",        "cleaver",     "reaver",      "dojo",  "left"),
     ("b40_frostbow_skylance",     "ashe",        "pantheon",    "ruins", "right"),
     ("b41_vanguard_lumen",    "garen",       "lux",         "frost", "left"),
-    ("b42_ronin_ironfist",        "yasuo",       "ironfist",    "dusk",  "right"),
+    ("b42_ironfist_jugg",         "ironfist",    "mordekaiser", "dusk",  "right"),
     ("b43_cyclone_vanguard",  "cyclone",     "garen",       "magma", "left"),
     ("b44_warlock_ironfist",      "warlock",     "ironfist",    "dojo",  "right"),
     ("b45_skylance_vanguard",     "pantheon",    "garen",       "ruins", "left"),
@@ -84,7 +84,7 @@ BATCH = [
     ("b48_outlaw_ironfist",   "outlaw",      "ironfist",    "magma", "left"),
     ("b49_wrecker_wildfire",      "wrecker",     "jinx",        "dojo",  "right"),
     ("b50_ironfist_bulwark",  "ironfist",    "bulwark",     "ruins", "right"),
-    ("b51_skylance_ronin",    "pantheon",    "yasuo",       "frost", "left"),
+    ("b51_shade_outlaw",          "katarina",    "outlaw",      "frost", "left"),
 ]
 
 

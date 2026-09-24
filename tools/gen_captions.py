@@ -74,9 +74,9 @@ def _hook_en(kind: str, f: dict) -> str:
     if kind == "underdog":
         return f"{vs}\nLooks one-sided. It is not."
     if kind == "character":
-        return f"One {ult} ended the whole thing\n{vs}"
+        return f"{vs}: one {ult} ended the whole thing"
     if kind == "arena":
-        return f"A 1v1 in {f['arena_en']}\n{vs}, settled in 53 seconds"
+        return f"{vs} in {f['arena_en']}\nSettled in 53 seconds"
     if kind == "pacing":
         return f"{vs} went down to the last sliver of health"
     if kind == "callout":
@@ -105,9 +105,15 @@ def _hook(kind: str, f: dict) -> str:
     if kind == "underdog":
         return f"{vs}\n看起來一面倒，其實沒有"
     if kind == "character":
-        return f"一招 {ult} 直接收掉整場\n{vs}"
+        # Matchup on the FIRST line. The opening line is the uniqueness key, and
+        # two fights won by the same champion with this hook produced the same
+        # line ("One SKYFALL ended the whole thing", b13 and b36) once the roster
+        # grew past 21.
+        return f"{vs}：一招 {ult} 直接收掉整場"
     if kind == "arena":
-        return f"在{f['arena_zh']}的一對一\n{vs}，53 秒分勝負"
+        # Same rule as the character hook: the matchup rides on line 1. Five
+        # arenas across 51 fights means the arena alone repeats.
+        return f"{vs}，在{f['arena_zh']}\n53 秒分勝負"
     if kind == "pacing":
         return f"{vs} 打到剩最後一格血"
     if kind == "callout":

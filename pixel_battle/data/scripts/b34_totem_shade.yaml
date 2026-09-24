@@ -5,19 +5,19 @@ right: katarina
 duration_ms: 53000
 seed: 7
 right_start_mp: 100
-left_start_hp: 121
-right_start_hp: 94
+left_start_hp: 122
+right_start_hp: 93
 left_timeline:
   - {t: 700, do: "attack:basic"}
   - {t: 1108, do: "attack:cd"}
   - {t: 1564, do: advance}
   - {t: 1996, do: jump}
-  - {t: 2452, do: crouch}
+  - {t: 2452, do: block}
   - {t: 2860, do: "attack:cd"}
   - {t: 3340, do: advance}
   - {t: 3676, do: "cast:hex_totem"}
   - {t: 4084, do: advance}
-  - {t: 4492, do: crouch}
+  - {t: 4492, do: block}
   - {t: 5164, do: "attack:basic"}
   - {t: 5572, do: "attack:cd"}
   - {t: 5944, do: advance}
@@ -47,9 +47,9 @@ left_timeline:
   - {t: 14632, do: advance}
   - {t: 14895, do: "cast:ward_totem"}
   - {t: 15214, do: advance}
-  - {t: 15533, do: crouch}
+  - {t: 15533, do: block}
   - {t: 16059, do: "attack:basic"}
-  - {t: 16378, do: crouch}
+  - {t: 16378, do: block}
   - {t: 16735, do: advance}
   - {t: 17073, do: jump}
   - {t: 17430, do: "attack:basic"}
@@ -57,9 +57,9 @@ left_timeline:
   - {t: 18125, do: advance}
   - {t: 18388, do: "cast:hex_totem"}
   - {t: 18707, do: advance}
-  - {t: 19026, do: crouch}
+  - {t: 19026, do: block}
   - {t: 19552, do: "attack:basic"}
-  - {t: 19871, do: crouch}
+  - {t: 19871, do: block}
   - {t: 20228, do: advance}
   - {t: 20566, do: jump}
   - {t: 20923, do: "attack:basic"}
@@ -87,9 +87,9 @@ left_timeline:
   - {t: 28285, do: advance}
   - {t: 28537, do: "cast:ward_totem"}
   - {t: 28843, do: advance}
-  - {t: 29135, do: crouch}
+  - {t: 29135, do: block}
   - {t: 29616, do: "attack:basic"}
-  - {t: 29908, do: crouch}
+  - {t: 29908, do: block}
   - {t: 30234, do: advance}
   - {t: 30543, do: jump}
   - {t: 30869, do: "attack:basic"}
@@ -97,9 +97,9 @@ left_timeline:
   - {t: 31505, do: advance}
   - {t: 31745, do: "cast:hex_totem"}
   - {t: 32037, do: advance}
-  - {t: 32329, do: crouch}
+  - {t: 32329, do: block}
   - {t: 32810, do: "attack:basic"}
-  - {t: 33102, do: crouch}
+  - {t: 33102, do: block}
   - {t: 33428, do: advance}
   - {t: 33737, do: jump}
   - {t: 34063, do: "attack:basic"}
@@ -107,9 +107,9 @@ left_timeline:
   - {t: 34699, do: advance}
   - {t: 34939, do: "cast:ward_totem"}
   - {t: 35231, do: advance}
-  - {t: 35523, do: crouch}
+  - {t: 35523, do: block}
   - {t: 36004, do: "attack:basic"}
-  - {t: 36296, do: crouch}
+  - {t: 36296, do: block}
   - {t: 36622, do: advance}
   - {t: 36931, do: jump}
   - {t: 37197, do: "attack:basic"}
@@ -145,40 +145,40 @@ right_timeline:
   - {t: 400, do: "flash:in"}
   - {t: 628, do: "attack:basic"}
   - {t: 904, do: "attack:cd"}
-  - {t: 1192, do: crouch}
+  - {t: 1192, do: block}
   - {t: 1468, do: jump}
   - {t: 1768, do: "attack:cd"}
   - {t: 2056, do: crouch}
   - {t: 2332, do: "flash:in"}
   - {t: 2668, do: advance}
   - {t: 2908, do: "attack:basic"}
-  - {t: 3184, do: crouch}
+  - {t: 3184, do: block}
   - {t: 3472, do: "attack:basic"}
   - {t: 3748, do: jump}
   - {t: 4048, do: "flash:in"}
   - {t: 4276, do: "attack:cd"}
-  - {t: 4564, do: crouch}
+  - {t: 4564, do: block}
   - {t: 4840, do: advance}
   - {t: 5200, do: "flash:in"}
   - {t: 5428, do: jump}
   - {t: 5653, do: "attack:cd"}
-  - {t: 5888, do: crouch}
+  - {t: 5888, do: block}
   - {t: 6113, do: jump}
   - {t: 6358, do: "attack:cd"}
   - {t: 6593, do: crouch}
   - {t: 6818, do: "flash:in"}
   - {t: 7092, do: advance}
-  - {t: 7288, do: crouch}
+  - {t: 7288, do: block}
   - {t: 7513, do: "attack:cd"}
   - {t: 7748, do: jump}
   - {t: 7973, do: jump}
   - {t: 8218, do: "flash:in"}
   - {t: 8404, do: "attack:cd"}
-  - {t: 8639, do: crouch}
+  - {t: 8639, do: block}
   - {t: 8864, do: advance}
   - {t: 9158, do: "flash:in"}
   - {t: 9344, do: "attack:basic"}
-  - {t: 9569, do: crouch}
+  - {t: 9569, do: block}
   - {t: 9804, do: "attack:basic"}
   - {t: 10029, do: jump}
   - {t: 10274, do: jump}
@@ -186,11 +186,11 @@ right_timeline:
   - {t: 10734, do: "flash:in"}
   - {t: 11008, do: advance}
   - {t: 11204, do: "attack:basic"}
-  - {t: 11429, do: crouch}
+  - {t: 11429, do: block}
   - {t: 11664, do: "attack:basic"}
   - {t: 11889, do: jump}
   - {t: 12134, do: "flash:in"}
-  - {t: 12320, do: crouch}
+  - {t: 12320, do: block}
   - {t: 12555, do: "cast:blink"}
   - {t: 12780, do: advance}
   - {t: 13074, do: "flash:in"}
@@ -230,23 +230,23 @@ right_timeline:
   - {t: 20611, do: "flash:in"}
   - {t: 20789, do: jump}
   - {t: 20996, do: "attack:cd"}
-  - {t: 21212, do: crouch}
+  - {t: 21212, do: block}
   - {t: 21419, do: jump}
   - {t: 21644, do: "attack:cd"}
   - {t: 21860, do: crouch}
   - {t: 22067, do: "flash:in"}
   - {t: 22319, do: advance}
-  - {t: 22499, do: crouch}
+  - {t: 22499, do: block}
   - {t: 22706, do: "attack:cd"}
   - {t: 22922, do: jump}
   - {t: 23129, do: jump}
   - {t: 23354, do: "flash:in"}
   - {t: 23525, do: "attack:cd"}
-  - {t: 23741, do: crouch}
+  - {t: 23741, do: block}
   - {t: 23948, do: advance}
   - {t: 24218, do: "flash:in"}
   - {t: 24389, do: "attack:basic"}
-  - {t: 24596, do: crouch}
+  - {t: 24596, do: block}
   - {t: 24812, do: "attack:basic"}
   - {t: 25019, do: jump}
   - {t: 25244, do: jump}
@@ -254,17 +254,17 @@ right_timeline:
   - {t: 25667, do: "flash:in"}
   - {t: 25919, do: advance}
   - {t: 26099, do: "attack:basic"}
-  - {t: 26306, do: crouch}
+  - {t: 26306, do: block}
   - {t: 26522, do: "attack:basic"}
   - {t: 26729, do: jump}
   - {t: 26954, do: "flash:in"}
-  - {t: 27125, do: crouch}
+  - {t: 27125, do: block}
   - {t: 27341, do: "cast:blink"}
   - {t: 27548, do: advance}
   - {t: 27818, do: "flash:in"}
   - {t: 27989, do: jump}
   - {t: 28196, do: "attack:cd"}
-  - {t: 28412, do: crouch}
+  - {t: 28412, do: block}
   - {t: 28619, do: jump}
   - {t: 28844, do: "attack:cd"}
   - {t: 29050, do: crouch}
@@ -310,46 +310,46 @@ right_timeline:
   - {t: 37087, do: jump}
   - {t: 37262, do: "flash:in"}
   - {t: 37395, do: "attack:cd"}
-  - {t: 37563, do: crouch}
+  - {t: 37563, do: block}
   - {t: 37724, do: advance}
   - {t: 37934, do: "flash:in"}
   - {t: 38067, do: "attack:basic"}
   - {t: 38228, do: "attack:cd"}
-  - {t: 38396, do: crouch}
+  - {t: 38396, do: block}
   - {t: 38557, do: jump}
   - {t: 38732, do: "attack:cd"}
   - {t: 38900, do: crouch}
   - {t: 39061, do: "flash:in"}
   - {t: 39257, do: advance}
   - {t: 39397, do: "attack:basic"}
-  - {t: 39558, do: crouch}
+  - {t: 39558, do: block}
   - {t: 39726, do: "attack:basic"}
   - {t: 39887, do: jump}
   - {t: 40062, do: "flash:in"}
   - {t: 40195, do: "attack:cd"}
-  - {t: 40363, do: crouch}
+  - {t: 40363, do: block}
   - {t: 40524, do: advance}
   - {t: 40734, do: "flash:in"}
   - {t: 40867, do: "attack:basic"}
   - {t: 41028, do: "attack:cd"}
-  - {t: 41196, do: crouch}
+  - {t: 41196, do: block}
   - {t: 41357, do: jump}
   - {t: 41532, do: "attack:cd"}
   - {t: 41700, do: crouch}
   - {t: 41861, do: "flash:in"}
   - {t: 42057, do: advance}
   - {t: 42197, do: "attack:basic"}
-  - {t: 42358, do: crouch}
+  - {t: 42358, do: block}
   - {t: 42526, do: "attack:basic"}
   - {t: 42687, do: jump}
   - {t: 42862, do: "flash:in"}
   - {t: 42995, do: "attack:cd"}
-  - {t: 43163, do: crouch}
+  - {t: 43163, do: block}
   - {t: 43324, do: advance}
   - {t: 43534, do: "flash:in"}
   - {t: 43667, do: "attack:basic"}
   - {t: 43828, do: "attack:cd"}
-  - {t: 43996, do: crouch}
+  - {t: 43996, do: block}
   - {t: 44157, do: jump}
   - {t: 44360, do: "flash:in"}
   - {t: 44840, do: advance}

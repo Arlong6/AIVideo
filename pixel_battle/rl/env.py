@@ -234,7 +234,16 @@ class PixelBattleEnv(gym.Env):
         elif action == 12:                       # crouch-SLIDE
             me.action_state = "crouching"
             me.crouch_end_ms = self.battle.elapsed_ms + CROUCH_DURATION_MS
-            me.vel_x = 22.0 * -fwd                # slide-dodge LOW & BACK (sliding toward
+            # The slide is the fastest backward movement in the kit — 22px per
+            # frame against WALK_SPEED's few — and a slide into a jump carries
+            # the momentum into the air. Traced on b27: bulwark went 124 → 262
+            # → 436 in two seconds on two slides and a jump, with the retreat
+            # cap never involved. Same cap, same reason: past MAX_SEPARATION
+            # the dodge stays low but stays put.
+            if dist >= MAX_SEPARATION:
+                me.vel_x = 0.0
+            else:
+                me.vel_x = 22.0 * -fwd            # slide-dodge LOW & BACK (sliding toward
             #                                       the opponent just bumps the collision)
 
     def _do_flash(self, me: Character, opp: Character, toward: bool) -> None:
@@ -250,6 +259,11 @@ class PixelBattleEnv(gym.Env):
         # arena is wider than the old 60-420 bounds.
         raw_dest = me.pos_x + sign * FLASH_DISTANCE
         me.pos_x = max(FLASH_ARENA_LEFT, min(FLASH_ARENA_RIGHT, raw_dest))
+        # NOTE: the flash-away LANDING is deliberately not clamped to
+        # MAX_SEPARATION (only the pre-flash gate above is). A landing clamp was
+        # tried to rescue yasuo and did not; what it did do was cost b34, a
+        # healthy katarina fight, 1.9s of silence. Assassins need the full
+        # 130px to make the in-out rhythm read. Evidence over symmetry.
         me.facing = 1 if opp.pos_x > me.pos_x else -1
         me.flash_ready_at_ms = self.battle.elapsed_ms + FLASH_COOLDOWN_MS
         self.battle._emit(EventType.FLASH, actor=me.id,
