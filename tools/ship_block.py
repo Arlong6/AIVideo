@@ -72,9 +72,16 @@ def main() -> int:
                                 "pixel_battle/output/captions"], tail=2):
         return 1
 
-    print("\n=== 4/5 frame-count audit ===", flush=True)
+    print("\n=== 4/5 frame-count + winner audit ===", flush=True)
     manifest = {e["script"][:3]: e for e in
                 json.loads((ROOT / "pixel_battle/output/shorts/manifest.json").read_text())}
+    # The render records who actually won. It must be the designated caster:
+    # the cover names the winner's finisher and the caption is written around
+    # that side. A simulation-vs-render gap on a thin HP margin flipped b18 once
+    # (47s video, wrong winner) — this is the check that would have caught it.
+    sys.path.insert(0, str(ROOT / "tools"))
+    from gen_batch import BATCH
+    designated = {r[0][:3]: r[4] for r in BATCH}
     bad = []
     for st in stems:
         e = manifest.get(st[:3])
@@ -83,8 +90,11 @@ def main() -> int:
             print(f"  {st:24} MISSING from manifest", flush=True)
             continue
         ok, why = _frames_ok(ROOT / e["short"])
-        print(f"  {Path(e['short']).stem:24} {'ok ' if ok else 'BAD'} {why}", flush=True)
-        if not ok:
+        win_ok = e.get("winner") == designated.get(st[:3])
+        if not win_ok:
+            why += f"  WINNER {e.get('winner')} != designated {designated.get(st[:3])}"
+        print(f"  {Path(e['short']).stem:24} {'ok ' if (ok and win_ok) else 'BAD'} {why}", flush=True)
+        if not (ok and win_ok):
             bad.append(st)
     if bad:
         print(f"!!! {len(bad)} short(s) failed the audit: {bad}", flush=True)
