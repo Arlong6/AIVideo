@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -53,9 +54,18 @@ def main() -> int:
         if not dry:
             cmd.append("--post")
         print(f"=== slot {i + 1}/{count} -> {at}", flush=True)
-        r = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True)
-        out = (r.stdout or "") + (r.stderr or "")
-        print("\n".join(out.strip().splitlines()[-3:]), flush=True)
+        for attempt in (1, 2):
+            r = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True)
+            out = (r.stdout or "") + (r.stderr or "")
+            print("\n".join(out.strip().splitlines()[-3:]), flush=True)
+            # Publer sits behind Cloudflare and a 30MB upload occasionally
+            # dies with a 5xx that succeeds on the next try (520 seen
+            # 2026-09-26). One retry; the slot is not marked uploaded on a
+            # failed attempt, so the same fight is retried, not skipped.
+            if r.returncode == 0 or attempt == 2 or "HTTP 5" not in out:
+                break
+            print("transient 5xx — retrying this slot in 30s", flush=True)
+            time.sleep(30)
         if r.returncode != 0:
             # Stop rather than plough on: a failure here usually means the queue
             # is empty or Publer rejected something, and the remaining slots
