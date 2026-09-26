@@ -9,9 +9,14 @@ loud.
 Each call uploads a ~30MB file to Publer, so a full run takes several minutes;
 launch it through tools/run_detached.py rather than a plain background job.
 
+Month two moves to two a day (arlong: 前面一個月一天一隻，後面一天兩隻), so
+`--hours` takes a comma list: one slot per listed hour per day, in order. The
+day count is then ceil(count / len(hours)).
+
 Usage:
   python3 tools/schedule_batch.py 2026-09-27 12          # 12 posts from that date
   python3 tools/schedule_batch.py 2026-09-27 12 --hour 21
+  python3 tools/schedule_batch.py 2026-10-19 20 --hours 12,21   # two a day
   python3 tools/schedule_batch.py 2026-09-27 12 --dry-run
 """
 from __future__ import annotations
@@ -32,15 +37,18 @@ def main() -> int:
         return 2
     start = datetime.strptime(args[0], "%Y-%m-%d")
     count = int(args[1])
-    hour = 21
+    hours = [21]
     if "--hour" in sys.argv:
-        hour = int(sys.argv[sys.argv.index("--hour") + 1])
+        hours = [int(sys.argv[sys.argv.index("--hour") + 1])]
+    if "--hours" in sys.argv:
+        hours = [int(h) for h in sys.argv[sys.argv.index("--hours") + 1].split(",")]
     dry = "--dry-run" in sys.argv
 
-    base = datetime(start.year, start.month, start.day, hour, 0, 0, tzinfo=TZ)
+    day0 = datetime(start.year, start.month, start.day, tzinfo=TZ)
     done = 0
     for i in range(count):
-        at = (base + timedelta(days=i)).isoformat()
+        day, slot = divmod(i, len(hours))
+        at = (day0 + timedelta(days=day, hours=hours[slot])).isoformat()
         cmd = [sys.executable, str(ROOT / "tools/publish_tiktok.py"), "--at", at]
         if not dry:
             cmd.append("--post")
