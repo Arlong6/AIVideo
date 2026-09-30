@@ -14,7 +14,9 @@ Steps:
   2. build_covers_batch            covers for anything without one (--force for all)
   3. gen_captions --write          captions for the whole plan
   4. frame-count audit             every short in STEMS: frames/30 within 1s of duration
-  5. publish_tiktok --status       queue view, so the log ends with the state
+  5. publish_tiktok --status       queue view
+  6. archive_published --move      raws+shorts of fights already live go to the
+                                   SSD (arlong: 要記得跑). SSD absent = warn only.
 
 Usage:
   python3 tools/ship_block.py b22 b23 ... b51
@@ -63,16 +65,16 @@ def main() -> int:
         return 2
     force = "--force-covers" in sys.argv
 
-    if not run("1/5 render + build", [PY, "tools/build_shorts_batch.py", *stems], tail=4):
+    if not run("1/6 render + build", [PY, "tools/build_shorts_batch.py", *stems], tail=4):
         return 1
     cover_cmd = [PY, "tools/build_covers_batch.py"] + (["--force"] if force else [])
-    if not run("2/5 covers", cover_cmd, tail=2):
+    if not run("2/6 covers", cover_cmd, tail=2):
         return 1
-    if not run("3/5 captions", [PY, "tools/gen_captions.py", "--write",
+    if not run("3/6 captions", [PY, "tools/gen_captions.py", "--write",
                                 "pixel_battle/output/captions"], tail=2):
         return 1
 
-    print("\n=== 4/5 frame-count + winner audit ===", flush=True)
+    print("\n=== 4/6 frame-count + winner audit ===", flush=True)
     manifest = {e["script"][:3]: e for e in
                 json.loads((ROOT / "pixel_battle/output/shorts/manifest.json").read_text())}
     # The render records who actually won. It must be the designated caster:
@@ -100,7 +102,9 @@ def main() -> int:
         print(f"!!! {len(bad)} short(s) failed the audit: {bad}", flush=True)
         return 1
 
-    run("5/5 queue", [PY, "tools/publish_tiktok.py", "--status"], tail=3)
+    run("5/6 queue", [PY, "tools/publish_tiktok.py", "--status"], tail=3)
+    if not run("6/6 archive published to SSD", [PY, "tools/archive_published.py", "--move"], tail=3):
+        print("(archive skipped — plug in the SSD and run tools/archive_published.py --move)", flush=True)
     print("\nSHIP DONE", flush=True)
     return 0
 
