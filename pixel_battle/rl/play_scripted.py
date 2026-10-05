@@ -74,7 +74,8 @@ def render_script(script_path: Path, out_dir: Path = OUT_DIR) -> Path:
     raw = out_dir / f"{script_path.stem}_raw.mp4"
     recorder = FrameRecorder(str(raw), fps=RENDER_FPS,
                              width=_scaled.CANVAS_SCALED[0],
-                             height=_scaled.CANVAS_SCALED[1])
+                             height=_scaled.CANVAS_SCALED[1],
+                             out_size=_scaled.OUTPUT)
     recorder.start()
     fight = None
     try:

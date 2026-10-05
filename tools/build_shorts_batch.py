@@ -14,6 +14,14 @@ from pathlib import Path
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# Supersample 2x by default: pygame's draw.line/circle/polygon are not
+# anti-aliased and native 1080x1920 only made the stair-steps sharper.
+# Rendering at 2160x3840 and lanczos-downscaling in the recorder smooths every
+# primitive without touching the 139 draw calls (compared on b40, 2026-10-05).
+# Costs ~3.6x render time (3.5 -> 12.7 min a fight). Must be set before any
+# pixel_battle import; export PIXEL_BATTLE_SSAA=1 to get the old output.
+os.environ.setdefault("PIXEL_BATTLE_SSAA", "2")
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 

@@ -6,11 +6,15 @@ import pygame
 
 
 class FrameRecorder:
-    def __init__(self, output_path: str, fps: int, width: int, height: int):
+    def __init__(self, output_path: str, fps: int, width: int, height: int,
+                 out_size: Optional[tuple[int, int]] = None):
         self.output_path = output_path
         self.fps = fps
         self.width = width
         self.height = height
+        # When frames arrive larger than the delivered size (supersampling),
+        # ffmpeg downscales them here. Lanczos keeps thin lines crisp.
+        self.out_size = out_size if out_size and tuple(out_size) != (width, height) else None
         self._proc: Optional[subprocess.Popen] = None
 
     def start(self) -> None:
@@ -23,6 +27,8 @@ class FrameRecorder:
             "-r", str(self.fps),
             "-i", "-",
             "-an",
+            *(["-vf", f"scale={self.out_size[0]}:{self.out_size[1]}:flags=lanczos"]
+              if self.out_size else []),
             "-vcodec", "libx264",
             "-pix_fmt", "yuv420p",
             # Near-lossless intermediate — this raw gets re-encoded by

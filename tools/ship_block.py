@@ -7,7 +7,8 @@ rewritten so the queue picks them up, and every short has to prove it holds the
 frames its header claims before anything is scheduled. Doing them in one script
 means a block either ships whole or reports exactly which step it stopped at.
 
-It is meant to run detached (tools/run_detached.py): thirty fights is ~2.5h.
+It is meant to run detached (tools/run_detached.py): thirty fights is ~6.5h
+(12.7 min a fight at the 2x supersample build_shorts_batch turns on).
 
 Steps:
   1. build_shorts_batch STEMS      render + build; refuses truncated raws/shorts

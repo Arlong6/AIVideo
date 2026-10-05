@@ -40,6 +40,10 @@ except ImportError:
 CANVAS = (480, 854)
 CANVAS_SCALED = (1080, 1920)
 
+# The delivered frame. Rendering may happen at an integer multiple of this
+# (supersampling) and be scaled back down by the recorder, which is what gives
+# the 139 pygame.draw.line calls anti-aliasing without touching any of them.
+OUTPUT = (1080, 1920)
 S: float = 2.25
 
 
@@ -47,11 +51,27 @@ def set_scale(s: float) -> None:
     """Set the global draw scale. 1.0 reproduces pre-hi-res output exactly."""
     global S, CANVAS_SCALED
     S = float(s)
-    if S == 2.25:
-        CANVAS_SCALED = (1080, 1920)
+    k = S / 2.25
+    if abs(k - round(k)) < 1e-9 and k >= 1:
+        # An exact multiple of the hi-res scale keeps the 1080x1920 aspect
+        # (854 * 2.25 is 1921.5, so rounding per axis would drift).
+        CANVAS_SCALED = (OUTPUT[0] * int(round(k)), OUTPUT[1] * int(round(k)))
     else:
         CANVAS_SCALED = (max(1, round(CANVAS[0] * S)),
                          max(1, round(CANVAS[1] * S)))
+
+
+def ssaa_factor() -> int:
+    """Supersampling factor from PIXEL_BATTLE_SSAA (default 1 = off)."""
+    import os
+    try:
+        return max(1, int(os.getenv("PIXEL_BATTLE_SSAA", "1")))
+    except ValueError:
+        return 1
+
+
+if ssaa_factor() > 1:
+    set_scale(2.25 * ssaa_factor())
 
 
 def _pt(p):
