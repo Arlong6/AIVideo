@@ -1174,6 +1174,14 @@ class ImpactFX:
                 # Outline: draw text in dark offset for readability
                 outline_col = tuple(max(0, c - 160) for c in bn.color)
                 rendered = font.render(bn.text, True, bn.color)
+                # Fit the frame: "WEAPON SWAP!" at the ultimate's size ran off
+                # both edges. Shrink until the text sits inside 92% of the width
+                # (both measurements are real pixels, so no shim conversion).
+                size = SKILL_BANNER_FONT_SIZE * 2
+                while rendered.get_width() > surf.get_width() * 0.92 and size > 24:
+                    size -= 4
+                    font = pygame.font.SysFont(None, size)
+                    rendered = font.render(bn.text, True, bn.color)
                 rendered.set_alpha(alpha)
                 # rendered text is REAL pixels (shim-scaled font); half-sizes
                 # must be fight units before mixing with fight-coord centers.

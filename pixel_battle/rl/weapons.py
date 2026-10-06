@@ -53,8 +53,69 @@ _WEAPONS = {
 }
 
 
-def get_weapon(char_id: str) -> Optional[Weapon]:
+# Secondary weapons: what a champion draws on a mid-fight WEAPON SWAP. Picked
+# for silhouette contrast with the primary (the archer goes to knives, the
+# shield-bearer to a hammer, the gunslinger to a cannon) and limited to kinds
+# draw_weapon already renders, so a swap is a table lookup and not new art.
+# Dimensions are borrowed from the champion that carries that kind as primary.
+# A champion absent here never swaps; gen_fight checks before scripting one.
+_SECONDARY = {
+    "garen":       Weapon("axe",        length=96,  grip="two_hand", width=1.4),
+    "lux":         Weapon("daggers",    length=44,  grip="one_hand", width=0.9),
+    "yasuo":       Weapon("kunai",      length=34,  grip="one_hand", width=0.9),
+    "ashe":        Weapon("daggers",    length=44,  grip="one_hand", width=0.9),
+    "mordekaiser": Weapon("greatsword", length=104, grip="two_hand", width=1.7),
+    "pantheon":    Weapon("greatsword", length=104, grip="two_hand", width=1.7),
+    "katarina":    Weapon("katana",     length=92,  grip="one_hand", width=0.7),
+    "jinx":        Weapon("pistols",    length=30,  grip="one_hand", width=1.3),
+    "bulwark":     Weapon("hammer",     length=98,  grip="two_hand", width=2.3),
+    "ironfist":    Weapon("bo",         length=124, grip="two_hand", width=0.9),
+    "reaver":      Weapon("axe",        length=96,  grip="two_hand", width=1.4),
+    "deadeye":     Weapon("crossbow",   length=72,  grip="two_hand", width=1.1),
+    "cyclone":     Weapon("spear",      length=134, grip="one_hand", width=0.9),
+    "wrecker":     Weapon("hammer",     length=98,  grip="two_hand", width=2.3),
+    "quarrel":     Weapon("kunai",      length=34,  grip="one_hand", width=0.9),
+    "cleaver":     Weapon("greatsword", length=104, grip="two_hand", width=1.7),
+    "pyre":        Weapon("daggers",    length=44,  grip="one_hand", width=0.9),
+    "venom":       Weapon("katana",     length=92,  grip="one_hand", width=0.7),
+    "outlaw":      Weapon("cannon",     length=78,  grip="two_hand", width=2.2),
+    "warlock":     Weapon("scythe",     length=120, grip="two_hand", width=0.9),
+    "necro":       Weapon("staff",      length=112, grip="one_hand", width=0.8),
+    "totem":       Weapon("hammer",     length=98,  grip="two_hand", width=2.3),
+    "forge":       Weapon("hammer",     length=98,  grip="two_hand", width=2.3),
+}
+
+# Live render state: champions that have swapped in the fight being drawn. Set
+# by the renderer when it sees a WEAPON_SWAP event, cleared at render start.
+_swapped: set = set()
+
+
+def get_weapon(char_id: str, swapped: Optional[bool] = None) -> Optional[Weapon]:
+    """The weapon to draw/sound for `char_id`. `swapped=None` follows the live
+    render state; callers replaying events (the audio router) pass it."""
+    if swapped is None:
+        swapped = char_id in _swapped
+    if swapped:
+        w = _SECONDARY.get(char_id)
+        if w is not None:
+            return w
     return _WEAPONS.get(char_id)
+
+
+def secondary_weapon(char_id: str) -> Optional[Weapon]:
+    return _SECONDARY.get(char_id)
+
+
+def has_secondary(char_id: str) -> bool:
+    return char_id in _SECONDARY
+
+
+def apply_swap(char_id: str) -> None:
+    _swapped.add(char_id)
+
+
+def reset_swaps() -> None:
+    _swapped.clear()
 
 
 def _vec(deg: float) -> Vec:

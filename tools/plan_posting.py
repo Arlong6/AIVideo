@@ -85,7 +85,7 @@ def _fights() -> list[dict]:
     from gen_batch import BATCH
     names = _display_names()
     out = []
-    for stem, left, right, arena, caster in BATCH:
+    for stem, left, right, arena, caster, *_tags in BATCH:
         win, lose = (left, right) if caster == "left" else (right, left)
         out.append({
             "stem": stem, "arena": arena, "arena_zh": ARENA_ZH[arena],

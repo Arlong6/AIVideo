@@ -48,6 +48,7 @@ class Character:
     windup_stun_until_ms: int = 0
     effects: List[StatusEffect] = field(default_factory=list)
     pending_cast_skill_id: Optional[str] = None
+    pending_weapon_swap: bool = False    # set by the timeline driver; Battle.tick_ms emits it
     _atk_n: int = 0          # basic-attack counter — cycles swing/kick pose variants
 
     @classmethod
@@ -91,6 +92,7 @@ class Character:
         self.hp = HP_MAX
         self.mp = 0
         self.pending_cast_skill_id = None
+        self.pending_weapon_swap = False
 
     def skills_of_type(self, t: SkillType) -> List[Skill]:
         return [s for s in self.skills if s.skill_type is t]

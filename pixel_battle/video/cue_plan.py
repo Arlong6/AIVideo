@@ -40,7 +40,11 @@ BEATS = {
     "whiff": ("bruh", "meme_denied"),
     "preult": ("final", "meme_domination"),
     "ko": ("boom", "meme_fragged"),
+    # The in-engine banner already says WEAPON SWAP!; the sound is the tossed
+    # primary hitting the floor, a beat after the throw.
+    "swap": (None, "meme_pipe"),
 }
+SWAP_CLANK_MS = 320
 
 
 def select(timeline: list[dict], cut_start_ms: int = 1500) -> list[dict]:
@@ -67,6 +71,12 @@ def select(timeline: list[dict], cut_start_ms: int = 1500) -> list[dict]:
                            ult["video_ms"] - int(FINAL_LEAD_S * 1000)))
     if ko:
         take("ko", ko["video_ms"])
+
+    # The weapon swap is a turn the fight makes on its own, so it outranks
+    # crits for a slot; it sits in the 25-35s stretch that otherwise has none.
+    sw = next((e for e in ev if e["type"] == "weapon_swap"), None)
+    if sw and free(short_t(sw["video_ms"] + SWAP_CLANK_MS, cut_start_ms)):
+        take("swap", sw["video_ms"] + SWAP_CLANK_MS)
 
     # Crits, biggest first, so a busy fight keeps its best ones.
     used = 0
@@ -133,7 +143,7 @@ def audio_cues(picked: list[dict]) -> list[dict]:
         if not sound:
             continue
         out.append({"asset": sound, "video_ms": p["video_ms"]})
-        if p["kind"] == "crit":
+        if p["kind"] in ("crit", "swap"):
             out.append({"asset": "meme_wobble", "video_ms": p["video_ms"] + 240})
     return sorted(out, key=lambda c: c["video_ms"])
 

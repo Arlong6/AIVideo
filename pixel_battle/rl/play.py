@@ -71,9 +71,9 @@ _GUN_KINDS = frozenset({"pistols", "revolver", "cannon"})
 _STAFF_KINDS = frozenset({"staff", "fire_staff"})
 
 
-def _weapon_kind(char_id: str) -> str:
+def _weapon_kind(char_id: str, swapped: Optional[bool] = None) -> str:
     from pixel_battle.rl.weapons import get_weapon
-    w = get_weapon(char_id)
+    w = get_weapon(char_id, swapped)
     return w.kind if w is not None else ""
 BG = (18, 22, 40)
 # GROUND_Y is imported from the physics engine — the renderer MUST use the
@@ -1155,17 +1155,24 @@ def _draw_banner(surf: pygame.Surface, text: str) -> None:
 
 def _route_audio_for_events(events, event_video_ms, mixer):
     """Route battle events to SFX buses using compose.py's convention."""
+    # This replays the whole event list after the render, so the live swap
+    # state in rl/weapons is no use here: track who has swapped as the events
+    # go by, so a hit after a WEAPON SWAP sounds like the new weapon.
+    swapped: set = set()
     for ev in events:
         pos = event_video_ms.get(id(ev))
         if pos is None:
             continue
         type_val = ev.type.value
         sfx_name = None
-        if type_val == "hit":
+        if type_val == "weapon_swap":
+            swapped.add(ev.actor)
+            sfx_name = "sword_swing"            # the toss; cue_plan adds the clank
+        elif type_val == "hit":
             if (ev.extra or {}).get("crit"):
                 sfx_name = "crit"
             else:
-                wk = _weapon_kind(ev.actor)
+                wk = _weapon_kind(ev.actor, ev.actor in swapped)
                 if wk in _CLASH_KINDS:
                     sfx_name = "sword_hit"      # metal CLASH
                 elif wk in _BOW_KINDS:
@@ -1195,7 +1202,7 @@ def _route_audio_for_events(events, event_video_ms, mixer):
             if kind == "ultimate":
                 sfx_name = None                 # the ultimate cue covers it
             else:
-                wk = _weapon_kind(ev.actor)
+                wk = _weapon_kind(ev.actor, ev.actor in swapped)
                 if wk in _STAFF_KINDS:
                     sfx_name = "magic_cast"     # spell shimmer
                 elif wk in _BOW_KINDS:
@@ -1356,8 +1363,10 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
     from pixel_battle.rl.poses import select_pose_id as _select_pose_id
     from pixel_battle.engine.battle import BattleState as _BattleState
     from pixel_battle.engine.skill import SkillType as _SkillType
+    from pixel_battle.rl import weapons as _weapons
 
     (obs_left, obs_right), _ = env.reset()
+    _weapons.reset_swaps()      # a swap must not leak into the next render
     # Per-script starting-MP override MUST be applied *after* env.reset() — reset
     # zeroes MP, so applying it before this call (as the caller naturally would)
     # is silently clobbered. This is what let scripted ultimates fail to charge.
@@ -1735,6 +1744,29 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
                             # what made assassins/warriors read like mages.
                             hx = ax + (44 if tx >= ax else -44)
                             impact_fx.spawn_hit_spark(x=hx, y=ay - 95, damage=3, color=a_color)
+                elif et == "weapon_swap":
+                    # The champion tosses the primary and draws the secondary.
+                    # The switch lives in the weapons registry, so the stick
+                    # renderer, swing smear and tip trail all change together.
+                    _weapons.apply_swap(ev.actor)
+                    actor_sw = env.left if ev.actor == env.left.id else env.right
+                    col_sw = lcol if actor_sw is env.left else rcol
+                    brand_sw = getattr(actor_sw, "brand_color", col_sw)
+                    sx, sy = float(actor_sw.pos_x), float(actor_sw.pos_y)
+                    impact_fx.spawn_skill_banner(
+                        name="WEAPON SWAP!", color=brand_sw,
+                        surf_size=(WIDTH, HEIGHT))
+                    # The old weapon leaves the hand: a streak away from the
+                    # facing direction plus a spark at the grip.
+                    impact_fx.spawn_flash_streak(
+                        from_x=sx, to_x=sx - 90.0 * float(actor_sw.facing),
+                        hip_y=sy - 70.0, color=col_sw, n_ghosts=4)
+                    impact_fx.spawn_hit_spark(x=int(sx), y=int(sy) - 95,
+                                              damage=3, color=col_sw)
+                    if actor_sw is env.left:
+                        left_flash_frames = max(left_flash_frames, 4)
+                    else:
+                        right_flash_frames = max(right_flash_frames, 4)
                 elif et == "ultimate_start":
                     # ── CINEMATIC ULTIMATE: trigger sequence, defer VFX to phases ──
                     actor_obj = env.left if ev.actor == env.left.id else env.right

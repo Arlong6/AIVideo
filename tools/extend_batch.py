@@ -17,6 +17,9 @@ produces a different regularity (see plan_posting.py). Constraints:
   - no champion appears in two consecutive rows
   - arenas cycle so consecutive rows never share one
   - caster side balanced to within one, with no run longer than three
+  - every other row is tagged "swap": the caster draws a secondary weapon at
+    the second rally (gen_fight --swap). Half, not all, so a swap does not
+    become a tell that the fight is about to turn.
 
 brick_phone and glass_slab are excluded: they are the original prototype pair
 (a joke about phones), have no weapon and no ARCH entry, and do not belong to
@@ -55,7 +58,7 @@ def _display_short() -> dict[str, str]:
     """id -> the short display token used in stems, learned from existing rows."""
     from gen_batch import BATCH
     short: dict[str, str] = {}
-    for stem, left, right, _, _ in BATCH:
+    for stem, left, right, _, _, *_tags in BATCH:
         parts = stem.split("_", 1)[1].split("_")
         if len(parts) == 2:
             short.setdefault(left, parts[0])
@@ -83,7 +86,7 @@ def _roster() -> list[str]:
     return [i for i in ids if i not in EXCLUDE]
 
 
-def select(count: int, seed: int) -> list[tuple[str, str, str, str, str]]:
+def select(count: int, seed: int) -> list[tuple]:
     from gen_batch import BATCH
     rng = random.Random(seed)
     roster = _roster()
@@ -156,15 +159,33 @@ def select(count: int, seed: int) -> list[tuple[str, str, str, str, str]]:
     out = []
     for i, ((left, right), arena, side) in enumerate(zip(rows, arenas, sides)):
         stem = f"b{start_no + i:02d}_{short[left]}_{short[right]}"
-        out.append((stem, left, right, arena, side))
+        row = (stem, left, right, arena, side)
+        if i % 2 == 0:
+            row += ("swap",)
+        out.append(row)
     return out
 
 
-def _format(rows) -> str:
-    lines = ["    # ── Block 2 (b22-b51), selected by tools/extend_batch.py --seed SEED ──"]
-    for stem, left, right, arena, side in rows:
-        lines.append(f'    ("{stem}",'.ljust(30) + f'"{left}",'.ljust(15)
-                     + f'"{right}",'.ljust(15) + f'"{arena}",'.ljust(9) + f'"{side}"),')
+def _stem_no(stem: str) -> str:
+    """'b52_frostbow_wrecker' -> 'b52'; works past b99 where [:3] does not."""
+    return stem.split("_", 1)[0]
+
+
+def _block_header(rows, seed: int) -> str:
+    # Block 1 (hand-picked) carries no header; every generated block does.
+    src = (ROOT / "tools/gen_batch.py").read_text(encoding="utf-8")
+    n = src.count("# ── Block ") + 2
+    return (f"    # ── Block {n} ({_stem_no(rows[0][0])}-{_stem_no(rows[-1][0])}), "
+            f"selected by tools/extend_batch.py --seed {seed} ──")
+
+
+def _format(rows, seed: int) -> str:
+    lines = [_block_header(rows, seed)]
+    for stem, left, right, arena, side, *tags in rows:
+        line = (f'    ("{stem}",'.ljust(30) + f'"{left}",'.ljust(15)
+                + f'"{right}",'.ljust(15) + f'"{arena}",'.ljust(9) + f'"{side}"')
+        line += "".join(f', "{t}"' for t in tags) + "),"
+        lines.append(line)
     return "\n".join(lines)
 
 
@@ -172,17 +193,18 @@ def main() -> int:
     count = int(sys.argv[sys.argv.index("--count") + 1]) if "--count" in sys.argv else 30
     seed = int(sys.argv[sys.argv.index("--seed") + 1]) if "--seed" in sys.argv else 22
     rows = select(count, seed)
-    block = _format(rows).replace("--seed SEED", f"--seed {seed}")
+    block = _format(rows, seed)
 
     appear: Counter = Counter()
-    for _, l, r, _, _ in rows:
+    for _, l, r, _, _, *_tags in rows:
         appear[l] += 1
         appear[r] += 1
     n_left = sum(1 for r in rows if r[4] == "left")
     print(block)
+    n_swap = sum(1 for r in rows if "swap" in r[5:])
     print(f"\n{len(rows)} fights · left {n_left} / right {len(rows) - n_left}"
           f" · appearances min {min(appear.values())} max {max(appear.values())}"
-          f" · champions covered {len(appear)}/{len(_roster())}")
+          f" · champions covered {len(appear)}/{len(_roster())} · swaps {n_swap}")
 
     if "--dry-run" in sys.argv:
         return 0
@@ -192,8 +214,8 @@ def main() -> int:
     if not m:
         print("could not find BATCH in gen_batch.py", file=sys.stderr)
         return 1
-    if "Block 2 (b22" in s:
-        print("Block 2 already present; refusing to append twice", file=sys.stderr)
+    if block.splitlines()[0] in s:
+        print("that block is already present; refusing to append twice", file=sys.stderr)
         return 1
     s = s[:m.end() - 1] + block + "\n" + s[m.end() - 1:]
     p.write_text(s, encoding="utf-8")

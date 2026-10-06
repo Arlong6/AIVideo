@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from pixel_battle.engine.effects import ROOT
-from pixel_battle.script.timeline_format import Timeline, TimelineEvent
+from pixel_battle.script.timeline_format import SWAP_VERB, Timeline, TimelineEvent
 
 
 # Engine tick granularity — match Battle.tick_ms's typical step (the renderer
@@ -112,6 +112,17 @@ class TimelineDriver:
             return _IDLE
         scheduled_t = ev.t + cursor.delay_ms
         if elapsed_ms < scheduled_t:
+            return _IDLE
+        if ev.raw_do == SWAP_VERB:
+            # A weapon change mid-swing would read as a glitch: wait for the
+            # animation like an attack does. Flag it like a pending cast; the
+            # engine logs the WEAPON_SWAP event inside the next tick.
+            if char.action_state in ("attacking", "hit_stagger"):
+                if cursor.delay_ms < DELAY_CAP_MS:
+                    cursor.delay_ms += ENGINE_TICK_MS
+                return _IDLE
+            char.pending_weapon_swap = True
+            cursor.advance()
             return _IDLE
         if not _can_act(char, ev.action_int):
             # Special case: rooted character with a movement event — root can

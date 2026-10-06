@@ -25,8 +25,16 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 # therefore the winner. Without it the LEFT fighter casts the finisher and wins —
 # which, applied to a whole batch, makes every fight end the same way and kills the
 # "who wins?" hook. Stripped from argv here so the positional contract is unchanged.
-_argv = [a for a in sys.argv if a != "--caster-right"]
-CASTER = "right" if len(_argv) != len(sys.argv) else "left"
+# --swap scripts a WEAPON SWAP for the caster at the start of the second rally
+# (ARC 0.64): a second turn in the story that sits between the mid-fight valley
+# and the finisher. Presentational only (rl/weapons.py), so the HP tuning
+# below is unaffected; gen_batch passes it for rows tagged "swap".
+_FLAGS = {"--caster-right", "--swap"}
+_argv = [a for a in sys.argv if a not in _FLAGS]
+CASTER = "right" if "--caster-right" in sys.argv else "left"
+SWAP = "--swap" in sys.argv
+SWAP_AT = 0.64          # fraction of ULT_T; the second-rally boundary in ARC
+SWAP_BEAT_MS = 400      # the pause the toss-and-draw takes before fighting on
 
 LEFT, RIGHT, ULT_ID, VFX, _MEL, OUT = (
     _argv[1], _argv[2], _argv[3], _argv[4], _argv[5], _argv[6])
@@ -303,7 +311,11 @@ def side_actions(arch, is_caster, cid):
     period = 5 if is_caster else 3
     basic_n = 0
     atk_n = 0          # attacks seen on this side, for counted suppression
+    swapped = False
     while t < end:
+        if is_caster and SWAP and not swapped and t >= SWAP_AT * ULT_T:
+            rows.append((t, "swap_weapon")); t += SWAP_BEAT_MS; swapped = True
+            continue
         act, gap = phrase[pi % len(phrase)]
         scale, sup_c, sup_d = _arc_at(t / ULT_T)
         if sp and act == "attack:basic" and t < cast_until:
@@ -361,7 +373,7 @@ def write_yaml(left, right, lhp, rhp):
     if lhp is not None: hp += f"left_start_hp: {lhp}\n"
     if rhp is not None: hp += f"right_start_hp: {rhp}\n"
     Path(OUT).write_text(
-        f'''# {LEFT}({L_ARCH}) vs {RIGHT}({R_ARCH}) — LONG ~{ULT_T//1000+6}s · {ULT_ID} climax · auto-tuned · caster={CASTER}
+        f'''# {LEFT}({L_ARCH}) vs {RIGHT}({R_ARCH}) — LONG ~{ULT_T//1000+6}s · {ULT_ID} climax · auto-tuned · caster={CASTER}{" · swap" if SWAP else ""}
 name: "{LEFT} vs {RIGHT} — long ({ULT_ID})"
 left: {LEFT}
 right: {RIGHT}
@@ -475,6 +487,11 @@ def _tune_mirror_offset():
 
 
 def main():
+    if SWAP:
+        from pixel_battle.rl.weapons import has_secondary
+        caster_id = LEFT if CASTER == "left" else RIGHT
+        if not has_secondary(caster_id):
+            raise SystemExit(f"--swap: {caster_id} has no secondary weapon in rl/weapons.py")
     _tune_mirror_offset()
     dmg_l, dmg_r, lhp, rhp = _emit_tuned()
     print(f"  {OUT.split('/')[-1]}: {LEFT}({L_ARCH}) vs {RIGHT}({R_ARCH}) "

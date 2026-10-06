@@ -10,7 +10,7 @@ import yaml
 from pixel_battle.engine.character import DATA_PATH
 from pixel_battle.engine.skill import SkillType
 from pixel_battle.script.loader import DO_VERBS    # 11 do-verbs → action ints
-from pixel_battle.script.timeline_format import Timeline, TimelineEvent
+from pixel_battle.script.timeline_format import SWAP_VERB, Timeline, TimelineEvent
 
 
 # `cast:<skill_id>` routes to the same action int as the skill's `attack:<kind>`.
@@ -37,6 +37,8 @@ def _resolve_do(do: str, char_id: str, db: dict, side: str) -> Tuple[int, Option
     Raises TimelineLoadError on unknown verb or unknown skill."""
     if do in DO_VERBS:
         return DO_VERBS[do], None
+    if do == SWAP_VERB:
+        return 0, None
     if not do.startswith("cast:"):
         raise TimelineLoadError(f"{side}: unknown do verb {do!r}")
     skill_id = do.split(":", 1)[1]

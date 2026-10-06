@@ -3,6 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional
 
+# The one `do` verb that is not an engine action: the character draws its
+# secondary weapon. It resolves to action 0 (idle for the tick) and the driver
+# logs a WEAPON_SWAP event for the renderer. Timeline format only.
+SWAP_VERB = "swap_weapon"
+
 
 @dataclass
 class TimelineEvent:

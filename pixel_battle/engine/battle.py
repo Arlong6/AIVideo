@@ -107,6 +107,7 @@ class EventType(Enum):
     ULTIMATE_END = "ultimate_end"
     KO = "ko"
     FLASH = "flash"
+    WEAPON_SWAP = "weapon_swap"
 
 
 @dataclass
@@ -146,6 +147,14 @@ class Battle:
             self._hitstop_remaining -= dt_ms
             return
         self.elapsed_ms += dt_ms
+
+        # The timeline driver only flags a swap; the event is logged here, in
+        # the tick, because the renderer snapshots its event cursor between
+        # decide() and step() and would never see one appended during decide.
+        for ch in (self.left, self.right):
+            if ch.pending_weapon_swap:
+                ch.pending_weapon_swap = False
+                self.swap_weapon(ch)
 
         if self.state is BattleState.STARTING:
             if self.left.is_ko() or self.right.is_ko():
@@ -783,3 +792,10 @@ class Battle:
 
     def _emit(self, etype: EventType, **kwargs) -> None:
         self.events.append(Event(type=etype, t_ms=self.elapsed_ms, **kwargs))
+
+    def swap_weapon(self, char: Character) -> None:
+        """Log a mid-fight weapon change (see tick_ms). Purely presentational: from this
+        event on the renderer and the audio router use the champion's
+        secondary weapon (rl/weapons.py). Damage, reach and timing are
+        untouched, so the fight's tuning does not move."""
+        self._emit(EventType.WEAPON_SWAP, actor=char.id)

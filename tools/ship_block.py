@@ -76,7 +76,9 @@ def main() -> int:
         return 1
 
     print("\n=== 4/6 frame-count + winner audit ===", flush=True)
-    manifest = {e["script"][:3]: e for e in
+    def no(stem: str) -> str:
+        return stem.split("_", 1)[0]          # 'b111_x_y' -> 'b111'; [:3] breaks past b99
+    manifest = {no(e["script"]): e for e in
                 json.loads((ROOT / "pixel_battle/output/shorts/manifest.json").read_text())}
     # The render records who actually won. It must be the designated caster:
     # the cover names the winner's finisher and the caption is written around
@@ -84,18 +86,18 @@ def main() -> int:
     # (47s video, wrong winner) — this is the check that would have caught it.
     sys.path.insert(0, str(ROOT / "tools"))
     from gen_batch import BATCH
-    designated = {r[0][:3]: r[4] for r in BATCH}
+    designated = {no(r[0]): r[4] for r in BATCH}
     bad = []
     for st in stems:
-        e = manifest.get(st[:3])
+        e = manifest.get(no(st))
         if not e or "short" not in e:
             bad.append(st)
             print(f"  {st:24} MISSING from manifest", flush=True)
             continue
         ok, why = _frames_ok(ROOT / e["short"])
-        win_ok = e.get("winner") == designated.get(st[:3])
+        win_ok = e.get("winner") == designated.get(no(st))
         if not win_ok:
-            why += f"  WINNER {e.get('winner')} != designated {designated.get(st[:3])}"
+            why += f"  WINNER {e.get('winner')} != designated {designated.get(no(st))}"
         print(f"  {Path(e['short']).stem:24} {'ok ' if (ok and win_ok) else 'BAD'} {why}", flush=True)
         if not (ok and win_ok):
             bad.append(st)

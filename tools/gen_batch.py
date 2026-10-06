@@ -99,13 +99,18 @@ def _ultimate(cid: str) -> tuple[str, str]:
     return u["id"], u.get("vfx", "slam")
 
 
-def generate(stem: str, left: str, right: str, arena: str, caster: str) -> None:
+def generate(stem: str, left: str, right: str, arena: str, caster: str,
+             *tags: str) -> None:
+    """A row may carry extra tags after the caster side; "swap" scripts a
+    mid-fight WEAPON SWAP for the caster (see gen_fight --swap)."""
     ult_id, vfx = _ultimate(left if caster == "left" else right)
     out = SCRIPTS / f"{stem}.yaml"
     cmd = [sys.executable, "-m", "pixel_battle.scripts.gen_fight",
            left, right, ult_id, vfx, "_", str(out), str(ULT_MS)]
     if caster == "right":
         cmd.append("--caster-right")
+    if "swap" in tags:
+        cmd.append("--swap")
     r = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True)
     if r.returncode != 0:
         raise SystemExit(f"{stem}: gen_fight failed\n{r.stderr or r.stdout}")
@@ -120,7 +125,8 @@ def main() -> int:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if "--list" in sys.argv:
         for row in BATCH:
-            print(f"{row[0]:26} {row[1]:12} vs {row[2]:12} arena={row[3]:6} winner={row[4]}")
+            print(f"{row[0]:26} {row[1]:12} vs {row[2]:12} arena={row[3]:6} winner={row[4]}"
+                  + ("  swap" if "swap" in row[5:] else ""))
         n_right = sum(1 for r in BATCH if r[4] == "right")
         print(f"\n{len(BATCH)} fights: left wins {len(BATCH)-n_right}, right wins {n_right}")
         return 0
