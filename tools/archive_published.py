@@ -19,9 +19,16 @@ from 0 until one comes back empty. Rows are matched to the queue by caption
 first line — the same uniqueness key gen_captions enforces and
 ingest_analytics matches on.
 
+The raw render is a different case from the short. The short is what gets
+re-posted if Publer fails, so it stays until the post is live; the raw is only
+needed to REBUILD a short, which a scheduled post never needs. --raws moves the
+raws of every fight already uploaded to Publer, published or not — added when
+block 3 (60 fights, ~9 GB) was about to start on a disk with 10 GB free.
+
 Usage:
   python3 tools/archive_published.py            # dry run: shows what would move
   python3 tools/archive_published.py --move
+  python3 tools/archive_published.py --raws --move    # also raws of uploaded fights
 """
 from __future__ import annotations
 
@@ -98,16 +105,17 @@ def _match_published(q: list[dict], texts: list[str]) -> set[str]:
     return hit
 
 
-def _files_for(stem: str) -> list[Path]:
+def _files_for(stem: str, raws_only: bool = False) -> list[Path]:
     files = sorted(SCRIPTED.glob(f"{stem}_*"))
     short = SHORTS / f"{stem}.mp4"
-    if short.exists():
+    if short.exists() and not raws_only:
         files.append(short)
     return files
 
 
 def main() -> int:
     move = "--move" in sys.argv
+    raws = "--raws" in sys.argv
     if not SSD.parent.parent.exists():
         print(f"SSD not mounted: {SSD.parent.parent}", file=sys.stderr)
         return 1
@@ -120,11 +128,13 @@ def main() -> int:
     n_move = 0
     published = _match_published(q, texts)
     for e in q:
-        if e["stem"] not in published:
+        is_pub = e["stem"] in published
+        is_up = e.get("status") == "uploaded" and e.get("publer_job")
+        if not (is_pub or (raws and is_up)):
             continue
-        if e.get("archived_to"):
+        if e.get("archived_to") and is_pub:
             continue
-        files = _files_for(e["stem"])
+        files = _files_for(e["stem"], raws_only=not is_pub)
         if not files:
             continue
         size = sum(f.stat().st_size for f in files)
@@ -138,8 +148,11 @@ def main() -> int:
                 shutil.move(str(f), str(dest / f.name))
             # status stays "uploaded": plan_posting pins the posting order on
             # that value, and publish_tiktok counts it. archived_to is the
-            # only new fact.
-            e["archived_to"] = str(dest)
+            # only new fact (raw_archived_to when only the raw has gone).
+            if is_pub:
+                e["archived_to"] = str(dest)
+            else:
+                e["raw_archived_to"] = str(dest)
     if move:
         pt.QUEUE.write_text(json.dumps(q, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"{'moved' if move else 'would move'} {n_move} fights, {total / 1e9:.2f} GB"
