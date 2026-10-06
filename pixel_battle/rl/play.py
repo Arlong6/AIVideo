@@ -348,6 +348,80 @@ def _back_frost(surf, frame: int) -> None:
         surf.blit(s, (sx, sy))
 
 
+# ── Scene polish shared by every arena ─────────────────────────────────────
+# Two cheap effects that read as "rendered" rather than "drawn", added on top
+# of each arena's own painter so none of them had to be redrawn:
+#   reflect — the floor mirrors the strip of scene above it (fighters, VFX,
+#             pillars), blurred and fading with depth. A wet neon floor, rain-
+#             slick stone, polished dojo boards, basalt and packed snow all
+#             take a different strength.
+#   haze    — a low fog band over the foot of the back wall, so the wall sits
+#             behind the fighters instead of on the same plane.
+# Both are per-pixel work and are built with the shim's fight-coordinate
+# Surface/subsurface/blit API, so they land at CANVAS_SCALED like everything
+# else; nothing here reads WIDTH/HEIGHT as real pixels.
+_ARENA_POLISH = {
+    "dusk":  {"reflect": 0.40, "haze": (72, 30, 84), "haze_a": 66},
+    "ruins": {"reflect": 0.46, "haze": (46, 56, 92), "haze_a": 74},
+    "magma": {"reflect": 0.24, "haze": (74, 22, 12), "haze_a": 60},
+    "dojo":  {"reflect": 0.28, "haze": (52, 34, 20), "haze_a": 56},
+    "frost": {"reflect": 0.18, "haze": (176, 194, 214), "haze_a": 70},
+}
+_REFLECT_BAND = HEIGHT - GROUND_Y        # the floor is exactly this tall
+_HAZE_BAND = int(GROUND_Y * 0.34)
+_POLISH_CACHE: dict = {}
+
+
+def _alpha_ramp(size, color, a_top: int, a_bottom: int) -> pygame.Surface:
+    """SRCALPHA surface of `color` whose alpha runs a_top -> a_bottom down the
+    rows. Built once per (size, colour, scale) and cached."""
+    key = ("ramp", size, color, a_top, a_bottom, pygame.S)
+    s = _POLISH_CACHE.get(key)
+    if s is None:
+        import numpy as _np
+        import pygame.surfarray as _sa
+        s = pygame.Surface(size, pygame.SRCALPHA)
+        s.fill((*color, 255))
+        w, h = s.get_size()                      # real pixels, like _get_vignette
+        ramp = _np.linspace(a_top, a_bottom, h).astype(_np.uint8)
+        alpha = _sa.pixels_alpha(s)
+        alpha[:, :] = _np.broadcast_to(ramp, (w, h))
+        del alpha
+        _POLISH_CACHE[key] = s
+    return s
+
+
+def _draw_haze(surf: pygame.Surface) -> None:
+    p = _ARENA_POLISH.get(_ARENA_THEME)
+    if not p:
+        return
+    surf.blit(_alpha_ramp((WIDTH, _HAZE_BAND), p["haze"], 0, p["haze_a"]),
+              (0, GROUND_Y - _HAZE_BAND))
+
+
+def _draw_floor_reflection(surf: pygame.Surface) -> None:
+    """Mirror the scene strip above the floor onto the floor, soft and fading.
+    Call after the fighters and VFX are on `surf`, before post-processing, so
+    glows reflect too."""
+    p = _ARENA_POLISH.get(_ARENA_THEME)
+    if not p:
+        return
+    band = _REFLECT_BAND
+    strip = surf.subsurface((0, GROUND_Y - band, WIDTH, band))
+    mirror = pygame.transform.flip(strip, False, True)
+    # Soften: down 3x and back. Reflections on a rough floor are not sharp,
+    # and the blur also hides the row-flip seam at the ground line.
+    small = pygame.transform.smoothscale(mirror, (WIDTH // 3, max(1, band // 3)))
+    mirror = pygame.transform.smoothscale(small, (WIDTH, band))
+    layer = pygame.Surface((WIDTH, band), pygame.SRCALPHA)
+    layer.blit(mirror, (0, 0))
+    # Multiply in a white ramp: alpha = strength at the ground line, 0 at the
+    # bottom edge, so the reflection sinks into the floor instead of ending.
+    layer.blit(_alpha_ramp((WIDTH, band), (255, 255, 255), int(255 * p["reflect"]), 0),
+               (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(layer, (0, GROUND_Y))
+
+
 def _draw_back_wall(surf: pygame.Surface, frame: int = 0) -> None:
     """Themed backdrop above the floor (gradient + parallax + particles)."""
     if _ARENA_THEME == "dusk":
@@ -360,6 +434,7 @@ def _draw_back_wall(surf: pygame.Surface, frame: int = 0) -> None:
         _back_frost(surf, frame)
     else:
         _back_ruins(surf, frame)
+    _draw_haze(surf)
 
 
 def _draw_floor(surf: pygame.Surface, frame: int = 0) -> None:
@@ -1249,6 +1324,7 @@ def _draw_vs_intro(surf: pygame.Surface, left_char, right_char,
     _draw_shadow(surf, right_char)
     draw_stick_figure(surf, left_char, _char_color(left_char))
     draw_stick_figure(surf, right_char, _char_color(right_char))
+    _draw_floor_reflection(surf)
 
     # Champion names (appear once slid in)
     if slide > 0.6:
@@ -1300,6 +1376,7 @@ def _draw_ko_result(surf: pygame.Surface, winner_char,
     winner_char.vel_x = 0.0
     _draw_shadow(surf, winner_char)
     draw_stick_figure(surf, winner_char, _char_color(winner_char))
+    _draw_floor_reflection(surf)
 
     if t < 0.26:
         # Phase 1 — huge "K.O." slamming in + white flash
@@ -2340,6 +2417,8 @@ def _render_fight(recorder: FrameRecorder, action_source, env,
 
         for (dx, dy) in pending_dust:
             spawn_landing_dust(world, dx, dy, (180, 180, 200), intensity=1.7)
+
+        _draw_floor_reflection(world)
 
         # ── Motion blur: blend previous world at 20 % alpha onto current ────
         # Skip during KO HOLD state so the final frame reads crisp.
