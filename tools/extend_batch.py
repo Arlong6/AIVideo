@@ -13,6 +13,7 @@ produces a different regularity (see plan_posting.py). Constraints:
   - no ranged-vs-ranged pairing. Ten of ten such fights in block 2 stalled: two
     kiters trade projectiles from opposite walls and nothing reads on a phone.
     This is a content rule, not a bug to fix in the choreography.
+  - cyclone only against melee (see _cyclone_mismatch)
   - every roster champion appears at least MIN_APPEARANCES times in the block
   - no champion appears in two consecutive rows
   - arenas cycle so consecutive rows never share one
@@ -79,6 +80,17 @@ def _arch() -> dict[str, str]:
     return dict(re.findall(r'"([a-z_]+)":\s*"(ranged|assassin|melee)"', block))
 
 
+def _cyclone_mismatch(a: str, b: str, arch: dict) -> bool:
+    """cyclone only fights melee. His spin knocks the opponent clear across the
+    arena; a kiter or a flash-away assassin then never comes back into reach.
+    Block 3 draft: six cyclone fights against ranged/assassin, six stalls of
+    14-20s with 3-18 impacts; the melee ones (b27 bulwark) are fine."""
+    if "cyclone" not in (a, b):
+        return False
+    opp = b if a == "cyclone" else a
+    return arch.get(opp) != "melee"
+
+
 def _roster() -> list[str]:
     data = json.loads((ROOT / "pixel_battle/data/characters.json").read_text(encoding="utf-8"))
     chars = data.get("characters", data)
@@ -97,7 +109,8 @@ def select(count: int, seed: int) -> list[tuple]:
     arch = _arch()
     pool = [(a, b) for i, a in enumerate(roster) for b in roster[i + 1:]
             if frozenset((a, b)) not in used
-            and not (arch.get(a) == "ranged" and arch.get(b) == "ranged")]
+            and not (arch.get(a) == "ranged" and arch.get(b) == "ranged")
+            and not _cyclone_mismatch(a, b, arch)]
     rng.shuffle(pool)
 
     rows: list[tuple[str, str]] = []
