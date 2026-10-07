@@ -41,14 +41,16 @@ def main() -> int:
             continue
         stem = Path(e["short"]).stem
         video = ROOT / e["short"]
-        if not video.exists():
-            failed.append((stem, f"missing video: {e['short']}"))
-            continue
-
         cover = OUT_DIR / f"{stem}.png"
+        # Covered fights are skipped BEFORE the video check: once a fight is
+        # live its short moves to the SSD (archive_published) and a cover that
+        # already exists must not count as a failure for that.
         if cover.exists() and not a.force:
             print(f"    {stem}: exists, skipped")
             skipped += 1
+            continue
+        if not video.exists():
+            failed.append((stem, f"missing video: {e['short']}"))
             continue
 
         # Name the finishing ult after whoever actually wins — half the batch is
