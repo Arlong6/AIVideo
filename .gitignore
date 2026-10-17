@@ -58,3 +58,7 @@ pixel_battle/output/upload_queue.json
 # Source audio downloaded by install_sfx_real.py — re-fetchable from
 # OpenGameArt, 74MB of packs we only need a dozen files out of.
 .cache/
+
+# vim swap files (one leaked .env contents once)
+*.swp
+*.swo
